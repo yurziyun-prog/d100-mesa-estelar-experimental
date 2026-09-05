@@ -1,0 +1,26 @@
+Mesa Estelar v46.83.1
+
+Segunda etapa da separação estrutural.
+
+Arquivos:
+  index.html
+  js/app.js
+  js/oficina2.js
+
+O que saiu de app.js nesta etapa:
+- gmOficinaV2Cfg_ (estado das ferramentas)
+- gm580_ (estado de seleção da interface consolidada)
+- conversões de cor da Oficina
+- utilidades puras de cor/HTML do gm580
+- cálculo de bounding boxes de desenhos/formas/objetos
+- teste geométrico de interseção
+
+O que NÃO foi movido ainda:
+- renderização
+- desenho por ponteiro
+- salvar/carregar mapas
+- Firebase
+- Banco de Objetos
+- integrações com Mapa da Mesa
+
+Esta etapa deve se comportar exatamente como v46.83.0.

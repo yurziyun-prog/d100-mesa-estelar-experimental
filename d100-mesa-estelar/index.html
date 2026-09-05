@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D100 - Mesa Estelar RPG</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            color: #e0e0e0; 
+            min-height: 100vh; 
+            padding: 20px; 
+            background: #000;
+            overflow-x: hidden; 
+            position: relative; 
+        }
+        
+        /* Fundo de Galáxia */
+        .galaxy-bg {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 0;
+            background: 
+                radial-gradient(ellipse at 20% 30%, rgba(120, 50, 180, 0.5) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 70%, rgba(50, 100, 200, 0.5) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 50%, rgba(200, 50, 100, 0.4) 0%, transparent 60%),
+                linear-gradient(135deg, #0a0a1a 0%, #1a0a2e 25%, #0a1a3e 50%, #1a0a2e 75%, #0a0a1a 100%);
+        }
+        
+        .stars-1, .stars-2, .stars-3 {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 1;
+            pointer-events: none;
+        }
+        
+        .stars-1 {
+            background-image: 
+                radial-gradient(2px 2px at 20px 30px, #fff, transparent),
+                radial-gradient(2px 2px at 40px 70px, #fff, transparent),
+                radial-gradient(1px 1px at 90px 40px, #fff, transparent);
+            background-size: 1000px 1000px;
+            animation: twinkle 4s infinite;
+        }
+        
+        .stars-2 {
+            background-image: 
+                radial-gradient(1px 1px at 50px 100px, #fff, transparent),
+                radial-gradient(2px 2px at 100px 200px, #ddd, transparent);
+            background-size: 1000px 1000px;
+            animation: twinkle 6s infinite reverse;
+        }
+        
+        .stars-3 {
+            background-image: 
+                radial-gradient(1px 1px at 10px 10px, #fff, transparent),
+                radial-gradient(1px 1px at 30px 60px, #fff, transparent);
+            background-size: 1000px 1000px;
+            animation: twinkle 5s infinite;
+        }
+        
+        @keyframes twinkle { 
+            0%, 100% { opacity: 0.9; } 
+            50% { opacity: 0.5; } 
+        }
+        
+        .container { max-width: 1200px; margin: 0 auto; position: relative; z-index: 2; }
+        h1 { text-align: center; color: #fff; margin-bottom: 10px; font-size: 2.2em; text-shadow: 0 0 20px rgba(255,255,255,0.3); }
+        
+        .lang-selector { display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; }
+        .lang-btn { 
+            padding: 8px 16px; 
+            background: rgba(255,255,255,0.1); 
+            border: 2px solid rgba(255,255,255,0.3); 
+            color: #fff; 
+            border-radius: 20px; 
+            cursor: pointer; 
+            font-size: 0.9em; 
+            backdrop-filter: blur(10px);
+        }
+        .lang-btn.active { background: rgba(255,255,255,0.4); border-color: #fff; font-weight: bold; }
+        
+        .login-screen { display: flex; justify-content: center; align-items: center; min-height: 80vh; }
+        .login-box { 
+            background: rgba(255,255,255,0.08); 
+            padding: 40px; 
+            border-radius: 20px; 
+            border: 2px solid rgba(255,255,255,0.2); 
+            text-align: center; 
+            max-width: 450px; 
+            width: 100%; 
+            backdrop-filter: blur(15px); 
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+        .login-box h2 { color: #fff; margin-bottom: 10px; font-size: 1.8em; }
+        .login-box p { color: #aaa; margin-bottom: 25px; }
+        .login-box input { 
+            width: 100%; 
+            padding: 15px; 
+            margin-bottom: 15px; 
+            background: rgba(255,255,255,0.1); 
+            border: 2px solid rgba(255,255,255,0.3); 
+            border-radius: 10px; 
+            color: #fff; 
+            font-size: 1em; 
+        }
+        .login-box input:focus { outline: none; border-color: #00d4ff; }
+        .btn-login, .btn-register { 
+            width: 100%; 
+            padding: 15px; 
+            background: linear-gradient(135deg, #00d4ff, #0099cc); 
+            color: #fff; 
+            border: none; 
+            border-radius: 10px; 
+            font-size: 1.1em; 
+            cursor: pointer; 
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        .btn-login:hover, .btn-register:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(0,212,255,0.4); }
+        .btn-secondary { background: linear-gradient(135deg, #6c757d, #495057); }
+        
+        .hidden { display: none !important; }
+        
+        .user-header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            background: rgba(255,255,255,0.08); 
+            padding: 15px 25px; 
+            border-radius: 10px; 
+            margin-bottom: 30px; 
+            backdrop-filter: blur(10px);
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .user-info { color: #fff; font-size: 1.1em; }
+        .btn-logout { 
+            background: #dc3545; 
+            color: #fff; 
+            border: none; 
+            padding: 10px 20px; 
+            border-radius: 8px; 
+            cursor: pointer;
+        }
+        
+        .tabs { display: flex; justify-content: center; gap: 10px; margin-bottom: 30px; flex-wrap: wrap; }
+        .tab-btn {
+            padding: 12px 20px;
+            background: rgba(255,255,255,0.08);
+            border: 2px solid rgba(255,255,255,0.2);
+            color: #fff;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1em;
+            backdrop-filter: blur(10px);
+        }
+        .tab-btn.active { background: rgba(255,255,255,0.25); border-color: #00d4ff; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        .form-section {
+            background: rgba(255,255,255,0.06);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+            border: 1px solid rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+        }
+        .form-section h3 { color: #fff; margin-bottom: 20px; font-size: 1.5em; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; color: #fff; font-weight: 600; }
+        input[type="text"], input[type="number"], input[type="email"], input[type="password"], select {
+            width: 100%;
+            padding: 12px;
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            color: #fff;
+            font-size: 1em;
+        }
+        input:focus, select:focus { outline: none; border-color: #00d4ff; }
+        select option { background: #1a1a2e; color: #fff; }
+        
+        .btn-save {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #28a745, #218838);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1em;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn-save:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(40,167,69,0.4); }
+        
+        .message { padding: 15px; border-radius: 10px; margin-bottom: 15px; text-align: center; }
+        .message.error { background: rgba(220,53,69,0.2); color: #ff6b6b; border: 1px solid #dc3545; }
+        .message.success { background: rgba(40,167,69,0.2); color: #6bff8e; border: 1px solid #28a745; }
+        
+        @media (max-width: 768px) {
+            .user-header { flex-direction: column; text-align: center; }
+        }
+    </style>
+</head>
+<body>
+    <div class="galaxy-bg"></div>
+    <div class="stars-1"></div>
+    <div class="stars-2"></div>
+    <div class="stars-3"></div>
+    
+    <div class="container">
+        <!-- TELA DE LOGIN -->
+        <div id="loginScreen" class="login-screen">
+            <div class="login-box">
+                <div class="lang-selector">
+                    <button class="lang-btn active" onclick="mudarIdioma('pt')">PT</button>
+                    <button class="lang-btn" onclick="mudarIdioma('en')">EN</button>
+                    <button class="lang-btn" onclick="mudarIdioma('zh')">中文</button>
+                </div>
+                <h2 data-i18n="title">D100 - Mesa Estelar RPG</h2>
+                <p data-i18n="subtitle">Sistema de RPG Sci-Fi d100</p>
+                <div id="loginMessage"></div>
+                <input type="email" id="loginEmail" data-i18n-placeholder="emailPlaceholder" placeholder="Email">
+                <input type="password" id="loginPassword" data-i18n-placeholder="passwordPlaceholder" placeholder="Senha (mínimo 6 caracteres)">
+                <button class="btn-login" onclick="fazerLogin()" data-i18n="loginBtn">Entrar</button>
+                <button class="btn-login btn-secondary" onclick="fazerRegistro()" data-i18n="registerBtn">Criar Conta</button>
+                <p style="color: #888; font-size: 0.85em; margin-top: 15px;" data-i18n="dataSaved">Seus dados são salvos no navegador</p>
+            </div>
+        </div>
+
+        <!-- TELA PRINCIPAL -->
+        <div id="appScreen" class="hidden">
+            <div class="user-header">
+                <div class="user-info">
+                    <span id="userRole"></span> 👤 <strong id="currentUser"></strong>
+                </div>
+                <div class="lang-selector">
+                    <button class="lang-btn" onclick="mudarIdioma('pt')">PT</button>
+                    <button class="lang-btn" onclick="mudarIdioma('en')">EN</button>
+                    <button class="lang-btn" onclick="mudarIdioma('zh')">中文</button>
+                </div>
+                <button class="btn-logout" onclick="fazerLogout()" data-i18n="logoutBtn">Sair</button>
+            </div>
+
+            <h1 data-i18n="appTitle">D100 - Mesa Estelar RPG</h1>
+
+            <!-- ABAS -->
+            <div class="tabs">
+                <button class="tab-btn active" onclick="mostrarAba('ficha', this)" data-i18n="tabFicha">📋 Ficha</button>
+                <button class="tab-btn" onclick="mostrarAba('inventario', this)" data-i18n="tabInventario">🎒 Inventário</button>
+                <button class="tab-btn" onclick="mostrarAba('config', this)" data-i18n="tabConfig">️ Config</button>
+            </div>
+
+            <!-- ABA FICHA -->
+            <div id="ficha" class="tab-content active">
+                <div class="form-section">
+                    <h3 data-i18n="charInfo">Informações do Personagem</h3>
+                    
+                    <div class="form-group">
+                        <label data-i18n="charName">Nome do Personagem:</label>
+                        <input type="text" id="charName" placeholder="Ex: Sergio Leone">
+                    </div>
+
+                    <div class="form-group">
+                        <label data-i18n="race">Raça:</label>
+                        <input type="text" id="charRace" placeholder="Ex: Humano, Ciborgue">
+                    </div>
+
+                    <div class="form-group">
+                        <label data-i18n="origin">Origem:</label>
+                        <select id="charOrigin">
+                            <option value="Urbano">Urbano (Metrópole)</option>
+                            <option value="Rural">Rural (Mundo Rural)</option>
+                            <option value="Selvagem">Selvagem (Mundo Selvagem)</option>
+                            <option value="Militar">Militar (Mundo Militarizado)</option>
+                            <option value="Orbital">Orbital (Habitat Orbital)</option>
+                            <option value="Industrial">Industrial (Colônia Industrial)</option>
+                            <option value="Aristocrático">Aristocrático</option>
+                            <option value="Nômade">Nômade (Frota/Nave)</option>
+                        </select>
+                    </div>
+
+                    <button class="btn-save" onclick="salvarFicha()" data-i18n="saveChar"> Salvar Ficha</button>
+                    <div id="saveMessage"></div>
+                </div>
+            </div>
+
+            <!-- ABA INVENTÁRIO -->
+            <div id="inventario" class="tab-content">
+                <div class="form-section">
+                    <h3 data-i18n="inventory">🎒 Inventário</h3>
+                    <p style="color: #aaa; margin-bottom: 20px;" data-i18n="inventoryDesc">Seus itens aparecerão aqui (em desenvolvimento)</p>
+                    <div id="inventoryList"></div>
+                </div>
+            </div>
+
+            <!-- ABA CONFIG (SÓ MESTRE) -->
+            <div id="config" class="tab-content">
+                <div class="form-section">
+                    <h3 data-i18n="configTitle">⚙️ Configurações do Sistema (Mestre)</h3>
+                    
+                    <div class="form-group">
+                        <label data-i18n="pointsEtapa1">Etapa 1 - Características:</label>
+                        <input type="number" id="configEtapa1" value="80" min="50" max="200">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label data-i18n="pointsEtapa2">Etapa 2 - Origem (Perícias Básicas):</label>
+                        <input type="number" id="configEtapa2" value="100" min="50" max="200">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label data-i18n="pointsEtapa3">Etapa 3 - Carreira (Perícias Profissionais):</label>
+                        <input type="number" id="configEtapa3" value="100" min="50" max="200">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label data-i18n="pointsEtapa4">Etapa 4 - Livre:</label>
+                        <input type="number" id="configEtapa4" value="150" min="50" max="300">
+                    </div>
+
+                    <button class="btn-save" onclick="salvarConfiguracoes()" data-i18n="saveConfig">💾 Salvar Configurações</button>
+                    <div id="configMessage"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDw_DB5qhwyqPI7_q6NgVA-U90atRGJ4mQ",
+            authDomain: "d100-mesa-estelar.firebaseapp.com",
+            projectId: "d100-mesa-estelar",
+            storageBucket: "d100-mesa-estelar.firebasestorage.app",
+            messagingSenderId: "1000414403401",
+            appId: "1:1000414403401:web:fae7d2feaad04cc8bd9898"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let currentUserUid = null;
+        let userData = null;
+        let idiomaAtual = 'pt';
+        let configuracoes = {
+            etapa1: 80,
+            etapa2: 100,
+            etapa3: 100,
+            etapa4: 150
+        };
+
+        const traducoes = {
+            pt: {
+                title: 'D100 - Mesa Estelar RPG',
+                subtitle: 'Sistema de RPG Sci-Fi d100',
+                emailPlaceholder: 'Email',
+                passwordPlaceholder: 'Senha (mínimo 6 caracteres)',
+                loginBtn: 'Entrar',
+                registerBtn: 'Criar Conta',
+                logoutBtn: 'Sair',
+                appTitle: 'D100 - Mesa Estelar RPG',
+                tabFicha: '📋 Ficha',
+                tabInventario: '🎒 Inventário',
+                tabConfig: '⚙️ Config',
+                charInfo: 'Informações do Personagem',
+                charName: 'Nome do Personagem:',
+                race: 'Raça:',
+                origin: 'Origem:',
+                saveChar: '💾 Salvar Ficha',
+                inventory: '🎒 Inventário',
+                inventoryDesc: 'Seus itens aparecerão aqui (em desenvolvimento)',
+                configTitle: '️ Configurações do Sistema (Mestre)',
+                pointsEtapa1: 'Etapa 1 - Características:',
+                pointsEtapa2: 'Etapa 2 - Origem (Perícias Básicas):',
+                pointsEtapa3: 'Etapa 3 - Carreira (Perícias Profissionais):',
+                pointsEtapa4: 'Etapa 4 - Livre:',
+                saveConfig: '💾 Salvar Configurações',
+                loginError: 'Erro no login. Verifique email e senha.',
+                registerError: 'Erro ao criar conta.',
+                saved: 'Salvo com sucesso!',
+                dataSaved: 'Seus dados são salvos no navegador',
+                mestre: '👑 Mestre',
+                jogador: ' Jogador'
+            },
+            en: {
+                title: 'D100 - Stellar Table RPG',
+                subtitle: 'Sci-Fi d100 RPG System',
+                emailPlaceholder: 'Email',
+                passwordPlaceholder: 'Password (min 6 characters)',
+                loginBtn: 'Login',
+                registerBtn: 'Create Account',
+                logoutBtn: 'Logout',
+                appTitle: 'D100 - Stellar Table RPG',
+                tabFicha: '📋 Sheet',
+                tabInventario: '🎒 Inventory',
+                tabConfig: '⚙️ Config',
+                charInfo: 'Character Information',
+                charName: 'Character Name:',
+                race: 'Race:',
+                origin: 'Origin:',
+                saveChar: '💾 Save Sheet',
+                inventory: '🎒 Inventory',
+                inventoryDesc: 'Your items will appear here (in development)',
+                configTitle: '⚙️ System Settings (GM)',
+                pointsEtapa1: 'Step 1 - Characteristics:',
+                pointsEtapa2: 'Step 2 - Origin (Basic Skills):',
+                pointsEtapa3: 'Step 3 - Career (Professional Skills):',
+                pointsEtapa4: 'Step 4 - Free:',
+                saveConfig: '💾 Save Settings',
+                loginError: 'Login error. Check email and password.',
+                registerError: 'Error creating account.',
+                saved: 'Saved successfully!',
+                dataSaved: 'Your data is saved in the browser',
+                mestre: '👑 GM',
+                jogador: '👤 Player'
+            },
+            zh: {
+                title: 'D100 - 星际桌游',
+                subtitle: '科幻d100角色扮演系统',
+                emailPlaceholder: '邮箱',
+                passwordPlaceholder: '密码（至少6个字符）',
+                loginBtn: '登录',
+                registerBtn: '创建账户',
+                logoutBtn: '退出',
+                appTitle: 'D100 - 星际桌游',
+                tabFicha: '📋 角色卡',
+                tabInventario: ' 物品栏',
+                tabConfig: '⚙️ 设置',
+                charInfo: '角色信息',
+                charName: '角色名称：',
+                race: '种族：',
+                origin: '起源：',
+                saveChar: '💾 保存角色卡',
+                inventory: '🎒 物品栏',
+                inventoryDesc: '您的物品将显示在这里（开发中）',
+                configTitle: '⚙️ 系统设置（主持人）',
+                pointsEtapa1: '阶段1 - 特征：',
+                pointsEtapa2: '阶段2 - 起源（基础技能）：',
+                pointsEtapa3: '阶段3 - 职业（专业技能）：',
+                pointsEtapa4: '阶段4 - 自由：',
+                saveConfig: '💾 保存设置',
+                loginError: '登录错误。请检查邮箱和密码。',
+                registerError: '创建账户错误。',
+                saved: '保存成功！',
+                dataSaved: '您的数据保存在浏览器中',
+                mestre: ' 主持人',
+                jogador: '👤 玩家'
+            }
+        };
+
+        // Autenticação
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                currentUserUid = user.uid;
+                document.getElementById('currentUser').textContent = user.email;
+                
+                const userDoc = await getDoc(doc(db, "usuarios", user.uid));
+                if (userDoc.exists()) {
+                    userData = userDoc.data();
+                    const t = traducoes[idiomaAtual];
+                    document.getElementById('userRole').textContent = userData.role === 'mestre' ? t.mestre : t.jogador;
+                    
+                    // Carregar configurações
+                    if (userData.role === 'mestre') {
+                        await carregarConfiguracoes();
+                    }
+                    
+                    // Carregar ficha
+                    await carregarFicha();
+                }
+                
+                document.getElementById('loginScreen').classList.add('hidden');
+                document.getElementById('appScreen').classList.remove('hidden');
+            } else {
+                currentUserUid = null;
+                userData = null;
+                document.getElementById('loginScreen').classList.remove('hidden');
+                document.getElementById('appScreen').classList.add('hidden');
+            }
+        });
+
+        // Funções de Login/Registro
+        window.fazerLogin = async () => {
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value.trim();
+            const msgDiv = document.getElementById('loginMessage');
+            msgDiv.innerHTML = '';
+            
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+            } catch (error) {
+                msgDiv.innerHTML = `<div class="message error">${traducoes[idiomaAtual].loginError}</div>`;
+            }
+        };
+
+        window.fazerRegistro = async () => {
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value.trim();
+            const msgDiv = document.getElementById('loginMessage');
+            msgDiv.innerHTML = '';
+            
+            if (password.length < 6) {
+                msgDiv.innerHTML = `<div class="message error">${traducoes[idiomaAtual].passwordPlaceholder}</div>`;
+                return;
+            }
+            
+            try {
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                const isMaster = email === 'yurziyun@gmail.com';
+                await setDoc(doc(db, "usuarios", userCredential.user.uid), {
+                    email: email,
+                    nome: email.split('@')[0],
+                    role: isMaster ? 'mestre' : 'jogador'
+                });
+            } catch (error) {
+                msgDiv.innerHTML = `<div class="message error">${traducoes[idiomaAtual].registerError}</div>`;
+            }
+        };
+
+        window.fazerLogout = () => signOut(auth);
+
+        // Carregar configurações
+        async function carregarConfiguracoes() {
+            const configDoc = await getDoc(doc(db, "configuracoes", "sistema"));
+            if (configDoc.exists()) {
+                configuracoes = configDoc.data();
+                document.getElementById('configEtapa1').value = configuracoes.etapa1 || 80;
+                document.getElementById('configEtapa2').value = configuracoes.etapa2 || 100;
+                document.getElementById('configEtapa3').value = configuracoes.etapa3 || 100;
+                document.getElementById('configEtapa4').value = configuracoes.etapa4 || 150;
+            }
+        }
+
+        window.salvarConfiguracoes = async () => {
+            if (userData.role !== 'mestre') {
+                alert('Apenas o mestre pode salvar configurações!');
+                return;
+            }
+            
+            configuracoes = {
+                etapa1: parseInt(document.getElementById('configEtapa1').value),
+                etapa2: parseInt(document.getElementById('configEtapa2').value),
+                etapa3: parseInt(document.getElementById('configEtapa3').value),
+                etapa4: parseInt(document.getElementById('configEtapa4').value)
+            };
+            
+            await setDoc(doc(db, "configuracoes", "sistema"), configuracoes);
+            
+            const msgDiv = document.getElementById('configMessage');
+            msgDiv.innerHTML = `<div class="message success">${traducoes[idiomaAtual].saved}</div>`;
+            setTimeout(() => msgDiv.innerHTML = '', 3000);
+        };
+
+        // Carregar ficha
+        async function carregarFicha() {
+            const fichaDoc = await getDoc(doc(db, "fichas", currentUserUid));
+            if (fichaDoc.exists()) {
+                const data = fichaDoc.data();
+                document.getElementById('charName').value = data.nome || '';
+                document.getElementById('charRace').value = data.raca || '';
+                document.getElementById('charOrigin').value = data.origem || 'Urbano';
+            }
+        }
+
+        window.salvarFicha = async () => {
+            const fichaData = {
+                nome: document.getElementById('charName').value.trim(),
+                raca: document.getElementById('charRace').value.trim(),
+                origem: document.getElementById('charOrigin').value,
+                updatedAt: new Date().toISOString()
+            };
+            
+            await setDoc(doc(db, "fichas", currentUserUid), fichaData);
+            
+            const msgDiv = document.getElementById('saveMessage');
+            msgDiv.innerHTML = `<div class="message success">${traducoes[idiomaAtual].saved}</div>`;
+            setTimeout(() => msgDiv.innerHTML = '', 3000);
+        };
+
+        // Mostrar abas
+        window.mostrarAba = (abaId, btn) => {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(abaId).classList.add('active');
+            btn.classList.add('active');
+        };
+
+        // Mudar idioma
+        window.mudarIdioma = (lang) => {
+            idiomaAtual = lang;
+            localStorage.setItem('idiomaPreferido', lang);
+            
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if ((lang === 'pt' && btn.textContent === 'PT') ||
+                    (lang === 'en' && btn.textContent === 'EN') ||
+                    (lang === 'zh' && btn.textContent === '中文')) {
+                    btn.classList.add('active');
+                }
+            });
+            
+            const t = traducoes[lang];
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (t[key]) el.textContent = t[key];
+            });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const key = el.getAttribute('data-i18n-placeholder');
+                if (t[key]) el.placeholder = t[key];
+            });
+            
+            if (userData) {
+                const roleText = userData.role === 'mestre' ? t.mestre : t.jogador;
+                document.getElementById('userRole').textContent = roleText;
+            }
+        };
+
+        // Inicialização
+        window.addEventListener('DOMContentLoaded', () => {
+            const idiomaSalvo = localStorage.getItem('idiomaPreferido') || 'pt';
+            mudarIdioma(idiomaSalvo);
+        });
+
+// Tornar funções globais
+window.fazerLogin = fazerLogin;
+window.fazerRegistro = fazerRegistro;
+window.fazerLogout = fazerLogout;
+window.salvarFicha = salvarFicha;
+window.salvarConfiguracoes = salvarConfiguracoes;
+window.mostrarAba = mostrarAba;
+window.mudarIdioma = mudarIdioma;
+
+    </script>
+</body>
+</html>
