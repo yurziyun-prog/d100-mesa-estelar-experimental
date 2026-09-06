@@ -56,8 +56,8 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-console.info('[Mesa Estelar] build EXP-SYNC-13 carregado');
-window.__MESA_BUILD__ = 'EXP-SYNC-13';
+console.info('[Mesa Estelar] build EXP-SYNC-15 carregado');
+window.__MESA_BUILD__ = 'EXP-SYNC-15';
 
 let currentUserUid = null;
 let userData = null;
@@ -4200,14 +4200,14 @@ function rankAcesso_(item){
 function textoPersonagemAcesso_(char){
     const origem=origensDB.find(o=>o.id===char?.origem);
     const carreira=carreirasDB.find(c=>c.id===char?.carreira);
-    return `${origem?.id||''} ${origem?.nome||''} ${carreira?.id||''} ${carreira?.nome||''}`.toLowerCase()
+    return `${char?.origem||''} ${origem?.id||''} ${origem?.nome||''} ${char?.carreira||''} ${carreira?.id||''} ${carreira?.nome||''} ${char?.conceito||''}`.toLowerCase()
       .normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 }
 function nivelMaxAcessoPersonagem_(char){
     const t=textoPersonagemAcesso_(char);
     const origemMilitar=String(char?.origem||'')==='militar';
     const origemArist=String(char?.origem||'')==='aristocratico';
-    const carreiraMilitar=/\b(militar|soldad|polic|agente|espia|inteligencia|marinha|exercito|forcas armadas)\b/.test(t);
+    const carreiraMilitar=/\b(militar|soldad|polic|agente|agente secreto|agente de inteligencia|espia|espiao|spy|inteligencia|intelligence|marinha|exercito|forcas armadas)\b/.test(t);
     const carreiraRestrita=carreiraMilitar || /\b(pirata|bandido|crim|contraband|submundo|mercen|cacador de recompensas|cacador_recompensas|guarda-costas|guarda_costas|seguranca)\b/.test(t);
     if(origemMilitar||carreiraMilitar)return 'Militar';
     if(origemArist||carreiraRestrita)return 'Restrito';
@@ -6451,7 +6451,7 @@ window.labResponderDefesa_=function(defender=true){
     }
     labEstado_.pendenciaLab=null;
     labEstado_.logLab.unshift({ts:new Date().toLocaleTimeString(),texto:labEstado_.ultimoResultadoLab});
-    labEstado_.logLab=labEstado_.logLab.slice(0,20);
+    labEstado_.logLab=labEstado_.logLab.slice(0,60);
     labSalvarLocal_();labRender_();
     if(!labEstado_.danoPendenteLab)labAutoAvancarSeSemAcoes_();
 };
@@ -6565,7 +6565,7 @@ window.labRolarDano_=function(){
     atacante.ultimoResultadoProprioLab=`${getNome(item)||item.nome||'Ataque'}: ${r.detalhes.join(' · ')} → ${r.total} bruto · ${ap.local}${ap.pa?` · PA ${ap.pa}${ap.pen?` / Pen ${ap.pen}`:''}`:''} · dano final ${ap.final}${ap.ferimento?` · ${ap.ferimento}`:''}.`;
     labEstado_.ultimoResultadoLab=`${getNome(item)||item.nome||'Ataque'} contra ${defensor.nome}: acerto em ${ap.local}${ap.final>0?` · dano aplicado`:''} · ${publicoFerimento}${stDef.sangrando?' · 🩸 Sangrando':''}${stDef.derrubado?' · 💥 Derrubado':''}.`;
     labEstado_.logLab.unshift({ts:new Date().toLocaleTimeString(),texto:labEstado_.ultimoResultadoLab});
-    labEstado_.logLab=labEstado_.logLab.slice(0,20);
+    labEstado_.logLab=labEstado_.logLab.slice(0,60);
     labEstado_.danoPendenteLab=null;
     if(ap.final>0){defensor.ultimoResultadoRecebidoLab=`Você sofreu ${ap.final} de dano em ${ap.local}${ap.pa?` (PA ${ap.pa})`:''}.`;defensor.ultimoResultadoRecebidoTsLab=Date.now();labAdicionarFloat_(defensor,-ap.final,'dano');}
     labSalvarLocal_();labRender_();
@@ -6638,7 +6638,7 @@ window.labRolarAtaque_=function(){
     }
     labEstado_.logLab=Array.isArray(labEstado_.logLab)?labEstado_.logLab:[];
     labEstado_.logLab.unshift({ts:new Date().toLocaleTimeString(),texto:labEstado_.ultimoResultadoLab});
-    labEstado_.logLab=labEstado_.logLab.slice(0,20);
+    labEstado_.logLab=labEstado_.logLab.slice(0,60);
     labSalvarLocal_();labRender_();
     if(danoAutomatico){
         setTimeout(()=>{
@@ -32613,7 +32613,7 @@ async function labSync13PublicarCenaAgora_(){
     const texto=JSON.stringify(cena);
     const hash=labSync13Hash_(texto);
 
-    if(hash===labSync13LastSceneHash_&&fonte===labSync13LastSceneRef_)return true;
+    if(hash===labSync13LastSceneHash_)return true;
 
     const partes=[];
     for(let i=0;i<texto.length;i+=LAB_SYNC13_CHUNK_)partes.push(texto.slice(i,i+LAB_SYNC13_CHUNK_));
@@ -32662,7 +32662,6 @@ function labSync13AgendarCena_(){
     if(!batalhaEhMestre_())return;
     const fonte=labEstado_?.oficina2State;
     if(!fonte||typeof fonte!=='object')return;
-    if(fonte===labSync13LastSceneRef_)return;
 
     clearTimeout(labSync13SceneTimer_);
     labSync13SceneTimer_=setTimeout(()=>labSync13PublicarCenaAgora_(),260);
@@ -32802,4 +32801,255 @@ setTimeout(()=>{
     if(!currentUserUid)return;
     window.iniciarMapaMesaCompartilhado_();
 },700);
+
+
+
+
+// ============================================================
+// EXP-SYNC-14
+// - Defesa do jogador é enviada ao mestre e resolvida na instância autoritativa.
+// - Cenário é rechecado por conteúdo, não por referência de objeto.
+// ============================================================
+
+const labResponderDefesaSync14Base_=window.labResponderDefesa_;
+
+window.labResponderDefesa_=function(defender=true){
+    if(batalhaEhMestre_()){
+        return labResponderDefesaSync14Base_.apply(this,arguments);
+    }
+
+    const pend=labEstado_.pendenciaLab;
+    if(!pend)return;
+
+    const defensor=labTokenPorId_(pend.defensorId);
+    if(!defensor||!labPodeControlarToken_(defensor))return;
+
+    const payload={
+        defender:!!defender,
+        defesaLab:String(defensor.defesaLab||''),
+        atacanteId:String(pend.atacanteId||''),
+        defensorId:String(pend.defensorId||'')
+    };
+
+    // Não rola localmente. O mestre resolve e devolve o novo estado.
+    labEnviarComandoJogador_('defesa',payload,defensor).then(ok=>{
+        if(ok)notificar_('Defesa enviada.','info',1200);
+    });
+};
+
+const labProcessarComandoJogadorSync14Base_=labProcessarComandoJogador_;
+labProcessarComandoJogador_=async function(personagemId,acao){
+    if(acao?.tipo!=='defesa'){
+        return labProcessarComandoJogadorSync14Base_.apply(this,arguments);
+    }
+
+    const chave=`defesa14:${personagemId}:${acao?.nonce||''}`;
+    if(labMapaComandosEmProcessamento_.has(chave))return;
+    labMapaComandosEmProcessamento_.add(chave);
+
+    try{
+        if(!batalhaEhMestre_())return;
+
+        const pend=labEstado_.pendenciaLab;
+        const defensor=labTokenPorId_(personagemId);
+        if(!pend||!defensor)return;
+
+        if(String(pend.defensorId)!==String(personagemId))return;
+        if(String(defensor.donoUid||'')!==String(acao?.donoUid||''))return;
+
+        const pl=acao?.payload||{};
+        if(pl.defesaLab)defensor.defesaLab=String(pl.defesaLab);
+
+        // Resolve na Mesa do mestre; labSalvarLocal_ dentro da rotina
+        // publica imediatamente o resultado para o jogador.
+        labResponderDefesaSync14Base_(pl.defender!==false);
+
+    }catch(e){
+        console.error('[SYNC14] defesa',e);
+    }finally{
+        try{
+            await deleteDoc(
+                doc(db,'combatesAtivos','mapaMesaExperimental','acoes',String(personagemId))
+            );
+        }catch(_){}
+        labMapaComandosEmProcessamento_.delete(chave);
+        if(batalhaEhMestre_())labAgendarSyncRemoto_();
+    }
+};
+
+// Rechecagens após a página terminar de restaurar/carregar o cenário.
+// O hash impede gravações duplicadas quando nada mudou.
+setTimeout(()=>{if(batalhaEhMestre_())labSync13AgendarCena_();},1600);
+setTimeout(()=>{if(batalhaEhMestre_())labSync13AgendarCena_();},3600);
+setTimeout(()=>{if(batalhaEhMestre_())labSync13AgendarCena_();},6500);
+
+
+
+
+// ============================================================
+// EXP-SYNC-15
+// - Jogador vê no painel superior somente os dados do próprio PJ.
+// - Clicar em outro token durante sua oportunidade fixa o alvo de verdade.
+// - Reações de PM/NPC/Monstro têm prioridade no painel do mestre,
+//   mesmo quando a oportunidade pertence a um PJ de outra conta.
+// - SYNC14 (defesa enviada ao mestre) permanece ativo.
+// ============================================================
+
+function labTokenProprioJogador15_(){
+    if(batalhaEhMestre_())return null;
+    const uid=String(currentUserUid||currentUser?.uid||'');
+    const meus=(labEstado_.tokens||[]).filter(t=>uid&&String(t.donoUid||'')===uid);
+    if(!meus.length)return null;
+
+    const atualChar=String(currentCharId||'');
+    if(atualChar){
+        const exato=meus.find(t=>
+            String(t.id||'')===atualChar ||
+            String(t.origemId||'')===atualChar ||
+            String(t.charLab?.id||'')===atualChar
+        );
+        if(exato)return exato;
+    }
+    return meus[0];
+}
+
+function labTokenPertenceAoJogador15_(t){
+    if(!t||batalhaEhMestre_())return false;
+    const uid=String(currentUserUid||currentUser?.uid||'');
+    return !!uid&&String(t.donoUid||'')===uid;
+}
+
+// ------------------------------------------------------------
+// Barra secundária: jogador nunca troca os próprios dados pelos do alvo.
+// ------------------------------------------------------------
+const labAtualizarInfoSync15Base_=labAtualizarInfo_;
+labAtualizarInfo_=function(){
+    if(batalhaEhMestre_())return labAtualizarInfoSync15Base_.apply(this,arguments);
+
+    const meu=labTokenProprioJogador15_();
+    const salvo=labEstado_.selecionadoId;
+    try{
+        labEstado_.selecionadoId=meu?String(meu.id):'';
+        return labAtualizarInfoSync15Base_.apply(this,arguments);
+    }finally{
+        labEstado_.selecionadoId=salvo;
+    }
+};
+window.labAtualizarInfo_=labAtualizarInfo_;
+
+// ------------------------------------------------------------
+// Clique em alvo: marca a flag exigida pelo sistema de ataque.
+// O wrapper anterior selecionava visualmente o token, mas não preenchia
+// _alvoSelecionadoMapa763, então o botão Atacar recusava o alvo.
+// ------------------------------------------------------------
+const labPointerDownSync15Base_=window.labPointerDown_;
+window.labPointerDown_=function(ev,id){
+    const alvo=labTokenPorId_(id);
+    const ator=labTokenAtual_();
+
+    if(
+        labEstado_.fase==='combate' &&
+        alvo && ator &&
+        String(alvo.id)!==String(ator.id) &&
+        !labEstado_.pendenciaLab &&
+        !labEstado_.danoPendenteLab
+    ){
+        const podeEscolher=
+            (!batalhaEhMestre_() && labTokenPertenceAoJogador15_(ator)) ||
+            (batalhaEhMestre_() && labMestreControlaTurnoE6_(ator));
+
+        if(podeEscolher){
+            ev.preventDefault();
+            ev.stopPropagation();
+            labMarcarAlvoMapa763_(String(alvo.id));
+            labRender_();
+            return;
+        }
+    }
+
+    return labPointerDownSync15Base_.apply(this,arguments);
+};
+
+// ------------------------------------------------------------
+// Painel de ação:
+// mestre resolve primeiro qualquer reação dos seus próprios participantes;
+// jogador nunca recebe ficha/PV de um alvo que não lhe pertence.
+// ------------------------------------------------------------
+const labRenderActionPanelSync15Base_=labRenderActionPanel_;
+labRenderActionPanel_=function(){
+    const el=document.getElementById('labActionPanel');
+    if(!el)return;
+
+    const pend=labEstado_.pendenciaLab;
+
+    if(batalhaEhMestre_()){
+        if(pend){
+            const defensor=labTokenPorId_(pend.defensorId);
+            const grupo=labGrupoTokenE6_(defensor);
+
+            if(defensor && ['PM','NPC','Monstro'].includes(grupo)){
+                const defs=labDefesasDisponiveis_(defensor)||[];
+                const semAcao=
+                    Number(defensor.acoesAtuaisLab||0)<=0 &&
+                    Number(defensor.acoesDefensivasPsiLab||0)<=0;
+
+                if(!defs.length || semAcao){
+                    el.style.display='block';
+                    el.innerHTML='<div style="min-height:30px;color:#9fc6d8">Resolvendo ataque…</div>';
+                    setTimeout(()=>{
+                        if(labEstado_.pendenciaLab===pend)window.labResponderDefesa_(false);
+                    },40);
+                    return;
+                }
+
+                // Ignora o aviso "aguardando PJ" porque agora quem precisa reagir
+                // é um participante controlado pelo mestre.
+                return labRenderActionPanelE6Base_.apply(this,arguments);
+            }
+        }
+
+        return labRenderActionPanelSync15Base_.apply(this,arguments);
+    }
+
+    const meu=labTokenProprioJogador15_();
+    const meuId=String(meu?.id||'');
+
+    if(pend){
+        const defensor=labTokenPorId_(pend.defensorId);
+        const atacante=labTokenPorId_(pend.atacanteId);
+
+        // Só mostra a interface de defesa quando o próprio PJ é o defensor.
+        if(defensor && String(defensor.id)===meuId){
+            return labRenderActionPanelE6Base_.apply(this,arguments);
+        }
+
+        // Se o PJ atacou outra pessoa, não revela ficha, PV, defesa ou AÇ do alvo.
+        if(atacante && String(atacante.id)===meuId){
+            el.style.display='block';
+            el.innerHTML='<div style="min-height:30px;color:#9fc6d8">Aguardando reação do alvo…</div>';
+            return;
+        }
+
+        el.style.display='none';
+        el.innerHTML='';
+        return;
+    }
+
+    return labRenderActionPanelSync15Base_.apply(this,arguments);
+};
+window.labRenderActionPanel_=labRenderActionPanel_;
+
+// Garante que o pós-render use as versões finais acima.
+const labRenderSync15Base_=labRender_;
+labRender_=function(){
+    const r=labRenderSync15Base_.apply(this,arguments);
+    try{
+        labAtualizarInfo_();
+        labRenderActionPanel_();
+    }catch(e){
+        console.warn('[SYNC15] pós-render',e);
+    }
+    return r;
+};
+window.labRender_=labRender_;
 
