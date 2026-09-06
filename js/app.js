@@ -29515,19 +29515,27 @@ function gm2EnriquecerObjetosBanco762_(st){
  }
  return st;
 }
-const gm2LoadLibraryMap762Base_=gm2loadLibraryMap;
-gm2loadLibraryMap=async function(id){
- const r=await gm2LoadLibraryMap762Base_(id);
- gm2EnriquecerObjetosBanco762_(gm2.st);
- gm2saveLocal();gm2render();
- return r;
-};
+if(typeof gm2loadLibraryMap === 'function'){
+ const gm2LoadLibraryMap762Base_=gm2loadLibraryMap;
+ gm2loadLibraryMap=async function(id){
+  const r=await gm2LoadLibraryMap762Base_(id);
+  gm2EnriquecerObjetosBanco762_(gm2.st);
+  gm2saveLocal();gm2render();
+  return r;
+ };
+}else{
+ console.warn('[EXPERIMENTO] gm2loadLibraryMap não existe neste escopo; patch legado 46.77 ignorado.');
+}
 
-const gm2Publish762Base_=gm2publish;
-gm2publish=function(){
- gm2EnriquecerObjetosBanco762_(gm2.st);
- return gm2Publish762Base_.apply(this,arguments);
-};
+if(typeof gm2publish === 'function'){
+ const gm2Publish762Base_=gm2publish;
+ gm2publish=function(){
+  gm2EnriquecerObjetosBanco762_(gm2.st);
+  return gm2Publish762Base_.apply(this,arguments);
+ };
+}else{
+ console.warn('[EXPERIMENTO] gm2publish não existe neste escopo; patch legado 46.77 ignorado.');
+}
 
 // Ao carregar um mapa da Oficina 2 na Mesa, também corrige mapas antigos
 // cujos objetos tinham apenas aparência/posição.
