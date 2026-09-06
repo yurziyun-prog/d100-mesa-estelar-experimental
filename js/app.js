@@ -56,8 +56,8 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-console.info('[Mesa Estelar] build EXP-LOGINFIX-1 carregado');
-window.__MESA_BUILD__ = 'EXP-LOGINFIX-1';
+console.info('[Mesa Estelar] build EXP-MATERIAIS-3 carregado');
+window.__MESA_BUILD__ = 'EXP-MATERIAIS-3';
 
 let currentUserUid = null;
 let userData = null;
@@ -1707,7 +1707,7 @@ function atualizarInstanciaPeloBanco_(item) {
     const estadoInstancia = {};
     [
         'idBanco','instanciaId','pvAtual','origemAquisicao','precoPago','adquiridoEm',
-        'qualidade','cargaAtual','cargaMax','quantidade','notasInstancia','inutilizavel','quebradoEm','pvConsumoAtual'
+        'qualidade','cargaAtual','cargaMax','quantidade','notasInstancia','inutilizavel','quebradoEm','pvConsumoAtual','usoAtual'
     ].forEach(k => {
         if (Object.prototype.hasOwnProperty.call(item,k)) estadoInstancia[k]=item[k];
     });
@@ -15031,23 +15031,24 @@ window.labCliqueFundoMapa_=function(ev){
 function labObjetoNatureza_(o){
     const m=labObjetoModelo_(o);
 
-    const mat=normalizarTextoCombate_(
-        `${o?.material||''} ${m?.material||''}`
+    // O Banco de Objetos é a fonte da verdade.
+    // Não inferimos mais o tipo pelo nome, ID, imagem ou descrição.
+    const material=normalizarTextoCombate_(
+        String(o?.material || m?.material || '')
     );
 
-    if(/madeira|wood/.test(mat)) return 'arvore';
-
-    if(/pedra|rocha|rock|stone|mineral|minério|minerio|ore/.test(mat))
-        return 'rocha';
-
-    const n=normalizarTextoCombate_(
-        `${o?.nome||''} ${m?.nome||''} ${o?.descricao||''} ${m?.descricao||''}`
-    );
-
-    if(/arvore|árvore|palmeira|palm|tronco|madeira|tree|wood/.test(n))
+    if(material==='madeira' || material==='wood')
         return 'arvore';
 
-    if(/rocha|pedra|miner|ore|rock|stone/.test(n))
+    if(
+        material==='pedra' ||
+        material==='rocha' ||
+        material==='stone' ||
+        material==='rock' ||
+        material==='mineral' ||
+        material==='minerio' ||
+        material==='ore'
+    )
         return 'rocha';
 
     return 'outro';
@@ -15055,86 +15056,200 @@ function labObjetoNatureza_(o){
 function labEquipadoRegex_(t,re){
     const c=labCharToken_(t);
     if(!c)return null;
-
     try{
-        return (obterItensEquipados_(c)||[]).find(i =>
-            re.test(
-                normalizarTextoCombate_(
-                    `${getNome(i)||i.nome||''} ${i.idBanco||''} ${i.id||''} ${i.tipo||''} ${i.categoria||''}`
-                )
-            )
-        )||null;
+        return (obterItensEquipados_(c)||[]).find(i=>{
+            const txt=normalizarTextoCombate_([
+                getNome(i),i?.nome,i?.nome_en,i?.nome_zh,i?.idBanco,i?.id,
+                i?.tipo,i?.categoria,i?.familiaArma,i?.descricao
+            ].filter(Boolean).join(' '));
+            return re.test(txt);
+        })||null;
     }catch(_){
         return null;
     }
 }
 function labPericiaRegex_(t,re){const c=labCharToken_(t);if(!c)return null;return (batalhaListaPericias_(c)||[]).find(p=>re.test(normalizarTextoCombate_(`${p.id||''} ${getNome(p)||''}`)))||null;}
 function labObjetoAplicarDanoDireto_(o,bruto,fonte='Ação'){const duro=Math.max(0,Number(o.dureza||0)),final=Math.max(0,Math.floor(Number(bruto||0))-duro);o.pvAtual=Math.max(0,Number(o.pvAtual??o.pvMax??0)-final);if(o.pvAtual<=0)o.destruido=true;return {bruto:Math.floor(Number(bruto||0)),duro,final};}
-function labObjetoAcaoExecutar_(ator,objeto,tipo){
-    if(!ator||!objeto||Number(ator.acoesAtuaisLab||0)<=0)return;
-    let per=null,equip=null,dif='padrao',rotulo='',bruto=0;
-    const nat=labObjetoNatureza_(objeto),c=labCharToken_(ator),forca=Number(c?.atributos?.FOR||ator?.attrs?.FOR||10),tam=Number(c?.atributos?.TAM||ator?.attrs?.TAM||10),peso=labObjetoPesoKg_(objeto);
-    if(tipo==='mover'){
-        per=labPericiaRegex_(ator,/forca bruta|força bruta|brute force|蛮力/);rotulo='Mover objeto';
-        const cap=Math.max(10,(forca+tam)*5);dif=peso<=cap?'padrao':peso<=cap*2?'dificil':'formidavel';
-    }else if(tipo==='minerar'){
-    if(nat!=='rocha')return;
-
-    per=labPericiaRegex_(
-        ator,
-        /forca bruta|força bruta|brute force|蛮力/
-    );
-
-    equip=labEquipadoRegex_(
-        ator,
-        /picareta|pickaxe|mining pick/
-    );
-
-    rotulo='Minerar';
-
-    if(!equip){
-        notificar_(
-            'Minerar exige uma picareta equipada.',
-            'aviso',
-            4200
-        );
+function labObjetoAplicarDanoFerramenta_(o,bruto,durezaEfetiva){
+    const duro=Math.max(0,Number(durezaEfetiva||0));
+    const b=Math.max(0,Math.floor(Number(bruto||0)));
+    const final=Math.max(0,b-duro);
+    o.pvAtual=Math.max(0,Number(o.pvAtual??o.pvMax??0)-final);
+    if(o.pvAtual<=0)o.destruido=true;
+    return {bruto:b,duro,final};
+}
+function labTextoItemMesa_(i){
+    return normalizarTextoCombate_([
+        getNome(i),i?.nome,i?.nome_en,i?.nome_zh,i?.idBanco,i?.id,
+        i?.tipo,i?.categoria,i?.descricao
+    ].filter(Boolean).join(' '));
+}
+function labExtintorUsosMax_(ext){
+    return Math.max(0,Math.floor(Number(ext?.uso??ext?.cargas??ext?.capacidade??0)));
+}
+function labExtintorUsosAtuais_(ext){
+    if(!ext)return 0;
+    const max=labExtintorUsosMax_(ext);
+    if(!Number.isFinite(Number(ext.usoAtual)))ext.usoAtual=max;
+    ext.usoAtual=Math.max(0,Math.min(max,Math.floor(Number(ext.usoAtual)||0)));
+    return ext.usoAtual;
+}
+async function labPersistirInventarioAtorObjeto_(ator){
+    const c=labCharToken_(ator);
+    if(!c)return;
+    try{
+        if(c.id&&!c.__npcTemporario&&!c.__criaturaTemporaria&&c.inventario){
+            await setDoc(doc(db,'personagens',String(c.id)),{inventario:c.inventario},{merge:true});
+        }
+    }catch(e){console.warn('Persistir uso de equipamento',e);}
+    try{
+        if(typeof batalhaSalvarEstado_==='function')await batalhaSalvarEstado_();
+    }catch(e){console.warn('Persistir equipamento na batalha',e);}
+}
+function labObjetoExtinguirExecutar_(ator,objeto){
+    if(!objeto?.pegandoFogoLab){
+        notificar_('Este objeto não está em chamas.','aviso',2600);
         return;
     }
-    }else if(tipo==='cortar'){
-       if(nat!=='arvore')return;
-
-per=labPericiaRegex_(
-    ator,
-    /forca bruta|força bruta|brute force|蛮力/
-);
-
-equip=labEquipadoRegex_(
-    ator,
-    /machado|axe|斧/
-);
-
-rotulo='Lenhar';
-
-if(!equip){
-    notificar_(
-        'Lenhar exige um machado equipado.',
-        'aviso',
-        4200
-    );
-    return;
-}
+    if(labDistanciaEntre_(ator,objeto)>1.5){
+        notificar_('O extintor só pode ser usado a até 1,5 m do alvo.','aviso',3600);
+        return;
     }
-    if(!per){notificar_(`Não encontrei a perícia necessária para ${rotulo.toLowerCase()}.`,'aviso',4200);return;}
-    const base=labValorTeste_(ator,per),aj=aplicarDificuldadeEFadiga_(c,base,dif,0),valor=Math.max(0,Number(aj?.valor||base)),roll=1+Math.floor(Math.random()*100),r=classificarD100_(valor,roll),sucesso=batalhaResultadoGradeValor_(r.grau)>=2;
+    const ext=labEquipadoRegex_(ator,/extintor|extinguisher|灭火器/);
+    if(!ext){
+        notificar_('É necessário ter um extintor equipado.','aviso',3000);
+        return;
+    }
+    const usos=labExtintorUsosAtuais_(ext);
+    if(usos<=0){
+        notificar_('O extintor está sem carga.','aviso',3200);
+        return;
+    }
+    if(Number(ator.acoesAtuaisLab||0)<=0)return;
+
+    const peso=Math.max(1,labObjetoPesoKg_(objeto));
+    let restante=Number(objeto.extincaoRestanteKgLab);
+    if(!Number.isFinite(restante)||restante<=0||restante>peso)restante=peso;
+
+    restante=Math.max(0,restante-100);
+    ext.usoAtual=usos-1;
+    ator.acoesAtuaisLab=Math.max(0,Number(ator.acoesAtuaisLab||0)-1);
+
+    let txt='';
+    if(restante<=0){
+        objeto.pegandoFogoLab=false;
+        objeto.fogoUltimaRodadaLab=-1;
+        delete objeto.extincaoRestanteKgLab;
+        txt=`Extintor: o fogo em ${objeto.nome||'objeto'} foi apagado. Carga restante: ${ext.usoAtual}/${labExtintorUsosMax_(ext)}.`;
+        notificar_('🧯 Fogo apagado.','sucesso',2400);
+    }else{
+        objeto.extincaoRestanteKgLab=restante;
+        const faltam=Math.ceil(restante/100);
+        txt=`Extintor: ${objeto.nome||'objeto'} ainda requer ${faltam} uso(s) para apagar o fogo. Carga restante: ${ext.usoAtual}/${labExtintorUsosMax_(ext)}.`;
+        notificar_(`🧯 Extinção em andamento: faltam ${faltam} uso(s).`,'info',2800);
+    }
+
+    labRegistrarResultadoProprio_(ator,txt);
+    labEstado_.logLab.unshift({ts:new Date().toLocaleTimeString(),texto:`${ator.nome}: ${txt}`});
+    labSalvarLocal_();
+    try{labAgendarSyncRemoto_();}catch(_){}
+    labRender_();
+    Promise.resolve(labPersistirInventarioAtorObjeto_(ator)).catch(()=>{});
+    labAutoAvancarSeSemAcoes_();
+}
+function labObjetoAcaoExecutar_(ator,objeto,tipo){
+    if(!ator||!objeto||Number(ator.acoesAtuaisLab||0)<=0)return;
+
+    if(tipo==='extinguir'){
+        labObjetoExtinguirExecutar_(ator,objeto);
+        return;
+    }
+
+    let per=null,equip=null,dif='padrao',rotulo='',bruto=0;
+    const nat=labObjetoNatureza_(objeto),c=labCharToken_(ator),
+          forca=Number(c?.atributos?.FOR||ator?.attrs?.FOR||10),
+          tam=Number(c?.atributos?.TAM||ator?.attrs?.TAM||10),
+          peso=labObjetoPesoKg_(objeto);
+
+    if(tipo==='mover'){
+        per=labPericiaRegex_(ator,/forca bruta|força bruta|brute force|蛮力/);
+        rotulo='Mover objeto';
+        const cap=Math.max(10,(forca+tam)*5);
+        dif=peso<=cap?'padrao':peso<=cap*2?'dificil':'formidavel';
+    }else if(tipo==='minerar'){
+        if(nat!=='rocha')return;
+        if(labDistanciaEntre_(ator,objeto)>1.5){
+            notificar_('Você precisa estar a até 1,5 m da pedra para minerar.','aviso',3400);
+            return;
+        }
+        per=labPericiaRegex_(ator,/forca bruta|força bruta|brute force|蛮力/);
+        equip=labEquipadoRegex_(ator,/picareta|pickaxe|mining pick|矿镐|鹤嘴锄/);
+        rotulo='Minerar';
+        if(!equip){
+            notificar_('Minerar exige uma picareta equipada.','aviso',4200);
+            return;
+        }
+    }else if(tipo==='cortar'){
+        if(nat!=='arvore')return;
+        if(labDistanciaEntre_(ator,objeto)>1.5){
+            notificar_('Você precisa estar a até 1,5 m da madeira para lenhar.','aviso',3400);
+            return;
+        }
+        per=labPericiaRegex_(ator,/forca bruta|força bruta|brute force|蛮力/);
+        equip=labEquipadoRegex_(ator,/machado|axe|hatchet|斧/);
+        rotulo='Lenhar';
+        if(!equip){
+            notificar_('Lenhar exige um machado equipado.','aviso',4200);
+            return;
+        }
+    }
+
+    if(!per){
+        notificar_(`Não encontrei a perícia necessária para ${rotulo.toLowerCase()}.`,'aviso',4200);
+        return;
+    }
+
+    const base=labValorTeste_(ator,per),
+          aj=aplicarDificuldadeEFadiga_(c,base,dif,0),
+          valor=Math.max(0,Number(aj?.valor||base)),
+          roll=1+Math.floor(Math.random()*100),
+          r=classificarD100_(valor,roll),
+          sucesso=batalhaResultadoGradeValor_(r.grau)>=2;
+
     ator.acoesAtuaisLab=Math.max(0,Number(ator.acoesAtuaisLab||0)-1);
     let efeito='';
+
     if(sucesso&&tipo==='mover'){
-        const metros=Math.max(.5,Math.min(2.5,1.5*(Math.max(10,(forca+tam)*5)/Math.max(1,peso))));labPsiEmpurrar_(ator,objeto,metros);efeito=` ${objeto.nome} foi deslocado ${metros.toFixed(1)} m.`;
+        const metros=Math.max(.5,Math.min(2.5,1.5*(Math.max(10,(forca+tam)*5)/Math.max(1,peso))));
+        labPsiEmpurrar_(ator,objeto,metros);
+        efeito=` ${objeto.nome} foi deslocado ${metros.toFixed(1)} m.`;
     }else if(sucesso&&(tipo==='minerar'||tipo==='cortar')){
-        bruto=(1+Math.floor(Math.random()*6))+Math.max(0,Math.floor(forca/5));const d=labObjetoAplicarDanoDireto_(objeto,bruto,rotulo);efeito=` Dano de trabalho ${d.bruto} - Dureza ${d.duro} = ${d.final}.${objeto.destruido?' Objeto destruído.':''}`;if(d.final>0)labAdicionarFloat_(objeto,-d.final,'dano');
-    }else efeito=' Nenhum efeito.';
-    const txt=`${rotulo}: ${roll}/${valor} → ${r.grau}.${efeito}`;labRegistrarResultadoProprio_(ator,txt);labEstado_.logLab.unshift({ts:new Date().toLocaleTimeString(),texto:`${ator.nome}: ${txt}`});
-    try{somDado_();}catch(_){}labSalvarLocal_();labRender_();labAutoAvancarSeSemAcoes_();
+        bruto=(1+Math.floor(Math.random()*6))+Math.max(0,Math.floor(forca/5));
+        const durezaBase=Math.max(0,Number(objeto.dureza||0));
+        let durezaEfetiva=durezaBase;
+
+        if(tipo==='minerar'){
+            const industrial=/industrial/.test(labTextoItemMesa_(equip));
+            durezaEfetiva=Math.ceil(durezaBase*(industrial?1/3:1/2));
+        }else if(tipo==='cortar'){
+            durezaEfetiva=Math.ceil(durezaBase/3);
+        }
+
+        const d=labObjetoAplicarDanoFerramenta_(objeto,bruto,durezaEfetiva);
+        efeito=` Dano de trabalho ${d.bruto} - Dureza efetiva ${d.duro} = ${d.final}.${objeto.destruido?' Objeto destruído.':''}`;
+        if(d.final>0)labAdicionarFloat_(objeto,-d.final,'dano');
+    }else{
+        efeito=' Nenhum efeito.';
+    }
+
+    const txt=`${rotulo}: ${roll}/${valor} → ${r.grau}.${efeito}`;
+    labRegistrarResultadoProprio_(ator,txt);
+    labEstado_.logLab.unshift({ts:new Date().toLocaleTimeString(),texto:`${ator.nome}: ${txt}`});
+    try{somDado_();}catch(_){}
+    labSalvarLocal_();
+    try{labAgendarSyncRemoto_();}catch(_){}
+    labRender_();
+    labAutoAvancarSeSemAcoes_();
 }
 window.labObjetoAcao_=function(tipo,id){const ator=labTokenAtual_(),o=labObjetoPorId_(id);if(!ator||!o||!labPodeControlarToken_(ator))return;if(!batalhaEhMestre_()){labEnviarComandoJogador_('acao_objeto',{tipo:String(tipo||''),objetoId:String(id)},ator).then(ok=>{if(ok)notificar_('Ação sobre o objeto enviada ao mestre.','info',1500);});return;}labObjetoAcaoExecutar_(ator,o,String(tipo||''));};
 function labObjetoMicroPainelHtml_(o,ppm){
@@ -15142,8 +15257,8 @@ function labObjetoMicroPainelHtml_(o,ppm){
     const ator=labTokenAtual_();if(!ator||!labPodeControlarToken_(ator)||Number(ator.acoesAtuaisLab||0)<=0)return '';
     const psis=labPsiPoderesParaAlvo_(ator,o),
       nat=labObjetoNatureza_(o),
-      pic=labEquipadoRegex_(ator,/picareta|pickaxe|mining pick/),
-      axe=labEquipadoRegex_(ator,/machado|axe|斧/);
+      pic=labEquipadoRegex_(ator,/picareta|pickaxe|mining pick|矿镐|鹤嘴锄/),
+      axe=labEquipadoRegex_(ator,/machado|axe|hatchet|斧/);
     const meiaH=Math.max(18,Number(o.alturaM||1)*ppm)/2,posMicro=labMicroPosicaoVertical_(o.y*ppm,meiaH,ppm,72),top=posMicro.top,left=o.x*ppm;
     return `<div class="lab-micro-actions" onclick="event.stopPropagation()" onpointerdown="event.stopPropagation()" style="position:absolute;left:${left}px;top:${top}px;transform:${posMicro.transform};z-index:28;padding:4px;border-radius:8px;background:rgba(10,13,30,.96);border:1px solid rgba(126,231,255,.45);display:flex;gap:3px;align-items:center;justify-content:center;flex-wrap:wrap;max-width:410px;">${o.destrutivel!==false?`<button class="btn-small btn-select" onclick="labAtacarObjetoContextual_('${String(o.id).replace(/'/g,"\\'")}')" style="min-height:27px;padding:2px 7px;font-size:.72em;">⚔️ Atacar</button>`:''}<button class="btn-small" onclick="labObjetoAcao_('mover','${String(o.id).replace(/'/g,"\\'")}')" style="min-height:27px;padding:2px 7px;font-size:.72em;">💪 Mover</button>${nat==='rocha'&&pic?`<button class="btn-small" onclick="labObjetoAcao_('minerar','${String(o.id).replace(/'/g,"\\'")}')" style="min-height:27px;padding:2px 7px;font-size:.72em;">⛏️ Minerar</button>`:''}${nat==='arvore'&&axe?`<button class="btn-small" onclick="labObjetoAcao_('cortar','${String(o.id).replace(/'/g,"\\'")}')" style="min-height:27px;padding:2px 7px;font-size:.72em;">🪓 Lenhar</button>`:''}${psis.map(p=>`<button class="btn-small lab-psi-action" onclick="${p.id==='mover_objeto'?`labUsarPsiContextualRapido_('${String(p.id).replace(/'/g,"\\'")}','${String(o.id).replace(/'/g,"\\'")}')`:`labAbrirPsiContextual_('${String(p.id).replace(/'/g,"\\'")}','${String(o.id).replace(/'/g,"\\'")}')`}" style="min-height:27px;padding:2px 7px;font-size:.72em;">🔮 ${escaparHtmlInventario_(getNome(p))}</button>`).join('')}</div>`;
 }
@@ -20285,9 +20400,7 @@ labProcessarFogoObjetosV247_=labProcessarFogoObjetos520_;
 
 // 6) Extintor: ação contextual quando o ator tem um extintor equipado.
 window.labExtinguirObjeto520_=function(id){
-    const ator=labTokenAtual_(),o=labObjetoPorId_(id);if(!ator||!o?.pegandoFogoLab)return;
-    const ext=labEquipadoRegex_(ator,/extintor|extinguisher|灭火器/);if(!ext){notificar_('É necessário ter um extintor equipado.','aviso',3000);return;}
-    if(Number(ator.acoesAtuaisLab||0)<=0)return;o.pegandoFogoLab=false;o.fogoUltimaRodadaLab=-1;ator.acoesAtuaisLab=Math.max(0,Number(ator.acoesAtuaisLab||0)-1);labRegistrarResultadoProprio_(ator,`Extintor: o fogo em ${o.nome||'objeto'} foi apagado.`);labSalvarLocal_();labAgendarSyncRemoto_();labRender_();
+    labObjetoAcao_('extinguir',id);
 };
 const labObjetoMicroPainelHtml520Base_=labObjetoMicroPainelHtml_;
 labObjetoMicroPainelHtml_=function(o,ppm){let h=labObjetoMicroPainelHtml520Base_(o,ppm);if(!h||!o?.pegandoFogoLab)return h;const ator=labTokenAtual_(),ext=ator&&labEquipadoRegex_(ator,/extintor|extinguisher|灭火器/);if(ext)h=h.replace('</div>',`<button class="btn-small" onclick="labExtinguirObjeto520_('${String(o.id).replace(/'/g,"\\'")}')" style="min-height:27px;padding:2px 7px;font-size:.72em;">🧯 Apagar fogo</button></div>`);return h;};
@@ -29664,9 +29777,15 @@ labEhAlvoObjeto_=function(a){
 const labObjetoPointerDown763Base_=window.labObjetoPointerDown_;
 window.labObjetoPointerDown_=function(ev,id){
     if(labEstado_.fase==='combate'&&!labEstado_.modoCriacaoMapa){
-        ev.preventDefault();ev.stopPropagation();
-        labSelecionarObjeto_(id);
-        return;
+        // Jogadores apenas selecionam o objeto como alvo.
+        if(!batalhaEhMestre_()){
+            ev.preventDefault();
+            ev.stopPropagation();
+            labSelecionarObjeto_(id);
+            return;
+        }
+        // O mestre continua podendo arrastar objetos mesmo com o combate ativo.
+        return labObjetoPointerDown763Base_.apply(this,arguments);
     }
     return labObjetoPointerDown763Base_.apply(this,arguments);
 };
