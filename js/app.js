@@ -56,8 +56,8 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-console.info('[Mesa Estelar] build EXP-MATERIAIS-3 carregado');
-window.__MESA_BUILD__ = 'EXP-MATERIAIS-3';
+console.info('[Mesa Estelar] build EXP-EXPLORACAO-4 carregado');
+window.__MESA_BUILD__ = 'EXP-EXPLORACAO-4';
 
 let currentUserUid = null;
 let userData = null;
@@ -5621,8 +5621,8 @@ function labAutoAvancarSeSemAcoes_(){
     return true;
 }
 window.labVoltarPreparacao_=function(){
-    if(labEstado_.fase==='combate'&&!confirm('Voltar à preparação? As posições serão mantidas, mas rodada e iniciativa serão encerradas.'))return;
-    labEstado_.fase='preparacao';labEstado_.rodada=0;labEstado_.turnoIndex=0;labEstado_.ordemIniciativa=[];labEstado_.pendenciaLab=null;labEstado_.danoPendenteLab=null;for(const t of labEstado_.tokens||[])t.iniciativaLab=null;labSalvarLocal_();labRender_();
+    if(labEstado_.fase==='combate'&&!confirm('Encerrar combate? As posições serão mantidas, mas rodada, turnos e iniciativa serão encerrados.'))return;
+    labEstado_.fase='preparacao';labEstado_.rodada=0;labEstado_.turnoIndex=0;labEstado_.ordemIniciativa=[];labEstado_.pendenciaLab=null;labEstado_.danoPendenteLab=null;for(const t of labEstado_.tokens||[])t.iniciativaLab=null;labSalvarLocal_();try{labAgendarSyncRemoto_();}catch(_){}labRender_();
 };
 window.labMudarFundo_=function(v){labEstado_.fundo=String(v||'#d7d7d7');labSalvarLocal_();labRender_();};
 window.labMudarCorGrade_=function(v){labEstado_.corGrade=String(v||'#777777');labSalvarLocal_();labRender_();};
@@ -6494,14 +6494,12 @@ function labAplicarDanoLocal_(defensor,total,item,opcoes={}){
 }
 function labResumoPVHtml_(t,titulo='PV DO PERSONAGEM'){
     const st=labGarantirSnapshotCombate_(t);if(!st)return '';
-    const locs=Object.keys(st.hitMax||{});
-    if(!locs.length)return '';
+    const locs=Object.keys(st.hitMax||{});if(!locs.length)return '';
     const estados=[st.sangrando?'🩸 Sangrando':'',st.derrubado?'💥 Derrubado':'',st.armaDanificada?'⚔️ Arma danificada':'',st.inconsciente?'💤 Inconsciente':'',st.morto?'💀 Morto':''].filter(Boolean).join(' · ');
-    return `<div style="margin-top:8px;color:#aee8ff;font-size:.86em;font-weight:700;">${escaparHtmlInventario_(titulo)} · ${escaparHtmlInventario_(t.nome)}${estados?` · <span style="color:#ffb0b0;">${estados}</span>`:''}</div><div style="display:grid;grid-template-columns:repeat(${Math.min(locs.length,7)},minmax(78px,1fr));gap:5px;margin-top:4px;">${locs.map(loc=>{
-        const at=Number(st.hit?.[loc]??0),mx=Number(st.hitMax?.[loc]??0),pa=Number(st.armor?.[loc]||0);
-        const bad=at<=0;
+    return `<div class="lab-pv-title" style="color:#aee8ff;font-weight:700;">${escaparHtmlInventario_(titulo)} · ${escaparHtmlInventario_(t.nome)}${estados?` · <span style="color:#ffb0b0;">${estados}</span>`:''}</div><div class="lab-pv-grid" style="display:grid;grid-template-columns:repeat(${Math.min(locs.length,7)},minmax(62px,1fr));">${locs.map(loc=>{
+        const at=Number(st.hit?.[loc]??0),mx=Number(st.hitMax?.[loc]??0),pa=Number(st.armor?.[loc]||0),bad=at<=0;
         const curto=loc.replace('Braço Direito','Braço D.').replace('Braço Esquerdo','Braço E.').replace('Perna Direita','Perna D.').replace('Perna Esquerda','Perna E.');
-        return `<div style="padding:5px 6px;text-align:center;border-radius:6px;background:${bad?'rgba(231,76,60,.16)':'rgba(255,255,255,.045)'};border:1px solid ${bad?'rgba(231,76,60,.4)':'rgba(255,255,255,.08)'};"><small style="display:block;color:#aaa">${escaparHtmlInventario_(curto)}</small><b style="color:${bad?'#ff9b93':'#fff'}">PV ${at}/${mx}</b><small style="display:block;color:#8fc9e8">PA ${pa}</small></div>`;
+        return `<div class="lab-pv-cell" style="text-align:center;background:${bad?'rgba(231,76,60,.16)':'rgba(255,255,255,.045)'};border:1px solid ${bad?'rgba(231,76,60,.4)':'rgba(255,255,255,.08)'};"><small style="display:block;color:#aaa">${escaparHtmlInventario_(curto)}</small><b style="display:block;color:${bad?'#ff9b93':'#fff'}">PV ${at}/${mx}</b><small style="display:block;color:#8fc9e8">PA ${pa}</small></div>`;
     }).join('')}</div>`;
 }
 function labEstadoPublicoAlvoHtml_(t){
@@ -6798,16 +6796,31 @@ function labBackgroundImage_(){
     nevoa:'radial-gradient(ellipse at 20% 35%,rgba(255,255,255,.18),transparent 35%)'}[labEstado_.textura||'nenhuma']||'';return [grid,tex].filter(Boolean).join(',');
 }
 function labAtualizarStatusCombate_(){
-    const el=document.getElementById('labCombatStatus');if(!el)return;const em=labEstado_.fase==='combate';
-    document.getElementById('labStartBtn')?.classList.toggle('hidden',em);document.getElementById('labNextBtn')?.classList.toggle('hidden',!em);document.getElementById('labStopBtn')?.classList.toggle('hidden',!em);
-    if(!em){el.innerHTML='<strong>🧭 Preparação:</strong> posicione livremente todos os participantes, inclusive criaturas imóveis como Cila. Depois clique em <b>Iniciar combate</b>.';return;}
+    const el=document.getElementById('labCombatStatus');if(!el)return;
+    const em=labEstado_.fase==='combate',startBtn=document.getElementById('labStartBtn');
+    if(startBtn){
+        startBtn.classList.remove('hidden');
+        startBtn.textContent=em?'⏹ Encerrar combate':'⚡ Iniciar combate';
+        startBtn.classList.toggle('btn-delete',em);
+        startBtn.classList.toggle('btn-select',!em);
+    }
+    document.getElementById('labNextBtn')?.classList.toggle('hidden',!em);
+    const stop=document.getElementById('labStopBtn');if(stop)stop.classList.add('hidden');
+    if(!em){
+        el.innerHTML='<strong>🧭 Exploração:</strong> movimentação livre. Ações de trabalho usam fadiga, não AÇ.';
+        return;
+    }
     const a=labTokenAtual_(),ord=(labEstado_.ordemIniciativa||[]).map(id=>labEstado_.tokens.find(t=>String(t.id)===String(id))).filter(Boolean);
-    el.innerHTML=`<strong>⚔️ Rodada ${labEstado_.rodada}</strong> · oportunidade de <strong style="color:#ffd54a">${escaparHtmlInventario_(a?.nome||'—')}</strong>${a?` · AÇ ${a.acoesAtuaisLab}/${a.acoesMaxLab} · INI ${a.iniciativaLab}`:''}<div style="margin-top:5px;font-size:.9em;color:#cfc5de">Ordem: ${ord.map((t,i)=>`${i===labEstado_.turnoIndex?'<b style="color:#ffd54a">':''}${escaparHtmlInventario_(t.nome)} ${t.iniciativaLab}${i===labEstado_.turnoIndex?'</b>':''}`).join(' → ')}</div>`;
+    el.innerHTML=`<strong>⚔️ Rodada ${labEstado_.rodada}</strong> · oportunidade de <strong style="color:#ffd54a">${escaparHtmlInventario_(a?.nome||'—')}</strong>${a?` · AÇ ${a.acoesAtuaisLab}/${a.acoesMaxLab} · INI ${a.iniciativaLab}`:''}<div style="margin-top:3px;font-size:.86em;color:#cfc5de">Ordem: ${ord.map((t,i)=>`${i===labEstado_.turnoIndex?'<b style="color:#ffd54a">':''}${escaparHtmlInventario_(t.nome)} ${t.iniciativaLab}${i===labEstado_.turnoIndex?'</b>':''}`).join(' → ')}</div>`;
 }
+window.labAlternarCombate_=function(){
+    if(labEstado_.fase==='combate')return window.labVoltarPreparacao_();
+    return window.labIniciarCombate_();
+};
 function labAtualizarInfo_(){
     const el=document.getElementById('labInfo');if(!el)return;const t=labEstado_.tokens.find(x=>String(x.id)===String(labEstado_.selecionadoId));
-    if(!t){el.innerHTML='Clique num token para selecioná-lo.';return;}
-    const a=t.attrs||{},p=labMovimentoPorAcao_(t),mov=labMovimentoMaxM_(t),prep=labEstado_.fase!=='combate',at=labTokenAtual_(),eh=String(at?.id)===String(t.id);
+    if(!t){el.innerHTML='';el.style.display='flex';return;}
+    const a=t.attrs||{},cInfo=labCharToken_(t),fadInfo=traduzirNomeFadiga_(cInfo?.combate?.fadiga||'Fresh'),p=labMovimentoPorAcao_(t),mov=labMovimentoMaxM_(t),prep=labEstado_.fase!=='combate',at=labTokenAtual_(),eh=String(at?.id)===String(t.id);
     const alc=eh?labAlcanceSelecionado_(t):0;
     const modos=[t.movimentoTerrestre>0?`<option value="terrestre" ${t.modoMovimento==='terrestre'?'selected':''}>Terrestre ${t.movimentoTerrestre} m/AÇ</option>`:'',t.movimentoVoo>0?`<option value="voo" ${t.modoMovimento==='voo'?'selected':''}>Voo ${t.movimentoVoo} m/AÇ</option>`:'',t.movimentoNatacao>0?`<option value="natacao" ${t.modoMovimento==='natacao'?'selected':''}>Natação ${t.movimentoNatacao} m/AÇ</option>`:''].join('');
     el.innerHTML=`<div style="display:flex;gap:8px 14px;align-items:center;flex-wrap:wrap;">
@@ -6820,7 +6833,8 @@ function labAtualizarInfo_(){
         t.livreMestre?'<span><b>posicionamento livre do mestre</b></span>':
         p>0?`<label style="display:inline-flex;align-items:center;gap:6px;margin:0;"><span>Movimento</span><select onchange="labMudarModoMovimento_(this.value)" ${!eh?'disabled':''} style="width:auto;min-width:150px;max-width:230px;min-height:34px;margin:0;">${modos}</select></label><span><b>${p} m/AÇ</b></span><span>disponível <b>${eh?mov.toFixed(1):'0.0'} m</b></span>`:
         '<span style="color:#ffb0b0"><b>imóvel</b></span>'}
-      ${alc>0?`<span style="color:#ffb0b0">alcance do ataque selecionado <b>${alc.toFixed(1)} m</b></span>`:''}
+      ${alc>0?`<span style="color:#ffb0b0">alcance <b>${alc.toFixed(1)} m</b></span>`:''}
+      <span>Fadiga <b>${escaparHtmlInventario_(fadInfo)}</b></span>
       <span style="color:#9fdfff">${['FOR','CON','TAM','DES'].filter(k=>a[k]!=null).map(k=>`${k} ${a[k]}`).join(' · ')}</span>
     </div>`;
 }
@@ -7586,7 +7600,7 @@ function labRender_(){
     if(ms){const v=`${labEstado_.larguraM}x${labEstado_.alturaM}`;if([...ms.options].some(o=>o.value===v))ms.value=v;}
     if(zm)zm.value=String(labEstado_.pxPorMetro||48);
     labAtualizarStatusCombate_();labRenderActionPanel_();labAtualizarInfo_();if(!batalhaEhMestre_()){
-        const op=document.getElementById('labObjetoPainel');if(op)op.style.display='none';
+        const op=document.getElementById('labObjetoPainel');if(op){op.style.display='flex';op.innerHTML='';}
         const ap=document.getElementById('labActionPanel'),at=labTokenAtual_(),pend=labEstado_.pendenciaLab,dp=labEstado_.danoPendenteLab;
         const podeAgir=at&&labPodeControlarToken_(at);
         const podeDefender=pend&&labPodeControlarToken_(labTokenPorId_(pend.defensorId));
@@ -15297,8 +15311,8 @@ window.labObjetoAplicarDano_=function(){
 window.labObjetoRestaurar_=function(){if(!batalhaEhMestre_())return;const o=labObjetoPorId_(labEstado_.objetoSelecionadoId);if(!o)return;o.pvAtual=Number(o.pvMax||0);o.destruido=false;labSalvarLocal_();labRender_();};
 window.labObjetoExcluir_=function(){if(!batalhaEhMestre_())return;const o=labObjetoPorId_(labEstado_.objetoSelecionadoId);if(!o)return;if(!confirm(`Remover “${o.nome}” deste mapa?`))return;labEstado_.objetosLab=labEstado_.objetosLab.filter(x=>String(x.id)!==String(o.id));labEstado_.objetoSelecionadoId='';labSalvarLocal_();labRender_();};
 window.labRenderObjetoPainel_=function(){
-    const e=document.getElementById('labObjetoPainel');if(!e)return;if(!batalhaEhMestre_()){e.style.display='none';e.innerHTML='';return;}const o=labObjetoPorId_(labEstado_.objetoSelecionadoId);if(!o){e.style.display='none';e.innerHTML='';return;}
-    e.style.display='flex';e.style.alignItems='center';e.style.gap='8px';e.style.flexWrap='wrap';
+    const e=document.getElementById('labObjetoPainel');if(!e)return;e.style.display='flex';e.style.alignItems='center';e.style.gap='7px';e.style.flexWrap='nowrap';
+    if(!batalhaEhMestre_()){e.innerHTML='';return;}const o=labObjetoPorId_(labEstado_.objetoSelecionadoId);if(!o){e.innerHTML='';return;}
     e.innerHTML=`<b>🌳 ${escaparHtmlInventario_(o.nome||'Objeto')}</b><span>PV <b>${Number((o.pvAtual??o.pvMax)||0)}/${Number(o.pvMax||0)}</b></span><span>Dureza <b>${Number(o.dureza||0)}</b></span><span>Peso <b>${Number(o.pesoKg||Math.max(1,Number(o.larguraM||1)*Number(o.alturaM||1)*20)).toFixed(1)} kg</b></span>${o.destruido?'<span style="color:#ff8d8d">💥 destruído</span>':''}<button class="btn-small" onclick="labObjetoGirar_(-15)">↶ 15°</button><button class="btn-small" onclick="labObjetoGirar_(15)">↷ 15°</button><label style="display:flex;align-items:center;gap:5px;margin:0">Dano <input id="labObjetoDanoInput" type="number" min="0" value="5" style="width:70px;margin:0;padding:6px"></label><button class="btn-small" onclick="labObjetoAplicarDano_()" ${o.destrutivel===false?'disabled':''}>💥 Aplicar</button><button class="btn-small" onclick="labObjetoRestaurar_()">🛠️ Restaurar</button><button class="btn-small btn-delete" onclick="labObjetoExcluir_()">🗑️ Remover</button>`;
 };
 garantirObjetosMapaPadrao_();
@@ -17000,7 +17014,7 @@ function labCompactarPainelMesaV46462_(){
     const info=document.getElementById('labInfo');
     if(info){
         const sel=labEstado_.tokens?.find(x=>String(x.id)===String(labEstado_.selecionadoId));
-        info.style.display=sel?'':'none';
+        info.style.display='flex';
     }
 
     const controls=document.getElementById('labMasterGameControls');
@@ -17718,8 +17732,8 @@ labRenderActionPanel_=function(){
       <button class="btn-small" onclick="labLevantar_()" ${!labGarantirSnapshotCombate_(t)?.derrubado||Number(t.acoesAtuaisLab||0)<=0?'disabled':''} style="height:42px;">⬆️ Levantar</button>
       ${modo==='combate'&&labItemSelecionado_(t)&&labEhArmaMuniciada_(labItemSelecionado_(t))?`<button class="btn-small" onclick="labRecarregar_()" style="height:42px;">🔋 Recarregar ${labMunicaoAtual_(t,labItemSelecionado_(t))}/${labCapacidadeArma_(labItemSelecionado_(t))}</button>`:''}
       ${labPrimeirosSocorrosPericia_(t)&&(labEstado_.tokens||[]).some(x=>labFeridasTrataveis_(x).length>0&&!labGarantirSnapshotCombate_(x)?.morto)?`<button class="btn-small" onclick="labAbrirPrimeirosSocorros_()" ${Number(t.acoesAtuaisLab||0)<=0?'disabled':''} style="height:42px;">🩹 Primeiros Socorros</button>`:''}
+      ${descricao?`<div class="lab-action-description-inline"><b style="margin-right:5px">ℹ️</b>${escaparHtmlInventario_(descricao)}</div>`:''}
     </div>
-    ${descricao?`<div style="margin-top:8px;padding:8px 10px;border-radius:8px;background:rgba(255,255,255,.045);color:#cfe7ff;"><b>ℹ️</b> ${escaparHtmlInventario_(descricao)}</div>`:''}
     ${labResumoPVHtml_(t,'SEUS PV')}
     ${t?.ultimoResultadoProprioLab?`<div style="margin-top:7px;padding:6px 8px;border-radius:7px;background:rgba(255,255,255,.05);">${escaparHtmlInventario_(t.ultimoResultadoProprioLab)}</div>`:''}`;
 };
@@ -30569,6 +30583,24 @@ document.addEventListener('toggle',function(ev){
   }
 },true);
 
+
+// ============================================================
+// EXP-EXPLORACAO-4 — materiais no mesmo ES module do banco/Firebase
+// ============================================================
+const OBJ_MATERIAIS_PADRAO_E4=['Madeira','Pedra','Metal','Vidro','Plástico','Papel','Carne','Osso','Gelo','Tecido','Líquido'];
+let objMateriaisE4_=[];
+function objMaterialLimparE4_(v){return String(v||'').trim().replace(/\s+/g,' ');}
+function objMaterialUnicosE4_(arr){const out=[],seen=new Set();for(const raw of (arr||[])){const v=objMaterialLimparE4_(raw);if(!v)continue;const k=normalizarTextoCombate_(v);if(seen.has(k))continue;seen.add(k);out.push(v);}return out;}
+function objMaterialPopularE4_(valor){const sel=document.getElementById('objMapaMaterial');if(!sel)return;const atual=valor!==undefined?String(valor||''):String(sel.value||'');const lista=objMateriaisE4_.length?objMateriaisE4_:OBJ_MATERIAIS_PADRAO_E4;sel.innerHTML='<option value="">— Não classificado —</option>'+lista.map(v=>`<option value="${escaparHtmlInventario_(v)}">${escaparHtmlInventario_(v)}</option>`).join('');if(atual&&!lista.includes(atual)){const op=document.createElement('option');op.value=atual;op.textContent=atual+' (fora da lista)';sel.appendChild(op);}sel.value=atual;}
+async function objMaterialCarregarE4_(){objMateriaisE4_=OBJ_MATERIAIS_PADRAO_E4.slice();try{const ds=await getDoc(doc(db,'configuracoes','materiaisObjetosMapa'));const lista=ds.exists()?ds.data()?.lista:null;if(Array.isArray(lista)&&lista.length)objMateriaisE4_=objMaterialUnicosE4_(lista);}catch(e){console.warn('Materiais de objetos',e);}objMaterialPopularE4_();}
+window.objMapaEditarMateriais800_=async function(){if(userData?.role!=='mestre')return;const txt=prompt('Edite a lista de materiais. Use um material por linha:',(objMateriaisE4_.length?objMateriaisE4_:OBJ_MATERIAIS_PADRAO_E4).join('\n'));if(txt===null)return;const lista=objMaterialUnicosE4_(txt.split(/[\n,;]+/));if(!lista.length)return notificar_('A lista precisa ter pelo menos um material.','aviso',3000);objMateriaisE4_=lista;objMaterialPopularE4_();try{await setDoc(doc(db,'configuracoes','materiaisObjetosMapa'),{lista,atualizadoEm:new Date().toISOString()},{merge:false});notificar_('Lista de materiais atualizada.','sucesso',2200);}catch(e){console.warn('Salvar materiais',e);notificar_('Lista alterada localmente, mas não foi sincronizada.','aviso',3500);}};
+const preencherEditorObjetoMapaE4Base_=preencherEditorObjetoMapa_;
+preencherEditorObjetoMapa_=function(o){const r=preencherEditorObjetoMapaE4Base_.apply(this,arguments);objMaterialPopularE4_(o?.material||'');return r;};
+window.preencherEditorObjetoMapa_=preencherEditorObjetoMapa_;
+const salvarObjetoMapaEditorE4Base_=window.salvarObjetoMapaEditor_;
+window.salvarObjetoMapaEditor_=async function(){const idAntes=String(document.getElementById('objMapaEditId')?.value||''),nomeAntes=String(document.getElementById('objMapaNome')?.value||'').trim(),material=objMaterialLimparE4_(document.getElementById('objMapaMaterial')?.value||'');await salvarObjetoMapaEditorE4Base_.apply(this,arguments);const o=(objetosMapaDB||[]).find(x=>String(x.id)===idAntes)||[...(objetosMapaDB||[])].reverse().find(x=>String(x.nome||'')===nomeAntes);if(!o)return;o.material=material;try{await setDoc(doc(db,'configuracoes',objetoMapaDocId_(o.id)),{material},{merge:true});}catch(e){console.warn('Persistir material',e);}try{renderizarBancoObjetosMapa_();}catch(_){}};
+setTimeout(()=>{objMaterialCarregarE4_().catch(()=>{});},700);
+
 (function(){
 'use strict';
 
@@ -30756,3 +30788,125 @@ console.log(
 );
 
 })();
+
+// ============================================================
+// EXP-EXPLORACAO-4 — exploração fora de combate e reposicionamento do mestre
+// ============================================================
+function labAtorInteracaoE4_(){
+    if(labEstado_.fase==='combate')return labTokenAtual_();
+    const ids=[labEstado_.exploracaoAtorId,labEstado_.selecionadoId].filter(Boolean).map(String);
+    for(const id of ids){const t=labTokenPorId_(id);if(t&&labPodeControlarToken_(t))return t;}
+    if(!batalhaEhMestre_())return (labEstado_.tokens||[]).find(t=>labPodeControlarToken_(t))||null;
+    return null;
+}
+const labSelecionarE4Base_=window.labSelecionar_;
+window.labSelecionar_=function(id){const t=labTokenPorId_(id);if(labEstado_.fase!=='combate'&&t&&labPodeControlarToken_(t))labEstado_.exploracaoAtorId=String(t.id);return labSelecionarE4Base_.apply(this,arguments);};
+const labSelecionarObjetoE4Base_=window.labSelecionarObjeto_;
+window.labSelecionarObjeto_=function(id){
+    if(labEstado_.fase!=='combate'){
+        const o=labObjetoPorId_(id);if(!o)return;
+        labEstado_.objetoSelecionadoId=String(id);
+        // Mantém selecionadoId/exploracaoAtorId: o personagem continua sendo o ator da exploração.
+        labSalvarLocal_();labRender_();
+        if(!batalhaEhMestre_())notificar_(`Objeto selecionado: ${o.nome||'objeto'}.`,'info',1200);
+        return;
+    }
+    return labSelecionarObjetoE4Base_.apply(this,arguments);
+};
+
+const LAB_FADIGA_E4=['Fresh','Winded','Tired','Wearied','Exhausted','Debilitated','Incapacitated','Semi-Conscious','Comatose','Dead'];
+async function labEsforcoExploracaoE4_(ator,rotulo){
+    const c=labCharToken_(ator);if(!c)return;
+    const con=Math.max(1,Number(c?.atributos?.CON||ator?.attrs?.CON||10));
+    ator.esforcoExploracaoLab=Math.max(0,Number(ator.esforcoExploracaoLab||0))+1;
+    if(ator.esforcoExploracaoLab<con)return;
+    ator.esforcoExploracaoLab=0;c.combate=c.combate||{};
+    const atual=String(c.combate.fadiga||'Fresh'),i=Math.max(0,LAB_FADIGA_E4.indexOf(atual)),novo=LAB_FADIGA_E4[Math.min(LAB_FADIGA_E4.length-1,i+1)];
+    if(novo===atual)return;c.combate.fadiga=novo;
+    try{if(c.id&&!c.__npcTemporario&&!c.__criaturaTemporaria)await setDoc(doc(db,'personagens',String(c.id)),{'combate.fadiga':novo},{merge:true});}catch(e){console.warn('Fadiga de exploração',e);}
+    notificar_(`🥵 ${ator.nome}: o esforço de ${rotulo.toLowerCase()} aumentou a fadiga para ${traduzirNomeFadiga_(novo)}.`,'aviso',4200);
+}
+
+// Ações de objeto fora do combate não usam AÇ. Lenhar/minerar ficam exclusivos da exploração.
+const labObjetoAcaoExecutarE4Base_=labObjetoAcaoExecutar_;
+labObjetoAcaoExecutar_=function(ator,objeto,tipo){
+    const combate=labEstado_.fase==='combate';
+    if(!ator||!objeto)return;
+    if(combate&&(tipo==='minerar'||tipo==='cortar')){notificar_('Lenhar e minerar são ações de exploração, fora do combate.','aviso',3000);return;}
+    if(combate)return labObjetoAcaoExecutarE4Base_.apply(this,arguments);
+    if(tipo==='extinguir'){
+        // Fora de combate, o extintor usa carga mas não AÇ.
+        const antes=Number(ator.acoesAtuaisLab||0);if(antes<=0)ator.acoesAtuaisLab=1;
+        labObjetoExtinguirExecutar_(ator,objeto);
+        ator.acoesAtuaisLab=antes;
+        labSalvarLocal_();labRender_();
+        return;
+    }
+    if(!['mover','minerar','cortar'].includes(tipo))return;
+    let per=null,equip=null,dif='padrao',rotulo='';
+    const nat=labObjetoNatureza_(objeto),c=labCharToken_(ator),forca=Number(c?.atributos?.FOR||ator?.attrs?.FOR||10),tam=Number(c?.atributos?.TAM||ator?.attrs?.TAM||10),peso=labObjetoPesoKg_(objeto);
+    if(tipo==='mover'){per=labPericiaRegex_(ator,/forca bruta|força bruta|brute force|蛮力/);rotulo='Mover objeto';const cap=Math.max(10,(forca+tam)*5);dif=peso<=cap?'padrao':peso<=cap*2?'dificil':'formidavel';}
+    if(tipo==='minerar'){if(nat!=='rocha')return;if(labDistanciaEntre_(ator,objeto)>1.5)return notificar_('Você precisa estar a até 1,5 m da pedra para minerar.','aviso',3200);per=labPericiaRegex_(ator,/forca bruta|força bruta|brute force|蛮力/);equip=labEquipadoRegex_(ator,/picareta|pickaxe|mining pick|矿镐|鹤嘴锄/);rotulo='Minerar';if(!equip)return notificar_('Minerar exige uma picareta equipada.','aviso',3500);}
+    if(tipo==='cortar'){if(nat!=='arvore')return;if(labDistanciaEntre_(ator,objeto)>1.5)return notificar_('Você precisa estar a até 1,5 m da madeira para lenhar.','aviso',3200);per=labPericiaRegex_(ator,/forca bruta|força bruta|brute force|蛮力/);equip=labEquipadoRegex_(ator,/machado|axe|hatchet|斧/);rotulo='Lenhar';if(!equip)return notificar_('Lenhar exige um machado equipado.','aviso',3500);}
+    if(!per)return notificar_(`Não encontrei Força Bruta para ${rotulo.toLowerCase()}.`,'aviso',3500);
+    const base=labValorTeste_(ator,per),aj=aplicarDificuldadeEFadiga_(c,base,dif,0);if(aj?.bloqueado)return notificar_(`${traduzirNomeFadiga_(c?.combate?.fadiga||'Fresh')}: nenhuma atividade possível.`,'aviso',3500);
+    const valor=Math.max(0,Number(aj?.valor||base)),roll=1+Math.floor(Math.random()*100),r=classificarD100_(valor,roll),sucesso=batalhaResultadoGradeValor_(r.grau)>=2;
+    let efeito=' Nenhum efeito.';
+    if(sucesso&&tipo==='mover'){const metros=Math.max(.5,Math.min(2.5,1.5*(Math.max(10,(forca+tam)*5)/Math.max(1,peso))));labPsiEmpurrar_(ator,objeto,metros);efeito=` ${objeto.nome} foi deslocado ${metros.toFixed(1)} m.`;}
+    if(sucesso&&(tipo==='minerar'||tipo==='cortar')){const bruto=(1+Math.floor(Math.random()*6))+Math.max(0,Math.floor(forca/5)),durezaBase=Math.max(0,Number(objeto.dureza||0));let durezaEfetiva=durezaBase;if(tipo==='minerar')durezaEfetiva=Math.ceil(durezaBase*(/industrial/.test(labTextoItemMesa_(equip))?1/3:1/2));else durezaEfetiva=Math.ceil(durezaBase/3);const d=labObjetoAplicarDanoFerramenta_(objeto,bruto,durezaEfetiva);efeito=` Dano de trabalho ${d.bruto} - Dureza efetiva ${d.duro} = ${d.final}.${objeto.destruido?' Objeto destruído.':''}`;if(d.final>0)labAdicionarFloat_(objeto,-d.final,'dano');}
+    const txt=`${rotulo}: ${roll}/${valor} → ${r.grau}.${efeito}`;labRegistrarResultadoProprio_(ator,txt);labEstado_.logLab=Array.isArray(labEstado_.logLab)?labEstado_.logLab:[];labEstado_.logLab.unshift({ts:new Date().toLocaleTimeString(),texto:`${ator.nome}: ${txt}`});
+    Promise.resolve(labEsforcoExploracaoE4_(ator,rotulo)).catch(()=>{});try{somDado_();}catch(_){}labSalvarLocal_();try{labAgendarSyncRemoto_();}catch(_){}labRender_();
+};
+
+window.labObjetoAcao_=function(tipo,id){const ator=labAtorInteracaoE4_(),o=labObjetoPorId_(id);if(!ator||!o||!labPodeControlarToken_(ator)){notificar_('Selecione primeiro o personagem que fará a ação.','aviso',2800);return;}if(!batalhaEhMestre_()){labEnviarComandoJogador_('acao_objeto',{tipo:String(tipo||''),objetoId:String(id)},ator).then(ok=>{if(ok)notificar_('Ação enviada ao mestre.','info',1200);});return;}labObjetoAcaoExecutar_(ator,o,String(tipo||''));};
+
+// Mestre processa ações de exploração dos jogadores mesmo sem iniciativa ativa.
+const labProcessarComandoJogadorE4Base_=labProcessarComandoJogador_;
+labProcessarComandoJogador_=async function(personagemId,acao){
+    if(acao?.tipo==='acao_objeto'&&labEstado_.fase!=='combate'){
+        const t=labTokenPorId_(personagemId);if(!t||String(t.donoUid||'')!==String(acao?.donoUid||''))return;
+        const o=labObjetoPorId_(acao?.payload?.objetoId);if(!o)return;
+        labObjetoAcaoExecutar_(t,o,String(acao?.payload?.tipo||''));
+        try{await deleteDoc(doc(db,'combatesAtivos','mapaMesa','acoes',String(personagemId)));}catch(_){}
+        if(batalhaEhMestre_())labAgendarSyncRemoto_();return;
+    }
+    return labProcessarComandoJogadorE4Base_.apply(this,arguments);
+};
+
+// Painel contextual: exploração mostra trabalho; combate mostra ataque/movimento, nunca Lenhar/Minerar.
+labObjetoMicroPainelHtml_=function(o,ppm){
+    if(!o||o.destruido||String(labEstado_.objetoSelecionadoId||'')!==String(o.id))return '';
+    const combate=labEstado_.fase==='combate',ator=labAtorInteracaoE4_();if(!ator||!labPodeControlarToken_(ator))return '';
+    if(combate&&Number(ator.acoesAtuaisLab||0)<=0)return '';
+    const nat=labObjetoNatureza_(o),pic=labEquipadoRegex_(ator,/picareta|pickaxe|mining pick|矿镐|鹤嘴锄/),axe=labEquipadoRegex_(ator,/machado|axe|hatchet|斧/),ext=labEquipadoRegex_(ator,/extintor|extinguisher|灭火器/),psis=combate?labPsiPoderesParaAlvo_(ator,o):[];
+    const meiaH=Math.max(18,Number(o.alturaM||1)*ppm)/2,posMicro=labMicroPosicaoVertical_(o.y*ppm,meiaH,ppm,72),top=posMicro.top,left=o.x*ppm,oid=String(o.id).replace(/'/g,"\\'");
+    const botoes=[];
+    if(combate){if(o.destrutivel!==false)botoes.push(`<button class="btn-small btn-select" onclick="labAtacarObjetoContextual_('${oid}')">⚔️ Atacar</button>`);botoes.push(`<button class="btn-small" onclick="labObjetoAcao_('mover','${oid}')">💪 Mover</button>`);for(const p of psis)botoes.push(`<button class="btn-small lab-psi-action" onclick="${p.id==='mover_objeto'?`labUsarPsiContextualRapido_('${String(p.id).replace(/'/g,"\\'")}','${oid}')`:`labAbrirPsiContextual_('${String(p.id).replace(/'/g,"\\'")}','${oid}')`}">🔮 ${escaparHtmlInventario_(getNome(p))}</button>`);}else{botoes.push(`<button class="btn-small" onclick="labObjetoAcao_('mover','${oid}')">💪 Mover</button>`);if(nat==='rocha'&&pic)botoes.push(`<button class="btn-small btn-select" onclick="labObjetoAcao_('minerar','${oid}')">⛏️ Minerar</button>`);if(nat==='arvore'&&axe)botoes.push(`<button class="btn-small btn-select" onclick="labObjetoAcao_('cortar','${oid}')">🪓 Lenhar</button>`);}
+    if(o.pegandoFogoLab&&ext)botoes.push(`<button class="btn-small" onclick="labObjetoAcao_('extinguir','${oid}')">🧯 Apagar fogo</button>`);
+    if(!botoes.length)return '';
+    return `<div class="lab-micro-actions" onclick="event.stopPropagation()" onpointerdown="event.stopPropagation()" style="position:absolute;left:${left}px;top:${top}px;transform:${posMicro.transform};z-index:28;padding:4px;border-radius:8px;background:rgba(10,13,30,.96);border:1px solid rgba(126,231,255,.45);display:flex;gap:3px;align-items:center;justify-content:center;flex-wrap:wrap;max-width:410px;">${botoes.join('')}</div>`;
+};
+
+// Mestre pode reposicionar qualquer token/objeto durante o combate. O toggle Controlar PJ continua valendo para AÇÕES, não para arraste de mestre.
+function labArrastarLivreMestreE4_(ev,id,objeto=false){
+    if(ev.button===2)return;ev.preventDefault();ev.stopPropagation();
+    const map=document.getElementById('labMetricMap'),alvo=objeto?labObjetoPorId_(id):labTokenPorId_(id);if(!map||!alvo)return;
+    if(objeto){labEstado_.objetoSelecionadoId=String(id);labEstado_.selecionadoId='';}else{labEstado_.selecionadoId=String(id);labEstado_.objetoSelecionadoId='';}
+    const rect=map.getBoundingClientRect(),ppm=Number(labEstado_.pxPorMetro||48),node=map.querySelector(objeto?`.lab-map-object[data-id="${CSS.escape(String(id))}"]`:`.lab-token[data-id="${CSS.escape(String(id))}"]`),w=node?.offsetWidth||24,h=node?.offsetHeight||24;
+    let raf=0,p=null,moved=false,ox=Number(alvo.x||0),oy=Number(alvo.y||0);
+    const aplicar=()=>{raf=0;if(!p)return;const q=p;p=null;alvo.x=Math.max(0,Math.min(labEstado_.larguraM,(q.x-rect.left)/ppm));alvo.y=Math.max(0,Math.min(labEstado_.alturaM,(q.y-rect.top)/ppm));if(Math.hypot(alvo.x-ox,alvo.y-oy)>.03)moved=true;if(node){node.style.left=`${alvo.x*ppm-w/2}px`;node.style.top=`${alvo.y*ppm-h/2}px`;}};
+    const move=e=>{p={x:e.clientX,y:e.clientY};if(!raf)raf=requestAnimationFrame(aplicar);};
+    const up=()=>{window.removeEventListener('pointermove',move);if(p){if(raf){cancelAnimationFrame(raf);raf=0;}aplicar();}labSalvarLocal_();try{labAgendarSyncRemoto_();}catch(_){}labRender_();};
+    window.addEventListener('pointermove',move,{passive:true});window.addEventListener('pointerup',up,{once:true});
+}
+const labPointerDownE4Base_=window.labPointerDown_;
+window.labPointerDown_=function(ev,id){if(batalhaEhMestre_()&&labEstado_.fase==='combate')return labArrastarLivreMestreE4_(ev,id,false);return labPointerDownE4Base_.apply(this,arguments);};
+const labObjetoPointerDownE4Base_=window.labObjetoPointerDown_;
+window.labObjetoPointerDown_=function(ev,id){if(batalhaEhMestre_()&&labEstado_.fase==='combate')return labArrastarLivreMestreE4_(ev,id,true);return labObjetoPointerDownE4Base_.apply(this,arguments);};
+
+// Faixas secundárias nunca desaparecem; vazias continuam reservando o mesmo espaço.
+const labRenderObjetoPainelE4Base_=window.labRenderObjetoPainel_;
+window.labRenderObjetoPainel_=function(){const r=labRenderObjetoPainelE4Base_.apply(this,arguments),e=document.getElementById('labObjetoPainel');if(e)e.style.display='flex';return r;};
+const labAtualizarInfoE4Base_=labAtualizarInfo_;
+labAtualizarInfo_=function(){const r=labAtualizarInfoE4Base_.apply(this,arguments),e=document.getElementById('labInfo');if(e)e.style.display='flex';return r;};
+window.labAtualizarInfo_=labAtualizarInfo_;

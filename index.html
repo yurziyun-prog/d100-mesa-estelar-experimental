@@ -654,6 +654,27 @@
 #labLiveObjectList770 .lab-live-obj-name770{font-weight:750;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #labLiveObjectList770 small{color:#9fb8c9;font-size:.75em}
 </style>
+
+<style id="labCompactUiExploracao4">
+/* EXP-EXPLORACAO-4: painel de combate mais compacto e faixas secundárias estáveis */
+#labActionPanel{font-size:.78rem!important;padding:5px 7px!important;margin-bottom:5px!important;}
+#labActionPanel select,#labActionPanel input{font-size:.80rem!important;min-height:34px!important;height:34px!important;padding:3px 7px!important;}
+#labActionPanel .btn-small{font-size:.78rem!important;min-height:34px!important;height:34px!important;padding:3px 9px!important;}
+#labActionPanel small{font-size:.72rem!important;}
+#labActionPanel .lab-action-description-inline{flex:1 1 320px;min-height:34px;display:flex;align-items:center;padding:4px 7px;border-radius:7px;background:rgba(255,255,255,.045);color:#cfe7ff;font-size:.74rem;line-height:1.25;}
+#labActionPanel .lab-pv-title{margin-top:5px!important;font-size:.70rem!important;}
+#labActionPanel .lab-pv-grid{gap:3px!important;margin-top:3px!important;}
+#labActionPanel .lab-pv-cell{padding:2px 4px!important;border-radius:5px!important;line-height:1.05;}
+#labActionPanel .lab-pv-cell small{font-size:.65rem!important;line-height:1.05!important;}
+#labActionPanel .lab-pv-cell b{font-size:.76rem!important;line-height:1.05!important;}
+.lab-secondary-strip{display:flex!important;align-items:center;gap:7px;flex-wrap:nowrap!important;box-sizing:border-box;height:36px;min-height:36px;max-height:36px;padding:4px 7px;margin-bottom:5px;border-radius:7px;font-size:.72rem;line-height:1.05;white-space:nowrap;overflow-x:auto;overflow-y:hidden;}
+.lab-info-strip{background:rgba(0,212,255,.07);border:1px solid rgba(0,212,255,.20);color:#cdefff;}
+.lab-object-strip{background:rgba(86,240,138,.07);border:1px solid rgba(86,240,138,.28);color:#d8ffe5;}
+#labInfo select{font-size:.70rem!important;min-height:25px!important;height:25px!important;padding:1px 5px!important;min-width:110px!important;}
+#labObjetoPainel .btn-small{font-size:.68rem!important;min-height:25px!important;height:25px!important;padding:2px 7px!important;}
+#labObjetoPainel input{font-size:.68rem!important;height:25px!important;padding:1px 4px!important;width:52px!important;}
+#labCombatStatus{font-size:.78rem!important;padding:5px 8px!important;margin-bottom:5px!important;}
+</style>
 </head>
 <body>
     <div class="galaxy-bg"></div>
@@ -729,9 +750,8 @@
                             <button class="btn-small" onclick="labRetirarParticipanteSelecionado_()" title="Retira da grid apenas o participante atualmente selecionado; não apaga a ficha">➖ Retirar selecionado</button>
                             <button class="btn-small" onclick="labAdicionarBoneco_()">🎯 Boneco de treino</button>
                             <button class="btn-small" onclick="labPosicoesAleatorias_()">🎲 Posições aleatórias</button>
-                            <button class="btn-small" id="labStartBtn" onclick="labIniciarCombate_()">⚡ Iniciar combate</button>
+                            <button class="btn-small" id="labStartBtn" onclick="labAlternarCombate_()">⚡ Iniciar combate</button>
                             <button class="btn-small hidden" id="labNextBtn" onclick="labEncerrarOportunidade_()">⏭ Encerrar oportunidade</button>
-                            <button class="btn-small hidden" id="labStopBtn" onclick="labVoltarPreparacao_()">🧭 Voltar à preparação</button>
                             <button class="btn-small" onclick="labRestaurarParticipantes_()" title="Restaura PV, PP, Sorte, AÇ, fadiga, estados e munição dos participantes atuais">♻️ Restaurar participantes</button>
                             <button class="btn-small" onclick="labLimpar_()">🧹 Limpar mesa</button>
                         </div>
@@ -779,8 +799,8 @@
                     </div>
                     <div id="labCombatStatus" style="padding:9px 11px;margin-bottom:8px;border-radius:8px;background:rgba(255,193,7,.08);border:1px solid rgba(255,193,7,.30);color:#ffe29a;"></div>
                     <div id="labActionPanel" style="display:none;margin-bottom:7px;padding:7px 9px;border-radius:9px;font-size:.88em;background:rgba(22,18,48,.88);border:1px solid rgba(0,212,255,.28);"></div>
-                    <div id="labInfo" style="padding:9px 11px;margin-bottom:10px;border-radius:8px;background:rgba(0,212,255,.07);border:1px solid rgba(0,212,255,.20);color:#cdefff;">Clique num token para selecioná-lo. Arraste o token para mover. Arraste a seta dourada na borda para girar a frente. A sombra mostra o deslocamento disponível em metros.</div>
-                    <div id="labObjetoPainel" style="display:none;padding:9px 11px;margin-bottom:10px;border-radius:8px;background:rgba(86,240,138,.07);border:1px solid rgba(86,240,138,.28);color:#d8ffe5;"></div>
+                    <div id="labInfo" class="lab-secondary-strip lab-info-strip">Clique num token para selecioná-lo.</div>
+                    <div id="labObjetoPainel" class="lab-secondary-strip lab-object-strip"></div>
                     <div style="overflow:auto;padding:10px;border-radius:12px;background:rgba(0,0,0,.18);border:1px solid rgba(255,255,255,.12);">
                         <div id="labHoverCard" style="display:none;position:fixed;z-index:99999;pointer-events:none;width:300px;max-height:520px;overflow:hidden;border:1px solid rgba(0,212,255,.55);border-radius:12px;background:rgba(12,14,33,.97);box-shadow:0 12px 34px rgba(0,0,0,.55);padding:10px;"></div>
                     <div id="labPlayerPrivateResult" style="display:none"></div>
@@ -2103,7 +2123,7 @@
         });
     </script>
 
-<script type="module" src="js/app.js?v=46.83.2-exp-materiais-3-20260906"></script>
+<script type="module" src="js/app.js?v=46.83.2-exp-exploracao-4-20260906"></script>
 <!-- Mesa Estelar v46.38.0: segurança de objetos, XP contextual, tutorial reforçado, PM/PJ, imagem pós-conclusão e sincronização de magia -->
 
 <div id="battleTokenPreview" class="battle-token-preview" aria-hidden="true"></div>
@@ -2225,121 +2245,7 @@ setTimeout(()=>{try{lab780HidratarMesa_();labRender_();}catch(_){}},1200);
 <!-- Mesa Estelar v46.79.0: rotação de objetos/imagens na Oficina 2 e microações adaptativas na borda inferior -->
 
 
-<script>
-// ============================================================
-// V46.80.0 — material explícito e editável para objetos de mapa
-// Base para regras de ferramentas, fogo e resistência por material.
-// ============================================================
-(function(){
-const MAT800_DEFAULTS_=['Madeira','Pedra','Metal','Vidro','Plástico','Papel','Carne','Osso','Gelo','Tecido','Líquido'];
-let mat800Lista_=[];
-
-function mat800Limpar_(v){return String(v||'').trim().replace(/\s+/g,' ');}
-function mat800Unicos_(arr){
- const out=[],seen=new Set();
- for(const raw of (arr||[])){const v=mat800Limpar_(raw);if(!v)continue;const k=v.toLocaleLowerCase('pt-BR');if(seen.has(k))continue;seen.add(k);out.push(v);}
- return out;
-}
-function mat800LerLocal_(){
- try{const a=JSON.parse(localStorage.getItem('mesaEstelarMateriaisObjetos800')||'[]');return Array.isArray(a)?mat800Unicos_(a):[];}catch(_){return [];}
-}
-function mat800ListaAtual_(){return mat800Lista_.length?mat800Lista_:MAT800_DEFAULTS_.slice();}
-function mat800SalvarLocal_(){try{localStorage.setItem('mesaEstelarMateriaisObjetos800',JSON.stringify(mat800ListaAtual_()));}catch(_){}}
-function mat800Escape_(v){return typeof escaparHtmlInventario_==='function'?escaparHtmlInventario_(v):String(v||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
-function mat800PopularSelect_(valor){
- const sel=document.getElementById('objMapaMaterial');if(!sel)return;
- const atual=valor!==undefined?String(valor||''):String(sel.value||'');
- const lista=mat800ListaAtual_();
- sel.innerHTML='<option value="">— Não classificado —</option>'+lista.map(v=>`<option value="${mat800Escape_(v)}">${mat800Escape_(v)}</option>`).join('');
- if(atual&&!lista.some(v=>v===atual)){const op=document.createElement('option');op.value=atual;op.textContent=atual+' (fora da lista)';sel.appendChild(op);}
- sel.value=atual;
-}
-async function mat800Carregar_(){
- const local=mat800LerLocal_();mat800Lista_=local.length?local:MAT800_DEFAULTS_.slice();mat800PopularSelect_();
- try{
-   if(typeof db!=='undefined'&&typeof getDoc==='function'&&typeof doc==='function'){
-     const ds=await getDoc(doc(db,'configuracoes','materiaisObjetosMapa'));
-     const remoto=ds.exists()?ds.data()?.lista:null;
-     if(Array.isArray(remoto)&&remoto.length){mat800Lista_=mat800Unicos_(remoto);mat800SalvarLocal_();mat800PopularSelect_();}
-   }
- }catch(e){console.warn('Materiais de objetos: usando lista local.',e);}
-}
-window.objMapaEditarMateriais800_=async function(){
- if(typeof batalhaEhMestre_==='function'&&!batalhaEhMestre_())return;
- const atual=mat800ListaAtual_().join('\n');
- const txt=prompt('Edite a lista de materiais. Use um material por linha (ou separe por vírgulas):',atual);
- if(txt===null)return;
- const lista=mat800Unicos_(String(txt).split(/[\n,;]+/));
- if(!lista.length){if(typeof notificar_==='function')notificar_('A lista precisa ter pelo menos um material.','aviso',3000);return;}
- mat800Lista_=lista;mat800SalvarLocal_();mat800PopularSelect_();
- try{
-   if(typeof db!=='undefined'&&typeof setDoc==='function'&&typeof doc==='function')
-     await setDoc(doc(db,'configuracoes','materiaisObjetosMapa'),{lista:lista,atualizadoEm:new Date().toISOString()},{merge:false});
-   if(typeof notificar_==='function')notificar_('Lista de materiais atualizada.','sucesso',2400);
- }catch(e){console.warn('Materiais: falha ao salvar no Firestore',e);if(typeof notificar_==='function')notificar_('Lista salva neste navegador, mas não consegui sincronizar com o banco.','aviso',4500);}
-};
-
-// Preenche o material ao abrir/criar um objeto.
-const preencherBase=window.preencherEditorObjetoMapa_||((typeof preencherEditorObjetoMapa_==='function')?preencherEditorObjetoMapa_:null);
-if(preencherBase){
- const wrapped=function(o){const r=preencherBase.apply(this,arguments);mat800PopularSelect_(o?.material||o?.dadosBanco?.material||'');return r;};
- window.preencherEditorObjetoMapa_=wrapped;try{preencherEditorObjetoMapa_=wrapped;}catch(_){}
-}
-
-// Persiste o material junto do objeto, sem alterar a lógica existente de PV, dureza etc.
-const salvarBase=window.salvarObjetoMapaEditor_;
-if(salvarBase){
- window.salvarObjetoMapaEditor_=async function(){
-   const idAntes=String(document.getElementById('objMapaEditId')?.value||'');
-   const nomeAntes=String(document.getElementById('objMapaNome')?.value||'').trim();
-   const material=mat800Limpar_(document.getElementById('objMapaMaterial')?.value||'');
-   await salvarBase.apply(this,arguments);
-   const o=(objetosMapaDB||[]).find(x=>String(x.id)===idAntes)||[...(objetosMapaDB||[])].reverse().find(x=>String(x.nome||'')===nomeAntes);
-   if(!o)return;
-   o.material=material;
-   if(o.dadosBanco&&typeof o.dadosBanco==='object')o.dadosBanco.material=material;
-   try{
-     if(typeof setDoc==='function'&&typeof doc==='function')await setDoc(doc(db,'configuracoes',objetoMapaDocId_(o.id)),{material},{merge:true});
-   }catch(e){console.warn('Persistência do material',e);}
-   try{renderizarBancoObjetosMapa_();}catch(_){}
- };
-}
-
-// Acrescenta a coluna Material à tabela sem reescrever todo o banco legado.
-const renderBase=window.renderizarBancoObjetosMapa_;
-if(renderBase){
- window.renderizarBancoObjetosMapa_=function(){
-   const r=renderBase.apply(this,arguments);
-   const table=document.querySelector('#listaBancoObjetosMapa table');if(!table)return r;
-   const hr=table.querySelector('thead tr');
-   if(hr&&!hr.querySelector('[data-mat800-head]')){const th=document.createElement('th');th.dataset.mat800Head='1';th.textContent='Material';const alvo=hr.children[5]||null;hr.insertBefore(th,alvo);}
-   const rows=[...table.querySelectorAll('tbody tr')];
-   rows.forEach((tr,i)=>{if(tr.querySelector('[data-mat800-cell]'))return;const td=document.createElement('td');td.dataset.mat800Cell='1';const m=(objetosMapaDB||[])[i];td.textContent=m?.material||'—';const alvo=tr.children[5]||null;tr.insertBefore(td,alvo);});
-   return r;
- };
-}
-
-// Objetos de mapas antigos podem recuperar o material pelo snapshot/modelo atual.
-function mat800HidratarMesa_(){
- if(typeof labEstado_==='undefined'||!labEstado_)return;
- for(const o of (labEstado_.objetosLab||[])){
-   if(o.material)continue;
-   if(o.dadosBanco?.material){o.material=o.dadosBanco.material;continue;}
-   const ids=[o.modeloId,o.objetoBancoId,o.dadosBanco?.id].filter(Boolean).map(String);
-   const m=(objetosMapaDB||[]).find(x=>ids.includes(String(x.id)));
-   if(m?.material)o.material=m.material;
- }
-}
-if(typeof labRender_==='function'){
- const labRenderBase=labRender_;
- labRender_=function(){try{mat800HidratarMesa_();}catch(_){}return labRenderBase.apply(this,arguments);};window.labRender_=labRender_;
-}
-
-mat800Lista_=mat800LerLocal_();if(!mat800Lista_.length)mat800Lista_=MAT800_DEFAULTS_.slice();
-setTimeout(()=>{try{mat800Carregar_();}catch(_){}},900);
-})();
-</script>
-<!-- Mesa Estelar v46.80.0: material explícito/editável para objetos de mapa -->
+<!-- Material dos objetos é gerenciado pelo módulo js/app.js a partir da versão EXP-EXPLORACAO-4. -->
 
 </body>
 </html>
