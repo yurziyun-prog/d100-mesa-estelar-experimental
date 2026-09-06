@@ -56,8 +56,8 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-console.info('[Mesa Estelar] build EXP-COREFIX-8 carregado');
-window.__MESA_BUILD__ = 'EXP-COREFIX-8';
+console.info('[Mesa Estelar] build EXP-DISTANCIA-9 carregado');
+window.__MESA_BUILD__ = 'EXP-DISTANCIA-9';
 
 let currentUserUid = null;
 let userData = null;
@@ -5750,6 +5750,28 @@ function labDistanciaEntre_(a,b){
     if(!a||!b)return Infinity;
     return Math.hypot(Number(a.x||0)-Number(b.x||0),Number(a.y||0)-Number(b.y||0));
 }
+
+function labDistanciaInteracaoObjeto_(ator,objeto){
+    if(!ator||!objeto)return Infinity;
+
+    const ax=Number(ator.x||0), ay=Number(ator.y||0);
+    const ox=Number(objeto.x||0), oy=Number(objeto.y||0);
+
+    const largura=Math.max(0.05,Number(objeto.larguraM||1));
+    const altura=Math.max(0.05,Number(objeto.alturaM||1));
+    const ang=-Number(objeto.angulo||0)*Math.PI/180;
+
+    const dx=ax-ox, dy=ay-oy;
+    const lx=dx*Math.cos(ang)-dy*Math.sin(ang);
+    const ly=dx*Math.sin(ang)+dy*Math.cos(ang);
+
+    const foraX=Math.max(Math.abs(lx)-largura/2,0);
+    const foraY=Math.max(Math.abs(ly)-altura/2,0);
+
+    const raioAtor=Math.max(0,Number(ator.diametroM||0.9)/2);
+    return Math.max(0,Math.hypot(foraX,foraY)-raioAtor);
+}
+
 function labAlcanceAtaque_(t,item){
     if(!item)return 1.5;
     const explicito=Number(item.alcanceMetros);
@@ -15136,7 +15158,7 @@ function labObjetoExtinguirExecutar_(ator,objeto){
         notificar_('Este objeto não está em chamas.','aviso',2600);
         return;
     }
-    if(labDistanciaEntre_(ator,objeto)>1.5){
+    if(labDistanciaInteracaoObjeto_(ator,objeto)>1.5){
         notificar_('O extintor só pode ser usado a até 1,5 m do alvo.','aviso',3600);
         return;
     }
@@ -15203,7 +15225,7 @@ function labObjetoAcaoExecutar_(ator,objeto,tipo){
         dif=peso<=cap?'padrao':peso<=cap*2?'dificil':'formidavel';
     }else if(tipo==='minerar'){
         if(nat!=='rocha')return;
-        if(labDistanciaEntre_(ator,objeto)>1.5){
+        if(labDistanciaInteracaoObjeto_(ator,objeto)>1.5){
             notificar_('Você precisa estar a até 1,5 m da pedra para minerar.','aviso',3400);
             return;
         }
@@ -15216,7 +15238,7 @@ function labObjetoAcaoExecutar_(ator,objeto,tipo){
         }
     }else if(tipo==='cortar'){
         if(nat!=='arvore')return;
-        if(labDistanciaEntre_(ator,objeto)>1.5){
+        if(labDistanciaInteracaoObjeto_(ator,objeto)>1.5){
             notificar_('Você precisa estar a até 1,5 m da madeira para lenhar.','aviso',3400);
             return;
         }
@@ -30864,8 +30886,8 @@ labObjetoAcaoExecutar_=function(ator,objeto,tipo){
     let per=null,equip=null,dif='padrao',rotulo='';
     const nat=labObjetoNatureza_(objeto),c=labCharToken_(ator),forca=Number(c?.atributos?.FOR||ator?.attrs?.FOR||10),tam=Number(c?.atributos?.TAM||ator?.attrs?.TAM||10),peso=labObjetoPesoKg_(objeto);
     if(tipo==='mover'){per=labPericiaRegex_(ator,/forca bruta|força bruta|brute force|蛮力/);rotulo='Mover objeto';const cap=Math.max(10,(forca+tam)*5);dif=peso<=cap?'padrao':peso<=cap*2?'dificil':'formidavel';}
-    if(tipo==='minerar'){if(nat!=='rocha')return;if(labDistanciaEntre_(ator,objeto)>1.5)return notificar_('Você precisa estar a até 1,5 m da pedra para minerar.','aviso',3200);per=labPericiaRegex_(ator,/forca bruta|força bruta|brute force|蛮力/);equip=labEquipadoRegex_(ator,/picareta|pickaxe|mining pick|矿镐|鹤嘴锄/);rotulo='Minerar';if(!equip)return notificar_('Minerar exige uma picareta equipada.','aviso',3500);}
-    if(tipo==='cortar'){if(nat!=='arvore')return;if(labDistanciaEntre_(ator,objeto)>1.5)return notificar_('Você precisa estar a até 1,5 m da madeira para lenhar.','aviso',3200);per=labPericiaRegex_(ator,/forca bruta|força bruta|brute force|蛮力/);equip=labEquipadoRegex_(ator,/machado|axe|hatchet|斧/);rotulo='Lenhar';if(!equip)return notificar_('Lenhar exige um machado equipado.','aviso',3500);}
+    if(tipo==='minerar'){if(nat!=='rocha')return;if(labDistanciaInteracaoObjeto_(ator,objeto)>1.5)return notificar_('Você precisa estar a até 1,5 m da pedra para minerar.','aviso',3200);per=labPericiaRegex_(ator,/forca bruta|força bruta|brute force|蛮力/);equip=labEquipadoRegex_(ator,/picareta|pickaxe|mining pick|矿镐|鹤嘴锄/);rotulo='Minerar';if(!equip)return notificar_('Minerar exige uma picareta equipada.','aviso',3500);}
+    if(tipo==='cortar'){if(nat!=='arvore')return;if(labDistanciaInteracaoObjeto_(ator,objeto)>1.5)return notificar_('Você precisa estar a até 1,5 m da madeira para lenhar.','aviso',3200);per=labPericiaRegex_(ator,/forca bruta|força bruta|brute force|蛮力/);equip=labEquipadoRegex_(ator,/machado|axe|hatchet|斧/);rotulo='Lenhar';if(!equip)return notificar_('Lenhar exige um machado equipado.','aviso',3500);}
     if(!per)return notificar_(`Não encontrei Força Bruta para ${rotulo.toLowerCase()}.`,'aviso',3500);
     const base=labValorTeste_(ator,per),aj=aplicarDificuldadeEFadiga_(c,base,dif,0);if(aj?.bloqueado)return notificar_(`${traduzirNomeFadiga_(c?.combate?.fadiga||'Fresh')}: nenhuma atividade possível.`,'aviso',3500);
     const valor=Math.max(0,Number(aj?.valor||base)),roll=1+Math.floor(Math.random()*100),r=classificarD100_(valor,roll),sucesso=batalhaResultadoGradeValor_(r.grau)>=2;
@@ -31690,20 +31712,6 @@ function labModeloObjetoE8_(o){
         if(m)return m;
     }
 
-    // Compatibilidade de mapas antigos: repara a LIGAÇÃO ao Banco por nome exato único.
-    // O material continua vindo do campo Material do modelo, nunca do nome.
-    const nk=labNomeChaveE8_(o.nome||o.name);
-    if(nk){
-        const porNome=(objetosMapaDB||[]).filter(m=>labNomeChaveE8_(m?.nome||m?.name)===nk);
-        if(porNome.length===1)return porNome[0];
-    }
-
-    // Segundo fallback seguro: mesma URL de imagem e correspondência única.
-    const ik=labImagemChaveE8_(o.imagem||o.image);
-    if(ik){
-        const porImg=(objetosMapaDB||[]).filter(m=>labImagemChaveE8_(m?.imagem||m?.image)===ik);
-        if(porImg.length===1)return porImg[0];
-    }
     return null;
 }
 
