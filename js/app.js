@@ -56,8 +56,8 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-console.info('[Mesa Estelar] build EXP-EXPLORACAO-4 carregado');
-window.__MESA_BUILD__ = 'EXP-EXPLORACAO-4';
+console.info('[Mesa Estelar] build EXP-ATUAR-CAMERA-6 carregado');
+window.__MESA_BUILD__ = 'EXP-ATUAR-CAMERA-6';
 
 let currentUserUid = null;
 let userData = null;
@@ -30910,3 +30910,682 @@ window.labRenderObjetoPainel_=function(){const r=labRenderObjetoPainelE4Base_.ap
 const labAtualizarInfoE4Base_=labAtualizarInfo_;
 labAtualizarInfo_=function(){const r=labAtualizarInfoE4Base_.apply(this,arguments),e=document.getElementById('labInfo');if(e)e.style.display='flex';return r;};
 window.labAtualizarInfo_=labAtualizarInfo_;
+
+
+
+// ============================================================
+// EXP-ATUAR-CAMERA-6
+// Autoridade da conta separada do ator efetivo da Mesa.
+// - Mestre fora do combate: escolhe Mestre/PM/PJ/NPC/Monstro em "Atuar como".
+// - Em combate: PM/NPC/Monstro do mestre seguem automaticamente a iniciativa;
+//   PJ de outra conta continua sob controle do jogador.
+// - Movimento de exploração: por arrasto, limitado a movimento por AÇ × AÇ máximas.
+// - Câmera segue o ator; modo Mestre mantém rolagem manual pelas barras.
+// - Jogadores usam sempre 48 px/m.
+// - Jogadores carregam por referência o mesmo mapa salvo do mestre.
+// ============================================================
+
+const LAB_ATUAR_MESTRE_E6='__mestre__';
+let labMapaRemotoSigE6_='';
+let labCameraUltimoAtorE6_='';
+const labCameraUltimaPosE6_=new Map();
+
+function labGrupoTokenE6_(t){
+    if(!t||String(t.id||'').startsWith('dummy:'))return null;
+    const tipo=normalizarTextoCombate_(String(t.tipo||t.charLab?.tipo||''));
+    if(t.criaturaBancoId||t.charLab?.criaturaBancoId||/criatura|monstro/.test(tipo))return 'Monstro';
+    if(t.npcBancoId||t.charLab?.npcBancoId||tipo==='npc'||tipo==='npc rapido'||tipo==='npc_rapido')return 'NPC';
+    const dono=String(t.donoUid||t.charLab?.donoUid||t.charLab?.dono||'');
+    return dono&&String(dono)===String(currentUserUid||'')?'PM':'PJ';
+}
+function labGrupoOrdemE6_(g){return ({PM:0,PJ:1,NPC:2,Monstro:3})[g]??99;}
+function labAtuarComoValorE6_(){
+    let v=String(labEstado_.atuarComoE6||LAB_ATUAR_MESTRE_E6);
+    if(v!==LAB_ATUAR_MESTRE_E6&&!labTokenPorId_(v))v=LAB_ATUAR_MESTRE_E6;
+    return v;
+}
+function labMestreControlaTurnoE6_(t){
+    if(!batalhaEhMestre_()||!t)return false;
+    return ['PM','NPC','Monstro'].includes(labGrupoTokenE6_(t));
+}
+function labAtorEfetivoE6_(){
+    if(labEstado_.fase==='combate'){
+        const atual=labTokenAtual_();
+        if(!atual)return null;
+        if(batalhaEhMestre_())return labMestreControlaTurnoE6_(atual)?atual:null;
+        return labPodeVerDetalhesToken_(atual)?atual:null;
+    }
+
+    if(batalhaEhMestre_()){
+        const v=labAtuarComoValorE6_();
+        if(v===LAB_ATUAR_MESTRE_E6)return null;
+        return labTokenPorId_(v);
+    }
+
+    const uid=String(currentUserUid||currentUser?.uid||'');
+    const meus=(labEstado_.tokens||[]).filter(t=>uid&&String(t.donoUid||'')===uid);
+    if(!meus.length)return null;
+    const sid=String(labEstado_.selecionadoId||'');
+    return meus.find(t=>String(t.id)===sid)
+        || meus.find(t=>String(t.origemId||t.id)===String(currentCharId||''))
+        || meus[0];
+}
+function labModoMestreE6_(){
+    return batalhaEhMestre_()&&labEstado_.fase!=='combate'&&labAtuarComoValorE6_()===LAB_ATUAR_MESTRE_E6;
+}
+function labCameraAtorE6_(){
+    if(batalhaEhMestre_()){
+        if(labModoMestreE6_())return null;
+        if(labEstado_.fase==='combate')return labTokenAtual_();
+        return labAtorEfetivoE6_();
+    }
+    return labAtorEfetivoE6_();
+}
+
+// A antiga permissão "mestre controla tudo" deixa de definir ações.
+// A conta continua mestre administrativamente, mas o ator efetivo é quem age.
+const labPodeControlarTokenE6Base_=labPodeControlarToken_;
+labPodeControlarToken_=function(t){
+    if(!t)return false;
+    if(!batalhaEhMestre_())return labPodeControlarTokenE6Base_(t);
+
+    if(labEstado_.fase==='combate'){
+        const atual=labTokenAtual_();
+        return !!atual
+            && String(atual.id)===String(t.id)
+            && labMestreControlaTurnoE6_(atual);
+    }
+
+    const ator=labAtorEfetivoE6_();
+    return !!ator&&String(ator.id)===String(t.id);
+};
+
+// A exploração passa a usar explicitamente o ator escolhido.
+labAtorInteracaoE4_=labAtorEfetivoE6_;
+
+// O velho toggle Controlar PJ fica definitivamente obsoleto.
+labEstado_.mestreControlaPJLab=true;
+window.labMestreControlaPJToggle760_=function(){labEstado_.mestreControlaPJLab=true;};
+function labRemoverControlePjE6_(){
+    const old=document.getElementById('labMasterPJWrap760');
+    if(old)old.remove();
+}
+
+// ------------------------------------------------------------
+// Seletor "Atuar como"
+// ------------------------------------------------------------
+function labInstalarAtuarComoE6_(){
+    if(!batalhaEhMestre_())return;
+    labRemoverControlePjE6_();
+    const free=document.getElementById('labFreeEntryWrap530');
+    if(!free)return;
+
+    let wrap=document.getElementById('labActAsWrapE6');
+    if(!wrap){
+        wrap=document.createElement('label');
+        wrap.id='labActAsWrapE6';
+        wrap.innerHTML='<span>🎭 Atuar como</span><select id="labActAsE6" onchange="labAtuarComoE6_(this.value)"></select>';
+        free.insertAdjacentElement('afterend',wrap);
+    }
+
+    const quick=document.getElementById('labQuickTools760');
+    if(quick&&wrap.nextElementSibling!==quick)wrap.insertAdjacentElement('afterend',quick);
+}
+function labAtualizarAtuarComoE6_(){
+    if(!batalhaEhMestre_()){
+        document.getElementById('labActAsWrapE6')?.remove();
+        labRemoverControlePjE6_();
+        return;
+    }
+    labInstalarAtuarComoE6_();
+    const wrap=document.getElementById('labActAsWrapE6'),sel=document.getElementById('labActAsE6');
+    if(!wrap||!sel)return;
+
+    if(labEstado_.fase==='combate'){
+        const t=labTokenAtual_(),g=labGrupoTokenE6_(t);
+        const texto=t
+            ? `${g||'Participante'} · ${t.nome||'Sem nome'}${g==='PJ'?' · jogador':' · automático'}`
+            : '— sem participante —';
+        sel.innerHTML=`<option value="">${escaparHtmlInventario_(texto)}</option>`;
+        sel.disabled=true;
+        wrap.classList.add('is-auto');
+        wrap.title='Durante o combate, o ator do mestre segue automaticamente a iniciativa. PJ pertencentes a outra conta continuam sob controle do jogador.';
+        return;
+    }
+
+    wrap.classList.remove('is-auto');
+    wrap.title='Mestre: posicionamento e administração. Escolher um personagem limita o controle a ele e habilita suas interações.';
+    sel.disabled=false;
+
+    const grupos={PM:[],PJ:[],NPC:[],Monstro:[]};
+    for(const t of (labEstado_.tokens||[])){
+        const g=labGrupoTokenE6_(t);
+        if(g&&grupos[g])grupos[g].push(t);
+    }
+    for(const g of Object.keys(grupos)){
+        grupos[g].sort((a,b)=>String(a.nome||'').localeCompare(String(b.nome||''),'pt-BR',{sensitivity:'base'}));
+    }
+
+    const atual=labAtuarComoValorE6_();
+    sel.innerHTML=`<option value="${LAB_ATUAR_MESTRE_E6}">👑 Mestre</option>`
+        + ['PM','PJ','NPC','Monstro'].filter(g=>grupos[g].length).map(g=>{
+            const label=g==='Monstro'?'Monstros':g;
+            return `<optgroup label="${label}">${grupos[g].map(t=>`<option value="${escaparHtmlInventario_(String(t.id))}">${escaparHtmlInventario_(t.nome||'Sem nome')}</option>`).join('')}</optgroup>`;
+        }).join('');
+
+    sel.value=[...sel.options].some(o=>o.value===atual)?atual:LAB_ATUAR_MESTRE_E6;
+    if(sel.value!==atual)labEstado_.atuarComoE6=sel.value;
+}
+window.labAtuarComoE6_=function(v){
+    if(!batalhaEhMestre_()||labEstado_.fase==='combate')return;
+    const valor=String(v||LAB_ATUAR_MESTRE_E6);
+    labEstado_.atuarComoE6=valor;
+    labEstado_.exploracaoAtorId=valor===LAB_ATUAR_MESTRE_E6?'':valor;
+    labEstado_.objetoSelecionadoId='';
+    if(valor===LAB_ATUAR_MESTRE_E6){
+        labEstado_.selecionadoId='';
+    }else{
+        const t=labTokenPorId_(valor);
+        labEstado_.selecionadoId=t?String(t.id):'';
+    }
+    labSalvarLocal_();
+    labRender_();
+};
+
+// Início/fim do combate preserva a escolha de exploração e passa ao modo automático.
+const labIniciarCombateE6Base_=window.labIniciarCombate_;
+window.labIniciarCombate_=function(){
+    if(labEstado_.fase!=='combate')labEstado_.atuarComoAntesCombateE6=labAtuarComoValorE6_();
+    const r=labIniciarCombateE6Base_.apply(this,arguments);
+    if(labEstado_.fase==='combate')labAtualizarAtuarComoE6_();
+    return r;
+};
+const labVoltarPreparacaoE6Base_=window.labVoltarPreparacao_;
+window.labVoltarPreparacao_=function(){
+    const r=labVoltarPreparacaoE6Base_.apply(this,arguments);
+    if(labEstado_.fase!=='combate'){
+        const antigo=String(labEstado_.atuarComoAntesCombateE6||LAB_ATUAR_MESTRE_E6);
+        labEstado_.atuarComoE6=(antigo===LAB_ATUAR_MESTRE_E6||labTokenPorId_(antigo))?antigo:LAB_ATUAR_MESTRE_E6;
+        labEstado_.exploracaoAtorId=labEstado_.atuarComoE6===LAB_ATUAR_MESTRE_E6?'':labEstado_.atuarComoE6;
+        labSalvarLocal_();
+        labAtualizarAtuarComoE6_();
+    }
+    return r;
+};
+
+// ------------------------------------------------------------
+// Movimento de exploração: limite por arrasto = movimento/AÇ × AÇ máximas.
+// ------------------------------------------------------------
+function labMovimentoExploracaoMaxE6_(t){
+    if(!t)return 0;
+    const porAcao=Math.max(0,Number(labMovimentoPorAcao_(t)||0));
+    const acoes=Math.max(0,Number(t.acoesMaxLab||0));
+    return porAcao*Math.max(1,acoes);
+}
+function labClampMovimentoE6_(origem,x,y,maxM){
+    let nx=Number(x),ny=Number(y);
+    const dx=nx-origem.x,dy=ny-origem.y,dist=Math.hypot(dx,dy);
+    if(Number.isFinite(maxM)&&maxM>=0&&dist>maxM&&dist>0){
+        const f=maxM/dist;
+        nx=origem.x+dx*f;ny=origem.y+dy*f;
+    }
+    return {
+        x:Math.max(0,Math.min(labEstado_.larguraM,nx)),
+        y:Math.max(0,Math.min(labEstado_.alturaM,ny))
+    };
+}
+
+// ------------------------------------------------------------
+// Câmera: ao cruzar a metade do viewport na direção do movimento,
+// o mapa rola junto. Modo Mestre nunca recebe câmera automática.
+// ------------------------------------------------------------
+function labCameraSeguirE6_(t,forcarCentro=false){
+    const vp=document.getElementById('labMapViewport'),map=document.getElementById('labMetricMap');
+    if(!vp||!map||!t)return;
+    if(batalhaEhMestre_()&&labModoMestreE6_())return;
+
+    const ppm=Number(labEstado_.pxPorMetro||48);
+    const id=String(t.id||'');
+    const last=labCameraUltimaPosE6_.get(id);
+    const novo={x:Number(t.x||0),y:Number(t.y||0)};
+    const trocou=labCameraUltimoAtorE6_!==id;
+    const cx=novo.x*ppm,cy=novo.y*ppm;
+    const sx=cx-vp.scrollLeft,sy=cy-vp.scrollTop;
+    const meioX=Math.max(1,vp.clientWidth/2),meioY=Math.max(1,vp.clientHeight/2);
+
+    let left=vp.scrollLeft,top=vp.scrollTop;
+    if(forcarCentro||trocou||!last){
+        left=cx-meioX;top=cy-meioY;
+    }else{
+        const dx=novo.x-last.x,dy=novo.y-last.y;
+        if(dx>0.0005&&sx>meioX)left+=sx-meioX;
+        else if(dx<-.0005&&sx<meioX)left-=meioX-sx;
+        if(dy>0.0005&&sy>meioY)top+=sy-meioY;
+        else if(dy<-.0005&&sy<meioY)top-=meioY-sy;
+    }
+
+    const maxLeft=Math.max(0,vp.scrollWidth-vp.clientWidth);
+    const maxTop=Math.max(0,vp.scrollHeight-vp.clientHeight);
+    vp.scrollLeft=Math.max(0,Math.min(maxLeft,left));
+    vp.scrollTop=Math.max(0,Math.min(maxTop,top));
+    labCameraUltimaPosE6_.set(id,novo);
+    labCameraUltimoAtorE6_=id;
+}
+function labCameraAtualizarE6_(){
+    const t=labCameraAtorE6_();
+    if(!t){labCameraUltimoAtorE6_='';return;}
+    requestAnimationFrame(()=>labCameraSeguirE6_(t,false));
+}
+function labCameraDuranteDragE6_(t){
+    if(!t)return;
+    let raf=0;
+    const mover=()=>{
+        if(raf)return;
+        raf=requestAnimationFrame(()=>{raf=0;labCameraSeguirE6_(t,false);});
+    };
+    const fim=()=>{
+        window.removeEventListener('pointermove',mover);
+        if(raf)cancelAnimationFrame(raf);
+        requestAnimationFrame(()=>labCameraSeguirE6_(t,false));
+    };
+    window.addEventListener('pointermove',mover,{passive:true});
+    window.addEventListener('pointerup',fim,{once:true});
+}
+
+function labArrastarExploracaoE6_(ev,t){
+    if(!t||ev.button===2)return;
+    ev.preventDefault();ev.stopPropagation();
+
+    const map=document.getElementById('labMetricMap');
+    if(!map)return;
+    const origem={x:Number(t.x||0),y:Number(t.y||0)};
+    const maxM=labMovimentoExploracaoMaxE6_(t);
+    if(maxM<=0){
+        notificar_(`${t.nome} não possui deslocamento disponível.`,'aviso',2600);
+        return;
+    }
+
+    labEstado_.selecionadoId=String(t.id);
+    labEstado_.objetoSelecionadoId='';
+    const rect=map.getBoundingClientRect(),ppm=Number(labEstado_.pxPorMetro||48);
+    const node=map.querySelector(`.lab-token[data-id="${CSS.escape(String(t.id))}"]`);
+    const d=node?node.offsetWidth:Math.max(24,Number(t.diametroM||.9)*ppm);
+    let raf=0,pendente=null;
+
+    const aplicar=()=>{
+        raf=0;if(!pendente)return;
+        const q=pendente;pendente=null;
+        const alvo=labClampMovimentoE6_(origem,(q.x-rect.left)/ppm,(q.y-rect.top)/ppm,maxM);
+        t.x=alvo.x;t.y=alvo.y;
+        if(node){node.style.left=`${t.x*ppm-d/2}px`;node.style.top=`${t.y*ppm-d/2}px`;}
+        labCameraSeguirE6_(t,false);
+    };
+    const move=e=>{pendente={x:e.clientX,y:e.clientY};if(!raf)raf=requestAnimationFrame(aplicar);};
+    const up=()=>{
+        window.removeEventListener('pointermove',move);
+        if(pendente){if(raf){cancelAnimationFrame(raf);raf=0;}aplicar();}
+        const dx=t.x-origem.x,dy=t.y-origem.y,dist=Math.hypot(dx,dy);
+        if(dist>.08){let deg=Math.atan2(dx,-dy)*180/Math.PI;if(deg<0)deg+=360;t.angulo=Math.round(deg);}
+
+        if(!batalhaEhMestre_()){
+            labEnviarComandoJogador_('movimento',{x:t.x,y:t.y},t).then(ok=>{
+                if(!ok){t.x=origem.x;t.y=origem.y;labRender_();}
+            });
+        }else{
+            labSalvarLocal_();try{labAgendarSyncRemoto_();}catch(_){}labRender_();
+        }
+    };
+    window.addEventListener('pointermove',move,{passive:true});
+    window.addEventListener('pointerup',up,{once:true});
+}
+
+// Mestre em modo Mestre posiciona livremente; como personagem respeita a ficha.
+// Em combate, a iniciativa determina automaticamente quem o mestre controla.
+window.labPointerDown_=function(ev,id){
+    const t=labTokenPorId_(id);if(!t)return;
+    const combate=labEstado_.fase==='combate';
+
+    if(batalhaEhMestre_()){
+        if(!combate&&labModoMestreE6_())return labArrastarLivreMestreE4_(ev,id,false);
+
+        if(!combate){
+            const ator=labAtorEfetivoE6_();
+            if(ator&&String(ator.id)===String(t.id))return labArrastarExploracaoE6_(ev,t);
+            ev.preventDefault();ev.stopPropagation();
+            labEstado_.selecionadoId=String(t.id);labEstado_.objetoSelecionadoId='';
+            labSalvarLocal_();labRender_();return;
+        }
+
+        const atual=labTokenAtual_();
+        if(!atual||String(atual.id)!==String(t.id)||!labMestreControlaTurnoE6_(atual)){
+            ev.preventDefault();ev.stopPropagation();
+            labEstado_.selecionadoId=String(t.id);labEstado_.objetoSelecionadoId='';
+            labRender_();return;
+        }
+
+        const r=labPointerDownE4Base_.apply(this,arguments);
+        labCameraDuranteDragE6_(t);
+        return r;
+    }
+
+    if(!combate){
+        const ator=labAtorEfetivoE6_();
+        if(ator&&String(ator.id)===String(t.id))return labArrastarExploracaoE6_(ev,t);
+        ev.preventDefault();ev.stopPropagation();
+        labEstado_.selecionadoId=String(t.id);labEstado_.objetoSelecionadoId='';
+        labRender_();return;
+    }
+
+    const r=labPointerDownE4Base_.apply(this,arguments);
+    if(labPodeControlarToken_(t))labCameraDuranteDragE6_(t);
+    return r;
+};
+
+// Objetos são arrastáveis diretamente apenas no modo Mestre fora do combate.
+// Como personagem, clicar no objeto é seleção/interação, não reposicionamento administrativo.
+window.labObjetoPointerDown_=function(ev,id){
+    if(batalhaEhMestre_()&&labEstado_.fase!=='combate'&&labModoMestreE6_())return labArrastarLivreMestreE4_(ev,id,true);
+    ev.preventDefault();ev.stopPropagation();
+    labSelecionarObjeto_(id);
+};
+
+// O ator escolhido não muda só porque o mestre clicou em outro token.
+const labSelecionarE6Base_=window.labSelecionar_;
+window.labSelecionar_=function(id){
+    if(batalhaEhMestre_()&&labEstado_.fase!=='combate'){
+        const t=labTokenPorId_(id);
+        labEstado_.selecionadoId=t?String(t.id):'';
+        labEstado_.objetoSelecionadoId='';
+        labSalvarLocal_();labRender_();return;
+    }
+    return labSelecionarE6Base_.apply(this,arguments);
+};
+
+// Objetos em exploração: Material define a ação existente;
+// a ferramenta é validada ao executar, não ao decidir se o botão aparece.
+labObjetoMicroPainelHtml_=function(o,ppm){
+    if(!o||o.destruido||String(labEstado_.objetoSelecionadoId||'')!==String(o.id))return '';
+    const combate=labEstado_.fase==='combate',ator=labAtorEfetivoE6_();
+    if(!ator||!labPodeControlarToken_(ator))return '';
+    if(combate&&Number(ator.acoesAtuaisLab||0)<=0)return '';
+
+    const nat=labObjetoNatureza_(o),
+          ext=labEquipadoRegex_(ator,/extintor|extinguisher|灭火器/),
+          psis=combate?labPsiPoderesParaAlvo_(ator,o):[];
+    const meiaH=Math.max(18,Number(o.alturaM||1)*ppm)/2,
+          posMicro=labMicroPosicaoVertical_(o.y*ppm,meiaH,ppm,72),
+          top=posMicro.top,left=o.x*ppm,oid=String(o.id).replace(/'/g,"\\'");
+    const botoes=[];
+
+    if(combate){
+        if(o.destrutivel!==false)botoes.push(`<button class="btn-small btn-select" onclick="labAtacarObjetoContextual_('${oid}')">⚔️ Atacar</button>`);
+        botoes.push(`<button class="btn-small" onclick="labObjetoAcao_('mover','${oid}')">💪 Mover</button>`);
+        for(const p of psis)botoes.push(`<button class="btn-small lab-psi-action" onclick="${p.id==='mover_objeto'?`labUsarPsiContextualRapido_('${String(p.id).replace(/'/g,"\\'")}','${oid}')`:`labAbrirPsiContextual_('${String(p.id).replace(/'/g,"\\'")}','${oid}')`}">🔮 ${escaparHtmlInventario_(getNome(p))}</button>`);
+    }else{
+        botoes.push(`<button class="btn-small" onclick="labObjetoAcao_('mover','${oid}')">💪 Mover</button>`);
+        if(nat==='rocha')botoes.push(`<button class="btn-small btn-select" onclick="labObjetoAcao_('minerar','${oid}')" title="Requer picareta equipada">⛏️ Minerar</button>`);
+        if(nat==='arvore')botoes.push(`<button class="btn-small btn-select" onclick="labObjetoAcao_('cortar','${oid}')" title="Requer machado equipado">🪓 Lenhar</button>`);
+    }
+    if(o.pegandoFogoLab)botoes.push(`<button class="btn-small" onclick="labObjetoAcao_('extinguir','${oid}')" title="${ext?'Usar extintor':'Requer extintor equipado'}">🧯 Apagar fogo</button>`);
+    if(!botoes.length)return '';
+
+    return `<div class="lab-micro-actions" onclick="event.stopPropagation()" onpointerdown="event.stopPropagation()" style="position:absolute;left:${left}px;top:${top}px;transform:${posMicro.transform};z-index:28;padding:4px;border-radius:8px;background:rgba(10,13,30,.96);border:1px solid rgba(126,231,255,.45);display:flex;gap:3px;align-items:center;justify-content:center;flex-wrap:wrap;max-width:410px;">${botoes.join('')}</div>`;
+};
+
+// O mestre, quando está agindo como personagem, não recebe o painel administrativo
+// de dano/restauração/remoção do objeto. Vê apenas a informação.
+const labRenderObjetoPainelE6Base_=window.labRenderObjetoPainel_;
+window.labRenderObjetoPainel_=function(){
+    if(batalhaEhMestre_()&&!labModoMestreE6_()){
+        const e=document.getElementById('labObjetoPainel'),o=labObjetoPorId_(labEstado_.objetoSelecionadoId);
+        if(e){
+            e.style.display='flex';
+            e.innerHTML=o?`<strong>${escaparHtmlInventario_(o.nome||'Objeto')}</strong><span>PV <b>${Math.max(0,Number(o.pvAtual??o.pvMax??0))}/${Math.max(0,Number(o.pvMax??0))}</b></span><span>Dureza <b>${Math.max(0,Number(o.dureza||0))}</b></span><span>Peso <b>${Math.max(0,Number(o.pesoKg||0)).toFixed(1)} kg</b></span>`:'';
+        }
+        return;
+    }
+    return labRenderObjetoPainelE6Base_.apply(this,arguments);
+};
+
+// ------------------------------------------------------------
+// Ações de combate do mestre: PJ de outra conta = aguardar jogador.
+// ------------------------------------------------------------
+const labRenderActionPanelE6Base_=labRenderActionPanel_;
+labRenderActionPanel_=function(){
+    if(batalhaEhMestre_()&&labEstado_.fase==='combate'){
+        const t=labTokenAtual_(),el=document.getElementById('labActionPanel');
+        if(t&&!labMestreControlaTurnoE6_(t)){
+            if(el){
+                el.style.display='block';
+                el.innerHTML=`<div style="display:flex;align-items:center;gap:8px;min-height:30px"><strong style="color:#ffd54a">🎯 ${escaparHtmlInventario_(t.nome)}</strong><span style="color:#9fc6d8">PJ de outra conta: aguardando a ação do jogador.</span></div>`;
+            }
+            return;
+        }
+    }
+    return labRenderActionPanelE6Base_.apply(this,arguments);
+};
+window.labRenderActionPanel_=labRenderActionPanel_;
+
+// ------------------------------------------------------------
+// Status e informação secundária.
+// ------------------------------------------------------------
+const labAtualizarStatusCombateE6Base_=labAtualizarStatusCombate_;
+labAtualizarStatusCombate_=function(){
+    const r=labAtualizarStatusCombateE6Base_.apply(this,arguments);
+    const el=document.getElementById('labCombatStatus');
+    if(!el||labEstado_.fase==='combate')return r;
+    if(labModoMestreE6_()){
+        el.innerHTML='<strong>🧭 Exploração · Mestre:</strong> posicionamento administrativo livre. Selecione um personagem em <b>Atuar como</b> para usar suas perícias.';
+    }else{
+        const t=labAtorEfetivoE6_(),max=t?labMovimentoExploracaoMaxE6_(t):0;
+        el.innerHTML=`<strong>🧭 Exploração${t?` · ${escaparHtmlInventario_(t.nome)}`:''}:</strong> até <b>${max.toFixed(1)} m</b> por arrasto. Não há turnos; cada novo arrasto renova esse limite. Trabalho físico usa fadiga.`;
+    }
+    return r;
+};
+window.labAtualizarStatusCombate_=labAtualizarStatusCombate_;
+
+const labAtualizarInfoE6Base_=labAtualizarInfo_;
+labAtualizarInfo_=function(){
+    const r=labAtualizarInfoE6Base_.apply(this,arguments);
+    const e=document.getElementById('labInfo');
+    if(e&&labEstado_.fase!=='combate'){
+        const t=labTokenPorId_(labEstado_.selecionadoId);
+        if(t){
+            const ator=labAtorEfetivoE6_(),max=ator&&String(ator.id)===String(t.id)?labMovimentoExploracaoMaxE6_(t):0;
+            e.querySelectorAll('span').forEach(s=>{
+                if(/posicionamento livre/i.test(s.textContent||'')){
+                    s.innerHTML=labModoMestreE6_()?'<b>posicionamento livre do mestre</b>':(max>0?`<b>até ${max.toFixed(1)} m por arrasto</b>`:'<b>somente inspeção</b>');
+                }
+            });
+        }
+    }
+    return r;
+};
+window.labAtualizarInfo_=labAtualizarInfo_;
+
+// ------------------------------------------------------------
+// Movimento remoto do jogador fora do combate recebe o MESMO limite.
+// ------------------------------------------------------------
+const labProcessarComandoJogadorE6Base_=labProcessarComandoJogador_;
+labProcessarComandoJogador_=async function(personagemId,acao){
+    if(acao?.tipo==='movimento'&&labEstado_.fase!=='combate'){
+        const chave=`moveE6:${personagemId}:${acao?.nonce||''}`;
+        if(labMapaComandosEmProcessamento_.has(chave))return;
+        labMapaComandosEmProcessamento_.add(chave);
+        try{
+            if(!batalhaEhMestre_())return;
+            const t=labTokenPorId_(personagemId);
+            if(!t||String(t.donoUid||'')!==String(acao?.donoUid||''))return;
+            const origem={x:Number(t.x||0),y:Number(t.y||0)};
+            const alvo=labClampMovimentoE6_(origem,Number(acao?.payload?.x),Number(acao?.payload?.y),labMovimentoExploracaoMaxE6_(t));
+            if(!Number.isFinite(alvo.x)||!Number.isFinite(alvo.y))return;
+            t.x=alvo.x;t.y=alvo.y;
+            const dx=t.x-origem.x,dy=t.y-origem.y;
+            if(Math.hypot(dx,dy)>.08){let deg=Math.atan2(dx,-dy)*180/Math.PI;if(deg<0)deg+=360;t.angulo=Math.round(deg);}
+            labSalvarLocal_();labRender_();labAgendarSyncRemoto_();
+        }finally{
+            try{await deleteDoc(doc(db,'combatesAtivos','mapaMesa','acoes',String(personagemId)));}catch(_){}
+            labMapaComandosEmProcessamento_.delete(chave);
+        }
+        return;
+    }
+    return labProcessarComandoJogadorE6Base_.apply(this,arguments);
+};
+
+// ------------------------------------------------------------
+// Jogador: escala fixa de 48 px/m. Mestre mantém zoom livre.
+// ------------------------------------------------------------
+const labMudarZoomE6Base_=window.labMudarZoom_;
+window.labMudarZoom_=function(v){
+    if(!batalhaEhMestre_()){
+        labEstado_.pxPorMetro=48;
+        const z=document.getElementById('labZoom');if(z)z.value='48';
+        labRender_();return;
+    }
+    return labMudarZoomE6Base_.apply(this,arguments);
+};
+function labAtualizarZoomE6_(){
+    const z=document.getElementById('labZoom');if(!z)return;
+    if(!batalhaEhMestre_()){
+        if(Number(labEstado_.pxPorMetro)!==48)labEstado_.pxPorMetro=48;
+        z.value='48';z.disabled=true;z.title='Jogadores usam a escala fixa de 48 px/m.';
+    }else{
+        z.disabled=false;z.title='O mestre pode alterar livremente a escala do mapa.';
+    }
+}
+
+// ------------------------------------------------------------
+// Sincronização: jogador carrega o mesmo MAPA SALVO por referência.
+// O documento ao vivo leva apenas estado dinâmico/tokens/objetos.
+// ------------------------------------------------------------
+function labMapaRefAtualE6_(){
+    const id=String(labMapaSelecionado_||'');
+    if(!id)return null;
+    const m=(mapasDB||[]).find(x=>String(x.id)===id);
+    return {id,rev:String(m?.atualizadoEm||m?.tamanhoSerializado||m?.partes||'')};
+}
+const labEstadoPublicoE6Base_=labEstadoPublico_;
+labEstadoPublico_=function(){
+    const clone=labEstadoPublicoE6Base_();
+    const ref=labMapaRefAtualE6_();
+    clone.mapaCompartilhadoRefE6=ref;
+    delete clone.atuarComoE6;delete clone.atuarComoAntesCombateE6;delete clone.exploracaoAtorId;delete clone.mestreControlaPJLab;
+    clone.logLab=(clone.logLab||[]).slice(0,40);
+    clone.floatsLab=[];
+
+    if(ref?.id){
+        delete clone.oficina2State;
+        clone.desenhosLab=[];
+        clone.formasLab=[];
+    }else if(clone.oficina2State&&typeof clone.oficina2State==='object'){
+        const st={...clone.oficina2State};
+        delete st.history;delete st.undo;delete st.redo;delete st.clipboard;delete st.selection;delete st.selectedIds;delete st.hoverId;
+        clone.oficina2State=st;
+    }
+    return clone;
+};
+
+async function labAplicarCenarioCompartilhadoE6_(ref){
+    if(batalhaEhMestre_()||!ref?.id)return false;
+    const sig=`${String(ref.id)}|${String(ref.rev||'')}`;
+    if(sig===labMapaRemotoSigE6_)return true;
+    try{
+        const snap=await getDoc(doc(db,'mapas',String(ref.id)));
+        if(!snap.exists())throw new Error(`Mapa ${ref.id} não encontrado.`);
+        let m={id:String(ref.id),...snap.data()};
+        m=await labMapaHidratar_(m);
+
+        labEstado_.larguraM=Math.max(4,Number(m.larguraM||labEstado_.larguraM||28));
+        labEstado_.alturaM=Math.max(4,Number(m.alturaM||labEstado_.alturaM||14));
+        labEstado_.fundo=String(m.fundo||labEstado_.fundo||'#d7d7d7');
+        labEstado_.corGrade=String(m.corGrade||labEstado_.corGrade||'#777777');
+        labEstado_.gradeVisivel=m.gradeVisivel!==false;
+        labEstado_.textura=String(m.textura||'nenhuma');
+        labEstado_.pxPorMetro=48; // jogador sempre em escala padrão
+        labEstado_.oficina2State=m.oficina2State?JSON.parse(JSON.stringify(m.oficina2State)):null;
+        labEstado_.desenhosLab=m.oficina2State?[]:JSON.parse(JSON.stringify(m.desenhos||[]));
+        labEstado_.formasLab=m.oficina2State?[]:JSON.parse(JSON.stringify(m.formas||[]));
+        labMapaSelecionado_=String(ref.id);
+        labMapaRemotoSigE6_=sig;
+        await labCarregarModelosObjetosFaltantes_(labEstado_.objetosLab||[]);
+        if(document.getElementById('laboratorio-combate')?.classList.contains('active'))labRender_();
+        return true;
+    }catch(e){
+        console.error('[SYNC E6] Falha ao carregar cenário compartilhado',e);
+        notificar_('Não foi possível carregar o mesmo cenário usado pelo mestre.','erro',5000);
+        return false;
+    }
+}
+
+window.iniciarMapaMesaCompartilhado_=function(){
+    if(labMapaMesaUnsub_){labMapaMesaUnsub_();labMapaMesaUnsub_=null;}
+    if(labMapaAcoesUnsub_){labMapaAcoesUnsub_();labMapaAcoesUnsub_=null;}
+    if(!currentUserUid)return;
+    labIniciarEscutaComandosJogadores_();
+
+    labMapaMesaUnsub_=onSnapshot(LAB_MAPA_MESA_REF_(),snap=>{
+        if(batalhaEhMestre_()){
+            if(!snap.exists())labAgendarSyncRemoto_();
+            return;
+        }
+        if(!snap.exists())return;
+        const remoto=snap.data()?.estado;
+        if(!remoto||typeof remoto!=='object')return;
+
+        const ref=remoto.mapaCompartilhadoRefE6||null;
+        const cenarioAtual=ref?.id?{
+            oficina2State:labEstado_.oficina2State,
+            desenhosLab:labEstado_.desenhosLab,
+            formasLab:labEstado_.formasLab
+        }:null;
+
+        labAplicandoRemoto_=true;
+        labEstado_={
+            ...labEstado_,...remoto,
+            pxPorMetro:48,
+            tokens:Array.isArray(remoto.tokens)?remoto.tokens:[],
+            objetosLab:Array.isArray(remoto.objetosLab)?remoto.objetosLab:[]
+        };
+        if(cenarioAtual){
+            labEstado_.oficina2State=cenarioAtual.oficina2State;
+            labEstado_.desenhosLab=cenarioAtual.desenhosLab;
+            labEstado_.formasLab=cenarioAtual.formasLab;
+        }
+        labAplicandoRemoto_=false;
+
+        labCarregarModelosObjetosFaltantes_(labEstado_.objetosLab);
+        if(ref?.id){
+            labAplicarCenarioCompartilhadoE6_(ref).finally(()=>{
+                if(document.getElementById('laboratorio-combate')?.classList.contains('active'))labRender_();
+            });
+        }else if(document.getElementById('laboratorio-combate')?.classList.contains('active')){
+            labRender_();
+        }
+    },e=>console.warn('Mapa da Mesa compartilhado indisponível:',e));
+
+    if(batalhaEhMestre_())labAgendarSyncRemoto_();
+};
+
+// ------------------------------------------------------------
+// Render final: UI, câmera, zoom e limpeza do toggle antigo.
+// ------------------------------------------------------------
+const labRenderE6Base_=labRender_;
+labRender_=function(){
+    if(!batalhaEhMestre_())labEstado_.pxPorMetro=48;
+    labEstado_.mestreControlaPJLab=true;
+
+    const r=labRenderE6Base_.apply(this,arguments);
+    try{
+        labRemoverControlePjE6_();
+        labAtualizarAtuarComoE6_();
+        labAtualizarZoomE6_();
+        labCameraAtualizarE6_();
+    }catch(e){console.warn('EXP-ATUAR-CAMERA-6 pós-render',e);}
+    return r;
+};
+window.labRender_=labRender_;
+
+// Primeira normalização desta versão.
+if(!labEstado_.atuarComoE6)labEstado_.atuarComoE6=LAB_ATUAR_MESTRE_E6;
+setTimeout(()=>{try{labRender_();}catch(e){console.warn('Inicialização EXP-ATUAR-CAMERA-6',e);}},900);
+

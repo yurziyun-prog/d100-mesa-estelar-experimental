@@ -674,6 +674,18 @@
 #labObjetoPainel .btn-small{font-size:.68rem!important;min-height:25px!important;height:25px!important;padding:2px 7px!important;}
 #labObjetoPainel input{font-size:.68rem!important;height:25px!important;padding:1px 4px!important;width:52px!important;}
 #labCombatStatus{font-size:.78rem!important;padding:5px 8px!important;margin-bottom:5px!important;}
+
+/* EXP-ATUAR-CAMERA-6 */
+#labActAsWrapE6{
+  display:flex;align-items:center;gap:6px;padding:5px 8px;
+  border:1px solid rgba(126,231,255,.34);border-radius:8px;
+  background:rgba(126,231,255,.055);font-size:.82rem;
+}
+#labActAsE6{margin:0;min-width:210px;max-width:330px;height:31px;min-height:31px;font-size:.80rem;padding:2px 7px;}
+#labActAsWrapE6.is-auto{border-color:rgba(255,213,74,.38);background:rgba(255,213,74,.055);}
+#labMapViewport{position:relative;scrollbar-gutter:stable both-edges;}
+#labZoom:disabled{opacity:.72;cursor:not-allowed;}
+
 </style>
 </head>
 <body>
@@ -801,7 +813,7 @@
                     <div id="labActionPanel" style="display:none;margin-bottom:7px;padding:7px 9px;border-radius:9px;font-size:.88em;background:rgba(22,18,48,.88);border:1px solid rgba(0,212,255,.28);"></div>
                     <div id="labInfo" class="lab-secondary-strip lab-info-strip">Clique num token para selecioná-lo.</div>
                     <div id="labObjetoPainel" class="lab-secondary-strip lab-object-strip"></div>
-                    <div style="overflow:auto;padding:10px;border-radius:12px;background:rgba(0,0,0,.18);border:1px solid rgba(255,255,255,.12);">
+                    <div id="labMapViewport" style="overflow:auto;padding:10px;border-radius:12px;background:rgba(0,0,0,.18);border:1px solid rgba(255,255,255,.12);">
                         <div id="labHoverCard" style="display:none;position:fixed;z-index:99999;pointer-events:none;width:300px;max-height:520px;overflow:hidden;border:1px solid rgba(0,212,255,.55);border-radius:12px;background:rgba(12,14,33,.97);box-shadow:0 12px 34px rgba(0,0,0,.55);padding:10px;"></div>
                     <div id="labPlayerPrivateResult" style="display:none"></div>
                     <div id="labMetricMap" onclick="labCliqueFundoMapa_(event)" oncontextmenu="return false;" style="position:relative;width:1152px;height:672px;background-color:#d7d7d7;background-image:linear-gradient(to right,rgba(0,0,0,.15) 1px,transparent 1px),linear-gradient(to bottom,rgba(0,0,0,.15) 1px,transparent 1px);background-size:48px 48px;user-select:none;touch-action:none;"></div>
@@ -2123,7 +2135,7 @@
         });
     </script>
 
-<script type="module" src="js/app.js?v=46.83.2-exp-exploracao-4-20260906"></script>
+<script type="module" src="js/app.js?v=46.83.2-exp-atuar-camera-6-20260906"></script>
 <!-- Mesa Estelar v46.38.0: segurança de objetos, XP contextual, tutorial reforçado, PM/PJ, imagem pós-conclusão e sincronização de magia -->
 
 <div id="battleTokenPreview" class="battle-token-preview" aria-hidden="true"></div>
