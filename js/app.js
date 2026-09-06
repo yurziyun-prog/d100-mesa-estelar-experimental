@@ -56,8 +56,8 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-console.info('[Mesa Estelar] build EXP-DISTANCIA-9 carregado');
-window.__MESA_BUILD__ = 'EXP-DISTANCIA-9';
+console.info('[Mesa Estelar] build EXP-TRABALHO-SYNC-10 carregado');
+window.__MESA_BUILD__ = 'EXP-TRABALHO-SYNC-10';
 
 let currentUserUid = null;
 let userData = null;
@@ -30892,8 +30892,56 @@ labObjetoAcaoExecutar_=function(ator,objeto,tipo){
     const base=labValorTeste_(ator,per),aj=aplicarDificuldadeEFadiga_(c,base,dif,0);if(aj?.bloqueado)return notificar_(`${traduzirNomeFadiga_(c?.combate?.fadiga||'Fresh')}: nenhuma atividade possível.`,'aviso',3500);
     const valor=Math.max(0,Number(aj?.valor||base)),roll=1+Math.floor(Math.random()*100),r=classificarD100_(valor,roll),sucesso=batalhaResultadoGradeValor_(r.grau)>=2;
     let efeito=' Nenhum efeito.';
-    if(sucesso&&tipo==='mover'){const metros=Math.max(.5,Math.min(2.5,1.5*(Math.max(10,(forca+tam)*5)/Math.max(1,peso))));labPsiEmpurrar_(ator,objeto,metros);efeito=` ${objeto.nome} foi deslocado ${metros.toFixed(1)} m.`;}
-    if(sucesso&&(tipo==='minerar'||tipo==='cortar')){const bruto=(1+Math.floor(Math.random()*6))+Math.max(0,Math.floor(forca/5)),durezaBase=Math.max(0,Number(objeto.dureza||0));let durezaEfetiva=durezaBase;if(tipo==='minerar')durezaEfetiva=Math.ceil(durezaBase*(/industrial/.test(labTextoItemMesa_(equip))?1/3:1/2));else durezaEfetiva=Math.ceil(durezaBase/3);const d=labObjetoAplicarDanoFerramenta_(objeto,bruto,durezaEfetiva);efeito=` Dano de trabalho ${d.bruto} - Dureza efetiva ${d.duro} = ${d.final}.${objeto.destruido?' Objeto destruído.':''}`;if(d.final>0)labAdicionarFloat_(objeto,-d.final,'dano');}
+
+    if(sucesso&&tipo==='mover'){
+        const metros=Math.max(.5,Math.min(2.5,1.5*(Math.max(10,(forca+tam)*5)/Math.max(1,peso))));
+        labPsiEmpurrar_(ator,objeto,metros);
+        efeito=` ${objeto.nome} foi deslocado ${metros.toFixed(1)} m.`;
+    }
+
+    if((tipo==='minerar'||tipo==='cortar')&&equip){
+        const bonusTrabalho=Math.max(0,Math.floor(forca/5));
+        const brutoRolado=(1+Math.floor(Math.random()*6))+bonusTrabalho;
+        const brutoMax=6+bonusTrabalho;
+        const durezaBase=Math.max(0,Number(objeto.dureza||0));
+        let durezaEfetiva=durezaBase;
+
+        if(tipo==='minerar'){
+            const industrial=/industrial/.test(labTextoItemMesa_(equip));
+            durezaEfetiva=Math.ceil(durezaBase*(industrial?1/3:1/2));
+        }else{
+            durezaEfetiva=Math.ceil(durezaBase/3);
+        }
+
+        if(r.grau==='Crítico'){
+            const final=brutoMax;
+            objeto.pvAtual=Math.max(0,Number(objeto.pvAtual??objeto.pvMax??0)-final);
+            if(objeto.pvAtual<=0)objeto.destruido=true;
+            efeito=` Crítico: ${final} de dano; Dureza ignorada.${objeto.destruido?' Objeto destruído.':''}`;
+            if(final>0)labAdicionarFloat_(objeto,-final,'dano');
+            try{somCritico_();}catch(_){}
+        }else if(r.grau==='Fiasco'){
+            const danoQueIriaAoAlvo=Math.max(1,brutoRolado-durezaEfetiva);
+            const pvMaxFerr=Math.max(1,Number(equip.pv||equip.pvMax||1));
+            const antes=Math.max(0,Number(equip.pvAtual??pvMaxFerr));
+            equip.pvAtual=Math.max(0,antes-danoQueIriaAoAlvo);
+            if(equip.pvAtual<=0){
+                equip.inutilizavel=true;
+                equip.quebradoEm=new Date().toISOString();
+            }
+            efeito=` Fiasco: ${getNome(equip)||equip.nome||'Ferramenta'} sofreu ${danoQueIriaAoAlvo} de dano (${equip.pvAtual}/${pvMaxFerr} PV)${equip.inutilizavel?' e ficou inutilizável.':'.'}`;
+            Promise.resolve(labPersistirInventarioAtorObjeto_(ator)).catch(()=>{});
+            try{somFiasco_();}catch(_){}
+        }else if(sucesso){
+            // Ferramenta apropriada sempre consegue lascar/desbastar ao menos 1 PV em um sucesso.
+            const final=Math.max(1,brutoRolado-durezaEfetiva);
+            objeto.pvAtual=Math.max(0,Number(objeto.pvAtual??objeto.pvMax??0)-final);
+            if(objeto.pvAtual<=0)objeto.destruido=true;
+            efeito=` Dano de trabalho ${brutoRolado} - Dureza efetiva ${durezaEfetiva} = ${final}.${objeto.destruido?' Objeto destruído.':''}`;
+            if(final>0)labAdicionarFloat_(objeto,-final,'dano');
+        }
+    }
+
     const txt=`${rotulo}: ${roll}/${valor} → ${r.grau}.${efeito}`;labRegistrarResultadoProprio_(ator,txt);labEstado_.logLab=Array.isArray(labEstado_.logLab)?labEstado_.logLab:[];labEstado_.logLab.unshift({ts:new Date().toLocaleTimeString(),texto:`${ator.nome}: ${txt}`});
     Promise.resolve(labEsforcoExploracaoE4_(ator,rotulo)).catch(()=>{});try{somDado_();}catch(_){}labSalvarLocal_();try{labAgendarSyncRemoto_();}catch(_){}labRender_();
 };
@@ -31957,57 +32005,6 @@ window.iniciarMapaMesaCompartilhado_=function(){
 };
 
 // ------------------------------------------------------------
-// Publicar Oficina 2 = atualizar a Mesa local + salvar cena live + sincronizar.
-// ------------------------------------------------------------
-async function gm2publishE8(){
-    if(!batalhaEhMestre_())return;
-    if(!confirm('Publicar este mapa na Mesa?'))return;
-
-    try{
-        if(typeof gm2EnriquecerObjetosBanco762_==='function')gm2EnriquecerObjetosBanco762_(gm2.st);
-
-        const legacy=gm2toLegacy();
-
-        labEstado_.larguraM=gm2.st.w;
-        labEstado_.alturaM=gm2.st.h;
-        labEstado_.pxPorMetro=gm2.st.ppm;
-        labEstado_.fundo=gm2.st.bg;
-        labEstado_.corGrade=gm2.st.grid;
-        labEstado_.gradeVisivel=gm2.st.showGrid;
-        labEstado_.textura=gm2.st.texture;
-        labEstado_.oficina2State=gm2clone(gm2.st);
-        labEstado_.desenhosLab=[];
-        labEstado_.formasLab=[];
-        labEstado_.objetosLab=legacy.objetos.filter(o=>!o.imagemImportada);
-
-        labRepararObjetosMesaE8_();
-        if(typeof map806ReconstruirObjetosMesa_==='function'){
-            try{await map806ReconstruirObjetosMesa_();}catch(_){}
-        }
-
-        await labSalvarCenaLiveE8_();
-
-        labSalvarLocal_();
-        labAgendarSyncRemoto_();
-        labRender_();
-        notificar_('Mapa publicado.','sucesso',1800);
-    }catch(e){
-        console.error('[E8] publicar',e);
-        notificar_('Não foi possível publicar o mapa.','erro',3500);
-    }
-}
-
-gm2publish=gm2publishE8;
-window.gm2publish=gm2publishE8;
-
-function labReligarPublishE8_(){
-    const b=document.getElementById('gm2publish');
-    if(b)b.onclick=gm2publishE8;
-}
-setInterval(labReligarPublishE8_,1000);
-setTimeout(labReligarPublishE8_,600);
-
-// ------------------------------------------------------------
 // Pós-render: reparar vínculos antigos silenciosamente.
 // ------------------------------------------------------------
 const labRenderE8Base_=labRender_;
@@ -32034,4 +32031,226 @@ setTimeout(()=>{
         labRender_();
     }catch(e){console.warn('[E8] init',e);}
 },1100);
+
+
+
+
+// ============================================================
+// EXP-TRABALHO-SYNC-10
+// Sincronização da Mesa usando labEstado_.oficina2State, que é o
+// cenário realmente publicado na Mesa. Não acessa gm2 fora da Oficina 2.
+// ============================================================
+
+let labCenaSync10Sig_='';
+let labCenaSync10Ref_=null;
+let labSync10Timer_=null;
+
+function labHashCenaSync10_(texto){
+    let h=2166136261>>>0;
+    const passo=Math.max(1,Math.floor(texto.length/12000));
+    for(let i=0;i<texto.length;i+=passo){
+        h^=texto.charCodeAt(i);
+        h=Math.imul(h,16777619)>>>0;
+    }
+    return `${texto.length}:${h.toString(16)}`;
+}
+
+function labCenaSync10Id_(){
+    const uid=String(currentUserUid||'mestre').replace(/[^a-zA-Z0-9_-]+/g,'_');
+    return `__mesa_live__${uid}`;
+}
+
+async function labGarantirCenaSync10_(){
+    if(!batalhaEhMestre_())return labCenaSync10Ref_;
+
+    const st=labEstado_?.oficina2State;
+    if(!st||typeof st!=='object'){
+        labCenaSync10Ref_=null;
+        labCenaSync10Sig_='';
+        return null;
+    }
+
+    const texto=JSON.stringify(st);
+    const sig=labHashCenaSync10_(texto);
+    if(labCenaSync10Ref_&&sig===labCenaSync10Sig_)return labCenaSync10Ref_;
+
+    const id=labCenaSync10Id_();
+    const agora=new Date().toISOString();
+    let partesAntigas=0;
+    try{
+        const cab=await getDoc(doc(db,'mapas',id));
+        if(cab.exists())partesAntigas=Number(cab.data()?.partes||0);
+    }catch(_){}
+
+    const dados={
+        id,
+        nome:'Mesa ao vivo',
+        larguraM:Math.max(4,Number(st.w||labEstado_.larguraM||28)),
+        alturaM:Math.max(4,Number(st.h||labEstado_.alturaM||14)),
+        pxPorMetro:Number(st.ppm||labEstado_.pxPorMetro||48),
+        fundo:String(st.bg||labEstado_.fundo||'#d7d7d7'),
+        corGrade:String(st.grid||labEstado_.corGrade||'#777777'),
+        gradeVisivel:st.showGrid!==false,
+        textura:String(st.texture||labEstado_.textura||'nenhuma'),
+        desenhos:[],
+        objetos:[],
+        oficina2State:JSON.parse(texto),
+        criadoPor:currentUserUid||'',
+        atualizadoEm:agora,
+        hiddenMesaLive:true
+    };
+
+    await labMapaSalvarFirestore_(dados,partesAntigas);
+    labCenaSync10Sig_=sig;
+    labCenaSync10Ref_={id,rev:agora,sig};
+    return labCenaSync10Ref_;
+}
+
+function labEstadoPublicoSync10_(){
+    const clone=JSON.parse(JSON.stringify(labEstado_||{}));
+
+    // O terreno pesado viaja por referência própria.
+    delete clone.oficina2State;
+    clone.desenhosLab=[];
+    clone.formasLab=[];
+
+    // Estado privado/local não vai para jogadores.
+    clone.selecionadoId='';
+    clone.objetoSelecionadoId='';
+    clone.modoCriacaoMapa=false;
+    delete clone.atuarComoE6;
+    delete clone.atuarComoAntesCombateE6;
+    delete clone.exploracaoAtorId;
+    delete clone.mestreControlaPJLab;
+
+    clone.tokens=(clone.tokens||[]).map(t=>{
+        const x={...t};
+        delete x.charLab;
+        delete x.municaoLab;
+        delete x.attrs;
+        delete x.psiSelecaoLab;
+        delete x.psSelecaoLab;
+        return x;
+    });
+
+    clone.objetosLab=(clone.objetosLab||[]).map(o=>{
+        const x={...o};
+        delete x.imagem;
+        return x;
+    });
+
+    clone.floatsLab=(clone.floatsLab||[]).slice(-12);
+    clone.logLab=(clone.logLab||[]).slice(0,30);
+    clone.mapaCompartilhadoRefSync10=labCenaSync10Ref_;
+    return clone;
+}
+
+// Substitui o escritor remoto por uma versão que primeiro garante
+// que o cenário atual da Mesa exista no Firestore e depois publica
+// apenas o estado dinâmico.
+labAgendarSyncRemoto_=function(){
+    if(!batalhaEhMestre_()||labAplicandoRemoto_)return;
+    clearTimeout(labSync10Timer_);
+    labSync10Timer_=setTimeout(async()=>{
+        try{
+            await labGarantirCenaSync10_();
+            await setDoc(
+                LAB_MAPA_MESA_REF_(),
+                {estado:labEstadoPublicoSync10_(),atualizadoEm:new Date().toISOString()},
+                {merge:false}
+            );
+        }catch(e){
+            console.warn('Sincronização da Mesa:',e);
+        }
+    },350);
+};
+
+async function labAplicarCenaSync10_(ref){
+    if(batalhaEhMestre_()||!ref?.id)return false;
+    const sig=`${String(ref.id)}|${String(ref.rev||ref.sig||'')}`;
+    if(window.__LAB_CENA_SYNC10__===sig)return true;
+
+    const snap=await getDoc(doc(db,'mapas',String(ref.id)));
+    if(!snap.exists())return false;
+
+    let m={id:String(ref.id),...snap.data()};
+    m=await labMapaHidratar_(m);
+    if(!m?.oficina2State)return false;
+
+    labEstado_.larguraM=Math.max(4,Number(m.larguraM||m.oficina2State.w||28));
+    labEstado_.alturaM=Math.max(4,Number(m.alturaM||m.oficina2State.h||14));
+    labEstado_.fundo=String(m.fundo||m.oficina2State.bg||'#d7d7d7');
+    labEstado_.corGrade=String(m.corGrade||m.oficina2State.grid||'#777777');
+    labEstado_.gradeVisivel=m.gradeVisivel!==false;
+    labEstado_.textura=String(m.textura||m.oficina2State.texture||'nenhuma');
+    labEstado_.pxPorMetro=48;
+    labEstado_.oficina2State=JSON.parse(JSON.stringify(m.oficina2State));
+    labEstado_.desenhosLab=[];
+    labEstado_.formasLab=[];
+    window.__LAB_CENA_SYNC10__=sig;
+    return true;
+}
+
+window.iniciarMapaMesaCompartilhado_=function(){
+    if(labMapaMesaUnsub_){labMapaMesaUnsub_();labMapaMesaUnsub_=null;}
+    if(labMapaAcoesUnsub_){labMapaAcoesUnsub_();labMapaAcoesUnsub_=null;}
+    if(!currentUserUid)return;
+
+    labIniciarEscutaComandosJogadores_();
+
+    labMapaMesaUnsub_=onSnapshot(LAB_MAPA_MESA_REF_(),snap=>{
+        if(batalhaEhMestre_()){
+            if(!snap.exists())labAgendarSyncRemoto_();
+            return;
+        }
+        if(!snap.exists())return;
+
+        const remoto=snap.data()?.estado;
+        if(!remoto||typeof remoto!=='object')return;
+
+        const cenaAtual={
+            oficina2State:labEstado_.oficina2State,
+            desenhosLab:labEstado_.desenhosLab,
+            formasLab:labEstado_.formasLab
+        };
+
+        labAplicandoRemoto_=true;
+        labEstado_={
+            ...labEstado_,
+            ...remoto,
+            pxPorMetro:48,
+            tokens:Array.isArray(remoto.tokens)?remoto.tokens:[],
+            objetosLab:Array.isArray(remoto.objetosLab)?remoto.objetosLab:[]
+        };
+
+        // Enquanto a nova cena não termina de carregar, não deixa o merge
+        // apagar a cena atual.
+        labEstado_.oficina2State=cenaAtual.oficina2State;
+        labEstado_.desenhosLab=cenaAtual.desenhosLab;
+        labEstado_.formasLab=cenaAtual.formasLab;
+        labAplicandoRemoto_=false;
+
+        const ref=remoto.mapaCompartilhadoRefSync10||null;
+        labCarregarModelosObjetosFaltantes_(labEstado_.objetosLab);
+
+        const render=()=>{
+            try{labRepararObjetosMesaE8_();}catch(_){}
+            if(document.getElementById('laboratorio-combate')?.classList.contains('active'))labRender_();
+        };
+
+        if(ref?.id){
+            labAplicarCenaSync10_(ref).then(render).catch(e=>{
+                console.warn('Carregar cenário compartilhado:',e);
+                render();
+            });
+        }else{
+            render();
+        }
+    },e=>console.warn('Mapa da Mesa compartilhado indisponível:',e));
+
+    if(batalhaEhMestre_())labAgendarSyncRemoto_();
+};
+
+// Força uma primeira publicação curta após o módulo terminar.
+setTimeout(()=>{if(batalhaEhMestre_())labAgendarSyncRemoto_();},1200);
 
