@@ -56,8 +56,8 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-console.info('[Mesa Estelar] build EXP-ATUAR-CAMERA-6 carregado');
-window.__MESA_BUILD__ = 'EXP-ATUAR-CAMERA-6';
+console.info('[Mesa Estelar] build EXP-ATUAR-SYNC-7 carregado');
+window.__MESA_BUILD__ = 'EXP-ATUAR-SYNC-7';
 
 let currentUserUid = null;
 let userData = null;
@@ -770,7 +770,7 @@ onAuthStateChanged(auth, async (user) => {
         iniciarMercadoLocal_();
         iniciarCampanhaPublica_();
         iniciarBatalhaCompartilhada_();
-        iniciarMapaMesaCompartilhado_();
+        window.iniciarMapaMesaCompartilhado_();
     } else {
         if(mercadoLocalUnsub_){mercadoLocalUnsub_();mercadoLocalUnsub_=null;}
         if(campanhaPublicaUnsub_){campanhaPublicaUnsub_();campanhaPublicaUnsub_=null;}
@@ -5154,6 +5154,8 @@ window.abrirMapaBancoNaMesa_=function(id){
     const m=(mapasDB||[]).find(x=>String(x.id)===String(id));
     if(!m)return;
     labMapaSelecionado_=String(id);
+    labEstado_.mapaCompartilhadoIdE7=String(id);
+    labEstado_.mapaCompartilhadoRevE7=Date.now();
     const btn=document.getElementById('laboratorioTabBtn');
     mostrarAba('laboratorio-combate',btn);
     if(typeof labAtualizarSelectMapas_==='function')labAtualizarSelectMapas_();
@@ -7107,7 +7109,13 @@ function labAtualizarSelectMapas_(){
     if(lista.some(m=>String(m.id)===atual)){sel.value=atual;labMapaSelecionado_=atual;}
     else {sel.value='';labMapaSelecionado_='';}
 }
-window.labSelecionarMapaSalvo_=function(id){labMapaSelecionado_=String(id||'');};
+window.labSelecionarMapaSalvo_=function(id){
+    labMapaSelecionado_=String(id||'');
+    if(labMapaSelecionado_){
+        labEstado_.mapaCompartilhadoIdE7=labMapaSelecionado_;
+        labEstado_.mapaCompartilhadoRevE7=Date.now();
+    }
+};
 async function labPersistirMapaNovo_(nome){
     nome=String(nome||'').trim();if(!nome)return null;
     let id=labMapaSlug_(nome),base=id,n=2;while((mapasDB||[]).some(m=>String(m.id)===String(id)))id=`${base}_${n++}`;
@@ -14989,7 +14997,10 @@ window.labAdicionarObjetoSelecionado_=function(){
     labEstado_.objetosLab.push(inst);labEstado_.objetoSelecionadoId=inst.id;labEstado_.selecionadoId='';labGuardarUltimaConstrucao_('objeto',inst);labSalvarLocal_();labRender_();
 };
 function labObjetoPorId_(id){return (labEstado_.objetosLab||[]).find(o=>String(o.id)===String(id))||null;}
-function labObjetoModelo_(o){return (objetosMapaDB||[]).find(m=>String(m.id)===String(o?.modeloId||''))||null;}
+function labObjetoModelo_(o){
+    const ref=String(o?.modeloId||o?.objetoBancoId||'');
+    return (objetosMapaDB||[]).find(m=>String(m.id)===ref)||null;
+}
 function labPsiPoderSelecionado_(ator){
     const todos=labPsiPoderes_(ator);
     const id=String(ator?.acaoAuxLab?.tipo==='psiquismo'?ator.acaoAuxLab.poderId:(ator?.psiSelecaoLab?.poderId||''));
@@ -29049,7 +29060,14 @@ function gm2publish(){
  // Na Mesa, o terreno/desenho da Oficina 2 é renderizado pelo motor novo.
  // Só objetos do banco continuam no motor de combate, para manter interação/dano.
  labEstado_.desenhosLab=[];labEstado_.formasLab=[];labEstado_.objetosLab=legacy.objetos.filter(o=>!o.imagemImportada);
- labSalvarLocal_();labRender_();notificar_('Mapa da Oficina 2 publicado na Mesa ao Vivo.','sucesso',3500);
+ if(gm2.st.mapId){
+   labMapaSelecionado_=String(gm2.st.mapId);
+   labEstado_.mapaCompartilhadoIdE7=String(gm2.st.mapId);
+   labEstado_.mapaCompartilhadoRevE7=Date.now();
+   labAtualizarSelectMapas_();
+ }
+ labSalvarLocal_();try{labAgendarSyncRemoto_();}catch(_){}
+ labRender_();notificar_('Mapa da Oficina 2 publicado na Mesa ao Vivo.','sucesso',3500);
 }
 
 
@@ -31336,15 +31354,46 @@ labObjetoMicroPainelHtml_=function(o,ppm){
 // de dano/restauração/remoção do objeto. Vê apenas a informação.
 const labRenderObjetoPainelE6Base_=window.labRenderObjetoPainel_;
 window.labRenderObjetoPainel_=function(){
-    if(batalhaEhMestre_()&&!labModoMestreE6_()){
-        const e=document.getElementById('labObjetoPainel'),o=labObjetoPorId_(labEstado_.objetoSelecionadoId);
-        if(e){
-            e.style.display='flex';
-            e.innerHTML=o?`<strong>${escaparHtmlInventario_(o.nome||'Objeto')}</strong><span>PV <b>${Math.max(0,Number(o.pvAtual??o.pvMax??0))}/${Math.max(0,Number(o.pvMax??0))}</b></span><span>Dureza <b>${Math.max(0,Number(o.dureza||0))}</b></span><span>Peso <b>${Math.max(0,Number(o.pesoKg||0)).toFixed(1)} kg</b></span>`:'';
-        }
-        return;
+    const e=document.getElementById('labObjetoPainel');
+    const o=labObjetoPorId_(labEstado_.objetoSelecionadoId);
+
+    if(!batalhaEhMestre_() || labModoMestreE6_()){
+        return labRenderObjetoPainelE6Base_.apply(this,arguments);
     }
-    return labRenderObjetoPainelE6Base_.apply(this,arguments);
+
+    if(!e)return;
+    e.style.display='flex';
+    if(!o){e.innerHTML='';return;}
+
+    const ator=labAtorEfetivoE6_();
+    const modelo=labObjetoModelo_(o);
+    const material=String(o?.material||modelo?.material||'').trim()||'—';
+    const nat=labObjetoNatureza_(o);
+    const oid=String(o.id).replace(/'/g,"\\'");
+    const combate=labEstado_.fase==='combate';
+    let acoes='';
+
+    if(ator){
+        if(!combate){
+            acoes+=`<button class="btn-small" onclick="labObjetoAcao_('mover','${oid}')">💪 Mover</button>`;
+            if(nat==='rocha')acoes+=`<button class="btn-small btn-select" onclick="labObjetoAcao_('minerar','${oid}')" title="A ferramenta é verificada ao executar">⛏️ Minerar</button>`;
+            if(nat==='arvore')acoes+=`<button class="btn-small btn-select" onclick="labObjetoAcao_('cortar','${oid}')" title="A ferramenta é verificada ao executar">🪓 Lenhar</button>`;
+            if(o.pegandoFogoLab)acoes+=`<button class="btn-small" onclick="labObjetoAcao_('extinguir','${oid}')">🧯 Apagar fogo</button>`;
+        }else{
+            acoes+=`<span style="color:#9fc6d8">As ações de combate aparecem junto ao mapa.</span>`;
+        }
+    }else{
+        acoes+=`<span style="color:#ffd18b">🎭 Atuar como Mestre: escolha um personagem para usar perícias.</span>`;
+    }
+
+    e.innerHTML=`
+      <strong>${escaparHtmlInventario_(o.nome||'Objeto')}</strong>
+      <span>PV <b>${Math.max(0,Number(o.pvAtual??o.pvMax??0))}/${Math.max(0,Number(o.pvMax??0))}</b></span>
+      <span>Dureza <b>${Math.max(0,Number(o.dureza||0))}</b></span>
+      <span>Peso <b>${Math.max(0,Number(o.pesoKg||0)).toFixed(1)} kg</b></span>
+      <span>Material <b>${escaparHtmlInventario_(material)}</b></span>
+      ${ator?`<span style="color:#9fdfff">Ator <b>${escaparHtmlInventario_(ator.nome||'—')}</b></span>`:''}
+      ${acoes}`;
 };
 
 // ------------------------------------------------------------
@@ -31458,17 +31507,34 @@ function labAtualizarZoomE6_(){
 // Sincronização: jogador carrega o mesmo MAPA SALVO por referência.
 // O documento ao vivo leva apenas estado dinâmico/tokens/objetos.
 // ------------------------------------------------------------
+function labMapaIdAtualE7_(){
+    const candidatos=[
+        labEstado_?.mapaCompartilhadoIdE7,
+        labMapaSelecionado_,
+        labEstado_?.oficina2State?.mapId,
+        (typeof gm2!=='undefined'&&gm2?.st?.mapId)?gm2.st.mapId:''
+    ].map(x=>String(x||'')).filter(Boolean);
+    return candidatos[0]||'';
+}
 function labMapaRefAtualE6_(){
-    const id=String(labMapaSelecionado_||'');
+    const id=labMapaIdAtualE7_();
     if(!id)return null;
     const m=(mapasDB||[]).find(x=>String(x.id)===id);
-    return {id,rev:String(m?.atualizadoEm||m?.tamanhoSerializado||m?.partes||'')};
+    const rev=String(
+        labEstado_?.mapaCompartilhadoRevE7 ||
+        m?.atualizadoEm ||
+        m?.tamanhoSerializado ||
+        m?.partes ||
+        ''
+    );
+    return {id,rev};
 }
 const labEstadoPublicoE6Base_=labEstadoPublico_;
 labEstadoPublico_=function(){
     const clone=labEstadoPublicoE6Base_();
     const ref=labMapaRefAtualE6_();
     clone.mapaCompartilhadoRefE6=ref;
+    clone.mapaCompartilhadoRefE7=ref;
     delete clone.atuarComoE6;delete clone.atuarComoAntesCombateE6;delete clone.exploracaoAtorId;delete clone.mestreControlaPJLab;
     clone.logLab=(clone.logLab||[]).slice(0,40);
     clone.floatsLab=[];
@@ -31532,7 +31598,7 @@ window.iniciarMapaMesaCompartilhado_=function(){
         const remoto=snap.data()?.estado;
         if(!remoto||typeof remoto!=='object')return;
 
-        const ref=remoto.mapaCompartilhadoRefE6||null;
+        const ref=remoto.mapaCompartilhadoRefE7||remoto.mapaCompartilhadoRefE6||null;
         const cenarioAtual=ref?.id?{
             oficina2State:labEstado_.oficina2State,
             desenhosLab:labEstado_.desenhosLab,
@@ -31580,6 +31646,7 @@ labRender_=function(){
         labAtualizarAtuarComoE6_();
         labAtualizarZoomE6_();
         labCameraAtualizarE6_();
+        if(labEstado_.objetoSelecionadoId)window.labRenderObjetoPainel_();
     }catch(e){console.warn('EXP-ATUAR-CAMERA-6 pós-render',e);}
     return r;
 };
