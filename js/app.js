@@ -56,8 +56,8 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-console.info('[Mesa Estelar] build EXP-SYNC-18 carregado');
-window.__MESA_BUILD__ = 'EXP-SYNC-18';
+console.info('[Mesa Estelar] build EXP-SYNC-20 carregado');
+window.__MESA_BUILD__ = 'EXP-SYNC-20';
 
 let currentUserUid = null;
 let userData = null;
@@ -6597,7 +6597,7 @@ window.labRolarAtaque_=function(){
     }
     if(labEhArmaMuniciada_(item)&&labMunicaoAtual_(t,item)<=0){notificar_(`${getNome(item)} está sem munição. Recarregue antes de atacar.`,'aviso');labRender_();return;}
     if(!batalhaEhMestre_()){
-        labEnviarComandoJogador_('ataque',{periciaLab:t.periciaLab,equipamentoLab:t.equipamentoLab,alvoId:String(alvo.id)},t).then(ok=>{if(ok)notificar_(`Ataque contra ${alvo.nome||alvo.name||labObjetoModelo_(alvo)?.nome||'objeto'} enviado ao mestre.`,'info',2200);});
+        labEnviarComandoJogador_('ataque',{periciaLab:t.periciaLab,equipamentoLab:t.equipamentoLab,alvoId:String(alvo.id)},t);
         return;
     }
     const bonusInt=Math.max(0,Number(t.bonusIntuicaoPendenteLab||0)),bonusMente=Number(t.menteAceleradaCargasLab||0)>0&&/INT/.test(String(per.formula||''))?Math.max(0,Number(t.menteAceleradaBonusLab||20)):0,valor=labValorPericiaAtaque_(c,per,alvo,item)+bonusMente,roll=1+Math.floor(Math.random()*100),r=classificarD100_(valor,roll);if(bonusInt>0)t.bonusIntuicaoPendenteLab=0;if(bonusMente>0)t.menteAceleradaCargasLab=Math.max(0,Number(t.menteAceleradaCargasLab||0)-1);if(t.bonusDificuldadeFacilPsiLab)t.bonusDificuldadeFacilPsiLab=0;
@@ -33919,6 +33919,521 @@ const labRenderSync18Base_=labRender_;
 labRender_=function(){
     const r=labRenderSync18Base_.apply(this,arguments);
     try{labRenderActionPanel_();}catch(e){console.warn('[SYNC18] painel',e);}
+    return r;
+};
+window.labRender_=labRender_;
+
+
+
+
+// ============================================================
+// EXP-SYNC-19
+// Combate remoto autoritativo sem tirar decisões do jogador:
+// - efeitos especiais ganhos pelo PJ são escolhidos pelo próprio jogador;
+// - localização especial também é escolhida pelo jogador;
+// - rolagem de dano do PJ é solicitada pelo jogador e resolvida no mestre;
+// - PM/NPC/Monstro do mestre recebem o painel completo no próprio turno
+//   e quando precisam reagir/defender;
+// - PJ externo nunca é tratado como personagem controlado pelo mestre.
+// ============================================================
+
+function labTokenMestre19_(t){
+    if(!batalhaEhMestre_()||!t)return false;
+
+    const tipo=normalizarTextoCombate_(String(
+        t.tipo || t.charLab?.tipo || ''
+    ));
+    if(t.criaturaBancoId || t.charLab?.criaturaBancoId || /criatura|monstro/.test(tipo))return true;
+    if(t.npcBancoId || t.charLab?.npcBancoId || tipo==='npc' || tipo==='npc rapido' || tipo==='npc_rapido')return true;
+
+    const uid=String(currentUserUid||currentUser?.uid||'');
+    const donos=[
+        t.donoUid,t.dono,
+        t.charLab?.donoUid,t.charLab?.dono
+    ].map(v=>String(v||'')).filter(Boolean);
+    if(uid&&donos.includes(uid))return true;
+
+    const ids=new Set([
+        String(t.id||''),
+        String(t.origemId||''),
+        String(t.charLab?.id||'')
+    ].filter(Boolean));
+
+    const local=(userCharacters||[]).find(c=>ids.has(String(c?.id||'')));
+    if(local){
+        const dono=String(local.donoUid||local.dono||'');
+        if(!dono || dono===uid)return true;
+    }
+
+    const c=labCharToken_(t);
+    if(c){
+        const dono=String(c.donoUid||c.dono||'');
+        if(dono&&dono===uid)return true;
+        if((userCharacters||[]).some(x=>String(x?.id||'')===String(c.id||'')))return true;
+    }
+
+    return false;
+}
+
+function labGrupo19_(t){
+    if(!t)return '';
+    const tipo=normalizarTextoCombate_(String(t.tipo||t.charLab?.tipo||''));
+    if(t.criaturaBancoId||t.charLab?.criaturaBancoId||/criatura|monstro/.test(tipo))return 'Monstro';
+    if(t.npcBancoId||t.charLab?.npcBancoId||tipo==='npc'||tipo==='npc rapido'||tipo==='npc_rapido')return 'NPC';
+    return labTokenMestre19_(t)?'PM':'PJ';
+}
+
+labTipoToken16_=function(t){return labGrupo19_(t);};
+labTokenControladoMestre16_=function(t){return labTokenMestre19_(t);};
+labGrupoTokenE6_=function(t){return labGrupo19_(t);};
+labMestreControlaTurnoE6_=function(t){return labTokenMestre19_(t);};
+
+// ------------------------------------------------------------
+// Efeitos especiais e dano do jogador: o jogador decide,
+// o mestre apenas executa no estado autoritativo.
+// ------------------------------------------------------------
+const labEscolherEfeitoSync19Base_=window.labEscolherEfeito_;
+const labConfirmarLocalizacaoSync19Base_=window.labConfirmarLocalizacao_;
+const labPularEfeitosSync19Base_=window.labPularEfeitos_;
+const labRolarDanoSync19Base_=window.labRolarDano_;
+
+function labAtacantePendenteDoJogador19_(){
+    if(batalhaEhMestre_())return null;
+    const dp=labEstado_.danoPendenteLab;
+    if(!dp)return null;
+    const t=labTokenPorId_(dp.atacanteId);
+    return t&&labTokenPertenceAoJogador15_(t)?t:null;
+}
+
+function labEnviarResolucaoAtaque19_(tipo,payload={}){
+    const t=labAtacantePendenteDoJogador19_();
+    const dp=labEstado_.danoPendenteLab;
+    if(!t||!dp)return;
+    labEnviarComandoJogador_(
+        tipo,
+        {...payload,danoPendenteId:String(dp.id||'')},
+        t
+    );
+}
+
+window.labEscolherEfeito_=function(id){
+    if(batalhaEhMestre_())return labEscolherEfeitoSync19Base_.apply(this,arguments);
+    if(!labAtacantePendenteDoJogador19_())return;
+
+    const efeito=String(id||'');
+    labEnviarResolucaoAtaque19_('efeito_especial19',{efeito});
+};
+
+window.labConfirmarLocalizacao_=function(loc){
+    if(batalhaEhMestre_())return labConfirmarLocalizacaoSync19Base_.apply(this,arguments);
+    if(!labAtacantePendenteDoJogador19_())return;
+
+    labEnviarResolucaoAtaque19_('efeito_localizacao19',{local:String(loc||'')});
+};
+
+window.labPularEfeitos_=function(){
+    if(batalhaEhMestre_())return labPularEfeitosSync19Base_.apply(this,arguments);
+    if(!labAtacantePendenteDoJogador19_())return;
+
+    labEnviarResolucaoAtaque19_('efeito_pular19',{});
+};
+
+window.labRolarDano_=function(){
+    if(batalhaEhMestre_())return labRolarDanoSync19Base_.apply(this,arguments);
+    if(!labAtacantePendenteDoJogador19_())return;
+
+    labEnviarResolucaoAtaque19_('dano19',{});
+};
+
+// ------------------------------------------------------------
+// Processamento no mestre das decisões do atacante PJ.
+// ------------------------------------------------------------
+const labProcessarComandoJogadorSync19Base_=labProcessarComandoJogador_;
+
+labProcessarComandoJogador_=async function(personagemId,acao){
+    const tipos19=new Set([
+        'efeito_especial19',
+        'efeito_localizacao19',
+        'efeito_pular19',
+        'dano19'
+    ]);
+
+    if(!tipos19.has(String(acao?.tipo||''))){
+        return labProcessarComandoJogadorSync19Base_.apply(this,arguments);
+    }
+
+    const chave=`res19:${acao.tipo}:${personagemId}:${acao?.nonce||''}`;
+    if(labMapaComandosEmProcessamento_.has(chave))return;
+    labMapaComandosEmProcessamento_.add(chave);
+
+    try{
+        if(!batalhaEhMestre_()||labEstado_.fase!=='combate')return;
+
+        const atacante=labTokenPorId_(personagemId);
+        const dp=labEstado_.danoPendenteLab;
+        if(!atacante||!dp)return;
+        if(String(dp.atacanteId)!==String(atacante.id))return;
+        if(!labUidPertenceToken18_(atacante,acao?.donoUid))return;
+
+        const pid=String(acao?.payload?.danoPendenteId||'');
+        if(pid&&String(dp.id||'')!==pid)return;
+
+        if(acao.tipo==='efeito_especial19'){
+            const efeito=String(acao?.payload?.efeito||'');
+            const disponiveis=labEfeitosDisponiveis_(dp)||[];
+            if(!disponiveis.some(e=>String(e.id)===efeito))return;
+            labEscolherEfeitoSync19Base_(efeito);
+        }
+        else if(acao.tipo==='efeito_localizacao19'){
+            if(!dp.escolhendoLocalizacao)return;
+            const d=labTokenPorId_(dp.defensorId);
+            const st=d?labGarantirSnapshotCombate_(d):null;
+            const loc=String(acao?.payload?.local||'');
+            if(!loc||!Object.keys(st?.hitMax||{}).includes(loc))return;
+            labConfirmarLocalizacaoSync19Base_(loc);
+        }
+        else if(acao.tipo==='efeito_pular19'){
+            labPularEfeitosSync19Base_();
+        }
+        else if(acao.tipo==='dano19'){
+            if(Number(dp.efeitosRestantes||0)>0||dp.escolhendoLocalizacao)return;
+            labRolarDanoSync19Base_();
+        }
+
+        labAgendarSyncRemoto_();
+        labRender_();
+
+    }catch(e){
+        console.error('[SYNC19] resolução do ataque do jogador',e);
+    }finally{
+        try{
+            await deleteDoc(
+                doc(db,'combatesAtivos','mapaMesaExperimental','acoes',String(personagemId))
+            );
+        }catch(_){}
+        labMapaComandosEmProcessamento_.delete(chave);
+    }
+};
+
+// ------------------------------------------------------------
+// Depois de um ataque remoto, limpar efeitos impossíveis sem
+// transferir uma escolha real para o mestre.
+// ------------------------------------------------------------
+function labSanearEfeitosPJ19_(){
+    if(!batalhaEhMestre_())return;
+    const dp=labEstado_.danoPendenteLab;
+    if(!dp||Number(dp.efeitosRestantes||0)<=0||dp.escolhendoLocalizacao)return;
+
+    const a=labTokenPorId_(dp.atacanteId);
+    if(!a||labTokenMestre19_(a))return;
+
+    let efs=[];
+    try{efs=labEfeitosDisponiveis_(dp)||[];}catch(_){}
+    if(!efs.length){
+        dp.efeitosRestantes=0;
+        labSalvarLocal_();
+        labAgendarSyncRemoto_();
+    }
+}
+
+// ------------------------------------------------------------
+// Painel especial do PJ atacante.
+// ------------------------------------------------------------
+function labRenderResolucaoPJ19_(el,dp,a,d){
+    const rest=Math.max(0,Number(dp.efeitosRestantes||0));
+
+    if(rest>0){
+        if(dp.escolhendoLocalizacao){
+            const st=d?labGarantirSnapshotCombate_(d):null;
+            const locs=Object.keys(st?.hitMax||{});
+            el.style.display='block';
+            el.innerHTML=`<div>
+                <strong style="color:#ffd54a;">🎯 Escolher localização</strong>
+                <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:9px;">
+                    ${locs.map(loc=>`<button class="btn-small" onclick="labConfirmarLocalizacao_('${String(loc).replace(/'/g,"\\'")}')" style="min-height:42px;">${escaparHtmlInventario_(loc)}</button>`).join('')}
+                </div>
+            </div>`;
+            return;
+        }
+
+        let efs=[];
+        try{efs=labEfeitosDisponiveis_(dp)||[];}catch(_){}
+
+        if(!efs.length){
+            el.style.display='block';
+            el.innerHTML='<div style="color:#9fc6d8;">Resolvendo ataque…</div>';
+            const key=String(dp.id||'');
+            if(window.__LAB_SKIP19__!==key){
+                window.__LAB_SKIP19__=key;
+                setTimeout(()=>{
+                    if(labEstado_.danoPendenteLab===dp)labPularEfeitos_();
+                },60);
+            }
+            return;
+        }
+
+        el.style.display='block';
+        el.innerHTML=`<div>
+            <strong style="color:#ffd54a;">✨ ${rest} efeito(s) especial(is)</strong>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:9px;">
+                ${efs.map(e=>`<button class="btn-small btn-select" onclick="labEscolherEfeito_('${e.id}')" style="min-height:44px;">${e.nome}</button>`).join('')}
+                <button class="btn-small" onclick="labPularEfeitos_()" style="min-height:44px;">Ignorar efeitos</button>
+            </div>
+        </div>`;
+        return;
+    }
+
+    const expr=labExpressaoDano_(a,dp.item);
+    el.style.display='block';
+    el.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+        <div>
+            <strong style="color:#ffd54a;">💥 Ataque acertou</strong>
+            <br><small style="color:#bbb;">${escaparHtmlInventario_(getNome(dp.item)||dp.item?.nome||'Ataque')} · dano ${escaparHtmlInventario_(expr||'—')}</small>
+        </div>
+        <button class="btn-small btn-select" onclick="labRolarDano_()" style="height:48px;min-width:170px;padding:0 20px;font-size:1em;">💥 Rolar dano</button>
+    </div>`;
+}
+
+// ------------------------------------------------------------
+// Painel de combate final.
+// ------------------------------------------------------------
+const labRenderActionPanelSync19Base_=labRenderActionPanel_;
+
+labRenderActionPanel_=function(){
+    const el=document.getElementById('labActionPanel');
+    if(!el)return;
+
+    // Fora de combate permanece a implementação da SYNC18.
+    if(labEstado_.fase!=='combate'){
+        return labRenderActionPanelSync19Base_.apply(this,arguments);
+    }
+
+    const pend=labEstado_.pendenciaLab;
+    const dp=labEstado_.danoPendenteLab;
+
+    // CONTA DO JOGADOR
+    if(!batalhaEhMestre_()){
+        const meu=labTokenProprioJogador15_();
+        const meuId=String(meu?.id||'');
+
+        if(pend){
+            const d=labTokenPorId_(pend.defensorId);
+            const a=labTokenPorId_(pend.atacanteId);
+
+            if(d&&String(d.id)===meuId){
+                return labRenderActionPanelE6Base_.apply(this,arguments);
+            }
+
+            if(a&&String(a.id)===meuId){
+                el.style.display='block';
+                el.innerHTML='<div style="min-height:30px;color:#9fc6d8;">Aguardando reação do alvo…</div>';
+                return;
+            }
+
+            el.style.display='none';
+            el.innerHTML='';
+            return;
+        }
+
+        if(dp){
+            const a=labTokenPorId_(dp.atacanteId);
+            const d=labTokenPorId_(dp.defensorId);
+
+            if(a&&String(a.id)===meuId){
+                return labRenderResolucaoPJ19_(el,dp,a,d);
+            }
+
+            el.style.display='none';
+            el.innerHTML='';
+            return;
+        }
+
+        const atual=labTokenAtual_();
+        if(atual&&String(atual.id)===meuId){
+            return labRenderActionPanelE6Base_.apply(this,arguments);
+        }
+
+        el.style.display='none';
+        el.innerHTML='';
+        return;
+    }
+
+    // CONTA DO MESTRE
+    if(pend){
+        const d=labTokenPorId_(pend.defensorId);
+
+        if(d&&labTokenMestre19_(d)){
+            // A implementação original reconstrói o painel de defesa completo.
+            return labRenderActionPanelE6Base_.apply(this,arguments);
+        }
+
+        el.style.display='block';
+        el.innerHTML='<div style="min-height:30px;color:#9fc6d8;">Aguardando reação do jogador…</div>';
+        return;
+    }
+
+    if(dp){
+        const a=labTokenPorId_(dp.atacanteId);
+
+        if(a&&labTokenMestre19_(a)){
+            // Efeitos especiais e dano de PM/NPC/Monstro são decididos no mestre.
+            return labRenderActionPanelE6Base_.apply(this,arguments);
+        }
+
+        el.style.display='block';
+        el.innerHTML='<div style="min-height:30px;color:#9fc6d8;">Aguardando resolução do jogador…</div>';
+        return;
+    }
+
+    const atual=labTokenAtual_();
+    if(!atual){
+        el.style.display='none';
+        el.innerHTML='';
+        return;
+    }
+
+    if(labTokenMestre19_(atual)){
+        // Painel completo do PM/NPC/Monstro da oportunidade.
+        return labRenderActionPanelE6Base_.apply(this,arguments);
+    }
+
+    el.style.display='block';
+    el.innerHTML=`<div style="min-height:30px;color:#9fc6d8;">
+        <strong style="color:#ffd54a;">${escaparHtmlInventario_(atual.nome||'PJ')}</strong>
+        · aguardando a ação do jogador.
+    </div>`;
+};
+window.labRenderActionPanel_=labRenderActionPanel_;
+
+// ------------------------------------------------------------
+// Barra superior do mestre acompanha a mesma autoridade do painel.
+// ------------------------------------------------------------
+const labAtualizarInfoSync19Base_=labAtualizarInfo_;
+labAtualizarInfo_=function(){
+    if(!batalhaEhMestre_()||labEstado_.fase!=='combate'){
+        return labAtualizarInfoSync19Base_.apply(this,arguments);
+    }
+
+    let ctx=null;
+    if(labEstado_.pendenciaLab){
+        const d=labTokenPorId_(labEstado_.pendenciaLab.defensorId);
+        if(d&&labTokenMestre19_(d))ctx=d;
+    }
+    if(!ctx&&labEstado_.danoPendenteLab){
+        const a=labTokenPorId_(labEstado_.danoPendenteLab.atacanteId);
+        if(a&&labTokenMestre19_(a))ctx=a;
+    }
+    if(!ctx){
+        const atual=labTokenAtual_();
+        if(atual&&labTokenMestre19_(atual))ctx=atual;
+    }
+
+    if(!ctx)return labAtualizarInfoSync19Base_.apply(this,arguments);
+
+    const salvo=labEstado_.selecionadoId;
+    try{
+        labEstado_.selecionadoId=String(ctx.id);
+        return labAtualizarInfoE6Base_.apply(this,arguments);
+    }finally{
+        labEstado_.selecionadoId=salvo;
+    }
+};
+window.labAtualizarInfo_=labAtualizarInfo_;
+
+// ------------------------------------------------------------
+// Render final.
+// ------------------------------------------------------------
+const labRenderSync19Base_=labRender_;
+labRender_=function(){
+    labSanearEfeitosPJ19_();
+    const r=labRenderSync19Base_.apply(this,arguments);
+    try{
+        labAtualizarInfo_();
+        labRenderActionPanel_();
+    }catch(e){
+        console.warn('[SYNC19] painel de combate',e);
+    }
+    return r;
+};
+window.labRender_=labRender_;
+
+
+
+
+// ============================================================
+// EXP-SYNC-20
+// Correção de autoridade: PJ de outra conta nunca pode ser reclassificado
+// como PM só porque sua ficha aparece em userCharacters na conta do mestre.
+// O donoUid explícito tem prioridade absoluta.
+// ============================================================
+
+function labOwnerUid20_(t){
+    if(!t)return '';
+    const c=labCharToken_(t);
+    return String(
+        t?.donoUid ||
+        t?.charLab?.donoUid ||
+        c?.donoUid ||
+        t?.dono ||
+        t?.charLab?.dono ||
+        c?.dono ||
+        ''
+    );
+}
+
+const labTokenMestreSync20Base_=labTokenMestre19_;
+labTokenMestre19_=function(t){
+    if(!batalhaEhMestre_()||!t)return false;
+
+    const tipo=normalizarTextoCombate_(String(t.tipo||t.charLab?.tipo||''));
+    if(t.criaturaBancoId||t.charLab?.criaturaBancoId||/criatura|monstro/.test(tipo))return true;
+    if(t.npcBancoId||t.charLab?.npcBancoId||tipo==='npc'||tipo==='npc rapido'||tipo==='npc_rapido')return true;
+
+    const mestreUid=String(currentUserUid||currentUser?.uid||'');
+    const dono=labOwnerUid20_(t);
+
+    // Regra decisiva: se existe dono explícito e não é o mestre, é PJ externo.
+    if(dono && mestreUid && dono!==mestreUid)return false;
+
+    // Se o dono explícito é o mestre, é PM.
+    if(dono && mestreUid && dono===mestreUid)return true;
+
+    // Só quando NÃO há dono explícito usamos o fallback de ficha local.
+    return labTokenMestreSync20Base_(t);
+};
+
+labGrupo19_=function(t){
+    if(!t)return '';
+    const tipo=normalizarTextoCombate_(String(t.tipo||t.charLab?.tipo||''));
+
+    if(t.criaturaBancoId||t.charLab?.criaturaBancoId||/criatura|monstro/.test(tipo))return 'Monstro';
+    if(t.npcBancoId||t.charLab?.npcBancoId||tipo==='npc'||tipo==='npc rapido'||tipo==='npc_rapido')return 'NPC';
+
+    const mestreUid=String(currentUserUid||currentUser?.uid||'');
+    const dono=labOwnerUid20_(t);
+
+    if(batalhaEhMestre_() && dono && mestreUid && dono!==mestreUid)return 'PJ';
+    if(batalhaEhMestre_() && dono && mestreUid && dono===mestreUid)return 'PM';
+
+    return labTokenMestre19_(t)?'PM':'PJ';
+};
+
+labTipoToken16_=function(t){return labGrupo19_(t);};
+labTokenControladoMestre16_=function(t){return labTokenMestre19_(t);};
+labGrupoTokenE6_=function(t){return labGrupo19_(t);};
+labMestreControlaTurnoE6_=function(t){return labTokenMestre19_(t);};
+
+// Re-render final para corrigir imediatamente rótulo/painel após snapshots.
+const labRenderSync20Base_=labRender_;
+labRender_=function(){
+    const r=labRenderSync20Base_.apply(this,arguments);
+    try{
+        labAtualizarAtuarComoE6_();
+        labAtualizarInfo_();
+        labRenderActionPanel_();
+    }catch(e){
+        console.warn('[SYNC20] atualização de autoridade',e);
+    }
     return r;
 };
 window.labRender_=labRender_;
