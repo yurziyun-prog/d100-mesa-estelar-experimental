@@ -56,8 +56,8 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-console.info('[Mesa Estelar] build EXP-SYNC-ISOLADO-11 carregado');
-window.__MESA_BUILD__ = 'EXP-SYNC-ISOLADO-11';
+console.info('[Mesa Estelar] build EXP-CENA-DIRETA-12 carregado');
+window.__MESA_BUILD__ = 'EXP-CENA-DIRETA-12';
 
 let currentUserUid = null;
 let userData = null;
@@ -32255,4 +32255,187 @@ window.iniciarMapaMesaCompartilhado_=function(){
 
 // Força uma primeira publicação curta após o módulo terminar.
 setTimeout(()=>{if(batalhaEhMestre_())labAgendarSyncRemoto_();},1200);
+
+
+
+
+// ============================================================
+// EXP-CENA-DIRETA-12
+// Sincronização do CENÁRIO isolada do restante da Mesa.
+// O mestre publica labEstado_.oficina2State num mapa Firestore fixo;
+// o jogador escuta esse documento diretamente.
+// Não depende do snapshot de combate, mapa selecionado ou handshake de referência.
+// ============================================================
+
+const LAB_CENA_DIRETA12_ID_='__mesa_live__experimental_scene_v12';
+let labCenaDireta12Unsub_=null;
+let labCenaDireta12UltimoEstadoRef_=null;
+let labCenaDireta12SavePromise_=null;
+let labCenaDireta12Pendente_=false;
+let labCenaDireta12UltimaRev_='';
+
+function labCenaDireta12Slim_(estado){
+    const st=JSON.parse(JSON.stringify(estado||{}));
+    // Objetos do Banco já são sincronizados pela camada dinâmica da Mesa;
+    // a camada de terreno nem sequer os renderiza.
+    st.elements=(st.elements||[]).map(e=>{
+        if(e?.type!=='object')return e;
+        return {
+            id:String(e.id||''),
+            type:'object',
+            modeloId:String(e.modeloId||e.objetoBancoId||e.dadosBanco?.id||''),
+            objetoBancoId:String(e.objetoBancoId||e.modeloId||e.dadosBanco?.id||''),
+            x:Number(e.x||0),y:Number(e.y||0),w:Number(e.w||1),h:Number(e.h||1),
+            rot:Number(e.rot||0),z:Number(e.z||0),locked:!!e.locked,
+            opacity:Number(e.opacity??1),shadow:e.shadow||'nenhuma',
+            shadowDir:e.shadowDir||'SE',shadowDist:Number(e.shadowDist||4)
+        };
+    });
+    return st;
+}
+
+async function labCenaDireta12SalvarAgora_(){
+    if(!batalhaEhMestre_())return false;
+    const fonte=labEstado_?.oficina2State;
+    if(!fonte||typeof fonte!=='object')return false;
+
+    // Identidade do objeto é suficiente: publicar/substituir mapa troca a referência;
+    // mover tokens e resolver combate não.
+    if(fonte===labCenaDireta12UltimoEstadoRef_&&!labCenaDireta12Pendente_)return true;
+
+    if(labCenaDireta12SavePromise_){
+        labCenaDireta12Pendente_=true;
+        return labCenaDireta12SavePromise_;
+    }
+
+    const estadoRef=fonte;
+    const estado=labCenaDireta12Slim_(fonte);
+    labCenaDireta12Pendente_=false;
+
+    labCenaDireta12SavePromise_=(async()=>{
+        const agora=new Date().toISOString();
+        let antigas=0;
+        try{
+            const cab=await getDoc(doc(db,'mapas',LAB_CENA_DIRETA12_ID_));
+            if(cab.exists())antigas=Number(cab.data()?.partes||0);
+        }catch(_){}
+
+        const dados={
+            id:LAB_CENA_DIRETA12_ID_,
+            nome:'Mesa experimental ao vivo',
+            larguraM:Math.max(4,Number(estado.w||labEstado_.larguraM||28)),
+            alturaM:Math.max(4,Number(estado.h||labEstado_.alturaM||14)),
+            pxPorMetro:Number(estado.ppm||labEstado_.pxPorMetro||48),
+            fundo:String(estado.bg||labEstado_.fundo||'#d7d7d7'),
+            corGrade:String(estado.grid||labEstado_.corGrade||'#777777'),
+            gradeVisivel:estado.showGrid!==false,
+            textura:String(estado.texture||labEstado_.textura||'nenhuma'),
+            desenhos:[],
+            objetos:[],
+            oficina2State:estado,
+            criadoPor:currentUserUid||'',
+            atualizadoEm:agora,
+            oficina2:true,
+            hiddenMesaLive:true,
+            syncCenaDireta12:true
+        };
+
+        await labMapaSalvarFirestore_(dados,antigas);
+        labCenaDireta12UltimoEstadoRef_=estadoRef;
+        labCenaDireta12UltimaRev_=agora;
+        console.info('[SYNC12] cenário publicado',agora);
+        return true;
+    })();
+
+    try{
+        return await labCenaDireta12SavePromise_;
+    }catch(e){
+        console.error('[SYNC12] falha ao publicar cenário',e);
+        return false;
+    }finally{
+        labCenaDireta12SavePromise_=null;
+        if(labCenaDireta12Pendente_){
+            labCenaDireta12Pendente_=false;
+            setTimeout(()=>labCenaDireta12SalvarAgora_(),80);
+        }
+    }
+}
+
+function labCenaDireta12Agendar_(){
+    if(!batalhaEhMestre_())return;
+    clearTimeout(window.__LAB_CENA12_TIMER__);
+    window.__LAB_CENA12_TIMER__=setTimeout(()=>labCenaDireta12SalvarAgora_(),180);
+}
+
+async function labCenaDireta12Aplicar_(cabecalho){
+    if(batalhaEhMestre_()||!cabecalho)return false;
+    const rev=String(cabecalho.atualizadoEm||'');
+    if(rev&&window.__LAB_CENA12_REV__===rev)return true;
+
+    let m={id:LAB_CENA_DIRETA12_ID_,...cabecalho};
+    m=await labMapaHidratar_(m);
+    const st=m?.oficina2State;
+    if(!st||typeof st!=='object')return false;
+
+    labAplicandoRemoto_=true;
+    try{
+        labEstado_.larguraM=Math.max(4,Number(m.larguraM||st.w||28));
+        labEstado_.alturaM=Math.max(4,Number(m.alturaM||st.h||14));
+        labEstado_.fundo=String(m.fundo||st.bg||'#d7d7d7');
+        labEstado_.corGrade=String(m.corGrade||st.grid||'#777777');
+        labEstado_.gradeVisivel=m.gradeVisivel!==false;
+        labEstado_.textura=String(m.textura||st.texture||'nenhuma');
+        labEstado_.pxPorMetro=48;
+        labEstado_.oficina2State=JSON.parse(JSON.stringify(st));
+        labEstado_.desenhosLab=[];
+        labEstado_.formasLab=[];
+        window.__LAB_CENA12_REV__=rev||Date.now().toString();
+    }finally{
+        labAplicandoRemoto_=false;
+    }
+
+    console.info('[SYNC12] cenário recebido',rev);
+    if(document.getElementById('laboratorio-combate')?.classList.contains('active'))labRender_();
+    return true;
+}
+
+function labCenaDireta12Escutar_(){
+    if(labCenaDireta12Unsub_){labCenaDireta12Unsub_();labCenaDireta12Unsub_=null;}
+    if(!currentUserUid||batalhaEhMestre_())return;
+
+    labCenaDireta12Unsub_=onSnapshot(
+        doc(db,'mapas',LAB_CENA_DIRETA12_ID_),
+        snap=>{
+            if(!snap.exists())return;
+            labCenaDireta12Aplicar_(snap.data()).catch(e=>console.error('[SYNC12] falha ao receber cenário',e));
+        },
+        e=>console.error('[SYNC12] listener do cenário',e)
+    );
+}
+
+// Toda alteração local relevante passa por labSalvarLocal_.
+// Só haverá gravação de cenário se oficina2State tiver sido substituído.
+const labSalvarLocalCena12Base_=labSalvarLocal_;
+labSalvarLocal_=function(){
+    const r=labSalvarLocalCena12Base_.apply(this,arguments);
+    labCenaDireta12Agendar_();
+    return r;
+};
+
+// A função de login já chama iniciarMapaMesaCompartilhado_.
+// Acrescentamos a escuta independente do cenário ao mesmo ponto.
+const iniciarMapaMesaCompartilhadoCena12Base_=window.iniciarMapaMesaCompartilhado_;
+window.iniciarMapaMesaCompartilhado_=function(){
+    const r=iniciarMapaMesaCompartilhadoCena12Base_.apply(this,arguments);
+    if(batalhaEhMestre_())labCenaDireta12Agendar_();
+    else labCenaDireta12Escutar_();
+    return r;
+};
+
+// Se a autenticação já tiver terminado antes desta camada ser instalada.
+setTimeout(()=>{
+    if(!currentUserUid)return;
+    if(batalhaEhMestre_())labCenaDireta12Agendar_();
+    else labCenaDireta12Escutar_();
+},1000);
 
