@@ -56,8 +56,8 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-console.info('[Mesa Estelar] build EXP-TRABALHO-SYNC-10 carregado');
-window.__MESA_BUILD__ = 'EXP-TRABALHO-SYNC-10';
+console.info('[Mesa Estelar] build EXP-SYNC-ISOLADO-11 carregado');
+window.__MESA_BUILD__ = 'EXP-SYNC-ISOLADO-11';
 
 let currentUserUid = null;
 let userData = null;
@@ -5228,15 +5228,15 @@ let labDrag_=null;
 let labMapaMesaUnsub_=null,labSyncTimer_=null,labAplicandoRemoto_=false;
 let labMapaAcoesUnsub_=null;
 const labMapaComandosEmProcessamento_=new Set();
-const LAB_MAPA_MESA_REF_=()=>doc(db,'combatesAtivos','mapaMesa');
-const LAB_MAPA_ACOES_REF_=()=>collection(db,'combatesAtivos','mapaMesa','acoes');
+const LAB_MAPA_MESA_REF_=()=>doc(db,'combatesAtivos','mapaMesaExperimental');
+const LAB_MAPA_ACOES_REF_=()=>collection(db,'combatesAtivos','mapaMesaExperimental','acoes');
 async function labEnviarComandoJogador_(tipo,payload={},ator=null){
     if(batalhaEhMestre_())return false;
     const t=ator||labTokenAtual_();
     if(!t||!labPodeControlarToken_(t)){notificar_('Você só pode comandar seu próprio personagem.','aviso',3500);return false;}
     const id=String(t.id||'');
     try{
-        await setDoc(doc(db,'combatesAtivos','mapaMesa','acoes',id),{
+        await setDoc(doc(db,'combatesAtivos','mapaMesaExperimental','acoes',id),{
             personagemId:id,donoUid:String(currentUserUid||currentUser?.uid||''),tipo:String(tipo||''),
             payload:JSON.parse(JSON.stringify(payload||{})),nonce:`${Date.now()}_${Math.random().toString(36).slice(2,8)}`,
             status:'novo',criadoEm:new Date().toISOString()
@@ -5279,7 +5279,7 @@ async function labProcessarComandoJogador_(personagemId,acao){
             window.labRolarAtaque_();
         }
     }catch(e){console.error('Processar comando do jogador',e);}finally{
-        try{await deleteDoc(doc(db,'combatesAtivos','mapaMesa','acoes',String(personagemId)));}catch(_){}
+        try{await deleteDoc(doc(db,'combatesAtivos','mapaMesaExperimental','acoes',String(personagemId)));}catch(_){}
         labMapaComandosEmProcessamento_.delete(chave);
         if(batalhaEhMestre_())labAgendarSyncRemoto_();
     }
@@ -20669,7 +20669,7 @@ window.labPlayerJoin530_=async function(){
     if(!c){notificar_('Escolha um personagem seu.','aviso');return;}
     if((labEstado_.tokens||[]).some(t=>String(t.origemId||t.id)===id)){notificar_('Esse personagem já está no mapa.','info');return;}
     try{
-        await setDoc(doc(db,'combatesAtivos','mapaMesa','acoes',id),{
+        await setDoc(doc(db,'combatesAtivos','mapaMesaExperimental','acoes',id),{
             personagemId:id,donoUid:String(currentUserUid||currentUser?.uid||''),tipo:'entrar_mapa',
             payload:{personagemId:id},nonce:`${Date.now()}_${Math.random().toString(36).slice(2,8)}`,
             status:'novo',criadoEm:new Date().toISOString()
@@ -20711,7 +20711,7 @@ labProcessarComandoJogador_=async function(personagemId,acao){
         labSalvarLocal_();labAgendarSyncRemoto_();labRender_();
     }catch(e){console.error('Entrada livre',e);}
     finally{
-        try{await deleteDoc(doc(db,'combatesAtivos','mapaMesa','acoes',String(personagemId)));}catch(_){}
+        try{await deleteDoc(doc(db,'combatesAtivos','mapaMesaExperimental','acoes',String(personagemId)));}catch(_){}
         labMapaComandosEmProcessamento_.delete(chave);
     }
 };
@@ -20995,7 +20995,7 @@ window.labPlayerJoin540_=async function(){
     try{
         // Continua usando a fila segura do Firestore, porém o mestre não
         // aprova nada: o cliente do mestre processa automaticamente.
-        await setDoc(doc(db,'combatesAtivos','mapaMesa','acoes',id),{
+        await setDoc(doc(db,'combatesAtivos','mapaMesaExperimental','acoes',id),{
             personagemId:id,
             donoUid:String(currentUserUid||currentUser?.uid||''),
             tipo:'entrar_mapa',
@@ -21065,7 +21065,7 @@ labProcessarComandoJogador_=async function(personagemId,acao){
     }catch(e){
         console.error('Entrada livre automática',e);
     }finally{
-        try{await deleteDoc(doc(db,'combatesAtivos','mapaMesa','acoes',String(personagemId)));}catch(_){}
+        try{await deleteDoc(doc(db,'combatesAtivos','mapaMesaExperimental','acoes',String(personagemId)));}catch(_){}
         labMapaComandosEmProcessamento_.delete(chave);
     }
 };
@@ -30955,7 +30955,7 @@ labProcessarComandoJogador_=async function(personagemId,acao){
         const t=labTokenPorId_(personagemId);if(!t||String(t.donoUid||'')!==String(acao?.donoUid||''))return;
         const o=labObjetoPorId_(acao?.payload?.objetoId);if(!o)return;
         labObjetoAcaoExecutar_(t,o,String(acao?.payload?.tipo||''));
-        try{await deleteDoc(doc(db,'combatesAtivos','mapaMesa','acoes',String(personagemId)));}catch(_){}
+        try{await deleteDoc(doc(db,'combatesAtivos','mapaMesaExperimental','acoes',String(personagemId)));}catch(_){}
         if(batalhaEhMestre_())labAgendarSyncRemoto_();return;
     }
     return labProcessarComandoJogadorE4Base_.apply(this,arguments);
@@ -31543,7 +31543,7 @@ labProcessarComandoJogador_=async function(personagemId,acao){
             if(Math.hypot(dx,dy)>.08){let deg=Math.atan2(dx,-dy)*180/Math.PI;if(deg<0)deg+=360;t.angulo=Math.round(deg);}
             labSalvarLocal_();labRender_();labAgendarSyncRemoto_();
         }finally{
-            try{await deleteDoc(doc(db,'combatesAtivos','mapaMesa','acoes',String(personagemId)));}catch(_){}
+            try{await deleteDoc(doc(db,'combatesAtivos','mapaMesaExperimental','acoes',String(personagemId)));}catch(_){}
             labMapaComandosEmProcessamento_.delete(chave);
         }
         return;
@@ -31665,7 +31665,9 @@ window.iniciarMapaMesaCompartilhado_=function(){
             return;
         }
         if(!snap.exists())return;
-        const remoto=snap.data()?.estado;
+        const pacote=snap.data()||{};
+        if(pacote.canal!=='experimental-v11')return;
+        const remoto=pacote.estado;
         if(!remoto||typeof remoto!=='object')return;
 
         const ref=remoto.mapaCompartilhadoRefE7||remoto.mapaCompartilhadoRefE6||null;
@@ -32156,7 +32158,7 @@ labAgendarSyncRemoto_=function(){
             await labGarantirCenaSync10_();
             await setDoc(
                 LAB_MAPA_MESA_REF_(),
-                {estado:labEstadoPublicoSync10_(),atualizadoEm:new Date().toISOString()},
+                {estado:labEstadoPublicoSync10_(),atualizadoEm:new Date().toISOString(),canal:'experimental-v11'},
                 {merge:false}
             );
         }catch(e){
