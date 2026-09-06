@@ -56,8 +56,8 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-console.info('[Mesa Estelar] build EXP-SYNC-15 carregado');
-window.__MESA_BUILD__ = 'EXP-SYNC-15';
+console.info('[Mesa Estelar] build EXP-SYNC-17 carregado');
+window.__MESA_BUILD__ = 'EXP-SYNC-17';
 
 let currentUserUid = null;
 let userData = null;
@@ -33052,4 +33052,361 @@ labRender_=function(){
     return r;
 };
 window.labRender_=labRender_;
+
+
+
+
+// ============================================================
+// EXP-SYNC-16
+// Contexto de combate do mestre:
+// - turno de PM/NPC/Monstro -> painel completo desse participante;
+// - reação de PM/NPC/Monstro -> painel completo do defensor;
+// - turno de PJ externo -> mestre apenas aguarda o jogador;
+// - barra de informações acompanha o contexto efetivo do combate.
+// ============================================================
+
+function labDonoToken16_(t){
+    const c=labCharToken_(t);
+    return String(
+        t?.donoUid ||
+        t?.dono ||
+        t?.charLab?.donoUid ||
+        t?.charLab?.dono ||
+        c?.donoUid ||
+        c?.dono ||
+        ''
+    );
+}
+
+function labTipoToken16_(t){
+    if(!t)return '';
+    const c=labCharToken_(t);
+    const tipo=normalizarTextoCombate_(String(
+        t?.tipo ||
+        t?.charLab?.tipo ||
+        c?.tipo ||
+        ''
+    ));
+
+    if(t?.criaturaBancoId || t?.charLab?.criaturaBancoId || /criatura|monstro/.test(tipo))
+        return 'Monstro';
+
+    if(t?.npcBancoId || t?.charLab?.npcBancoId || tipo==='npc' || tipo==='npc rapido' || tipo==='npc_rapido')
+        return 'NPC';
+
+    const dono=labDonoToken16_(t);
+    if(dono && dono===String(currentUserUid||''))return 'PM';
+    return 'PJ';
+}
+
+function labTokenControladoMestre16_(t){
+    if(!batalhaEhMestre_()||!t)return false;
+    const g=labTipoToken16_(t);
+    return g==='PM'||g==='NPC'||g==='Monstro';
+}
+
+// Unifica a classificação usada pelo seletor "Atuar como" e pelo combate.
+labGrupoTokenE6_=function(t){return labTipoToken16_(t);};
+labMestreControlaTurnoE6_=function(t){return labTokenControladoMestre16_(t);};
+
+// Contexto que o mestre deve enxergar no painel/barra superior.
+function labContextoCombateMestre16_(){
+    if(!batalhaEhMestre_()||labEstado_.fase!=='combate')return null;
+
+    const pend=labEstado_.pendenciaLab;
+    if(pend){
+        const defensor=labTokenPorId_(pend.defensorId);
+        if(labTokenControladoMestre16_(defensor)){
+            return {tipo:'defesa',token:defensor};
+        }
+    }
+
+    const dp=labEstado_.danoPendenteLab;
+    if(dp){
+        const atacante=labTokenPorId_(dp.atacanteId);
+        if(labTokenControladoMestre16_(atacante)){
+            return {tipo:'dano',token:atacante};
+        }
+    }
+
+    const atual=labTokenAtual_();
+    if(atual){
+        return {
+            tipo:labTokenControladoMestre16_(atual)?'turno_mestre':'turno_jogador',
+            token:atual
+        };
+    }
+    return null;
+}
+
+// ------------------------------------------------------------
+// Barra de informações do mestre acompanha turno/reação, não o último clique.
+// Jogador continua vendo somente seu próprio PJ pela camada SYNC15.
+// ------------------------------------------------------------
+const labAtualizarInfoSync16Base_=labAtualizarInfo_;
+labAtualizarInfo_=function(){
+    if(!batalhaEhMestre_()){
+        return labAtualizarInfoSync16Base_.apply(this,arguments);
+    }
+
+    if(labEstado_.fase!=='combate'){
+        return labAtualizarInfoSync16Base_.apply(this,arguments);
+    }
+
+    const ctx=labContextoCombateMestre16_();
+    const salvo=labEstado_.selecionadoId;
+    try{
+        labEstado_.selecionadoId=ctx?.token?String(ctx.token.id):'';
+        return labAtualizarInfoSync16Base_.apply(this,arguments);
+    }finally{
+        labEstado_.selecionadoId=salvo;
+    }
+};
+window.labAtualizarInfo_=labAtualizarInfo_;
+
+// ------------------------------------------------------------
+// Painel do mestre reconstruído diretamente da implementação original.
+// Isto contorna os wrappers antigos que mostravam "aguardando PJ"
+// antes de verificar uma defesa de PM/NPC/Monstro.
+// ------------------------------------------------------------
+const labRenderActionPanelSync16Fallback_=labRenderActionPanel_;
+
+labRenderActionPanel_=function(){
+    const el=document.getElementById('labActionPanel');
+    if(!el)return;
+
+    if(!batalhaEhMestre_()){
+        return labRenderActionPanelSync16Fallback_.apply(this,arguments);
+    }
+
+    if(labEstado_.fase!=='combate'){
+        el.style.display='none';
+        el.innerHTML='';
+        return;
+    }
+
+    const pend=labEstado_.pendenciaLab;
+
+    if(pend){
+        const defensor=labTokenPorId_(pend.defensorId);
+
+        // Defesa de PM/NPC/Monstro: sempre reconstruir o painel do defensor.
+        if(labTokenControladoMestre16_(defensor)){
+            const defs=labDefesasDisponiveis_(defensor)||[];
+            const temAcao=
+                Number(defensor?.acoesAtuaisLab||0)>0 ||
+                Number(defensor?.acoesDefensivasPsiLab||0)>0;
+
+            // Sem reação real: não manter uma pendência impossível.
+            if(!defs.length || !temAcao){
+                el.style.display='block';
+                el.innerHTML='<div style="min-height:30px;color:#9fc6d8">Resolvendo ataque…</div>';
+                setTimeout(()=>{
+                    if(labEstado_.pendenciaLab===pend){
+                        window.labResponderDefesa_(false);
+                    }
+                },25);
+                return;
+            }
+
+            // Chama a função original, anterior ao wrapper "aguardando PJ".
+            return labRenderActionPanelE6Base_.apply(this,arguments);
+        }
+
+        // Defesa pertencente a um PJ externo.
+        el.style.display='block';
+        el.innerHTML='<div style="min-height:30px;color:#9fc6d8">Aguardando reação do jogador…</div>';
+        return;
+    }
+
+    const dp=labEstado_.danoPendenteLab;
+    if(dp){
+        const atacante=labTokenPorId_(dp.atacanteId);
+
+        if(labTokenControladoMestre16_(atacante)){
+            return labRenderActionPanelE6Base_.apply(this,arguments);
+        }
+
+        // O atacante é PJ externo. O mestre continua autoritativo para o estado,
+        // mas não substitui o painel do turno por ficha de outro participante.
+        el.style.display='block';
+        el.innerHTML='<div style="min-height:30px;color:#9fc6d8">Aguardando resolução do ataque do jogador…</div>';
+        return;
+    }
+
+    const atual=labTokenAtual_();
+    if(!atual){
+        el.style.display='none';
+        el.innerHTML='';
+        return;
+    }
+
+    // Turno de PM/NPC/Monstro: painel completo do participante da iniciativa.
+    if(labTokenControladoMestre16_(atual)){
+        return labRenderActionPanelE6Base_.apply(this,arguments);
+    }
+
+    // Turno de PJ de outra conta.
+    el.style.display='block';
+    el.innerHTML=`<div style="display:flex;align-items:center;gap:8px;min-height:30px">
+        <strong style="color:#ffd54a">🎯 ${escaparHtmlInventario_(atual.nome||'PJ')}</strong>
+        <span style="color:#9fc6d8">Aguardando a ação do jogador.</span>
+    </div>`;
+};
+window.labRenderActionPanel_=labRenderActionPanel_;
+
+// ------------------------------------------------------------
+// Se surgir uma pendência impossível por estado antigo/incompleto,
+// resolver sem exigir clique manual.
+// ------------------------------------------------------------
+function labSanearReacaoMestre16_(){
+    if(!batalhaEhMestre_()||labEstado_.fase!=='combate')return;
+    const pend=labEstado_.pendenciaLab;
+    if(!pend)return;
+
+    const defensor=labTokenPorId_(pend.defensorId);
+    if(!labTokenControladoMestre16_(defensor))return;
+
+    const defs=labDefesasDisponiveis_(defensor)||[];
+    const temAcao=
+        Number(defensor?.acoesAtuaisLab||0)>0 ||
+        Number(defensor?.acoesDefensivasPsiLab||0)>0;
+
+    if(!defs.length||!temAcao){
+        setTimeout(()=>{
+            if(labEstado_.pendenciaLab===pend)window.labResponderDefesa_(false);
+        },20);
+    }
+}
+
+// Pós-render final.
+const labRenderSync16Base_=labRender_;
+labRender_=function(){
+    const r=labRenderSync16Base_.apply(this,arguments);
+    try{
+        labSanearReacaoMestre16_();
+        labAtualizarInfo_();
+        labRenderActionPanel_();
+    }catch(e){
+        console.warn('[SYNC16] pós-render',e);
+    }
+    return r;
+};
+window.labRender_=labRender_;
+
+
+
+
+// ============================================================
+// EXP-SYNC-17
+// Interações automáticas de exploração do jogador.
+// Lenhar, Minerar, Mover objeto e Apagar fogo não abrem pedido ao mestre.
+// A conta do mestre continua sendo a autoridade técnica, mas resolve a ação
+// silenciosamente e devolve o resultado pelo estado sincronizado.
+// ============================================================
+
+const labObjetoAcaoSync17Base_=window.labObjetoAcao_;
+
+window.labObjetoAcao_=function(tipo,id){
+    const ator=labAtorInteracaoE4_();
+    const objeto=labObjetoPorId_(id);
+
+    if(!ator||!objeto||!labPodeControlarToken_(ator)){
+        notificar_('Selecione primeiro o personagem que fará a ação.','aviso',2200);
+        return;
+    }
+
+    // Mestre ou combate seguem a implementação já existente.
+    if(batalhaEhMestre_() || labEstado_.fase==='combate'){
+        return labObjetoAcaoSync17Base_.apply(this,arguments);
+    }
+
+    // Exploração do jogador: execução automática, sem mensagem/pedido para o mestre.
+    if(ator._acaoObjetoPendente17)return;
+    ator._acaoObjetoPendente17={
+        tipo:String(tipo||''),
+        objetoId:String(id),
+        iniciadoEm:Date.now()
+    };
+
+    labEnviarComandoJogador_(
+        'acao_objeto_auto17',
+        {tipo:String(tipo||''),objetoId:String(id)},
+        ator
+    ).then(ok=>{
+        if(!ok)delete ator._acaoObjetoPendente17;
+    });
+};
+
+// Mestre processa automaticamente a interação recebida.
+// Não depende de iniciativa, Atuar como ou seleção do mestre.
+const labProcessarComandoJogadorSync17Base_=labProcessarComandoJogador_;
+
+labProcessarComandoJogador_=async function(personagemId,acao){
+    if(acao?.tipo!=='acao_objeto_auto17'){
+        return labProcessarComandoJogadorSync17Base_.apply(this,arguments);
+    }
+
+    const chave=`objauto17:${personagemId}:${acao?.nonce||''}`;
+    if(labMapaComandosEmProcessamento_.has(chave))return;
+    labMapaComandosEmProcessamento_.add(chave);
+
+    try{
+        if(!batalhaEhMestre_())return;
+        if(labEstado_.fase==='combate')return;
+
+        const ator=labTokenPorId_(personagemId);
+        if(!ator)return;
+
+        const donoRecebido=String(acao?.donoUid||'');
+        const donoToken=String(labDonoToken16_(ator)||ator.donoUid||'');
+        if(!donoRecebido || donoToken!==donoRecebido)return;
+
+        const pl=acao?.payload||{};
+        const objeto=labObjetoPorId_(pl.objetoId);
+        if(!objeto)return;
+
+        labObjetoAcaoExecutar_(ator,objeto,String(pl.tipo||''));
+
+        // A própria rotina registra o resultado no token e salva o estado.
+        // Reforça a publicação após a resolução automática.
+        labAgendarSyncRemoto_();
+
+    }catch(e){
+        console.error('[SYNC17] ação automática de exploração',e);
+    }finally{
+        try{
+            await deleteDoc(
+                doc(db,'combatesAtivos','mapaMesaExperimental','acoes',String(personagemId))
+            );
+        }catch(_){}
+        labMapaComandosEmProcessamento_.delete(chave);
+    }
+};
+
+// Quando o estado novo chega ao jogador, libera imediatamente a próxima ação.
+// O resultado já vem em ultimoResultadoProprioLab/historicoPrivadoLab.
+const iniciarMapaMesaCompartilhadoSync17Base_=window.iniciarMapaMesaCompartilhado_;
+
+window.iniciarMapaMesaCompartilhado_=function(){
+    const r=iniciarMapaMesaCompartilhadoSync17Base_.apply(this,arguments);
+
+    if(!batalhaEhMestre_()){
+        setTimeout(()=>{
+            const meus=(labEstado_.tokens||[]).filter(t=>
+                String(t.donoUid||'')===String(currentUserUid||currentUser?.uid||'')
+            );
+            for(const t of meus)delete t._acaoObjetoPendente17;
+        },120);
+    }
+    return r;
+};
+
+// Não deixa a flag local de "aguardando" viajar para o Firestore.
+const labSync13EstadoPublicoSync17Base_=labSync13EstadoPublico_;
+labSync13EstadoPublico_=function(){
+    const clone=labSync13EstadoPublicoSync17Base_.apply(this,arguments);
+    for(const t of (clone.tokens||[]))delete t._acaoObjetoPendente17;
+    return clone;
+};
 
