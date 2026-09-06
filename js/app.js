@@ -30349,7 +30349,7 @@ window.labCarregarMapaBanco_=async function(){
     console.error('V46.80.7 hidratar mapa',e);
     notificar_('Não foi possível carregar os dados completos deste mapa.','erro',6000);return;
   }
-  const refs=String(m?.formatoObjetos||'')===MAP803_REF_VERSION_ || String(m?.oficina2State?.formatoObjetos||'')===MAP803_REF_VERSION_;
+  const refs=String(m?.formatoObjetos||'')==='refs-v1' || String(m?.oficina2State?.formatoObjetos||'')==='refs-v1';
   if(!refs)return map807LoadBase_.apply(this,arguments);
   const rr=await map807CarregarRefsNaMesa_(m);
   if(rr.faltando.length)notificar_(`⚠️ Mapa carregado com ${rr.ok} objeto(s). Modelos não encontrados: ${rr.faltando.join(', ')}`,'aviso',8500);
