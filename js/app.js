@@ -56,8 +56,8 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-console.info('[Mesa Estelar] build EXP-CENA-DIRETA-12 carregado');
-window.__MESA_BUILD__ = 'EXP-CENA-DIRETA-12';
+console.info('[Mesa Estelar] build EXP-SYNC-13 carregado');
+window.__MESA_BUILD__ = 'EXP-SYNC-13';
 
 let currentUserUid = null;
 let userData = null;
@@ -32438,4 +32438,368 @@ setTimeout(()=>{
     if(batalhaEhMestre_())labCenaDireta12Agendar_();
     else labCenaDireta12Escutar_();
 },1000);
+
+
+
+
+// ============================================================
+// EXP-SYNC-13
+// Sincronização isolada e corrigida.
+// - remove campos Firestore inválidos (__...__) do estado dinâmico;
+// - cenário não usa mais a coleção /mapas, que jogadores não podem ler;
+// - cenário é dividido em partes dentro de /combatesAtivos;
+// - combate/tokens e cenário são sincronizados por canais independentes.
+// ============================================================
+
+const LAB_SYNC13_CANAL_='experimental-v13';
+const LAB_SYNC13_CENA_HEADER_ID_='mapaMesaExperimentalCena13';
+const LAB_SYNC13_CENA_PARTE_PREFIX_='mapaMesaExperimentalCena13_';
+const LAB_SYNC13_CHUNK_=480000;
+
+let labSync13SceneUnsub_=null;
+let labSync13SceneTimer_=null;
+let labSync13SceneSaving_=false;
+let labSync13ScenePending_=false;
+let labSync13LastSceneRef_=null;
+let labSync13LastSceneHash_='';
+let labSync13DynamicTimer_=null;
+
+function labSync13Hash_(texto){
+    let h=2166136261>>>0;
+    const passo=Math.max(1,Math.floor(texto.length/16000));
+    for(let i=0;i<texto.length;i+=passo){
+        h^=texto.charCodeAt(i);
+        h=Math.imul(h,16777619)>>>0;
+    }
+    return `${texto.length}:${h.toString(16)}`;
+}
+
+function labSync13LimparChavesInvalidas_(valor,visitados=new WeakSet()){
+    if(valor===null||valor===undefined)return valor;
+    if(typeof valor!=='object')return valor;
+    if(visitados.has(valor))return null;
+    visitados.add(valor);
+
+    if(Array.isArray(valor)){
+        for(let i=0;i<valor.length;i++){
+            const v=valor[i];
+            if(typeof v==='function'||v===undefined){valor[i]=null;continue;}
+            valor[i]=labSync13LimparChavesInvalidas_(v,visitados);
+        }
+        return valor;
+    }
+
+    for(const k of Object.keys(valor)){
+        if(/^__.*__$/.test(k)){
+            delete valor[k];
+            continue;
+        }
+        const v=valor[k];
+        if(typeof v==='function'||v===undefined){
+            delete valor[k];
+            continue;
+        }
+        valor[k]=labSync13LimparChavesInvalidas_(v,visitados);
+    }
+    return valor;
+}
+
+function labSync13EstadoPublico_(){
+    let clone;
+    try{
+        clone=labEstadoPublicoSync10_();
+    }catch(_){
+        clone=JSON.parse(JSON.stringify(labEstado_||{}));
+        delete clone.oficina2State;
+        clone.desenhosLab=[];
+        clone.formasLab=[];
+    }
+
+    // Referências das tentativas anteriores não participam mais do protocolo.
+    delete clone.mapaCompartilhadoRefSync10;
+    delete clone.mapaCompartilhadoRefE8;
+    delete clone.mapaCompartilhadoRefE7;
+    delete clone.mapaCompartilhadoRefE6;
+
+    return labSync13LimparChavesInvalidas_(clone);
+}
+
+function labSync13PurgarEstadoLocal_(){
+    try{
+        labSync13LimparChavesInvalidas_(labEstado_);
+        if(Object.prototype.hasOwnProperty.call(labEstado_,'__patched__'))delete labEstado_.__patched__;
+        localStorage.setItem('mesaEstelarLabCombate',JSON.stringify(labEstado_));
+    }catch(e){
+        console.warn('[SYNC13] limpeza local',e);
+    }
+}
+
+// Desativa o listener/gravação SYNC12 em /mapas, que falhava por permissão.
+try{
+    if(labCenaDireta12Unsub_){labCenaDireta12Unsub_();labCenaDireta12Unsub_=null;}
+    labCenaDireta12Agendar_=function(){};
+    labCenaDireta12Escutar_=function(){};
+}catch(_){}
+
+// Cancela escrita antiga pendente, se houver.
+try{clearTimeout(labSync10Timer_);}catch(_){}
+
+// ------------------------------------------------------------
+// Estado dinâmico: mesmo documento compartilhado já usado pela Mesa.
+// ------------------------------------------------------------
+labAgendarSyncRemoto_=function(){
+    if(!batalhaEhMestre_()||labAplicandoRemoto_)return;
+    clearTimeout(labSync13DynamicTimer_);
+    labSync13DynamicTimer_=setTimeout(async()=>{
+        try{
+            labSync13PurgarEstadoLocal_();
+            await setDoc(
+                LAB_MAPA_MESA_REF_(),
+                {
+                    estado:labSync13EstadoPublico_(),
+                    atualizadoEm:new Date().toISOString(),
+                    canal:LAB_SYNC13_CANAL_
+                },
+                {merge:false}
+            );
+            console.info('[SYNC13] estado publicado');
+        }catch(e){
+            console.error('[SYNC13] estado',e);
+        }
+    },220);
+};
+
+// ------------------------------------------------------------
+// Cenário: JSON em partes dentro de /combatesAtivos.
+// Header é salvo por último, então jogador nunca lê partes incompletas.
+// ------------------------------------------------------------
+function labSync13CenaSlim_(){
+    const fonte=labEstado_?.oficina2State;
+    if(!fonte||typeof fonte!=='object')return null;
+
+    const st=JSON.parse(JSON.stringify(fonte));
+    st.elements=(st.elements||[]).map(e=>{
+        if(e?.type!=='object')return e;
+        return {
+            id:String(e.id||''),
+            type:'object',
+            modeloId:String(e.modeloId||e.objetoBancoId||e.dadosBanco?.id||''),
+            objetoBancoId:String(e.objetoBancoId||e.modeloId||e.dadosBanco?.id||''),
+            x:Number(e.x||0),y:Number(e.y||0),
+            w:Number(e.w||1),h:Number(e.h||1),
+            rot:Number(e.rot||0),z:Number(e.z||0),
+            locked:!!e.locked,opacity:Number(e.opacity??1),
+            shadow:e.shadow||'nenhuma',
+            shadowDir:e.shadowDir||'SE',
+            shadowDist:Number(e.shadowDist||4)
+        };
+    });
+    return st;
+}
+
+async function labSync13PublicarCenaAgora_(){
+    if(!batalhaEhMestre_())return false;
+    if(labSync13SceneSaving_){
+        labSync13ScenePending_=true;
+        return false;
+    }
+
+    const fonte=labEstado_?.oficina2State;
+    if(!fonte||typeof fonte!=='object')return false;
+
+    const cena=labSync13CenaSlim_();
+    if(!cena)return false;
+
+    const texto=JSON.stringify(cena);
+    const hash=labSync13Hash_(texto);
+
+    if(hash===labSync13LastSceneHash_&&fonte===labSync13LastSceneRef_)return true;
+
+    const partes=[];
+    for(let i=0;i<texto.length;i+=LAB_SYNC13_CHUNK_)partes.push(texto.slice(i,i+LAB_SYNC13_CHUNK_));
+    const rev=new Date().toISOString();
+
+    labSync13SceneSaving_=true;
+    try{
+        for(let i=0;i<partes.length;i++){
+            await setDoc(
+                doc(db,'combatesAtivos',`${LAB_SYNC13_CENA_PARTE_PREFIX_}${i}`),
+                {canal:LAB_SYNC13_CANAL_,rev,indice:i,dados:partes[i]},
+                {merge:false}
+            );
+        }
+
+        await setDoc(
+            doc(db,'combatesAtivos',LAB_SYNC13_CENA_HEADER_ID_),
+            {
+                canal:LAB_SYNC13_CANAL_,
+                rev,
+                partes:partes.length,
+                hash,
+                larguraM:Number(cena.w||labEstado_.larguraM||28),
+                alturaM:Number(cena.h||labEstado_.alturaM||14)
+            },
+            {merge:false}
+        );
+
+        labSync13LastSceneRef_=fonte;
+        labSync13LastSceneHash_=hash;
+        console.info(`[SYNC13] cenário publicado (${partes.length} parte${partes.length===1?'':'s'})`);
+        return true;
+    }catch(e){
+        console.error('[SYNC13] cenário',e);
+        return false;
+    }finally{
+        labSync13SceneSaving_=false;
+        if(labSync13ScenePending_){
+            labSync13ScenePending_=false;
+            setTimeout(()=>labSync13PublicarCenaAgora_(),100);
+        }
+    }
+}
+
+function labSync13AgendarCena_(){
+    if(!batalhaEhMestre_())return;
+    const fonte=labEstado_?.oficina2State;
+    if(!fonte||typeof fonte!=='object')return;
+    if(fonte===labSync13LastSceneRef_)return;
+
+    clearTimeout(labSync13SceneTimer_);
+    labSync13SceneTimer_=setTimeout(()=>labSync13PublicarCenaAgora_(),260);
+}
+
+async function labSync13ReceberCena_(header){
+    if(batalhaEhMestre_()||!header||header.canal!==LAB_SYNC13_CANAL_)return false;
+
+    const rev=String(header.rev||'');
+    if(rev&&window.__LAB_SYNC13_CENA_REV__===rev)return true;
+
+    const total=Math.max(0,Number(header.partes||0));
+    if(!total)return false;
+
+    const pedaços=[];
+    for(let i=0;i<total;i++){
+        const snap=await getDoc(doc(db,'combatesAtivos',`${LAB_SYNC13_CENA_PARTE_PREFIX_}${i}`));
+        if(!snap.exists())throw new Error(`Parte ${i+1}/${total} do cenário não encontrada.`);
+        const d=snap.data()||{};
+        if(d.canal!==LAB_SYNC13_CANAL_||String(d.rev||'')!==rev)throw new Error(`Parte ${i+1}/${total} pertence a outra revisão.`);
+        pedaços.push(String(d.dados||''));
+    }
+
+    const texto=pedaços.join('');
+    if(header.hash&&labSync13Hash_(texto)!==String(header.hash))throw new Error('Cenário recebido com hash diferente.');
+
+    const st=JSON.parse(texto);
+
+    labAplicandoRemoto_=true;
+    try{
+        labEstado_.larguraM=Math.max(4,Number(st.w||header.larguraM||28));
+        labEstado_.alturaM=Math.max(4,Number(st.h||header.alturaM||14));
+        labEstado_.fundo=String(st.bg||'#d7d7d7');
+        labEstado_.corGrade=String(st.grid||'#777777');
+        labEstado_.gradeVisivel=st.showGrid!==false;
+        labEstado_.textura=String(st.texture||'nenhuma');
+        labEstado_.pxPorMetro=48;
+        labEstado_.oficina2State=st;
+        labEstado_.desenhosLab=[];
+        labEstado_.formasLab=[];
+        window.__LAB_SYNC13_CENA_REV__=rev||Date.now().toString();
+    }finally{
+        labAplicandoRemoto_=false;
+    }
+
+    console.info(`[SYNC13] cenário recebido (${total} parte${total===1?'':'s'})`);
+    if(document.getElementById('laboratorio-combate')?.classList.contains('active'))labRender_();
+    return true;
+}
+
+function labSync13EscutarCena_(){
+    if(labSync13SceneUnsub_){labSync13SceneUnsub_();labSync13SceneUnsub_=null;}
+    if(!currentUserUid||batalhaEhMestre_())return;
+
+    labSync13SceneUnsub_=onSnapshot(
+        doc(db,'combatesAtivos',LAB_SYNC13_CENA_HEADER_ID_),
+        snap=>{
+            if(!snap.exists())return;
+            labSync13ReceberCena_(snap.data()).catch(e=>console.error('[SYNC13] receber cenário',e));
+        },
+        e=>console.error('[SYNC13] listener cenário',e)
+    );
+}
+
+// ------------------------------------------------------------
+// Listener final do estado dinâmico.
+// Preserva o cenário recebido pelo canal de cena.
+// ------------------------------------------------------------
+window.iniciarMapaMesaCompartilhado_=function(){
+    if(labMapaMesaUnsub_){labMapaMesaUnsub_();labMapaMesaUnsub_=null;}
+    if(labMapaAcoesUnsub_){labMapaAcoesUnsub_();labMapaAcoesUnsub_=null;}
+    if(!currentUserUid)return;
+
+    labIniciarEscutaComandosJogadores_();
+
+    labMapaMesaUnsub_=onSnapshot(
+        LAB_MAPA_MESA_REF_(),
+        snap=>{
+            if(batalhaEhMestre_()){
+                if(!snap.exists())labAgendarSyncRemoto_();
+                return;
+            }
+            if(!snap.exists())return;
+
+            const pacote=snap.data()||{};
+            if(pacote.canal!==LAB_SYNC13_CANAL_)return;
+            const remoto=pacote.estado;
+            if(!remoto||typeof remoto!=='object')return;
+
+            const cenaAtual=labEstado_.oficina2State;
+
+            labAplicandoRemoto_=true;
+            try{
+                labEstado_={
+                    ...labEstado_,
+                    ...remoto,
+                    pxPorMetro:48,
+                    tokens:Array.isArray(remoto.tokens)?remoto.tokens:[],
+                    objetosLab:Array.isArray(remoto.objetosLab)?remoto.objetosLab:[]
+                };
+                labEstado_.oficina2State=cenaAtual;
+                labSync13PurgarEstadoLocal_();
+            }finally{
+                labAplicandoRemoto_=false;
+            }
+
+            labCarregarModelosObjetosFaltantes_(labEstado_.objetosLab);
+            console.info('[SYNC13] estado recebido');
+            if(document.getElementById('laboratorio-combate')?.classList.contains('active'))labRender_();
+        },
+        e=>console.error('[SYNC13] listener estado',e)
+    );
+
+    if(batalhaEhMestre_()){
+        labSync13PurgarEstadoLocal_();
+        labAgendarSyncRemoto_();
+        labSync13AgendarCena_();
+    }else{
+        labSync13EscutarCena_();
+    }
+};
+
+// Toda troca/publicação de cenário acaba passando por labSalvarLocal_.
+// O wrapper apenas agenda a cena quando a referência realmente mudou.
+const labSalvarLocalSync13Base_=labSalvarLocal_;
+labSalvarLocal_=function(){
+    const r=labSalvarLocalSync13Base_.apply(this,arguments);
+    labSync13AgendarCena_();
+    return r;
+};
+
+// Limpa agora o resíduo __patched__ que aparece no erro do Firestore.
+labSync13PurgarEstadoLocal_();
+
+// Se autenticação já terminou antes da instalação desta camada.
+setTimeout(()=>{
+    if(!currentUserUid)return;
+    window.iniciarMapaMesaCompartilhado_();
+},700);
 
