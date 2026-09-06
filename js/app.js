@@ -56,6 +56,9 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
+console.info('[Mesa Estelar] build EXP-LOGINFIX-1 carregado');
+window.__MESA_BUILD__ = 'EXP-LOGINFIX-1';
+
 let currentUserUid = null;
 let userData = null;
 let idiomaAtual = 'pt';
