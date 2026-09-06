@@ -15025,8 +15025,46 @@ window.labCliqueFundoMapa_=function(ev){
     labTokenArrastandoId_='';
     labSalvarLocal_();labRender_();
 };
-function labObjetoNatureza_(o){const m=labObjetoModelo_(o),n=normalizarTextoCombate_(`${o?.nome||''} ${m?.nome||''} ${o?.descricao||''} ${m?.descricao||''}`);if(/arvore|árvore|palmeira|palm|tronco|madeira|tree|wood/.test(n))return 'arvore';if(/rocha|pedra|miner|ore|rock|stone/.test(n))return 'rocha';return 'outro';}
-function labEquipadoRegex_(t,re){const c=labCharToken_(t);if(!c)return null;try{return (obterItensEquipados_(c)||[]).find(i=>re.test(normalizarTextoCombate_(`${getNome(i)||i.nome||''} ${i.tipo||''} ${i.categoria||''}`)))||null;}catch(_){return null;}}
+function labObjetoNatureza_(o){
+    const m=labObjetoModelo_(o);
+
+    const mat=normalizarTextoCombate_(
+        `${o?.material||''} ${m?.material||''}`
+    );
+
+    if(/madeira|wood/.test(mat)) return 'arvore';
+
+    if(/pedra|rocha|rock|stone|mineral|minério|minerio|ore/.test(mat))
+        return 'rocha';
+
+    const n=normalizarTextoCombate_(
+        `${o?.nome||''} ${m?.nome||''} ${o?.descricao||''} ${m?.descricao||''}`
+    );
+
+    if(/arvore|árvore|palmeira|palm|tronco|madeira|tree|wood/.test(n))
+        return 'arvore';
+
+    if(/rocha|pedra|miner|ore|rock|stone/.test(n))
+        return 'rocha';
+
+    return 'outro';
+}
+function labEquipadoRegex_(t,re){
+    const c=labCharToken_(t);
+    if(!c)return null;
+
+    try{
+        return (obterItensEquipados_(c)||[]).find(i =>
+            re.test(
+                normalizarTextoCombate_(
+                    `${getNome(i)||i.nome||''} ${i.idBanco||''} ${i.id||''} ${i.tipo||''} ${i.categoria||''}`
+                )
+            )
+        )||null;
+    }catch(_){
+        return null;
+    }
+}
 function labPericiaRegex_(t,re){const c=labCharToken_(t);if(!c)return null;return (batalhaListaPericias_(c)||[]).find(p=>re.test(normalizarTextoCombate_(`${p.id||''} ${getNome(p)||''}`)))||null;}
 function labObjetoAplicarDanoDireto_(o,bruto,fonte='Ação'){const duro=Math.max(0,Number(o.dureza||0)),final=Math.max(0,Math.floor(Number(bruto||0))-duro);o.pvAtual=Math.max(0,Number(o.pvAtual??o.pvMax??0)-final);if(o.pvAtual<=0)o.destruido=true;return {bruto:Math.floor(Number(bruto||0)),duro,final};}
 function labObjetoAcaoExecutar_(ator,objeto,tipo){
@@ -15037,9 +15075,51 @@ function labObjetoAcaoExecutar_(ator,objeto,tipo){
         per=labPericiaRegex_(ator,/forca bruta|força bruta|brute force|蛮力/);rotulo='Mover objeto';
         const cap=Math.max(10,(forca+tam)*5);dif=peso<=cap?'padrao':peso<=cap*2?'dificil':'formidavel';
     }else if(tipo==='minerar'){
-        if(nat!=='rocha')return;per=labPericiaRegex_(ator,/mineracao|mineração|mining|采矿/);equip=labEquipadoRegex_(ator,/picareta|pickaxe|mining pick/);rotulo='Mineração';if(!per||!equip){notificar_('Mineração exige a perícia Mineração e uma picareta equipada.','aviso',4200);return;}
+    if(nat!=='rocha')return;
+
+    per=labPericiaRegex_(
+        ator,
+        /forca bruta|força bruta|brute force|蛮力/
+    );
+
+    equip=labEquipadoRegex_(
+        ator,
+        /picareta|pickaxe|mining pick/
+    );
+
+    rotulo='Minerar';
+
+    if(!equip){
+        notificar_(
+            'Minerar exige uma picareta equipada.',
+            'aviso',
+            4200
+        );
+        return;
+    }
     }else if(tipo==='cortar'){
-        if(nat!=='arvore')return;per=labPericiaRegex_(ator,/forca bruta|força bruta|brute force|蛮力/);equip=labEquipadoRegex_(ator,/machado|axe|斧/);rotulo='Cortar';if(!per||!equip){notificar_('Cortar uma árvore exige um machado equipado.','aviso',4200);return;}
+       if(nat!=='arvore')return;
+
+per=labPericiaRegex_(
+    ator,
+    /forca bruta|força bruta|brute force|蛮力/
+);
+
+equip=labEquipadoRegex_(
+    ator,
+    /machado|axe|斧/
+);
+
+rotulo='Lenhar';
+
+if(!equip){
+    notificar_(
+        'Lenhar exige um machado equipado.',
+        'aviso',
+        4200
+    );
+    return;
+}
     }
     if(!per){notificar_(`Não encontrei a perícia necessária para ${rotulo.toLowerCase()}.`,'aviso',4200);return;}
     const base=labValorTeste_(ator,per),aj=aplicarDificuldadeEFadiga_(c,base,dif,0),valor=Math.max(0,Number(aj?.valor||base)),roll=1+Math.floor(Math.random()*100),r=classificarD100_(valor,roll),sucesso=batalhaResultadoGradeValor_(r.grau)>=2;
@@ -15057,9 +15137,12 @@ window.labObjetoAcao_=function(tipo,id){const ator=labTokenAtual_(),o=labObjetoP
 function labObjetoMicroPainelHtml_(o,ppm){
     if(labEstado_.fase!=='combate'||!o||o.destruido||String(labEstado_.objetoSelecionadoId||'')!==String(o.id))return '';
     const ator=labTokenAtual_();if(!ator||!labPodeControlarToken_(ator)||Number(ator.acoesAtuaisLab||0)<=0)return '';
-    const psis=labPsiPoderesParaAlvo_(ator,o),nat=labObjetoNatureza_(o),perMin=labPericiaRegex_(ator,/mineracao|mineração|mining|采矿/),pic=labEquipadoRegex_(ator,/picareta|pickaxe|mining pick/),axe=labEquipadoRegex_(ator,/machado|axe|斧/);
+    const psis=labPsiPoderesParaAlvo_(ator,o),
+      nat=labObjetoNatureza_(o),
+      pic=labEquipadoRegex_(ator,/picareta|pickaxe|mining pick/),
+      axe=labEquipadoRegex_(ator,/machado|axe|斧/);
     const meiaH=Math.max(18,Number(o.alturaM||1)*ppm)/2,posMicro=labMicroPosicaoVertical_(o.y*ppm,meiaH,ppm,72),top=posMicro.top,left=o.x*ppm;
-    return `<div class="lab-micro-actions" onclick="event.stopPropagation()" onpointerdown="event.stopPropagation()" style="position:absolute;left:${left}px;top:${top}px;transform:${posMicro.transform};z-index:28;padding:4px;border-radius:8px;background:rgba(10,13,30,.96);border:1px solid rgba(126,231,255,.45);display:flex;gap:3px;align-items:center;justify-content:center;flex-wrap:wrap;max-width:410px;">${o.destrutivel!==false?`<button class="btn-small btn-select" onclick="labAtacarObjetoContextual_('${String(o.id).replace(/'/g,"\\'")}')" style="min-height:27px;padding:2px 7px;font-size:.72em;">⚔️ Atacar</button>`:''}<button class="btn-small" onclick="labObjetoAcao_('mover','${String(o.id).replace(/'/g,"\\'")}')" style="min-height:27px;padding:2px 7px;font-size:.72em;">💪 Mover</button>${nat==='rocha'&&perMin&&pic?`<button class="btn-small" onclick="labObjetoAcao_('minerar','${String(o.id).replace(/'/g,"\\'")}')" style="min-height:27px;padding:2px 7px;font-size:.72em;">⛏️ Minerar</button>`:''}${nat==='arvore'&&axe?`<button class="btn-small" onclick="labObjetoAcao_('cortar','${String(o.id).replace(/'/g,"\\'")}')" style="min-height:27px;padding:2px 7px;font-size:.72em;">🪓 Cortar</button>`:''}${psis.map(p=>`<button class="btn-small lab-psi-action" onclick="${p.id==='mover_objeto'?`labUsarPsiContextualRapido_('${String(p.id).replace(/'/g,"\\'")}','${String(o.id).replace(/'/g,"\\'")}')`:`labAbrirPsiContextual_('${String(p.id).replace(/'/g,"\\'")}','${String(o.id).replace(/'/g,"\\'")}')`}" style="min-height:27px;padding:2px 7px;font-size:.72em;">🔮 ${escaparHtmlInventario_(getNome(p))}</button>`).join('')}</div>`;
+    return `<div class="lab-micro-actions" onclick="event.stopPropagation()" onpointerdown="event.stopPropagation()" style="position:absolute;left:${left}px;top:${top}px;transform:${posMicro.transform};z-index:28;padding:4px;border-radius:8px;background:rgba(10,13,30,.96);border:1px solid rgba(126,231,255,.45);display:flex;gap:3px;align-items:center;justify-content:center;flex-wrap:wrap;max-width:410px;">${o.destrutivel!==false?`<button class="btn-small btn-select" onclick="labAtacarObjetoContextual_('${String(o.id).replace(/'/g,"\\'")}')" style="min-height:27px;padding:2px 7px;font-size:.72em;">⚔️ Atacar</button>`:''}<button class="btn-small" onclick="labObjetoAcao_('mover','${String(o.id).replace(/'/g,"\\'")}')" style="min-height:27px;padding:2px 7px;font-size:.72em;">💪 Mover</button>${nat==='rocha'&&perMin&&pic?`<button class="btn-small" onclick="labObjetoAcao_('minerar','${String(o.id).replace(/'/g,"\\'")}')" style="min-height:27px;padding:2px 7px;font-size:.72em;">⛏️ Minerar</button>`:''}${nat==='arvore'&&axe?`<button class="btn-small" onclick="labObjetoAcao_('cortar','${String(o.id).replace(/'/g,"\\'")}')" style="min-height:27px;padding:2px 7px;font-size:.72em;">🪓 Lenhar</button>`:''}${psis.map(p=>`<button class="btn-small lab-psi-action" onclick="${p.id==='mover_objeto'?`labUsarPsiContextualRapido_('${String(p.id).replace(/'/g,"\\'")}','${String(o.id).replace(/'/g,"\\'")}')`:`labAbrirPsiContextual_('${String(p.id).replace(/'/g,"\\'")}','${String(o.id).replace(/'/g,"\\'")}')`}" style="min-height:27px;padding:2px 7px;font-size:.72em;">🔮 ${escaparHtmlInventario_(getNome(p))}</button>`).join('')}</div>`;
 }
 function labObjetoHtml_(o,ppm){
     const w=Math.max(18,Number(o.larguraM||1)*ppm),h=Math.max(18,Number(o.alturaM||1)*ppm),cfg=labDesenhoConfig_(),sel=!!labEstado_.modoCriacaoMapa&&!cfg.ativo&&String(o.id)===String(labEstado_.objetoSelecionadoId),dead=!!o.destruido;
