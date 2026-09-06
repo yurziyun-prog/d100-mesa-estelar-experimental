@@ -56,8 +56,8 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-console.info('[Mesa Estelar] build EXP-SYNC-17 carregado');
-window.__MESA_BUILD__ = 'EXP-SYNC-17';
+console.info('[Mesa Estelar] build EXP-SYNC-18 carregado');
+window.__MESA_BUILD__ = 'EXP-SYNC-18';
 
 let currentUserUid = null;
 let userData = null;
@@ -33409,4 +33409,517 @@ labSync13EstadoPublico_=function(){
     for(const t of (clone.tokens||[]))delete t._acaoObjetoPendente17;
     return clone;
 };
+
+
+
+
+// ============================================================
+// EXP-SYNC-18
+// 1) Painel de ações também fora de combate.
+// 2) Testes de arma fora de combate: rolagem + dano, sem alvo/efeitos.
+// 3) Perícias e Psi fora de combate continuam disponíveis.
+// 4) Ataque do PJ enviado ao mestre fixa corretamente o alvo no motor.
+// 5) PM do mestre é reconhecido também pelo cadastro local do mestre.
+// ============================================================
+
+const labExplorarUi18_=new Map();
+
+function labExplorarAtor18_(){
+    if(labEstado_.fase==='combate')return null;
+    return labAtorEfetivoE6_();
+}
+
+function labExplorarCfg18_(t){
+    if(!t)return null;
+    const id=String(t.id);
+    if(!labExplorarUi18_.has(id)){
+        labExplorarUi18_.set(id,{
+            modo:'combate',
+            periciaAtaque:'',
+            equipamento:'',
+            periciaGeral:'',
+            poderId:'',
+            pp:0,
+            alvoId:''
+        });
+    }
+    const cfg=labExplorarUi18_.get(id);
+    const c=labCharToken_(t);
+    const ataques=labPericiasAtaque_(t)||[];
+    const gerais=labUniversalPericiasGerais_(t)||[];
+    const poderes=labPsiPoderes_(t)||[];
+
+    if(!ataques.some(p=>batalhaTokenPericia_(p)===cfg.periciaAtaque))
+        cfg.periciaAtaque=batalhaTokenPericia_(ataques[0]||{});
+    const perAtk=ataques.find(p=>batalhaTokenPericia_(p)===cfg.periciaAtaque)||ataques[0]||null;
+    const eq=perAtk&&c?batalhaEquipamentos_(c,perAtk,cfg.equipamento):[];
+    if(!eq.some(x=>String(x.valor)===String(cfg.equipamento)))
+        cfg.equipamento=String(eq[0]?.valor||'');
+
+    if(!gerais.some(p=>String(p.id)===String(cfg.periciaGeral)))
+        cfg.periciaGeral=String(gerais[0]?.id||'');
+
+    if(!poderes.some(p=>String(p.id)===String(cfg.poderId)))
+        cfg.poderId=String(poderes[0]?.id||'');
+
+    const poder=poderes.find(p=>String(p.id)===String(cfg.poderId))||null;
+    if(poder){
+        const alvos=labPsiAlvos_(t,poder)||[];
+        if(alvos.length===1&&String(alvos[0].id)===String(t.id))cfg.alvoId=String(t.id);
+        if(cfg.alvoId&&!alvos.some(a=>String(a.id)===String(cfg.alvoId)))cfg.alvoId='';
+        const alvo=cfg.alvoId?labPsiAlvoPorId_(cfg.alvoId):null;
+        const min=poder.id==='mover_objeto'&&alvo?labPsiMoverCustoKg_(poder,alvo):Math.max(0,Number(poder.custo||0));
+        if(!Number.isFinite(Number(cfg.pp))||Number(cfg.pp)<min)cfg.pp=min;
+    }
+    return cfg;
+}
+
+window.labExplorarModo18_=function(v){
+    const t=labExplorarAtor18_();if(!t)return;
+    const cfg=labExplorarCfg18_(t);cfg.modo=String(v||'combate');
+    labRender_();
+};
+window.labExplorarSegundo18_=function(v){
+    const t=labExplorarAtor18_();if(!t)return;
+    const cfg=labExplorarCfg18_(t);
+    if(cfg.modo==='outras')cfg.periciaGeral=String(v||'');
+    else if(cfg.modo==='psi'){cfg.poderId=String(v||'');cfg.alvoId='';cfg.pp=0;}
+    else{cfg.equipamento=String(v||'');}
+    labExplorarCfg18_(t);
+    labRender_();
+};
+window.labExplorarPrimeiro18_=function(v){
+    const t=labExplorarAtor18_();if(!t)return;
+    const cfg=labExplorarCfg18_(t);
+    if(v==='__outras__')cfg.modo='outras';
+    else if(v==='__psi__')cfg.modo='psi';
+    else{cfg.modo='combate';cfg.periciaAtaque=String(v||'');cfg.equipamento='';}
+    labExplorarCfg18_(t);
+    labRender_();
+};
+window.labExplorarPP18_=function(v){
+    const t=labExplorarAtor18_();if(!t)return;
+    const cfg=labExplorarCfg18_(t);
+    cfg.pp=Math.max(0,Math.floor(Number(v)||0));
+    labExplorarCfg18_(t);
+    labRender_();
+};
+
+function labExplorarAnotar18_(t,txt){
+    const final=`${txt} jogador não está em combate.`;
+    labRegistrarResultadoProprio_(t,final);
+    labEstado_.logLab=Array.isArray(labEstado_.logLab)?labEstado_.logLab:[];
+    labEstado_.logLab.unshift({ts:new Date().toLocaleTimeString(),texto:`${t.nome}: ${final}`});
+    if(labEstado_.logLab.length>120)labEstado_.logLab.length=120;
+    return final;
+}
+
+function labExplorarResolverPericia18_(t,payload){
+    const per=(labUniversalPericiasGerais_(t)||[]).find(p=>String(p.id)===String(payload.periciaGeral));
+    if(!per)return false;
+    const valor=Math.max(0,Number(labValorTeste_(t,per)||0));
+    const roll=1+Math.floor(Math.random()*100);
+    const r=classificarD100_(valor,roll);
+    labExplorarAnotar18_(t,`Teste: ${getNome(per)} ${roll}/${valor} → ${r.grau}.`);
+    try{somDado_();if(r.grau==='Crítico')somCritico_();else if(r.grau==='Fiasco')somFiasco_();}catch(_){}
+    return true;
+}
+
+function labExplorarResolverArma18_(t,payload){
+    const c=labCharToken_(t);if(!c)return false;
+    const ataques=labPericiasAtaque_(t)||[];
+    const per=ataques.find(p=>batalhaTokenPericia_(p)===String(payload.periciaAtaque))||ataques[0];
+    if(!per)return false;
+
+    t.periciaLab=batalhaTokenPericia_(per);
+    t.equipamentoLab=String(payload.equipamento||'');
+    const eq=batalhaEquipamentos_(c,per,t.equipamentoLab)||[];
+    if(!eq.some(x=>String(x.valor)===String(t.equipamentoLab)))
+        t.equipamentoLab=String(eq[0]?.valor||'');
+    const item=labItemSelecionado_(t);
+    if(!item)return false;
+
+    const valor=Math.max(0,Number(labValorPericiaAtaque_(c,per,null,item)||0));
+    const roll=1+Math.floor(Math.random()*100);
+    const r=classificarD100_(valor,roll);
+    const expr=String(item?.dano||item?.damage||'').trim();
+    const dr=expr?rolarExpressaoDanoCombate_(expr):null;
+    const dano=dr&&Number.isFinite(Number(dr.total))?` · dano ${Number(dr.total)}`:'';
+    labExplorarAnotar18_(t,`Teste de arma: ${getNome(per)} ${roll}/${valor} → ${r.grau} · ${getNome(item)}${dano}.`);
+    try{somDado_();if(r.grau==='Crítico')somCritico_();else if(r.grau==='Fiasco')somFiasco_();}catch(_){}
+    return true;
+}
+
+function labExplorarResolverPsi18_(t,payload){
+    const p=(labPsiPoderes_(t)||[]).find(x=>String(x.id)===String(payload.poderId));
+    if(!p)return false;
+
+    let alvo=payload.alvoId?labPsiAlvoPorId_(payload.alvoId):null;
+    const validos=labPsiAlvos_(t,p)||[];
+    if(!alvo&&validos.length===1&&String(validos[0].id)===String(t.id))alvo=t;
+    if(!alvo||!validos.some(x=>String(x.id)===String(alvo.id)))return false;
+
+    const feridas=labPsiEhCura_(p)?labFeridasTrataveis_(alvo):[];
+    const oldAcoes=Number(t.acoesAtuaisLab||0);
+    const oldTokenAtual=labTokenAtual_;
+    const oldSync=labAgendarSyncRemoto_;
+
+    t.acoesAtuaisLab=Math.max(1,oldAcoes);
+    t.acaoAuxLab={
+        tipo:'psiquismo',
+        poderId:String(p.id),
+        alvoId:String(alvo.id),
+        custo:Math.max(0,Number(payload.pp||p.custo||0)),
+        local:feridas[0]?.local||''
+    };
+
+    let antes=String(t.ultimoResultadoProprioLab||'');
+    try{
+        labTokenAtual_=()=>t;
+        labAgendarSyncRemoto_=function(){};
+        labUsarPsiExecutar_();
+    }finally{
+        labTokenAtual_=oldTokenAtual;
+        labAgendarSyncRemoto_=oldSync;
+        t.acoesAtuaisLab=oldAcoes;
+    }
+
+    const atual=String(t.ultimoResultadoProprioLab||'');
+    if(atual&&atual!==antes&&!/jogador não está em combate/i.test(atual)){
+        t.ultimoResultadoProprioLab=`${atual} jogador não está em combate.`;
+        if(Array.isArray(t.historicoPrivadoLab)&&t.historicoPrivadoLab.length){
+            const h=t.historicoPrivadoLab[0];
+            if(typeof h==='string'&&!/jogador não está em combate/i.test(h))t.historicoPrivadoLab[0]=`${h} jogador não está em combate.`;
+            else if(h&&typeof h==='object'&&h.texto&&!/jogador não está em combate/i.test(h.texto))h.texto=`${h.texto} jogador não está em combate.`;
+        }
+        if(Array.isArray(labEstado_.logLab)&&labEstado_.logLab.length){
+            const h=labEstado_.logLab[0];
+            if(h?.texto&&!/jogador não está em combate/i.test(h.texto))h.texto=`${h.texto} jogador não está em combate.`;
+        }
+    }
+    return true;
+}
+
+function labExplorarResolver18_(t,payload){
+    if(!t||labEstado_.fase==='combate')return false;
+    let ok=false;
+    if(payload.modo==='outras')ok=labExplorarResolverPericia18_(t,payload);
+    else if(payload.modo==='psi')ok=labExplorarResolverPsi18_(t,payload);
+    else ok=labExplorarResolverArma18_(t,payload);
+
+    if(ok){
+        labSalvarLocal_();
+        if(batalhaEhMestre_())labAgendarSyncRemoto_();
+        labRender_();
+    }
+    return ok;
+}
+
+window.labExplorarExecutar18_=function(){
+    const t=labExplorarAtor18_();if(!t)return;
+    const cfg=labExplorarCfg18_(t);
+    const payload={
+        modo:cfg.modo,
+        periciaAtaque:cfg.periciaAtaque,
+        equipamento:cfg.equipamento,
+        periciaGeral:cfg.periciaGeral,
+        poderId:cfg.poderId,
+        pp:cfg.pp,
+        alvoId:cfg.alvoId
+    };
+
+    if(batalhaEhMestre_()){
+        labExplorarResolver18_(t,payload);
+        return;
+    }
+
+    labEnviarComandoJogador_('explorar_auto18',payload,t);
+};
+
+// ------------------------------------------------------------
+// Escolha de alvo Psi fora de combate diretamente no mapa.
+// ------------------------------------------------------------
+function labExplorarTentarAlvo18_(alvo){
+    const ator=labExplorarAtor18_();
+    if(!ator||!alvo)return false;
+    const cfg=labExplorarCfg18_(ator);
+    if(cfg.modo!=='psi')return false;
+    const p=(labPsiPoderes_(ator)||[]).find(x=>String(x.id)===String(cfg.poderId));
+    if(!p)return false;
+    const validos=labPsiAlvos_(ator,p)||[];
+    if(!validos.some(x=>String(x.id)===String(alvo.id)))return false;
+    if(String(alvo.id)===String(ator.id))return false;
+    cfg.alvoId=String(alvo.id);
+    labRender_();
+    return true;
+}
+
+const labPointerDownSync18Base_=window.labPointerDown_;
+window.labPointerDown_=function(ev,id){
+    if(labEstado_.fase!=='combate'){
+        const alvo=labTokenPorId_(id);
+        if(alvo&&labExplorarTentarAlvo18_(alvo)){
+            ev.preventDefault();ev.stopPropagation();return;
+        }
+    }
+    return labPointerDownSync18Base_.apply(this,arguments);
+};
+
+const labObjetoPointerDownSync18Base_=window.labObjetoPointerDown_;
+window.labObjetoPointerDown_=function(ev,id){
+    if(labEstado_.fase!=='combate'){
+        const alvo=labObjetoPorId_(id);
+        if(alvo&&labExplorarTentarAlvo18_(alvo)){
+            ev.preventDefault();ev.stopPropagation();return;
+        }
+    }
+    return labObjetoPointerDownSync18Base_.apply(this,arguments);
+};
+
+// ------------------------------------------------------------
+// Painel fora de combate.
+// ------------------------------------------------------------
+function labRenderPainelExploracao18_(el,t){
+    const c=labCharToken_(t);
+    if(!c){el.style.display='none';el.innerHTML='';return;}
+
+    const cfg=labExplorarCfg18_(t);
+    const ataques=labPericiasAtaque_(t)||[];
+    const gerais=labUniversalPericiasGerais_(t)||[];
+    const poderes=labPsiPoderes_(t)||[];
+
+    const primeiro=[
+        ...ataques.map(p=>({v:batalhaTokenPericia_(p),n:`${getNome(p)} (${labValorPericiaAtaque_(c,p,null,null)}%)`})),
+        {v:'__outras__',n:'🎲 Outras Perícias'},
+        ...(temPsiquismoInvestido_(c)?[{v:'__psi__',n:`🔮 Psiquismo · ${labPsiRestantes_(t)}/${labPsiMax_(t)} PP`}]:[])
+    ];
+
+    let segundo=[],segValor='',descricao='',extra='',botao='';
+
+    if(cfg.modo==='outras'){
+        segundo=gerais.map(p=>({v:p.id,n:`${getNome(p)} (${labValorTeste_(t,p)}%)`}));
+        segValor=cfg.periciaGeral;
+        const per=gerais.find(p=>String(p.id)===String(segValor));
+        descricao=getDescricao(per);
+        botao=`<button class="btn-small btn-select" onclick="labExplorarExecutar18_()" ${!per?'disabled':''} style="width:100%;height:42px;margin:0;">🎲 Usar</button>`;
+    }else if(cfg.modo==='psi'){
+        segundo=poderes.map(p=>({v:p.id,n:`${getNome(p)} · ${p.esfera} A${Number(p.arco||1)}`}));
+        segValor=cfg.poderId;
+        const p=poderes.find(x=>String(x.id)===String(segValor));
+        const alvo=cfg.alvoId?labPsiAlvoPorId_(cfg.alvoId):null;
+        descricao=labDescricaoTraduzidaPsi_(p);
+        const min=p?.id==='mover_objeto'&&alvo?labPsiMoverCustoKg_(p,alvo):Math.max(0,Number(p?.custo||0));
+        const max=Math.max(min,labPsiRestantes_(t));
+        extra=`<label style="margin:0;"><small style="display:block;margin-bottom:4px;">PP</small><input type="number" min="${min}" max="${max}" value="${Math.max(min,Number(cfg.pp||min))}" onchange="labExplorarPP18_(this.value)" style="width:100%;height:42px;margin:0;box-sizing:border-box;text-align:center;"></label>`;
+        botao=`<button class="btn-small btn-select" onclick="labExplorarExecutar18_()" ${!p||!cfg.alvoId?'disabled':''} style="width:100%;height:42px;margin:0;">✨ Usar</button>`;
+    }else{
+        const per=ataques.find(p=>batalhaTokenPericia_(p)===cfg.periciaAtaque)||ataques[0];
+        const eq=per?batalhaEquipamentos_(c,per,cfg.equipamento):[];
+        segundo=eq.map(x=>({v:x.valor,n:x.rotulo}));
+        segValor=cfg.equipamento;
+        t.periciaLab=per?batalhaTokenPericia_(per):'';
+        t.equipamentoLab=segValor;
+        const item=labItemSelecionado_(t);
+        descricao=[getDescricao(per),getDescricao(item),item?.dano?`🎲 Dano ${item.dano}`:''].filter(Boolean).join(' · ');
+        botao=`<button class="btn-small btn-select" onclick="labExplorarExecutar18_()" ${!per||!item?'disabled':''} style="width:100%;height:42px;margin:0;">🎲 Testar</button>`;
+    }
+
+    const primeiroValor=cfg.modo==='outras'?'__outras__':cfg.modo==='psi'?'__psi__':cfg.periciaAtaque;
+    const alvoPsi=cfg.modo==='psi'&&cfg.alvoId?labPsiAlvoPorId_(cfg.alvoId):null;
+
+    el.style.display='block';
+    el.innerHTML=`<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px;">
+        <strong style="color:#ffd54a;">🎯 Ação de ${escaparHtmlInventario_(t.nome)}</strong>
+        ${cfg.modo==='psi'?`<span style="font-size:.82em;color:#9fc6d8;">${alvoPsi?`🎯 ${escaparHtmlInventario_(alvoPsi.nome||alvoPsi.name||labObjetoModelo_(alvoPsi)?.nome||'Alvo')}`:'🎯 Clique no alvo, se necessário'}</span>`:''}
+      </div>
+      <div style="display:grid;grid-template-columns:minmax(180px,1.15fr) minmax(220px,1.25fr) minmax(100px,.55fr) minmax(120px,.6fr);gap:8px;align-items:end;">
+        <label style="margin:0;"><small style="display:block;margin-bottom:4px;">Ação / Perícia</small><select onchange="labExplorarPrimeiro18_(this.value)" style="width:100%;margin:0;">${primeiro.map(x=>`<option value="${escaparHtmlInventario_(x.v)}" ${String(x.v)===String(primeiroValor)?'selected':''}>${escaparHtmlInventario_(x.n)}</option>`).join('')}</select></label>
+        <label style="margin:0;"><small style="display:block;margin-bottom:4px;">${cfg.modo==='psi'?'Poder':cfg.modo==='outras'?'Perícia':'Arma / ataque'}</small><select onchange="labExplorarSegundo18_(this.value)" style="width:100%;margin:0;">${segundo.map(x=>`<option value="${escaparHtmlInventario_(x.v)}" ${String(x.v)===String(segValor)?'selected':''}>${escaparHtmlInventario_(x.n)}</option>`).join('')||'<option>—</option>'}</select></label>
+        <div>${extra}</div>
+        <div>${botao}</div>
+      </div>
+      ${descricao?`<div class="lab-action-description-inline" style="margin-top:7px;"><b style="margin-right:5px">ℹ️</b>${escaparHtmlInventario_(descricao)}</div>`:''}
+      ${labResumoPVHtml_(t,'SEUS PV')}
+      ${t?.ultimoResultadoProprioLab?`<div style="margin-top:7px;padding:6px 8px;border-radius:7px;background:rgba(255,255,255,.05);">${escaparHtmlInventario_(t.ultimoResultadoProprioLab)}</div>`:''}`;
+}
+
+const labRenderActionPanelSync18Base_=labRenderActionPanel_;
+labRenderActionPanel_=function(){
+    if(labEstado_.fase!=='combate'){
+        const el=document.getElementById('labActionPanel');if(!el)return;
+        const t=labExplorarAtor18_();
+        if(!t){el.style.display='none';el.innerHTML='';return;}
+        return labRenderPainelExploracao18_(el,t);
+    }
+    return labRenderActionPanelSync18Base_.apply(this,arguments);
+};
+window.labRenderActionPanel_=labRenderActionPanel_;
+
+// ------------------------------------------------------------
+// PM/NPC/Monstro do mestre: classificação robusta.
+// Personagens existentes em userCharacters da conta mestre são PM.
+// ------------------------------------------------------------
+const labTipoTokenSync18Base_=labTipoToken16_;
+labTipoToken16_=function(t){
+    if(!t)return '';
+    const base=labTipoTokenSync18Base_(t);
+    if(base==='NPC'||base==='Monstro')return base;
+
+    if(batalhaEhMestre_()){
+        const ids=new Set([String(t.id||''),String(t.origemId||''),String(t.charLab?.id||'')].filter(Boolean));
+        if((userCharacters||[]).some(c=>ids.has(String(c.id||''))))return 'PM';
+    }
+    return base;
+};
+labTokenControladoMestre16_=function(t){
+    if(!batalhaEhMestre_()||!t)return false;
+    return ['PM','NPC','Monstro'].includes(labTipoToken16_(t));
+};
+labGrupoTokenE6_=function(t){return labTipoToken16_(t);};
+labMestreControlaTurnoE6_=function(t){return labTokenControladoMestre16_(t);};
+
+// ------------------------------------------------------------
+// Ataque/defesa enviados pelo PJ: processamento final e explícito.
+// ------------------------------------------------------------
+function labUidPertenceToken18_(t,uid){
+    const alvo=String(uid||'');
+    if(!t||!alvo)return false;
+    const c=labCharToken_(t);
+    return [
+        t.donoUid,t.dono,t.charLab?.donoUid,t.charLab?.dono,c?.donoUid,c?.dono
+    ].some(v=>String(v||'')===alvo);
+}
+
+const labProcessarComandoJogadorSync18Base_=labProcessarComandoJogador_;
+labProcessarComandoJogador_=async function(personagemId,acao){
+    if(acao?.tipo==='explorar_auto18'){
+        const chave=`expl18:${personagemId}:${acao?.nonce||''}`;
+        if(labMapaComandosEmProcessamento_.has(chave))return;
+        labMapaComandosEmProcessamento_.add(chave);
+        try{
+            if(!batalhaEhMestre_()||labEstado_.fase==='combate')return;
+            const t=labTokenPorId_(personagemId);
+            if(!t||!labUidPertenceToken18_(t,acao?.donoUid))return;
+            labExplorarResolver18_(t,acao?.payload||{});
+            labAgendarSyncRemoto_();
+        }catch(e){
+            console.error('[SYNC18] exploração',e);
+        }finally{
+            try{await deleteDoc(doc(db,'combatesAtivos','mapaMesaExperimental','acoes',String(personagemId)));}catch(_){}
+            labMapaComandosEmProcessamento_.delete(chave);
+        }
+        return;
+    }
+
+    if(acao?.tipo==='ataque'){
+        const chave=`atk18:${personagemId}:${acao?.nonce||''}`;
+        if(labMapaComandosEmProcessamento_.has(chave))return;
+        labMapaComandosEmProcessamento_.add(chave);
+        try{
+            if(!batalhaEhMestre_()||labEstado_.fase!=='combate')return;
+            const t=labTokenPorId_(personagemId);
+            const atual=labTokenAtual_();
+            if(!t||String(atual?.id)!==String(t.id)||!labUidPertenceToken18_(t,acao?.donoUid))return;
+
+            const alvoId=String(acao?.payload?.alvoId||'');
+            const alvo=labAlvoAtaquePorId_(alvoId);
+            if(!alvo||String(alvo.id)===String(t.id))return;
+
+            t.periciaLab=String(acao?.payload?.periciaLab||t.periciaLab||'');
+            t.equipamentoLab=String(acao?.payload?.equipamentoLab||t.equipamentoLab||'');
+            t.alvoLab=alvoId;
+            t._alvoManualFixadoLab=alvoId;
+            t._alvoComandoFixadoLab=alvoId;
+            t._alvoSelecionadoMapa763=true;
+            t.microModoLab='ataque';
+
+            if(labEhAlvoObjeto_(alvo)){
+                labEstado_.objetoSelecionadoId=alvoId;
+                labEstado_.selecionadoId='';
+            }else{
+                labEstado_.objetoSelecionadoId='';
+                labEstado_.selecionadoId=alvoId;
+            }
+
+            window.labRolarAtaque_();
+
+            // Segurança para pendências impossíveis de defesa.
+            const pend=labEstado_.pendenciaLab;
+            if(pend&&String(pend.defensorId)===alvoId){
+                const d=labTokenPorId_(pend.defensorId);
+                const defs=d?(labDefesasDisponiveis_(d)||[]):[];
+                const temAcao=d&&(Number(d.acoesAtuaisLab||0)>0||Number(d.acoesDefensivasPsiLab||0)>0);
+                const st=d?labGarantirSnapshotCombate_(d):null;
+                if(!d||!defs.length||!temAcao||st?.morto||st?.inconsciente){
+                    labResponderDefesaSync14Base_(false);
+                    const dp=labEstado_.danoPendenteLab;
+                    if(dp&&Number(dp.efeitosRestantes||0)<=0){
+                        dp.danoAutomatico=true;
+                        setTimeout(()=>{
+                            if(labEstado_.danoPendenteLab===dp)window.labRolarDano_();
+                        },80);
+                    }
+                }
+            }
+
+            labAgendarSyncRemoto_();
+            labRender_();
+        }catch(e){
+            console.error('[SYNC18] ataque do jogador',e);
+        }finally{
+            try{await deleteDoc(doc(db,'combatesAtivos','mapaMesaExperimental','acoes',String(personagemId)));}catch(_){}
+            labMapaComandosEmProcessamento_.delete(chave);
+        }
+        return;
+    }
+
+    if(acao?.tipo==='defesa'){
+        const chave=`def18:${personagemId}:${acao?.nonce||''}`;
+        if(labMapaComandosEmProcessamento_.has(chave))return;
+        labMapaComandosEmProcessamento_.add(chave);
+        try{
+            if(!batalhaEhMestre_())return;
+            const pend=labEstado_.pendenciaLab;
+            const d=labTokenPorId_(personagemId);
+            if(!pend||!d||String(pend.defensorId)!==String(d.id)||!labUidPertenceToken18_(d,acao?.donoUid))return;
+
+            const pl=acao?.payload||{};
+            const defs=labDefesasDisponiveis_(d)||[];
+            const temAcao=Number(d.acoesAtuaisLab||0)>0||Number(d.acoesDefensivasPsiLab||0)>0;
+
+            if(pl.defender!==false&&defs.length&&temAcao){
+                if(pl.defesaLab)d.defesaLab=String(pl.defesaLab);
+                labResponderDefesaSync14Base_(true);
+            }else{
+                labResponderDefesaSync14Base_(false);
+                const dp=labEstado_.danoPendenteLab;
+                if(dp&&Number(dp.efeitosRestantes||0)<=0){
+                    dp.danoAutomatico=true;
+                    setTimeout(()=>{
+                        if(labEstado_.danoPendenteLab===dp)window.labRolarDano_();
+                    },80);
+                }
+            }
+            labAgendarSyncRemoto_();
+            labRender_();
+        }catch(e){
+            console.error('[SYNC18] defesa do jogador',e);
+        }finally{
+            try{await deleteDoc(doc(db,'combatesAtivos','mapaMesaExperimental','acoes',String(personagemId)));}catch(_){}
+            labMapaComandosEmProcessamento_.delete(chave);
+        }
+        return;
+    }
+
+    return labProcessarComandoJogadorSync18Base_.apply(this,arguments);
+};
+
+// Pós-render final usa painel da exploração/combatente atual.
+const labRenderSync18Base_=labRender_;
+labRender_=function(){
+    const r=labRenderSync18Base_.apply(this,arguments);
+    try{labRenderActionPanel_();}catch(e){console.warn('[SYNC18] painel',e);}
+    return r;
+};
+window.labRender_=labRender_;
 
