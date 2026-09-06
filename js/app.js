@@ -30516,50 +30516,7 @@ document.addEventListener('toggle',function(ev){
         }
         
         if (labEstado_ && !labEstado_.__patched__) {     let objetosLabInternal = hidratarArray(         Array.isArray(labEstado_.objetosLab)             ? labEstado_.objetosLab             : []     );      const handler = {         get(target, prop, receiver) {             if (prop === 'push') {                 return function(...args) {                     const hydrated = args.map(obj => {                         if (                             obj &&                             obj.modeloId &&                             (!obj.pvMax || obj.pvMax === 0)                         ) {                             return hidratarObjeto(obj);                         }                         return obj;                     });                      return Array.prototype.push.apply(                         target,                         hydrated                     );                 };             }              return Reflect.get(target, prop, receiver);         },          set(target, prop, value, receiver) {             if (                 !isNaN(prop) &&                 value &&                 value.modeloId &&                 (!value.pvMax || value.pvMax === 0)             ) {                 value = hidratarObjeto(value);             }              return Reflect.set(                 target,                 prop,                 value,                 receiver             );         }     };      let proxiedArray = new Proxy(         objetosLabInternal,         handler     );      Object.defineProperty(         labEstado_,         'objetosLab',         {             get() {                 return proxiedArray;             },              set(newVal) {                 objetosLabInternal = hidratarArray(                     Array.isArray(newVal)                         ? newVal                         : []                 );                  // MUITO IMPORTANTE:                 // o Proxy passa a apontar para o NOVO array.                 proxiedArray = new Proxy(                     objetosLabInternal,                     handler                 );             },              enumerable: true,             configurable: true         }     );      // Marca o patch sem mandar esse campo para     // JSON / localStorage / Firestore.     Object.defineProperty(         labEstado_,         '__patched__',         {             value: true,             writable: true,             configurable: true,             enumerable: false         }     );      console.log(         '[PATCH] Monitoramento seguro de objetosLab instalado'     ); }
-            let objetosLabInternal = labEstado_.objetosLab || [];
             
-            const handler = {
-                get(target, prop) {
-                    if (prop === 'push') {
-                        return function(...args) {
-                            const hydrated = args.map(obj => {
-                                if (obj && obj.modeloId && (!obj.pvMax || obj.pvMax === 0)) {
-                                    return hidratarObjeto(obj);
-                                }
-                                return obj;
-                            });
-                            return Array.prototype.push.apply(objetosLabInternal, hydrated);
-                        };
-                    }
-                    return Reflect.get(target, prop);
-                },
-                set(target, prop, value) {
-                    if (!isNaN(prop) && value && value.modeloId && (!value.pvMax || value.pvMax === 0)) {
-                        value = hidratarObjeto(value);
-                    }
-                    target[prop] = value;
-                    return true;
-                }
-            };
-            
-            const proxiedArray = new Proxy(objetosLabInternal, handler);
-            
-            Object.defineProperty(labEstado_, 'objetosLab', {
-                get() { return proxiedArray; },
-                set(newVal) {
-                    if (Array.isArray(newVal)) {
-                        objetosLabInternal = hidratarArray(newVal);
-                    } else {
-                        objetosLabInternal = newVal;
-                    }
-                },
-                configurable: true
-            });
-            
-            labEstado_.__patched__ = true;
-            console.log('[PATCH] Monitoramento de objetosLab instalado');
-        }
-        
         if (typeof labCarregarMapaBanco_ === 'function') {
             const originalFn = labCarregarMapaBanco_;
             labCarregarMapaBanco_ = async function(...args) {
