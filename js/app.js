@@ -30447,11 +30447,6 @@ document.addEventListener('toggle',function(ev){
   }
 },true);
 
-// ============================================================
-// PATCH: Sistema de Hidratação Automática para Objetos de Mapa
-// Resolve: PV 0/0 e Dureza 0 em objetos vindos da Oficina 2
-// ============================================================
-
 (function() {
     'use strict';
     
@@ -30576,5 +30571,190 @@ document.addEventListener('toggle',function(ev){
     }
     
     waitForGlobals();
+(function(){
+'use strict';
+
+console.log('[PATCH2] hidratação simples iniciada');
+
+function hidratarObjeto(obj){
+  if(!obj || typeof obj!=='object' || !obj.modeloId) return obj;
+
+  const modelo=(objetosMapaDB||[]).find(
+    m=>String(m?.id)===String(obj.modeloId)
+  );
+
+  if(!modelo) return obj;
+
+  const pvModelo=Math.max(
+    0,
+    Number(modelo.pvMax ?? modelo.pv ?? modelo.vidaMax ?? modelo.vida ?? 0)
+  );
+
+  const durezaModelo=Math.max(
+    0,
+    Number(modelo.dureza ?? modelo.hardness ?? 0)
+  );
+
+  const pesoModelo=Math.max(
+    0,
+    Number(modelo.pesoKg ?? modelo.peso ?? modelo.weightKg ?? 0)
+  );
+
+  return {
+    ...obj,
+
+    pvMax:
+      Number(obj.pvMax)>0
+        ? Number(obj.pvMax)
+        : pvModelo,
+
+    pvAtual:
+      Number.isFinite(Number(obj.pvAtual)) && Number(obj.pvAtual)>0
+        ? Number(obj.pvAtual)
+        : (
+            Number(obj.pvMax)>0
+              ? Number(obj.pvMax)
+              : pvModelo
+          ),
+
+    dureza:
+      Number(obj.dureza)>0
+        ? Number(obj.dureza)
+        : durezaModelo,
+
+    pesoKg:
+      Number(obj.pesoKg)>0
+        ? Number(obj.pesoKg)
+        : pesoModelo,
+
+    material:
+      obj.material || modelo.material || '',
+
+    inflamabilidade:
+      Number(
+        obj.inflamabilidade ??
+        modelo.inflamabilidade ??
+        0
+      ),
+
+    inflamavel:
+      obj.inflamavel ??
+      Boolean(modelo.inflamavel),
+
+    destrutivel:
+      obj.destrutivel ??
+      Boolean(modelo.destrutivel),
+
+    bloqueiaMovimento:
+      obj.bloqueiaMovimento ??
+      Boolean(modelo.bloqueiaMovimento),
+
+    bloqueiaVisao:
+      obj.bloqueiaVisao ??
+      Boolean(modelo.bloqueiaVisao),
+
+    imagem:
+      obj.imagem ||
+      modelo.imagem ||
+      ''
+  };
+}
+
+function hidratarArray(arr){
+  if(!Array.isArray(arr)) return [];
+  return arr.map(hidratarObjeto);
+}
+
+function hidratarMesaAgora(){
+  if(typeof labEstado_==='undefined' || !labEstado_)
+    return 0;
+
+  const antes=
+    Array.isArray(labEstado_.objetosLab)
+      ? labEstado_.objetosLab
+      : [];
+
+  labEstado_.objetosLab=
+    hidratarArray(antes);
+
+  return labEstado_.objetosLab.length;
+}
+
+const renderBase=
+  typeof labRender_==='function'
+    ? labRender_
+    : null;
+
+if(renderBase){
+  labRender_=function(...args){
+
+    try{
+      hidratarMesaAgora();
+    }catch(e){
+      console.warn(
+        '[PATCH2] hidratação antes do render falhou',
+        e
+      );
+    }
+
+    return renderBase.apply(this,args);
+  };
+
+  window.labRender_=labRender_;
+}
+
+const carregarBase=
+  typeof labCarregarMapaBanco_==='function'
+    ? labCarregarMapaBanco_
+    : null;
+
+if(carregarBase){
+
+  labCarregarMapaBanco_=async function(...args){
+
+    const r=
+      await carregarBase.apply(
+        this,
+        args
+      );
+
+    try{
+
+      hidratarMesaAgora();
+
+      if(typeof labSalvarLocal_==='function')
+        labSalvarLocal_();
+
+      if(typeof labRender_==='function')
+        labRender_();
+
+    }catch(e){
+
+      console.warn(
+        '[PATCH2] hidratação pós-carregamento falhou',
+        e
+      );
+    }
+
+    return r;
+  };
+
+  window.labCarregarMapaBanco_=
+    labCarregarMapaBanco_;
+}
+
+window.__hidratarObjeto=
+  hidratarObjeto;
+
+window.__hidratarArray=
+  hidratarArray;
+
+window.__hidratarMesaAgora=
+  hidratarMesaAgora;
+
+console.log(
+  '[PATCH2] hidratação simples instalada'
+);
+
 })();
 
