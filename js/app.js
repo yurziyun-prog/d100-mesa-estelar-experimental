@@ -56,8 +56,8 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-console.info('[Mesa Estelar] build EXP-ATUAR-SYNC-7 carregado');
-window.__MESA_BUILD__ = 'EXP-ATUAR-SYNC-7';
+console.info('[Mesa Estelar] build EXP-COREFIX-8 carregado');
+window.__MESA_BUILD__ = 'EXP-COREFIX-8';
 
 let currentUserUid = null;
 let userData = null;
@@ -5104,7 +5104,7 @@ function renderizarBancoMapas_(){
         e.innerHTML='<p style="color:#aaa">Banco exclusivo do mestre.</p>';
         return;
     }
-    const lista=[...(mapasDB||[])].sort((a,b)=>String(a.nome||a.id||'').localeCompare(String(b.nome||b.id||''),'pt-BR',{sensitivity:'base'}));
+    const lista=[...(mapasDB||[])].filter(m=>!m?.hiddenMesaLive&&!String(m?.id||'').startsWith('__mesa_live__')).sort((a,b)=>String(a.nome||a.id||'').localeCompare(String(b.nome||b.id||''),'pt-BR',{sensitivity:'base'}));
     if(!lista.length){
         e.innerHTML='<div style="padding:18px;border:1px dashed rgba(255,255,255,.18);border-radius:10px;color:#999;">Nenhum mapa salvo ainda. Crie ou edite um mapa no Mapa da Mesa e use <b>Salvar mapa</b>.</div>';
         return;
@@ -7104,7 +7104,7 @@ labMesclarMapasLocais_();
 function labAtualizarSelectMapas_(){
     const sel=document.getElementById('labMapaSalvoSelect');if(!sel)return;
     const atual=String(labMapaSelecionado_||sel.value||'');
-    const lista=[...(mapasDB||[])].sort((a,b)=>String(a.nome||'').localeCompare(String(b.nome||''),'pt-BR',{sensitivity:'base'}));
+    const lista=[...(mapasDB||[])].filter(m=>!m?.hiddenMesaLive&&!String(m?.id||'').startsWith('__mesa_live__')).sort((a,b)=>String(a.nome||'').localeCompare(String(b.nome||''),'pt-BR',{sensitivity:'base'}));
     sel.innerHTML='<option value="">— nenhum —</option>'+lista.map(m=>`<option value="${escaparHtmlInventario_(m.id)}">${m.__local?'💻 ':''}${escaparHtmlInventario_(m.nome||m.id)}</option>`).join('');
     if(lista.some(m=>String(m.id)===atual)){sel.value=atual;labMapaSelecionado_=atual;}
     else {sel.value='';labMapaSelecionado_='';}
@@ -31655,4 +31655,375 @@ window.labRender_=labRender_;
 // Primeira normalização desta versão.
 if(!labEstado_.atuarComoE6)labEstado_.atuarComoE6=LAB_ATUAR_MESTRE_E6;
 setTimeout(()=>{try{labRender_();}catch(e){console.warn('Inicialização EXP-ATUAR-CAMERA-6',e);}},900);
+
+
+
+
+// ============================================================
+// EXP-COREFIX-8
+// Correções de núcleo:
+// 1) religa objetos antigos ao Banco sem inferir material pelo nome;
+// 2) publica uma cópia live leve e explícita do cenário atual;
+// 3) jogador nunca vê metadados mecânicos de objetos;
+// 4) ações de objeto continuam diretas no mapa.
+// ============================================================
+
+function labNomeChaveE8_(v){
+    return String(v||'').trim().toLocaleLowerCase('pt-BR');
+}
+function labImagemChaveE8_(v){
+    const s=String(v||'').trim();
+    return s && !s.startsWith('data:') ? s : '';
+}
+function labModeloObjetoE8_(o){
+    if(!o)return null;
+
+    const ids=[
+        o.modeloId,
+        o.objetoBancoId,
+        o.dadosBanco?.id,
+        o.idBanco
+    ].map(x=>String(x||'').trim()).filter(Boolean);
+
+    for(const id of ids){
+        const m=(objetosMapaDB||[]).find(x=>String(x?.id||'')===id);
+        if(m)return m;
+    }
+
+    // Compatibilidade de mapas antigos: repara a LIGAÇÃO ao Banco por nome exato único.
+    // O material continua vindo do campo Material do modelo, nunca do nome.
+    const nk=labNomeChaveE8_(o.nome||o.name);
+    if(nk){
+        const porNome=(objetosMapaDB||[]).filter(m=>labNomeChaveE8_(m?.nome||m?.name)===nk);
+        if(porNome.length===1)return porNome[0];
+    }
+
+    // Segundo fallback seguro: mesma URL de imagem e correspondência única.
+    const ik=labImagemChaveE8_(o.imagem||o.image);
+    if(ik){
+        const porImg=(objetosMapaDB||[]).filter(m=>labImagemChaveE8_(m?.imagem||m?.image)===ik);
+        if(porImg.length===1)return porImg[0];
+    }
+    return null;
+}
+
+function labRepararObjetoBancoE8_(o){
+    if(!o||typeof o!=='object')return false;
+    const m=labModeloObjetoE8_(o);
+    if(!m)return false;
+
+    const mid=String(m.id||'');
+    let mudou=false;
+
+    if(mid && String(o.modeloId||'')!==mid){o.modeloId=mid;mudou=true;}
+    if(mid && String(o.objetoBancoId||'')!==mid){o.objetoBancoId=mid;mudou=true;}
+
+    const copiar=(k,v)=>{
+        if(v===undefined)return;
+        if(o[k]!==v){o[k]=v;mudou=true;}
+    };
+
+    // Propriedades do modelo vêm do Banco.
+    copiar('material',String(m.material||''));
+    copiar('dureza',Math.max(0,Number(m.dureza??m.hardness??o.dureza??0)));
+    copiar('pesoKg',Math.max(0,Number(m.pesoKg??m.peso??m.weightKg??o.pesoKg??0)));
+    copiar('pvMax',Math.max(0,Number(m.pvMax??m.pv??o.pvMax??0)));
+    copiar('destrutivel',m.destrutivel!==false);
+    copiar('inflamavel',!!m.inflamavel);
+    copiar('inflamabilidade',Math.max(0,Math.min(5,Number(m.inflamabilidade??0))));
+    copiar('bloqueiaMovimento',m.bloqueiaMovimento!==false);
+    copiar('bloqueiaVisao',!!m.bloqueiaVisao);
+
+    if(!o.imagem && m.imagem){o.imagem=m.imagem;mudou=true;}
+    if(!o.nome && m.nome){o.nome=m.nome;mudou=true;}
+
+    if(o.pvAtual===undefined || o.pvAtual===null || !Number.isFinite(Number(o.pvAtual))){
+        o.pvAtual=Math.max(0,Number(o.pvMax||0));mudou=true;
+    }else if(Number(o.pvAtual)>Number(o.pvMax||0) && Number(o.pvMax||0)>=0){
+        o.pvAtual=Number(o.pvMax||0);mudou=true;
+    }
+    return mudou;
+}
+
+function labRepararObjetosMesaE8_(){
+    let n=0;
+    for(const o of (labEstado_.objetosLab||[])){
+        if(labRepararObjetoBancoE8_(o))n++;
+    }
+    return n;
+}
+
+// A função oficial de modelo passa a incluir os fallbacks de compatibilidade.
+labObjetoModelo_=function(o){return labModeloObjetoE8_(o);};
+
+// ------------------------------------------------------------
+// Jogador: objeto só revela nome no hover e não abre ficha mecânica.
+// Mestre continua vendo dados do objeto.
+// ------------------------------------------------------------
+const labObjetoHtmlE8Base_=labObjetoHtml_;
+labObjetoHtml_=function(o,ppm){
+    let h=labObjetoHtmlE8Base_.apply(this,arguments);
+    if(!batalhaEhMestre_()){
+        const nome=escaparHtmlInventario_(o?.nome||labObjetoModelo_(o)?.nome||'Objeto');
+        h=h.replace(/\stitle="[^"]*"/,` title="${nome}"`);
+    }
+    return h;
+};
+window.labObjetoHtml_=labObjetoHtml_;
+
+const labRenderObjetoPainelE8Base_=window.labRenderObjetoPainel_;
+window.labRenderObjetoPainel_=function(){
+    const e=document.getElementById('labObjetoPainel');
+    if(!batalhaEhMestre_()){
+        if(e){e.style.display='flex';e.innerHTML='';}
+        return;
+    }
+    return labRenderObjetoPainelE8Base_.apply(this,arguments);
+};
+
+// Seleção fora de combate continua direta no mapa e conserva o ator atual.
+const labSelecionarObjetoE8Base_=window.labSelecionarObjeto_;
+window.labSelecionarObjeto_=function(id){
+    if(labEstado_.fase!=='combate'){
+        const o=labObjetoPorId_(id);if(!o)return;
+        labRepararObjetoBancoE8_(o);
+        labEstado_.objetoSelecionadoId=String(id);
+        labSalvarLocal_();
+        labRender_();
+        return;
+    }
+    return labSelecionarObjetoE8Base_.apply(this,arguments);
+};
+
+// ------------------------------------------------------------
+// Cena live dedicada.
+// Não depende do seletor "Mapas salvos" nem de o mapa ter sido salvo manualmente.
+// ------------------------------------------------------------
+function labCenaLiveIdE8_(){
+    const uid=String(currentUserUid||'mestre').replace(/[^a-zA-Z0-9_-]+/g,'_');
+    return `__mesa_live__${uid}`;
+}
+
+async function labSalvarCenaLiveE8_(){
+    if(!batalhaEhMestre_() || typeof gm2==='undefined' || !gm2?.st)return null;
+
+    const id=labCenaLiveIdE8_();
+    const agora=new Date().toISOString();
+
+    const slim=await map803EstadoSlim_(gm2.st,id);
+    const dados={
+        id,
+        nome:'Mesa ao vivo',
+        larguraM:slim.state.w,
+        alturaM:slim.state.h,
+        pxPorMetro:slim.state.ppm,
+        fundo:slim.state.bg,
+        corGrade:slim.state.grid,
+        gradeVisivel:slim.state.showGrid,
+        textura:slim.state.texture,
+        desenhos:[],
+        formas:[],
+        objetos:map803LegacyRefs_(slim.state),
+        oficina2State:slim.state,
+        formatoObjetos:'refs-v1',
+        criadoPor:currentUserUid||'',
+        atualizadoEm:agora,
+        oficina2:true,
+        hiddenMesaLive:true
+    };
+
+    let antigas=0;
+    try{
+        const cab=await getDoc(doc(db,'mapas',id));
+        antigas=Number(cab.exists()?cab.data()?.partes||0:0);
+    }catch(_){}
+
+    await labMapaSalvarFirestore_(dados,antigas);
+
+    labEstado_.mapaCompartilhadoIdE8=id;
+    labEstado_.mapaCompartilhadoRevE8=agora;
+    return {id,rev:agora};
+}
+
+// Snapshot ao vivo SEM o cenário pesado. O cenário vem pela referência E8.
+const labEstadoPublicoE8Base_=labEstadoPublico_;
+labEstadoPublico_=function(){
+    const clone=labEstadoPublicoE8Base_();
+
+    delete clone.oficina2State;
+    clone.desenhosLab=[];
+    clone.formasLab=[];
+
+    const id=String(labEstado_.mapaCompartilhadoIdE8||'');
+    const rev=String(labEstado_.mapaCompartilhadoRevE8||'');
+    clone.mapaCompartilhadoRefE8=id?{id,rev}:null;
+
+    // Controle do mestre nunca é transmitido ao jogador.
+    delete clone.atuarComoE6;
+    delete clone.atuarComoAntesCombateE6;
+    delete clone.exploracaoAtorId;
+    delete clone.mestreControlaPJLab;
+
+    return clone;
+};
+
+// Jogador carrega sempre a referência E8 primeiro.
+async function labAplicarCenaLiveE8_(ref){
+    if(batalhaEhMestre_()||!ref?.id)return false;
+    const sig=`${String(ref.id)}|${String(ref.rev||'')}`;
+    if(window.__LAB_CENA_E8_SIG__===sig)return true;
+
+    try{
+        const snap=await getDoc(doc(db,'mapas',String(ref.id)));
+        if(!snap.exists())return false;
+        let m={id:String(ref.id),...snap.data()};
+        m=await labMapaHidratar_(m);
+
+        labEstado_.larguraM=Math.max(4,Number(m.larguraM||28));
+        labEstado_.alturaM=Math.max(4,Number(m.alturaM||14));
+        labEstado_.fundo=String(m.fundo||'#d7d7d7');
+        labEstado_.corGrade=String(m.corGrade||'#777777');
+        labEstado_.gradeVisivel=m.gradeVisivel!==false;
+        labEstado_.textura=String(m.textura||'nenhuma');
+        labEstado_.pxPorMetro=48;
+        labEstado_.oficina2State=m.oficina2State?JSON.parse(JSON.stringify(m.oficina2State)):null;
+        labEstado_.desenhosLab=[];
+        labEstado_.formasLab=[];
+        window.__LAB_CENA_E8_SIG__=sig;
+        return true;
+    }catch(e){
+        console.warn('[E8] cena live',e);
+        return false;
+    }
+}
+
+// Reescreve o listener final para aplicar estado dinâmico + cena live.
+window.iniciarMapaMesaCompartilhado_=function(){
+    if(labMapaMesaUnsub_){labMapaMesaUnsub_();labMapaMesaUnsub_=null;}
+    if(labMapaAcoesUnsub_){labMapaAcoesUnsub_();labMapaAcoesUnsub_=null;}
+    if(!currentUserUid)return;
+
+    labIniciarEscutaComandosJogadores_();
+
+    labMapaMesaUnsub_=onSnapshot(LAB_MAPA_MESA_REF_(),snap=>{
+        if(batalhaEhMestre_()){
+            if(!snap.exists())labAgendarSyncRemoto_();
+            return;
+        }
+        if(!snap.exists())return;
+
+        const remoto=snap.data()?.estado;
+        if(!remoto||typeof remoto!=='object')return;
+
+        labAplicandoRemoto_=true;
+        labEstado_={
+            ...labEstado_,
+            ...remoto,
+            pxPorMetro:48,
+            tokens:Array.isArray(remoto.tokens)?remoto.tokens:[],
+            objetosLab:Array.isArray(remoto.objetosLab)?remoto.objetosLab:[]
+        };
+        labAplicandoRemoto_=false;
+
+        const ref=remoto.mapaCompartilhadoRefE8
+            || remoto.mapaCompartilhadoRefE7
+            || remoto.mapaCompartilhadoRefE6
+            || null;
+
+        labCarregarModelosObjetosFaltantes_(labEstado_.objetosLab);
+
+        const finalizar=()=>{
+            labRepararObjetosMesaE8_();
+            if(document.getElementById('laboratorio-combate')?.classList.contains('active'))labRender_();
+        };
+
+        if(ref?.id)labAplicarCenaLiveE8_(ref).finally(finalizar);
+        else finalizar();
+    },e=>console.warn('Mapa da Mesa indisponível:',e));
+
+    if(batalhaEhMestre_()){
+        Promise.resolve(labSalvarCenaLiveE8_())
+            .then(()=>{labRepararObjetosMesaE8_();labSalvarLocal_();labAgendarSyncRemoto_();})
+            .catch(e=>console.warn('[E8] publicação inicial da cena',e));
+    }
+};
+
+// ------------------------------------------------------------
+// Publicar Oficina 2 = atualizar a Mesa local + salvar cena live + sincronizar.
+// ------------------------------------------------------------
+async function gm2publishE8(){
+    if(!batalhaEhMestre_())return;
+    if(!confirm('Publicar este mapa na Mesa?'))return;
+
+    try{
+        if(typeof gm2EnriquecerObjetosBanco762_==='function')gm2EnriquecerObjetosBanco762_(gm2.st);
+
+        const legacy=gm2toLegacy();
+
+        labEstado_.larguraM=gm2.st.w;
+        labEstado_.alturaM=gm2.st.h;
+        labEstado_.pxPorMetro=gm2.st.ppm;
+        labEstado_.fundo=gm2.st.bg;
+        labEstado_.corGrade=gm2.st.grid;
+        labEstado_.gradeVisivel=gm2.st.showGrid;
+        labEstado_.textura=gm2.st.texture;
+        labEstado_.oficina2State=gm2clone(gm2.st);
+        labEstado_.desenhosLab=[];
+        labEstado_.formasLab=[];
+        labEstado_.objetosLab=legacy.objetos.filter(o=>!o.imagemImportada);
+
+        labRepararObjetosMesaE8_();
+        if(typeof map806ReconstruirObjetosMesa_==='function'){
+            try{await map806ReconstruirObjetosMesa_();}catch(_){}
+        }
+
+        await labSalvarCenaLiveE8_();
+
+        labSalvarLocal_();
+        labAgendarSyncRemoto_();
+        labRender_();
+        notificar_('Mapa publicado.','sucesso',1800);
+    }catch(e){
+        console.error('[E8] publicar',e);
+        notificar_('Não foi possível publicar o mapa.','erro',3500);
+    }
+}
+
+gm2publish=gm2publishE8;
+window.gm2publish=gm2publishE8;
+
+function labReligarPublishE8_(){
+    const b=document.getElementById('gm2publish');
+    if(b)b.onclick=gm2publishE8;
+}
+setInterval(labReligarPublishE8_,1000);
+setTimeout(labReligarPublishE8_,600);
+
+// ------------------------------------------------------------
+// Pós-render: reparar vínculos antigos silenciosamente.
+// ------------------------------------------------------------
+const labRenderE8Base_=labRender_;
+labRender_=function(){
+    try{labRepararObjetosMesaE8_();}catch(_){}
+    const r=labRenderE8Base_.apply(this,arguments);
+
+    // Jogador não recebe painel de metadados.
+    if(!batalhaEhMestre_()){
+        const op=document.getElementById('labObjetoPainel');
+        if(op){op.style.display='flex';op.innerHTML='';}
+    }
+    return r;
+};
+window.labRender_=labRender_;
+
+// Primeira reparação e sincronização curta.
+setTimeout(()=>{
+    try{
+        if(labRepararObjetosMesaE8_()){
+            labSalvarLocal_();
+            if(batalhaEhMestre_())labAgendarSyncRemoto_();
+        }
+        labRender_();
+    }catch(e){console.warn('[E8] init',e);}
+},1100);
 
