@@ -56,8 +56,8 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-console.info('[Mesa Estelar] build EXP-DIRECIONAL-2 carregado');
-window.__MESA_BUILD__ = 'EXP-DIRECIONAL-2';
+console.info('[Mesa Estelar] build EXP-DIRECIONAL-3 carregado');
+window.__MESA_BUILD__ = 'EXP-DIRECIONAL-3';
 
 let currentUserUid = null;
 let userData = null;
@@ -35811,7 +35811,7 @@ try{ labPararMouseD1_(); }catch(_){}
 labInstalarControlesD1_=function(){};
 
 const LAB_VELOCIDADE_MOUSE_D2_=3.0;
-const LAB_SYNC_MOVIMENTO_D2_MS_=250;
+const LAB_SYNC_MOVIMENTO_D2_MS_=500;
 
 let labMouseD2_={
     ativo:false,
@@ -36088,4 +36088,299 @@ setTimeout(()=>{
         labRender_();
     }catch(e){console.warn('[DIRECIONAL2] inicialização',e);}
 },0);
+
+
+
+
+// ============================================================
+// EXP-DIRECIONAL-3
+// Estabilidade multi-navegador + redução de carga do movimento.
+// ============================================================
+
+// ------------------------------------------------------------
+// 1) Hover compacto. Sem retrato grande e sem ficha lateral.
+// ------------------------------------------------------------
+function labHoverConteudoD3_(t){
+    if(!t)return '';
+    const st=labGarantirSnapshotCombate_(t);
+    const estados=[
+        st?.morto?'💀 Morto':'',
+        st?.inconsciente?'💤 Inconsciente':'',
+        st?.sangrando?'🩸 Sangrando':'',
+        st?.derrubado?'💥 Derrubado':''
+    ].filter(Boolean).join(' · ');
+    return `<div style="font-size:.86em;font-weight:800;color:#fff;white-space:nowrap;">${escaparHtmlInventario_(t.nome||'')}</div>${estados?`<div style="margin-top:2px;font-size:.72em;color:#ffb0b0;white-space:nowrap;">${estados}</div>`:''}`;
+}
+window.labHoverShow_=function(ev,id){
+    const t=labTokenPorId_(id),el=document.getElementById('labHoverCard');
+    if(!t||!el)return;
+    el.innerHTML=labHoverConteudoD3_(t);
+    el.style.cssText='display:block;position:fixed;z-index:99999;pointer-events:none;width:auto;max-width:220px;overflow:hidden;border:1px solid rgba(0,212,255,.42);border-radius:7px;background:rgba(12,14,33,.94);padding:5px 7px;box-shadow:0 5px 16px rgba(0,0,0,.35);';
+    labHoverMove_(ev);
+};
+window.labHoverMove_=function(ev){
+    const el=document.getElementById('labHoverCard');if(!el||el.style.display==='none')return;
+    const pad=10,w=el.offsetWidth||120,h=el.offsetHeight||34;
+    let x=Number(ev.clientX||0)+14,y=Number(ev.clientY||0)-h-10;
+    if(x+w>window.innerWidth-pad)x=Number(ev.clientX||0)-w-14;
+    if(y<pad)y=Number(ev.clientY||0)+14;
+    el.style.left=`${Math.max(pad,x)}px`;el.style.top=`${Math.max(pad,y)}px`;
+};
+
+// ------------------------------------------------------------
+// 2) Teclado: nesta etapa somente A permanece como atalho de ataque.
+// Setas e teclado numérico voltam ao comportamento normal do navegador.
+// ------------------------------------------------------------
+if(!window.__labBloqueioMovTecladoD3){
+    window.__labBloqueioMovTecladoD3=true;
+    window.addEventListener('keydown',ev=>{
+        const tag=String(ev.target?.tagName||'').toLowerCase();
+        if(['input','textarea','select'].includes(tag)||ev.target?.isContentEditable)return;
+        const map=document.getElementById('labMetricMap');
+        if(!map||map.offsetParent===null)return;
+        const ks=new Set(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','1','2','3','4','6','7','8','9']);
+        if(ks.has(ev.key))ev.stopImmediatePropagation();
+    },true);
+}
+
+// ------------------------------------------------------------
+// 3) Limite por gesto no movimento de exploração.
+// O personagem pode percorrer movimento/AÇ × AÇ máximas em cada gesto.
+// ------------------------------------------------------------
+const labAplicarMovimentoEstadoD3Base_=labAplicarMovimentoEstadoD2_;
+labAplicarMovimentoEstadoD2_=function(t,dx,dy,dist){
+    const ox=Number(t?.x||0),oy=Number(t?.y||0);
+    const ok=labAplicarMovimentoEstadoD3Base_.apply(this,arguments);
+    if(!ok||!t||labEstado_.fase==='combate'||!labMouseD2_.segurando)return ok;
+    if(!Number.isFinite(Number(labMouseD2_.origemX))||!Number.isFinite(Number(labMouseD2_.origemY)))return ok;
+    const maxM=Math.max(0,labMovimentoExploracaoMaxE6_(t));
+    const alvo=labClampMovimentoE6_({x:Number(labMouseD2_.origemX),y:Number(labMouseD2_.origemY)},Number(t.x),Number(t.y),maxM);
+    t.x=alvo.x;t.y=alvo.y;
+    // Se chegou ao limite, encerra o gesto em vez de continuar gerando frames.
+    if(Math.hypot(t.x-Number(labMouseD2_.origemX),t.y-Number(labMouseD2_.origemY))>=maxM-.01){
+        requestAnimationFrame(()=>labPararMouseD2_(true));
+    }
+    return true;
+};
+
+const labComecarMouseD3Anterior_=labComecarMouseD2_;
+try{document.getElementById('labMetricMap')?.removeEventListener('pointerdown',labComecarMouseD3Anterior_);}catch(_){}
+labComecarMouseD2_=function(ev){
+    const t=labAtorControlavelD1_();
+    if(t){labMouseD2_.origemX=Number(t.x||0);labMouseD2_.origemY=Number(t.y||0);}
+    return labComecarMouseD3Anterior_.apply(this,arguments);
+};
+const labPararMouseD3Anterior_=labPararMouseD2_;
+labPararMouseD2_=function(){
+    const r=labPararMouseD3Anterior_.apply(this,arguments);
+    labMouseD2_.origemX=NaN;labMouseD2_.origemY=NaN;
+    return r;
+};
+
+// Reinstala o pointerdown atual no mapa já existente.
+try{
+    const m=document.getElementById('labMetricMap');
+    if(m){
+        m.dataset.direcionalD2='';
+        labInstalarControlesD2_();
+    }
+}catch(_){}
+
+// ------------------------------------------------------------
+// 4) Movimento remoto sem redesenhar toda a Mesa a cada pacote.
+// O render completo ocorre após uma pequena pausa no deslocamento.
+// ------------------------------------------------------------
+let labRenderMovimentoRemotoD3Timer_=null;
+function labAgendarRenderMovimentoRemotoD3_(){
+    clearTimeout(labRenderMovimentoRemotoD3Timer_);
+    labRenderMovimentoRemotoD3Timer_=setTimeout(()=>{
+        try{labRender_();}catch(e){console.warn('[DIRECIONAL3] render pós-movimento',e);}
+    },420);
+}
+
+const labProcessarComandoJogadorD3Base_=labProcessarComandoJogador_;
+labProcessarComandoJogador_=async function(personagemId,acao){
+    if(acao?.tipo!=='movimento'||!batalhaEhMestre_())return labProcessarComandoJogadorD3Base_.apply(this,arguments);
+    const chave=`moveD3:${personagemId}:${acao?.nonce||''}`;
+    if(labMapaComandosEmProcessamento_.has(chave))return;
+    labMapaComandosEmProcessamento_.add(chave);
+    try{
+        const t=labTokenPorId_(personagemId);
+        if(!t||!labUidPertenceToken18_(t,acao?.donoUid))return;
+        if(labEstado_.fase==='combate'&&String(labTokenAtual_()?.id||'')!==String(t.id))return;
+        if(labEstado_.fase==='combate'&&t.primeirosSocorrosLab)return;
+
+        const nx=Number(acao?.payload?.x),ny=Number(acao?.payload?.y),na=Number(acao?.payload?.angulo);
+        if(!Number.isFinite(nx)||!Number.isFinite(ny))return;
+        const dx=nx-Number(t.x||0),dy=ny-Number(t.y||0),dist=Math.hypot(dx,dy);
+
+        if(dist>.001){
+            if(labEstado_.fase!=='combate'){
+                // O cliente já limita cada gesto; o mestre ainda aplica um teto defensivo.
+                const maxM=Math.max(.1,labMovimentoExploracaoMaxE6_(t));
+                const alvo=labClampMovimentoE6_({x:Number(t.x||0),y:Number(t.y||0)},nx,ny,maxM);
+                t.x=alvo.x;t.y=alvo.y;
+                if(Number.isFinite(na))t.angulo=na;
+                else{let a=Math.atan2(dx,-dy)*180/Math.PI;if(a<0)a+=360;t.angulo=Math.round(a);}
+            }else{
+                labAplicarMovimentoEstadoD2_(t,dx,dy,dist);
+                if(Number.isFinite(na))t.angulo=na;
+            }
+        }else if(Number.isFinite(na)){
+            t.angulo=na;
+        }
+
+        labAtualizarTokenDomD2_(t);
+        labAgendarSyncRemoto_();
+        labAgendarRenderMovimentoRemotoD3_();
+    }catch(e){
+        console.error('[DIRECIONAL3] movimento remoto',e);
+    }finally{
+        try{await deleteDoc(doc(db,'combatesAtivos','mapaMesaExperimental','acoes',String(personagemId)));}catch(_){}
+        labMapaComandosEmProcessamento_.delete(chave);
+    }
+};
+
+// ------------------------------------------------------------
+// 5) Firestore passa a ser a fonte compartilhada também para sessões do mestre.
+// Antes, uma nova janela de mestre ignorava o remoto e publicava seu localStorage
+// vazio. Isso explica a grade cinza em um terceiro navegador.
+// ------------------------------------------------------------
+let labD3EstadoInicializado_=false;
+let labD3CenaInicializada_=false;
+
+const labAgendarSyncRemotoD3Base_=labAgendarSyncRemoto_;
+labAgendarSyncRemoto_=function(){
+    if(batalhaEhMestre_()&&!labD3EstadoInicializado_)return;
+    return labAgendarSyncRemotoD3Base_.apply(this,arguments);
+};
+
+const labSync13AgendarCenaD3Base_=labSync13AgendarCena_;
+labSync13AgendarCena_=function(){
+    if(batalhaEhMestre_()&&!labD3CenaInicializada_)return;
+    return labSync13AgendarCenaD3Base_.apply(this,arguments);
+};
+
+function labAplicarEstadoRemotoD3_(remoto){
+    if(!remoto||typeof remoto!=='object')return false;
+    const cenaAtual=labEstado_.oficina2State;
+    labAplicandoRemoto_=true;
+    try{
+        const zoom=batalhaEhMestre_()?Math.max(12,Number(remoto.pxPorMetro||labEstado_.pxPorMetro||48)):48;
+        labEstado_={
+            ...labEstado_,
+            ...remoto,
+            pxPorMetro:zoom,
+            tokens:Array.isArray(remoto.tokens)?remoto.tokens:[],
+            objetosLab:Array.isArray(remoto.objetosLab)?remoto.objetosLab:[]
+        };
+        labEstado_.oficina2State=cenaAtual;
+        labSync13PurgarEstadoLocal_();
+    }finally{labAplicandoRemoto_=false;}
+    try{labCarregarModelosObjetosFaltantes_(labEstado_.objetosLab);}catch(_){}
+    if(document.getElementById('laboratorio-combate')?.classList.contains('active'))labRender_();
+    return true;
+}
+
+async function labReceberCenaD3_(header){
+    if(!header||header.canal!==LAB_SYNC13_CANAL_)return false;
+    const rev=String(header.rev||'');
+    if(rev&&window.__LAB_SYNC13_CENA_REV__===rev)return true;
+    const total=Math.max(0,Number(header.partes||0));if(!total)return false;
+    const pedacos=[];
+    for(let i=0;i<total;i++){
+        const snap=await getDoc(doc(db,'combatesAtivos',`${LAB_SYNC13_CENA_PARTE_PREFIX_}${i}`));
+        if(!snap.exists())throw new Error(`Parte ${i+1}/${total} do cenário não encontrada.`);
+        const d=snap.data()||{};
+        if(d.canal!==LAB_SYNC13_CANAL_||String(d.rev||'')!==rev)throw new Error(`Parte ${i+1}/${total} pertence a outra revisão.`);
+        pedacos.push(String(d.dados||''));
+    }
+    const texto=pedacos.join('');
+    if(header.hash&&labSync13Hash_(texto)!==String(header.hash))throw new Error('Cenário recebido com hash diferente.');
+    const st=JSON.parse(texto);
+    labAplicandoRemoto_=true;
+    try{
+        labEstado_.larguraM=Math.max(4,Number(st.w||header.larguraM||28));
+        labEstado_.alturaM=Math.max(4,Number(st.h||header.alturaM||14));
+        labEstado_.fundo=String(st.bg||'#d7d7d7');
+        labEstado_.corGrade=String(st.grid||'#777777');
+        labEstado_.gradeVisivel=st.showGrid!==false;
+        labEstado_.textura=String(st.texture||'nenhuma');
+        if(!batalhaEhMestre_())labEstado_.pxPorMetro=48;
+        labEstado_.oficina2State=st;
+        labEstado_.desenhosLab=[];
+        labEstado_.formasLab=[];
+        window.__LAB_SYNC13_CENA_REV__=rev||Date.now().toString();
+        labSync13LastSceneHash_=String(header.hash||labSync13Hash_(texto));
+    }finally{labAplicandoRemoto_=false;}
+    if(document.getElementById('laboratorio-combate')?.classList.contains('active'))labRender_();
+    return true;
+}
+
+function labEscutarCenaD3_(){
+    if(labSync13SceneUnsub_){try{labSync13SceneUnsub_();}catch(_){}labSync13SceneUnsub_=null;}
+    if(!currentUserUid)return;
+    labSync13SceneUnsub_=onSnapshot(
+        doc(db,'combatesAtivos',LAB_SYNC13_CENA_HEADER_ID_),
+        snap=>{
+            if(!snap.exists()){
+                if(batalhaEhMestre_()){
+                    labD3CenaInicializada_=true;
+                    labSync13AgendarCenaD3Base_();
+                }
+                return;
+            }
+            labReceberCenaD3_(snap.data()).then(()=>{labD3CenaInicializada_=true;}).catch(e=>{
+                console.error('[DIRECIONAL3] receber cenário',e);
+                labD3CenaInicializada_=true;
+            });
+        },
+        e=>{console.error('[DIRECIONAL3] listener cenário',e);labD3CenaInicializada_=true;}
+    );
+}
+
+window.iniciarMapaMesaCompartilhado_=function(){
+    if(labMapaMesaUnsub_){try{labMapaMesaUnsub_();}catch(_){}labMapaMesaUnsub_=null;}
+    if(labMapaAcoesUnsub_){try{labMapaAcoesUnsub_();}catch(_){}labMapaAcoesUnsub_=null;}
+    if(!currentUserUid)return;
+
+    labD3EstadoInicializado_=!batalhaEhMestre_();
+    labD3CenaInicializada_=!batalhaEhMestre_();
+    labIniciarEscutaComandosJogadores_();
+    labEscutarCenaD3_();
+
+    labMapaMesaUnsub_=onSnapshot(
+        LAB_MAPA_MESA_REF_(),
+        snap=>{
+            if(!snap.exists()){
+                if(batalhaEhMestre_()){
+                    labD3EstadoInicializado_=true;
+                    labAgendarSyncRemotoD3Base_();
+                }
+                return;
+            }
+            const pacote=snap.data()||{};
+            if(pacote.canal!==LAB_SYNC13_CANAL_){
+                if(batalhaEhMestre_()){
+                    labD3EstadoInicializado_=true;
+                    labAgendarSyncRemotoD3Base_();
+                }
+                return;
+            }
+            const remoto=pacote.estado;
+            if(remoto&&typeof remoto==='object'){
+                labAplicarEstadoRemotoD3_(remoto);
+                labD3EstadoInicializado_=true;
+                console.info('[DIRECIONAL3] estado compartilhado recebido');
+            }
+        },
+        e=>{console.error('[DIRECIONAL3] listener estado',e);labD3EstadoInicializado_=true;}
+    );
+};
+
+// Se a autenticação já ocorreu, troca imediatamente para o listener D3.
+setTimeout(()=>{
+    if(currentUserUid)window.iniciarMapaMesaCompartilhado_();
+},0);
+
 
