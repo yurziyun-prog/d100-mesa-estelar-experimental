@@ -56,8 +56,8 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-console.info('[Mesa Estelar] build EXP-DIRECIONAL-6 carregado');
-window.__MESA_BUILD__ = 'EXP-DIRECIONAL-6';
+console.info('[Mesa Estelar] build EXP-DIRECIONAL-7 carregado');
+window.__MESA_BUILD__ = 'EXP-DIRECIONAL-7';
 
 let currentUserUid = null;
 let userData = null;
@@ -37228,5 +37228,557 @@ labPararMouseD2_=function(){
     return r;
 };
 
+window.labRender_=labRender_;
+
+
+
+
+// ============================================================
+// EXP-DIRECIONAL-7
+// Ajustes de combate e autoridade visual:
+// - mestre comum não reconstrói painel de PJ de outra conta;
+// - seleção de ataque do jogador é local e não volta ao primeiro item;
+// - defesa ativa mostra %; aparo só vale corpo a corpo e dentro do alcance;
+// - efeitos especiais inexistentes são pulados sem abrir balão;
+// - Resistência de ferimento entra no histórico privado do defensor;
+// - Levantar reaparece quando necessário;
+// - Testar ao lado de Sorte repete o ataque direcional (A);
+// - som do ataque é imediato também na conta do jogador.
+// ============================================================
+
+// ------------------------------------------------------------
+// 1) Modo do mestre: painel somente de PM / NPC / Monstro.
+// Um PJ só vira "visão de jogador" quando foi explicitamente selecionado
+// como personagem atual antes de entrar na Mesa.
+// ------------------------------------------------------------
+function labTokenPorCurrentCharD7_(){
+    const cid=String(currentCharId||'');
+    if(!cid)return null;
+    return (labEstado_.tokens||[]).find(t=>
+        String(t?.id||'')===cid ||
+        String(t?.origemId||'')===cid ||
+        String(t?.charLab?.id||'')===cid
+    )||null;
+}
+function labMestrePJSelecionadoD7_(){
+    if(!batalhaEhMestre_())return null;
+    const t=labTokenPorCurrentCharD7_();
+    return t&&labGrupo19_(t)==='PJ'?t:null;
+}
+function labMestreEspelhoPJD7_(){
+    return !!labMestrePJSelecionadoD7_();
+}
+
+const labTokenPainelMestreD7Base_=labTokenPainelMestre21_;
+labTokenPainelMestre21_=function(){
+    if(!batalhaEhMestre_())return null;
+
+    const espelho=labMestrePJSelecionadoD7_();
+    if(espelho)return espelho;
+
+    if(labEstado_.fase!=='combate'){
+        return labTokenPainelMestreD7Base_.apply(this,arguments);
+    }
+
+    const pend=labEstado_.pendenciaLab;
+    if(pend){
+        const d=labTokenPorId_(pend.defensorId);
+        if(d&&['PM','NPC','Monstro'].includes(labGrupo19_(d)))return d;
+        const a=labTokenPorId_(pend.atacanteId);
+        if(a&&['PM','NPC','Monstro'].includes(labGrupo19_(a)))return a;
+        return null;
+    }
+
+    const dp=labEstado_.danoPendenteLab;
+    if(dp){
+        const a=labTokenPorId_(dp.atacanteId);
+        if(a&&['PM','NPC','Monstro'].includes(labGrupo19_(a)))return a;
+        return null;
+    }
+
+    const atual=labTokenAtual_();
+    return atual&&['PM','NPC','Monstro'].includes(labGrupo19_(atual))?atual:null;
+};
+
+const labUsuarioPodeAgirComPainelD7Base_=labUsuarioPodeAgirComPainel21_;
+labUsuarioPodeAgirComPainel21_=function(t){
+    if(
+        batalhaEhMestre_() &&
+        labMestreEspelhoPJD7_() &&
+        t &&
+        String(t.id)===String(labMestrePJSelecionadoD7_()?.id||'')
+    ){
+        if(labEstado_.fase!=='combate')return true;
+        const pend=labEstado_.pendenciaLab;
+        if(pend&&String(pend.defensorId)===String(t.id))return true;
+        const dp=labEstado_.danoPendenteLab;
+        if(dp&&String(dp.atacanteId)===String(t.id))return true;
+        return String(labTokenAtual_()?.id||'')===String(t.id);
+    }
+    return labUsuarioPodeAgirComPainelD7Base_.apply(this,arguments);
+};
+
+const labAtorControlavelD7Base_=labAtorControlavelD1_;
+labAtorControlavelD1_=function(){
+    if(batalhaEhMestre_()&&labMestreEspelhoPJD7_()){
+        const t=labMestrePJSelecionadoD7_();
+        if(!t)return null;
+        if(labEstado_.fase!=='combate')return t;
+        return String(labTokenAtual_()?.id||'')===String(t.id)?t:null;
+    }
+    return labAtorControlavelD7Base_.apply(this,arguments);
+};
+
+const labAtualizarAtuarComoD7Base_=labAtualizarAtuarComoE6_;
+labAtualizarAtuarComoE6_=function(){
+    const r=labAtualizarAtuarComoD7Base_.apply(this,arguments);
+    if(!batalhaEhMestre_())return r;
+
+    const sel=document.getElementById('labActAsE6');
+    if(!sel)return r;
+
+    const espelho=labMestrePJSelecionadoD7_();
+    if(espelho){
+        sel.innerHTML=`<option value="">${escaparHtmlInventario_(`PJ · ${espelho.nome||'Personagem'} · visão de jogador`)}</option>`;
+        sel.disabled=true;
+        return r;
+    }
+
+    if(labEstado_.fase==='combate'){
+        const atual=labTokenAtual_();
+        if(atual&&labGrupo19_(atual)==='PJ'){
+            sel.innerHTML=`<option value="">${escaparHtmlInventario_(`👑 Mestre · turno de ${atual.nome||'PJ'}`)}</option>`;
+            sel.disabled=true;
+        }
+    }
+    return r;
+};
+
+// ------------------------------------------------------------
+// 2) Preferências de ataque ficam no navegador que controla o PJ.
+// Snapshot do mestre não volta a perícia/arma para a primeira opção.
+// ------------------------------------------------------------
+const labPrefsLocaisD7_=new Map();
+
+function labGuardarPrefsD7_(t){
+    if(!t)return;
+    labPrefsLocaisD7_.set(String(t.id),{
+        universalModoLab:String(t.universalModoLab||'combate'),
+        periciaLab:String(t.periciaLab||''),
+        equipamentoLab:String(t.equipamentoLab||''),
+        universalPericiaIdLab:String(t.universalPericiaIdLab||''),
+        universalPsiPoderIdLab:String(t.universalPsiPoderIdLab||''),
+        universalPsiCustoLab:t.universalPsiCustoLab,
+        defesaAtivaD1:String(t.defesaAtivaD1||'')
+    });
+}
+function labAplicarPrefsD7_(rt,p){
+    if(!rt||!p)return;
+    rt.universalModoLab=p.universalModoLab;
+    rt.periciaLab=p.periciaLab;
+    rt.equipamentoLab=p.equipamentoLab;
+    rt.universalPericiaIdLab=p.universalPericiaIdLab;
+    rt.universalPsiPoderIdLab=p.universalPsiPoderIdLab;
+    rt.universalPsiCustoLab=p.universalPsiCustoLab;
+    if(p.defesaAtivaD1)rt.defesaAtivaD1=p.defesaAtivaD1;
+}
+
+const labAplicarEstadoRemotoD7Base_=labAplicarEstadoRemotoD3_;
+labAplicarEstadoRemotoD3_=function(remoto){
+    if(remoto&&typeof remoto==='object'){
+        const ids=new Set();
+
+        if(!batalhaEhMestre_()){
+            const uid=String(currentUserUid||currentUser?.uid||'');
+            for(const t of (labEstado_.tokens||[])){
+                if(uid&&String(labOwnerUid20_(t)||t.donoUid||'')===uid){
+                    ids.add(String(t.id));
+                    if(!labPrefsLocaisD7_.has(String(t.id)))labGuardarPrefsD7_(t);
+                }
+            }
+        }else if(labMestreEspelhoPJD7_()){
+            const t=labMestrePJSelecionadoD7_();
+            if(t){
+                ids.add(String(t.id));
+                if(!labPrefsLocaisD7_.has(String(t.id)))labGuardarPrefsD7_(t);
+            }
+        }
+
+        if(ids.size){
+            remoto=JSON.parse(JSON.stringify(remoto));
+            remoto.tokens=Array.isArray(remoto.tokens)?remoto.tokens:[];
+            for(const rt of remoto.tokens){
+                const id=String(rt?.id||'');
+                if(!ids.has(id))continue;
+                const p=labPrefsLocaisD7_.get(id);
+                if(p)labAplicarPrefsD7_(rt,p);
+            }
+        }
+    }
+    return labAplicarEstadoRemotoD7Base_.call(this,remoto);
+};
+
+function labTokenEscolhaPainelD7_(){
+    return labTokenPainel21_()||labTokenAtual_();
+}
+
+window.labUniversalPrimeiro_=function(v){
+    const t=labTokenEscolhaPainelD7_();if(!t)return;
+    if(v==='__outras__'){
+        t.universalModoLab='outras';t.acaoAuxLab=null;
+    }else if(v==='__psi__'){
+        t.universalModoLab='psi';t.acaoAuxLab=null;t.sortePreparadaLab=false;
+    }else{
+        t.universalModoLab='combate';
+        t.periciaLab=String(v||'');
+        t.equipamentoLab='';
+        t.acaoAuxLab=null;
+        labGarantirPrefsAtaque_(t);
+    }
+    labUniversalGarantir_(t);
+    labGuardarPrefsD7_(t);
+    try{labSalvarLocal_();}catch(_){}
+    labRender_();
+};
+
+window.labUniversalSegundo_=function(v){
+    const t=labTokenEscolhaPainelD7_();if(!t)return;
+    if(t.universalModoLab==='outras'){
+        t.universalPericiaIdLab=String(v||'');
+    }else if(t.universalModoLab==='psi'){
+        t.universalPsiPoderIdLab=String(v||'');
+        t.universalPsiCustoLab=NaN;
+        const p=labPsiPoderes_(t).find(x=>String(x.id)===String(v));
+        const alvos=p?labPsiAlvos_(t,p):[];
+        t.universalAlvoIdLab=(alvos.length===1&&String(alvos[0].id)===String(t.id))
+            ?String(t.id):'';
+    }else{
+        t.equipamentoLab=String(v||'');
+        labGarantirPrefsAtaque_(t);
+    }
+    labUniversalGarantir_(t);
+    labGuardarPrefsD7_(t);
+    try{labSalvarLocal_();}catch(_){}
+    labRender_();
+};
+
+window.labMudarAtaquePref_=function(campo,v){
+    const t=labTokenEscolhaPainelD7_();if(!t)return;
+    t.microModoLab='ataque';
+    t[campo]=String(v||'');
+    if(campo==='periciaLab')t.equipamentoLab='';
+    labGarantirPrefsAtaque_(t);
+    labGuardarPrefsD7_(t);
+    try{labSalvarLocal_();}catch(_){}
+    labRender_();
+};
+
+const labMudarDefesaAtivaD7Base_=window.labMudarDefesaAtivaD1_;
+window.labMudarDefesaAtivaD1_=function(v){
+    const r=labMudarDefesaAtivaD7Base_.apply(this,arguments);
+    const t=labTokenEscolhaPainelD7_();
+    if(t)labGuardarPrefsD7_(t);
+    return r;
+};
+
+// ------------------------------------------------------------
+// 3) Defesa ativa: porcentagem, aparo e fallback automático para Esquiva.
+// A escolha de aparo permanece selecionada depois de um ataque à distância.
+// ------------------------------------------------------------
+function labEhEsquivaD7_(p){
+    return normalizarTextoCombate_(`${p?.id||''} ${getNome(p)||''}`).includes('esquiva');
+}
+function labAparoAlcanceD7_(t,p){
+    if(!t||!p||labEhEsquivaD7_(p))return Infinity;
+    const c=labCharToken_(t);if(!c)return 0;
+    let max=0;
+    try{
+        for(const x of (batalhaEquipamentos_(c,p,'')||[])){
+            const item=x?.item;
+            if(item)max=Math.max(max,Number(labAlcanceAtaque_(t,item)||0));
+        }
+    }catch(_){}
+    const n=normalizarTextoCombate_(`${p.id||''} ${getNome(p)||''}`);
+    if(/combate desarmado|combate_desarmado/.test(n))max=Math.max(max,1.5);
+    return max||1.8;
+}
+
+labDefesaAtivaD1_=function(t,itemAtaque=null){
+    labGarantirDefesasD1_(t);
+    const defs=labDefesasDisponiveis_(t)||[];
+    if(!defs.length)return null;
+
+    const esquiva=defs.find(labEhEsquivaD7_)||null;
+    let escolhida=defs.find(x=>batalhaTokenPericia_(x)===String(t.defesaAtivaD1||''));
+
+    if(!escolhida){
+        escolhida=esquiva||defs[0];
+        if(escolhida)t.defesaAtivaD1=batalhaTokenPericia_(escolhida);
+    }
+
+    if(itemAtaque&&labAtaqueEhDistancia_(itemAtaque)){
+        return esquiva||escolhida;
+    }
+
+    if(itemAtaque&&escolhida&&!labEhEsquivaD7_(escolhida)){
+        const dist=Number(labEstado_.pendenciaLab?.distancia);
+        const alcance=labAparoAlcanceD7_(t,escolhida);
+        if(Number.isFinite(dist)&&dist>alcance+.05){
+            return esquiva||escolhida;
+        }
+    }
+
+    return escolhida||esquiva||defs[0];
+};
+
+function labAtualizarDefesaUID7_(){
+    const row=document.querySelector('#labActionPanel .lab-defesa-ativa-d1');
+    const t=labTokenPainel21_();
+    if(!row||!t)return;
+
+    const sel=row.querySelector('select');
+    const c=labCharToken_(t);
+    const defs=labDefesasDisponiveis_(t)||[];
+
+    if(sel&&c){
+        const atual=String(t.defesaAtivaD1||'');
+        sel.innerHTML=defs.map(p=>{
+            const k=batalhaTokenPericia_(p);
+            const valor=labValorDefesa_(c,p);
+            return `<option value="${escaparHtmlInventario_(k)}" ${k===atual?'selected':''}>${escaparHtmlInventario_(getNome(p))} (${valor}%)</option>`;
+        }).join('');
+    }
+
+    let nota=row.querySelector('.lab-defesa-nota-d7');
+    if(!nota){
+        nota=document.createElement('span');
+        nota.className='lab-defesa-nota-d7';
+        nota.style.cssText='margin-left:auto;color:#9fc6d8;font-size:.93em;text-align:right;max-width:520px;';
+        row.appendChild(nota);
+    }
+
+    const ativa=defs.find(p=>batalhaTokenPericia_(p)===String(t.defesaAtivaD1||''));
+    if(ativa&&!labEhEsquivaD7_(ativa)){
+        const alcance=labAparoAlcanceD7_(t,ativa);
+        nota.textContent=`Aparar: corpo a corpo, alcance ${alcance.toFixed(1)} m. Contra ataque à distância ou fora do alcance, usa Esquiva.`;
+        nota.style.display='';
+    }else{
+        nota.textContent='';
+        nota.style.display='none';
+    }
+}
+
+// ------------------------------------------------------------
+// 4) Sem efeito especial real = dano direto, sem balão "Pular".
+// ------------------------------------------------------------
+const labAutoSemEfeitoD7_=new Set();
+
+function labAgendarDanoSemEfeitoD7_(){
+    if(!batalhaEhMestre_())return;
+    const dp=labEstado_.danoPendenteLab;
+    if(!dp||dp.escolhendoLocalizacao||Number(dp.efeitosRestantes||0)<=0)return;
+
+    let efs=[];
+    try{efs=labEfeitosDisponiveis_(dp)||[];}catch(_){}
+    if(efs.length)return;
+
+    const id=String(dp.id||`${dp.atacanteId}:${dp.defensorId}`);
+    if(labAutoSemEfeitoD7_.has(id))return;
+    labAutoSemEfeitoD7_.add(id);
+
+    dp.efeitosRestantes=0;
+    dp.danoAutomatico=true;
+    try{labSalvarLocal_();labAgendarSyncRemoto_();}catch(_){}
+
+    setTimeout(()=>{
+        labAutoSemEfeitoD7_.delete(id);
+        const atual=labEstado_.danoPendenteLab;
+        if(atual&&String(atual.id||`${atual.atacanteId}:${atual.defensorId}`)===id){
+            window.labRolarDano_();
+        }
+    },45);
+}
+
+const labRenderResolucaoPJD7Base_=labRenderResolucaoPJ19_;
+labRenderResolucaoPJ19_=function(el,dp,a,d){
+    if(dp&&Number(dp.efeitosRestantes||0)>0&&!dp.escolhendoLocalizacao){
+        let efs=[];
+        try{efs=labEfeitosDisponiveis_(dp)||[];}catch(_){}
+        if(!efs.length){
+            el.style.display='none';
+            el.innerHTML='';
+            return;
+        }
+    }
+    return labRenderResolucaoPJD7Base_.apply(this,arguments);
+};
+
+const labMicroPainelD7Base_=labMicroPainelHtml_;
+labMicroPainelHtml_=function(alvoVisual,ppm,d){
+    const dp=labEstado_.danoPendenteLab;
+    const ator=labAtorControlavelD1_();
+    if(
+        dp&&ator&&alvoVisual &&
+        String(dp.defensorId)===String(alvoVisual.id) &&
+        String(dp.atacanteId)===String(ator.id) &&
+        Number(dp.efeitosRestantes||0)>0 &&
+        !dp.escolhendoLocalizacao
+    ){
+        let efs=[];
+        try{efs=labEfeitosDisponiveis_(dp)||[];}catch(_){}
+        if(!efs.length)return '';
+    }
+    return labMicroPainelD7Base_.apply(this,arguments);
+};
+
+// ------------------------------------------------------------
+// 5) Resistência do choque/ferimento entra no histórico de quem sofreu.
+// ------------------------------------------------------------
+const labAplicarDanoLocalD7Base_=labAplicarDanoLocal_;
+labAplicarDanoLocal_=function(defensor,total,item,opcoes={}){
+    const r=labAplicarDanoLocalD7Base_.apply(this,arguments);
+    if(defensor&&r?.resistencia){
+        const x=r.resistencia;
+        const choque=Number(r.stunTurnos||0)>0
+            ?` · choque ${Number(r.stunTurnos)} oportunidade(s)`
+            :'';
+        labRegistrarResultadoProprio_(
+            defensor,
+            `Resistência: ${Number(x.roll)}/${Number(x.valor)} → ${x.grau}${choque}.`
+        );
+    }
+    return r;
+};
+
+// ------------------------------------------------------------
+// 6) Testar no painel = tecla A, quando há alvo, perícia e arma.
+// ------------------------------------------------------------
+function labAlvoSelecionadoAtaqueD7_(t){
+    if(!t)return null;
+
+    let id='';
+    if(!batalhaEhMestre_()){
+        try{id=String(labAlvoLocalJogador23_.get(String(t.id))||'');}catch(_){}
+    }
+    if(!id)id=String(t.alvoLab||'');
+    if(!id&&String(labEstado_.selecionadoId||'')!==String(t.id)){
+        id=String(labEstado_.selecionadoId||'');
+    }
+    return id?labAlvoAtaquePorId_(id):null;
+}
+
+window.labTestarAtaqueD7_=function(){
+    const t=labAtorControlavelD1_();if(!t||labEstado_.fase!=='combate')return;
+    labGarantirPrefsAtaque_(t);
+    const per=labPericiaPorToken_(t,t.periciaLab);
+    const item=labItemSelecionado_(t);
+    const alvo=labAlvoSelecionadoAtaqueD7_(t);
+    if(!per||!item||!alvo){
+        notificar_('Selecione alvo, perícia de ataque e arma.','aviso',2400);
+        return;
+    }
+
+    t.alvoLab=String(alvo.id);
+    t._alvoManualFixadoLab=String(alvo.id);
+    t._alvoSelecionadoMapa763=true;
+    try{labApontarPara_(t,alvo);}catch(_){}
+    return window.labAtacarDirecaoD1_();
+};
+
+function labGarantirBotaoTestarD7_(){
+    if(labEstado_.fase!=='combate')return;
+    const el=document.getElementById('labActionPanel');
+    const t=labTokenPainel21_();
+    if(!el||!t||t.universalModoLab==='outras'||t.universalModoLab==='psi')return;
+    if(!labUsuarioPodeAgirComPainel21_(t))return;
+
+    const per=labPericiaPorToken_(t,t.periciaLab);
+    const item=labItemSelecionado_(t);
+    const alvo=labAlvoSelecionadoAtaqueD7_(t);
+    const habilitado=!!per&&!!item&&!!alvo&&Number(t.acoesAtuaisLab||0)>0;
+
+    let b=[...el.querySelectorAll('button')].find(x=>/^\s*🎲?\s*Testar\s*$/i.test(String(x.textContent||'').trim()));
+    if(!b){
+        const sorte=[...el.querySelectorAll('button')].find(x=>/Sorte|Preparada/.test(x.textContent||''));
+        if(!sorte)return;
+        const slot=sorte.parentElement?.nextElementSibling;
+        b=document.createElement('button');
+        b.className='btn-small btn-select lab-testar-ataque-d7';
+        b.textContent='🎲 Testar';
+        b.style.cssText='width:100%;height:48px;margin:0;';
+        if(slot&&slot.children.length===0)slot.appendChild(b);
+        else sorte.parentElement?.after(b);
+    }
+    b.onclick=()=>window.labTestarAtaqueD7_();
+    b.disabled=!habilitado;
+    b.classList.add('lab-testar-ataque-d7');
+}
+
+// ------------------------------------------------------------
+// 7) Levantar nunca desaparece quando o personagem controlado está caído.
+// ------------------------------------------------------------
+function labGarantirLevantarD7_(){
+    if(labEstado_.fase!=='combate')return;
+    const el=document.getElementById('labActionPanel');
+    const t=labTokenPainel21_();
+    if(!el||!t||!labUsuarioPodeAgirComPainel21_(t))return;
+
+    const caido=!!labGarantirSnapshotCombate_(t)?.derrubado;
+    if(!caido)return;
+
+    let b=[...el.querySelectorAll('button')].find(x=>/Levantar/i.test(x.textContent||''));
+    if(b){
+        b.disabled=Number(t.acoesAtuaisLab||0)<=0;
+        return;
+    }
+
+    const row=[...el.querySelectorAll('div')].find(x=>
+        [...x.children].some(c=>c.tagName==='BUTTON'&&/Passar/i.test(c.textContent||''))
+    );
+    if(!row)return;
+
+    b=document.createElement('button');
+    b.className='btn-small lab-levantar-d7';
+    b.textContent='⬆️ Levantar';
+    b.disabled=Number(t.acoesAtuaisLab||0)<=0;
+    b.style.height='42px';
+    b.onclick=()=>window.labLevantar_();
+    row.appendChild(b);
+}
+
+// ------------------------------------------------------------
+// 8) Feedback de som imediato no navegador do jogador.
+// FX de acerto/falha já é gerado pela DIRECIONAL5 e compartilhado.
+// ------------------------------------------------------------
+const labAtacarDirecaoD7Base_=window.labAtacarDirecaoD1_;
+window.labAtacarDirecaoD1_=async function(){
+    if(!batalhaEhMestre_()){
+        const t=labAtorControlavelD1_();
+        const item=t?labItemSelecionado_(t):null;
+        if(t&&item&&!labEstado_.pendenciaLab&&!labEstado_.danoPendenteLab&&Number(t.acoesAtuaisLab||0)>0){
+            try{labSomAtaque_(item,'');}catch(_){}
+        }
+    }
+    return labAtacarDirecaoD7Base_.apply(this,arguments);
+};
+
+// ------------------------------------------------------------
+// Pós-render D7.
+// ------------------------------------------------------------
+const labRenderD7Base_=labRender_;
+labRender_=function(){
+    const r=labRenderD7Base_.apply(this,arguments);
+    try{
+        labAtualizarAtuarComoE6_();
+        labRenderPainelPersistente21_();
+        labAtualizarDefesaUID7_();
+        labGarantirBotaoTestarD7_();
+        labGarantirLevantarD7_();
+        if(batalhaEhMestre_())setTimeout(labAgendarDanoSemEfeitoD7_,0);
+    }catch(e){
+        console.warn('[DIRECIONAL7] pós-render',e);
+    }
+    return r;
+};
 window.labRender_=labRender_;
 
