@@ -56,8 +56,8 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-console.info('[Mesa Estelar] build EXP-DIRECIONAL-1 carregado');
-window.__MESA_BUILD__ = 'EXP-DIRECIONAL-1';
+console.info('[Mesa Estelar] build EXP-DIRECIONAL-2 carregado');
+window.__MESA_BUILD__ = 'EXP-DIRECIONAL-2';
 
 let currentUserUid = null;
 let userData = null;
@@ -35787,4 +35787,305 @@ labRender_=function(){
     return r;
 };
 window.labRender_=labRender_;
+
+
+
+// ============================================================
+// EXP-DIRECIONAL-2
+// Correção do travamento do movimento contínuo.
+// DIRECIONAL-1 fazia labRender_() a cada 120 ms. Como labRender_ reconstrói
+// o mapa, o listener de pointerup era destruído enquanto o setInterval antigo
+// continuava vivo, podendo deixar movimento/renderização em ciclo permanente.
+// Agora:
+// - movimento segurando mouse usa requestAnimationFrame e atualização DOM leve;
+// - render completo ocorre só ao terminar o movimento;
+// - sincronização remota é limitada a ~4 vezes por segundo;
+// - pointerup/pointercancel/blur param o movimento mesmo se o mapa for recriado;
+// - velocidade contínua = 3 m/s.
+// ============================================================
+
+try{ labPararMouseD1_(); }catch(_){}
+
+// Impede que o instalador antigo acrescente novamente os listeners que
+// reconstruíam o mapa durante o movimento.
+labInstalarControlesD1_=function(){};
+
+const LAB_VELOCIDADE_MOUSE_D2_=3.0;
+const LAB_SYNC_MOVIMENTO_D2_MS_=250;
+
+let labMouseD2_={
+    ativo:false,
+    segurando:false,
+    x:0,
+    y:0,
+    pointerId:null,
+    inicio:0,
+    ultimoFrame:0,
+    ultimoSync:0,
+    raf:0,
+    holdTimer:0
+};
+
+function labAtualizarTokenDomD2_(t){
+    if(!t)return;
+    const ppm=Number(labEstado_.pxPorMetro||48);
+    const el=document.querySelector(`#labMetricMap .lab-token[data-id="${CSS.escape(String(t.id))}"]`);
+    if(!el)return;
+    const w=el.offsetWidth||Math.max(24,Number(t.diametroM||.9)*ppm);
+    const h=el.offsetHeight||w;
+    el.style.left=`${Number(t.x||0)*ppm-w/2}px`;
+    el.style.top=`${Number(t.y||0)*ppm-h/2}px`;
+    const face=el.querySelector('.lab-facing-frame');
+    if(face)face.style.transform=`rotate(${Number(t.angulo||0)}deg)`;
+}
+
+function labSincronizarMovimentoD2_(t,forcar=false){
+    if(!t)return;
+    const agora=performance.now();
+    if(!forcar && agora-labMouseD2_.ultimoSync<LAB_SYNC_MOVIMENTO_D2_MS_)return;
+    labMouseD2_.ultimoSync=agora;
+
+    if(batalhaEhMestre_()){
+        try{labSalvarLocal_();}catch(_){}
+        try{labAgendarSyncRemoto_();}catch(_){}
+    }else{
+        try{
+            labEnviarComandoJogador_('movimento',{
+                x:Number(t.x||0),
+                y:Number(t.y||0),
+                angulo:Number(t.angulo||0)
+            },t);
+        }catch(_){}
+    }
+}
+
+function labAplicarMovimentoEstadoD2_(t,dx,dy,dist){
+    if(!t)return false;
+    const n=Math.hypot(dx,dy);
+    if(n<.0001)return false;
+    dx/=n;dy/=n;
+
+    let passo=Math.max(.01,Number(dist||0));
+    t.angulo=labAnguloDeVetorD1_(dx,dy);
+
+    // Exploração: sem custo de AÇ, somente limite físico do mapa.
+    if(labEstado_.fase!=='combate'){
+        t.x=Math.max(0,Math.min(labEstado_.larguraM,Number(t.x||0)+dx*passo));
+        t.y=Math.max(0,Math.min(labEstado_.alturaM,Number(t.y||0)+dy*passo));
+        return true;
+    }
+
+    // Preserva exatamente a contabilidade de movimento do DIRECIONAL-1,
+    // mas sem renderizar o mapa inteiro a cada pequeno passo.
+    if(Number(t.acoesAtuaisLab||0)<=0 && t.movimentoGratisDisponivel===false)return false;
+
+    const porAcao=Math.max(.1,labMovimentoPorAcao_(t));
+    if(porAcao<=0)return false;
+
+    const usado=Math.max(0,Number(t.movimentoUsadoDirecionalD1||0));
+    const gratis=t.movimentoGratisDisponivel!==false?1:0;
+    const custoAntes=Math.max(0,Math.ceil((Math.max(0,usado-gratis)-.0001)/porAcao));
+
+    // Não atravessa uma fronteira de custo se não houver AÇ para pagá-la.
+    let novoUsado=usado+passo;
+    let custoDepois=Math.max(0,Math.ceil((Math.max(0,novoUsado-gratis)-.0001)/porAcao));
+    let extra=Math.max(0,custoDepois-custoAntes);
+
+    if(extra>Number(t.acoesAtuaisLab||0)){
+        // Move somente até o limite ainda pago/disponível.
+        const maxPago=gratis+(custoAntes+Number(t.acoesAtuaisLab||0))*porAcao;
+        passo=Math.max(0,maxPago-usado);
+        if(passo<=.001)return false;
+        novoUsado=usado+passo;
+        custoDepois=Math.max(0,Math.ceil((Math.max(0,novoUsado-gratis)-.0001)/porAcao));
+        extra=Math.max(0,custoDepois-custoAntes);
+    }
+
+    t.acoesAtuaisLab=Math.max(0,Number(t.acoesAtuaisLab||0)-extra);
+    if(novoUsado>=1-.001)t.movimentoGratisDisponivel=false;
+    t.movimentoUsadoDirecionalD1=novoUsado;
+
+    t.x=Math.max(0,Math.min(labEstado_.larguraM,Number(t.x||0)+dx*passo));
+    t.y=Math.max(0,Math.min(labEstado_.alturaM,Number(t.y||0)+dy*passo));
+    return true;
+}
+
+function labMoverPassoD2_(dx,dy,dist=.5,{renderizar=true,sincronizar=true}={}){
+    const t=labAtorControlavelD1_();
+    if(!t)return false;
+    const ok=labAplicarMovimentoEstadoD2_(t,dx,dy,dist);
+    if(!ok)return false;
+
+    labAtualizarTokenDomD2_(t);
+    if(sincronizar)labSincronizarMovimentoD2_(t,renderizar);
+
+    if(renderizar){
+        labRender_();
+        if(labEstado_.fase==='combate')labAutoAvancarSeSemAcoes_();
+    }
+    return true;
+}
+
+// Teclado do DIRECIONAL-1 já chama este nome. Reaproveitamos o mesmo atalho,
+// agora com a rotina otimizada.
+labMoverPassoD1_=function(dx,dy,dist=.5){
+    return labMoverPassoD2_(dx,dy,dist,{renderizar:true,sincronizar:true});
+};
+
+function labVirarParaPontoD2_(clientX,clientY,{renderizar=false,sincronizar=false}={}){
+    const t=labAtorControlavelD1_(),map=document.getElementById('labMetricMap');
+    if(!t||!map)return false;
+    const rect=map.getBoundingClientRect(),ppm=Number(labEstado_.pxPorMetro||48);
+    const px=(clientX-rect.left)/ppm,py=(clientY-rect.top)/ppm;
+    const dx=px-Number(t.x||0),dy=py-Number(t.y||0);
+    if(Math.hypot(dx,dy)<.02)return false;
+    t.angulo=labAnguloDeVetorD1_(dx,dy);
+    labAtualizarTokenDomD2_(t);
+    if(sincronizar)labSincronizarMovimentoD2_(t,true);
+    if(renderizar)labRender_();
+    return true;
+}
+
+function labPararMouseD2_(renderizar=true){
+    if(labMouseD2_.holdTimer){
+        clearTimeout(labMouseD2_.holdTimer);
+        labMouseD2_.holdTimer=0;
+    }
+    if(labMouseD2_.raf){
+        cancelAnimationFrame(labMouseD2_.raf);
+        labMouseD2_.raf=0;
+    }
+
+    const estavaAtivo=labMouseD2_.ativo||labMouseD2_.segurando;
+    const t=labAtorControlavelD1_();
+
+    labMouseD2_.ativo=false;
+    labMouseD2_.segurando=false;
+    labMouseD2_.pointerId=null;
+    labMouseD2_.ultimoFrame=0;
+
+    if(estavaAtivo&&t){
+        labSincronizarMovimentoD2_(t,true);
+        if(renderizar){
+            labRender_();
+            if(labEstado_.fase==='combate')labAutoAvancarSeSemAcoes_();
+        }
+    }
+}
+
+function labLoopMouseD2_(ts){
+    if(!labMouseD2_.segurando)return;
+
+    const t=labAtorControlavelD1_(),map=document.getElementById('labMetricMap');
+    if(!t||!map){
+        labPararMouseD2_(false);
+        return;
+    }
+
+    if(!labMouseD2_.ultimoFrame)labMouseD2_.ultimoFrame=ts;
+    const dt=Math.min(.05,Math.max(.001,(ts-labMouseD2_.ultimoFrame)/1000));
+    labMouseD2_.ultimoFrame=ts;
+
+    const rect=map.getBoundingClientRect(),ppm=Number(labEstado_.pxPorMetro||48);
+    const alvoX=(labMouseD2_.x-rect.left)/ppm;
+    const alvoY=(labMouseD2_.y-rect.top)/ppm;
+    const dx=alvoX-Number(t.x||0),dy=alvoY-Number(t.y||0);
+    const restante=Math.hypot(dx,dy);
+
+    if(restante>.06){
+        const passo=Math.min(restante,LAB_VELOCIDADE_MOUSE_D2_*dt);
+        const ok=labMoverPassoD2_(dx,dy,passo,{renderizar:false,sincronizar:false});
+        if(!ok){
+            labPararMouseD2_(true);
+            return;
+        }
+        labSincronizarMovimentoD2_(t,false);
+    }else{
+        // Continua segurando, mas sem gerar trabalho enquanto já chegou ao cursor.
+        labVirarParaPontoD2_(labMouseD2_.x,labMouseD2_.y,{renderizar:false,sincronizar:false});
+    }
+
+    labMouseD2_.raf=requestAnimationFrame(labLoopMouseD2_);
+}
+
+function labComecarMouseD2_(ev){
+    if(ev.button!==0)return;
+    if(ev.target.closest('button,select,input,textarea,.lab-token,.lab-map-object,.lab-micro-actions,.lab-facing-frame'))return;
+    const t=labAtorControlavelD1_();
+    if(!t)return;
+
+    labPararMouseD2_(false);
+    labMouseD2_.ativo=true;
+    labMouseD2_.pointerId=ev.pointerId;
+    labMouseD2_.x=ev.clientX;
+    labMouseD2_.y=ev.clientY;
+    labMouseD2_.inicio=performance.now();
+    labMouseD2_.ultimoSync=0;
+
+    // Clique simples: apenas vira.
+    labVirarParaPontoD2_(ev.clientX,ev.clientY,{renderizar:false,sincronizar:false});
+
+    // Segurar por um instante: começa a caminhar suavemente.
+    labMouseD2_.holdTimer=setTimeout(()=>{
+        if(!labMouseD2_.ativo)return;
+        labMouseD2_.segurando=true;
+        labMouseD2_.ultimoFrame=0;
+        labMouseD2_.raf=requestAnimationFrame(labLoopMouseD2_);
+    },180);
+}
+
+function labInstalarControlesD2_(){
+    const map=document.getElementById('labMetricMap');
+    if(!map||map.dataset.direcionalD2==='1')return;
+    map.dataset.direcionalD2='1';
+
+    map.addEventListener('contextmenu',ev=>{
+        ev.preventDefault();
+        ev.stopPropagation();
+        window.labAtacarDirecaoD1_();
+    });
+
+    map.addEventListener('pointerdown',labComecarMouseD2_);
+}
+
+// Eventos globais sobrevivem a qualquer reconstrução do mapa.
+if(!window.__labGlobaisD2){
+    window.__labGlobaisD2=true;
+
+    window.addEventListener('pointermove',ev=>{
+        if(!labMouseD2_.ativo)return;
+        if(labMouseD2_.pointerId!==null && ev.pointerId!==labMouseD2_.pointerId)return;
+        labMouseD2_.x=ev.clientX;
+        labMouseD2_.y=ev.clientY;
+    },true);
+
+    window.addEventListener('pointerup',ev=>{
+        if(!labMouseD2_.ativo)return;
+        if(labMouseD2_.pointerId!==null && ev.pointerId!==labMouseD2_.pointerId)return;
+        labPararMouseD2_(true);
+    },true);
+
+    window.addEventListener('pointercancel',()=>labPararMouseD2_(true),true);
+    window.addEventListener('blur',()=>labPararMouseD2_(true));
+
+    document.addEventListener('visibilitychange',()=>{
+        if(document.hidden)labPararMouseD2_(true);
+    });
+}
+
+const labRenderD2Base_=labRender_;
+labRender_=function(){
+    const r=labRenderD2Base_.apply(this,arguments);
+    try{labInstalarControlesD2_();}catch(e){console.warn('[DIRECIONAL2] controles',e);}
+    return r;
+};
+window.labRender_=labRender_;
+
+// Garante que a primeira árvore DOM aberta depois do carregamento já use D2.
+setTimeout(()=>{
+    try{
+        labPararMouseD1_();
+        labRender_();
+    }catch(e){console.warn('[DIRECIONAL2] inicialização',e);}
+},0);
 
