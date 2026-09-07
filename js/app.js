@@ -56,8 +56,8 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-console.info('[Mesa Estelar] build EXP-SYNC-23 carregado');
-window.__MESA_BUILD__ = 'EXP-SYNC-23';
+console.info('[Mesa Estelar] build EXP-SYNC-24 carregado');
+window.__MESA_BUILD__ = 'EXP-SYNC-24';
 
 let currentUserUid = null;
 let userData = null;
@@ -494,10 +494,10 @@ Object.assign(traducoes.pt, {
   psiTrainingHelp:'Os poderes disponíveis dependem do treino na esfera: 1–14 = Arco 1, 15–29 = Arco 2, 30+ = Arco 3. O gasto é descontado dos Pontos de Magia.',
   psychismTitle:'🔮 Psiquismo', diffVeryEasy:'Muito Fácil', diffEasy:'Fácil', diffStandard:'Padrão',
   diffHard:'Difícil', diffFormidable:'Formidável', diffHerculean:'Hercúleo',
-  fatFresh:'Descansado (Fresh)', fatWinded:'Ofegante (Winded)', fatTired:'Cansado (Tired)',
-  fatWearied:'Fatigado (Wearied)', fatExhausted:'Exausto (Exhausted)', fatDebilitated:'Debilitado (Debilitated)',
-  fatIncapacitated:'Incapacitado (Incapacitated)', fatSemiConscious:'Semiconsciente (Semi-Conscious)',
-  fatComatose:'Comatoso (Comatose)', fatDead:'Morto (Dead)',
+  fatFresh:'Descansado', fatWinded:'Ofegante', fatTired:'Cansado',
+  fatWearied:'Fatigado', fatExhausted:'Exausto', fatDebilitated:'Debilitado',
+  fatIncapacitated:'Incapacitado', fatSemiConscious:'Semiconsciente',
+  fatComatose:'Comatoso', fatDead:'Morto',
   testsLabel:'Testes:', movementLabel:'Movimento:', initiativeLabel:'Iniciativa:', actionPointsLabel:'AÇ:',
   recoveryLabel:'Recuperação:', noPenalty:'Sem penalidade', noPenalties:'Sem penalidades', noActivity:'Nenhuma atividade',
   noActivityPossible:'Nenhuma atividade possível', half:'Metade', immobile:'Imóvel', never:'Nunca',
@@ -35397,3 +35397,559 @@ labRender_=function(){
 window.labRender_=labRender_;
 
 
+
+
+// ============================================================
+// EXP-SYNC-24
+// Regras consolidadas, sinergia de perícias, passagem de oportunidade,
+// alvo local robusto e rolagem de ataque iniciada na conta do jogador.
+// ============================================================
+
+// ------------------------------------------------------------
+// D100 da campanha.
+// Crítico: 10% do valor quando <50; com 50+ o limite crítico é 05.
+// Falha crítica: 96–100, mas perícias 96+ empurram o limite para cima;
+// 100 é sempre falha crítica.
+// ------------------------------------------------------------
+const classificarD100Sync24Base_=classificarD100_;
+classificarD100_=function(valor,rolagem){
+    if(labSorteForcarNormalV46470_){
+        labSorteForcarNormalV46470_=false;
+        return {grau:'Sucesso',sucesso:true,sorte:true};
+    }
+    const v=Math.max(1,Math.floor(Number(valor)||1));
+    const r=Math.max(1,Math.min(100,Math.floor(Number(rolagem)||100)));
+    const limCrit=v>=50?5:Math.max(1,Math.ceil(v*0.10));
+    const limFiasco=Math.max(96,Math.min(100,v+1));
+    if(r===100||r>=limFiasco)return {grau:'Fiasco',sucesso:false};
+    if(r<=limCrit)return {grau:'Crítico',sucesso:true};
+    if(r<=v)return {grau:'Sucesso',sucesso:true};
+    return {grau:'Falha',sucesso:false};
+};
+
+// ------------------------------------------------------------
+// Sinergia de perícias.
+// Usa as relações direcionais já cadastradas (5%, 10% ou 20%).
+// ------------------------------------------------------------
+const obterValorRegistroPericiaSemSinergia24_=obterValorRegistroPericia_;
+const LAB_ALIAS_SINERGIA_24={
+    ciberseguranca:'ciber_seguranca',
+    lideranca:'comando'
+};
+let labCacheSinergia24_=new WeakMap();
+
+function labIdSinergia24_(id){return LAB_ALIAS_SINERGIA_24[String(id||'')]||String(id||'');}
+function labRegistroSinergia24_(id,esp=false){
+    id=labIdSinergia24_(id);
+    const banco=esp?especializacoesDB:periciasDB;
+    return (banco||[]).find(x=>String(x.id)===id)||null;
+}
+function labTreinoSinergia24_(char,id,esp=false){
+    id=labIdSinergia24_(id);
+    return totalTreinoPericia_((esp?char?.especializacoes:char?.pericias)?.[id]||{});
+}
+function labDisponivelSinergia24_(char,reg,esp=false){
+    if(!char||!reg)return false;
+    if(esp)return labTreinoSinergia24_(char,reg.id,true)>0;
+    if(String(reg.tipo||'').toLowerCase()==='básica'||String(reg.tipo||'').toLowerCase()==='basica')return true;
+    return labTreinoSinergia24_(char,reg.id,false)>0;
+}
+function labAssinaturaSinergia24_(char){
+    const a=char?.atributos||{};
+    const partes=['FOR','CON','TAM','DES','INT','POD','CAR'].map(k=>`${k}:${Number(a[k]||0)}`);
+    for(const [id,d] of Object.entries(char?.pericias||{}))partes.push(`p:${id}:${totalTreinoPericia_(d)}`);
+    for(const [id,d] of Object.entries(char?.especializacoes||{}))partes.push(`e:${id}:${totalTreinoPericia_(d)}`);
+    return partes.sort().join('|');
+}
+function labTaxaSinergia24_(origem,alvo){
+    if(!origem||!alvo)return 0;
+    const mapa=origem.sinergias||{};
+    const aid=labIdSinergia24_(alvo.id);
+    for(const [k,v] of Object.entries(mapa)){
+        if(labIdSinergia24_(k)===aid)return Math.max(0,Number(v)||0);
+    }
+    return 0;
+}
+function labCalcularSinergias24_(char){
+    if(!char)return {valores:new Map(),bonus:new Map(),lideres:{}};
+    const sig=labAssinaturaSinergia24_(char);
+    const old=labCacheSinergia24_.get(char);
+    if(old?.sig===sig)return old.res;
+
+    const regs=[];
+    for(const p of (periciasDB||[]))if(labDisponivelSinergia24_(char,p,false))regs.push({key:`p:${p.id}`,id:p.id,esp:false,reg:p});
+    for(const e of (especializacoesDB||[]))if(labDisponivelSinergia24_(char,e,true)&&Array.isArray(e.familias)&&e.familias.length)regs.push({key:`e:${e.id}`,id:e.id,esp:true,reg:e});
+
+    const raw=new Map(),treino=new Map(),nome=new Map();
+    for(const x of regs){
+        raw.set(x.key,Math.max(0,Number(obterValorRegistroPericiaSemSinergia24_(char,x.id,x.esp))||0));
+        treino.set(x.key,labTreinoSinergia24_(char,x.id,x.esp));
+        nome.set(x.key,String(getNome(x.reg)||x.id));
+    }
+    let atual=new Map(raw),lideres={};
+
+    for(let volta=0;volta<10;volta++){
+        const fams=new Map();
+        for(const x of regs){
+            for(const fam of (x.reg.familias||[])){
+                if(!fams.has(fam))fams.set(fam,[]);
+                fams.get(fam).push(x);
+            }
+        }
+        const novosLideres={};
+        for(const [fam,membros] of fams.entries()){
+            const ordenados=[...membros].sort((a,b)=>
+                Number(atual.get(b.key)||0)-Number(atual.get(a.key)||0) ||
+                Number(treino.get(b.key)||0)-Number(treino.get(a.key)||0) ||
+                String(nome.get(a.key)||'').localeCompare(String(nome.get(b.key)||''),'pt-BR')
+            );
+            if(ordenados.length)novosLideres[fam]=ordenados[0].key;
+        }
+        const prox=new Map(raw);
+        for(const alvo of regs){
+            let melhor=Number(raw.get(alvo.key)||0);
+            for(const fam of (alvo.reg.familias||[])){
+                const lk=novosLideres[fam];
+                if(!lk||lk===alvo.key)continue;
+                const lider=regs.find(x=>x.key===lk);if(!lider)continue;
+                const taxa=labTaxaSinergia24_(lider.reg,alvo.reg);
+                if(taxa<=0)continue;
+                const valLider=Math.max(0,Number(atual.get(lk)||0));
+                const bonus=Math.floor(valLider*taxa);
+                const candidato=Math.min(valLider,Number(raw.get(alvo.key)||0)+bonus);
+                if(candidato>melhor)melhor=candidato;
+            }
+            prox.set(alvo.key,melhor);
+        }
+        const sameLeaders=JSON.stringify(novosLideres)===JSON.stringify(lideres);
+        let sameVals=true;
+        for(const [k,v] of prox)if(Number(atual.get(k)||0)!==Number(v||0)){sameVals=false;break;}
+        atual=prox;lideres=novosLideres;
+        if(sameLeaders&&sameVals)break;
+    }
+    const bonus=new Map();
+    for(const [k,v] of atual)bonus.set(k,Math.max(0,Number(v||0)-Number(raw.get(k)||0)));
+    const res={valores:atual,bonus,lideres,raw,regs};
+    labCacheSinergia24_.set(char,{sig,res});
+    return res;
+}
+function labBonusSinergia24_(char,id,esp=false){
+    const key=`${esp?'e':'p'}:${labIdSinergia24_(id)}`;
+    return Math.max(0,Number(labCalcularSinergias24_(char).bonus.get(key)||0));
+}
+obterValorRegistroPericia_=function(char,id,ehEspecializacao=false){
+    const bruto=obterValorRegistroPericiaSemSinergia24_(char,id,ehEspecializacao);
+    const reg=labRegistroSinergia24_(id,ehEspecializacao);
+    if(!reg||!labDisponivelSinergia24_(char,reg,ehEspecializacao))return bruto;
+    const key=`${ehEspecializacao?'e':'p'}:${labIdSinergia24_(id)}`;
+    const v=labCalcularSinergias24_(char).valores.get(key);
+    return Number.isFinite(Number(v))?Number(v):bruto;
+};
+
+// ------------------------------------------------------------
+// Falha crítica em ataque no Mapa da Mesa.
+// ------------------------------------------------------------
+function labAplicarFiascoAtaque24_(t,c,item){
+    if(!t||!c)return '';
+    if(item&&!item.natural){
+        const mx=Math.max(1,Number(item.pv||item.pvMax||1));
+        const antes=Math.max(0,Number(item.pvAtual??mx));
+        item.pvAtual=Math.max(0,antes-1);
+        if(item.pvAtual<=0){item.inutilizavel=true;item.quebradoEm=new Date().toISOString();}
+        Promise.resolve(labPersistirInventarioAtorObjeto_(t)).catch(()=>{});
+        return ` Falha crítica: ${getNome(item)||item.nome||'arma'} perdeu 1 PV (${item.pvAtual}/${mx})${item.inutilizavel?' e ficou inutilizável.':'.'}`;
+    }
+    const natural=item||ataqueNaturalPorNome_('Punhos');
+    const local=batalhaLocalFiascoNatural_(natural);
+    const st=labGarantirSnapshotCombate_(t);if(!st)return '';
+    const mx=Math.max(1,Number(st.hitMax?.[local]||1));
+    const antes=Number(st.hit?.[local]??mx);
+    st.hit[local]=antes-1;
+    try{
+        if(c.id&&!c.__npcTemporario&&!c.__criaturaTemporaria){
+            c.combate=c.combate||{};c.combate.hitLocations={...(st.hit||{})};
+            setDoc(doc(db,'personagens',String(c.id)),{'combate.hitLocations':c.combate.hitLocations},{merge:true}).catch(()=>{});
+        }
+    }catch(_){}
+    return ` Falha crítica: sofreu 1 de dano em ${local} (${antes} → ${st.hit[local]}) ao errar com ${getNome(natural)||natural.nome||'ataque natural'}.`;
+}
+
+// ------------------------------------------------------------
+// O jogador só controla tokens que realmente pertencem à sua conta.
+// ------------------------------------------------------------
+const labPodeControlarTokenSync24Base_=labPodeControlarToken_;
+labPodeControlarToken_=function(t){
+    if(!batalhaEhMestre_())return labEhTokenDoJogador23_(t);
+    return labPodeControlarTokenSync24Base_(t);
+};
+
+// ------------------------------------------------------------
+// Ataque do jogador: o d100 é rolado na conta que executa a ação.
+// O mestre recebe a rolagem e aplica o estado compartilhado.
+// ------------------------------------------------------------
+function labAlvoLocalAtaque24_(t){
+    if(!t)return null;
+    const ids=[
+        labAlvoLocalJogador23_.get(String(t.id)),
+        t._alvoManualFixadoLab,
+        t.alvoLab,
+        labEstado_.selecionadoId,
+        labEstado_.objetoSelecionadoId
+    ].filter(Boolean).map(String);
+    for(const id of ids){
+        const a=labAlvoAtaquePorId_(id);
+        if(a&&String(a.id)!==String(t.id))return a;
+    }
+    return null;
+}
+async function labRolarAtaqueJogador24_(){
+    labSanearEstado_();
+    if(labEstado_.fase!=='combate'||labEstado_.pendenciaLab||labEstado_.danoPendenteLab)return;
+    const t=labTokenAtual_();
+    if(!t||!labEhTokenDoJogador23_(t))return;
+    if(t._ataqueLocalAguardando24)return;
+    const c=labCharToken_(t);if(!c)return;
+    const st=labGarantirSnapshotCombate_(t);
+    if(st?.morto||st?.inconsciente||st?.incapacitado)return notificar_('Este participante não pode atacar neste estado.','aviso');
+    if(Number(st?.ataquesBloqueadosTurnos||0)>0)return notificar_(`Choque da ferida: não pode atacar por ${Number(st.ataquesBloqueadosTurnos)} oportunidade(s).`,'aviso',3200);
+    if(Number(t.acoesAtuaisLab||0)<=0)return notificar_('Sem AÇ restantes.','aviso');
+
+    labGarantirPrefsAtaque_(t);
+    const alvo=labAlvoLocalAtaque24_(t);
+    if(!alvo)return notificar_('🎯 Clique no alvo diretamente dentro do mapa antes de atacar.','aviso',3300);
+    const per=labPericiaPorToken_(t,t.periciaLab),item=labItemSelecionado_(t);
+    if(!per||!item)return notificar_('Selecione perícia e arma/ataque.','aviso');
+    const dist=labDistanciaEntre_(t,alvo),alc=labAlcanceAtaque_(t,item);
+    if(dist>alc+.001)return notificar_(`Fora de alcance: ${dist.toFixed(2)} m; ${getNome(item)} alcança ${alc.toFixed(1)} m.`,'aviso',4200);
+    if(labEhArmaMuniciada_(item)&&labMunicaoAtual_(t,item)<=0)return notificar_(`${getNome(item)} está sem munição.`,'aviso');
+
+    t.alvoLab=String(alvo.id);t._alvoManualFixadoLab=String(alvo.id);t._alvoSelecionadoMapa763=true;
+    const bonusMente=Number(t.menteAceleradaCargasLab||0)>0&&/INT/.test(String(per.formula||''))?Math.max(0,Number(t.menteAceleradaBonusLab||20)):0;
+    const valor=labValorPericiaAtaque_(c,per,alvo,item)+bonusMente;
+    const roll=1+Math.floor(Math.random()*100),r=classificarD100_(valor,roll);
+
+    // Feedback imediato para quem rolou.
+    labSomAtaque_(item,r.grau);
+    labDispararEfeitoVisualAtaque_(t,alvo,item,r.sucesso,r.grau);
+    labRegistrarResultadoProprio_(t,`Ataque: ${getNome(per)} ${roll}/${valor} → ${r.grau}.`);
+    t._ataqueLocalAguardando24=true;
+    labRender_();
+
+    const ok=await labEnviarComandoJogador_('ataque_rolado24',{
+        periciaLab:String(t.periciaLab||''),equipamentoLab:String(t.equipamentoLab||''),
+        alvoId:String(alvo.id),rolagem:roll,valorLocal:valor,grauLocal:r.grau
+    },t);
+    if(!ok){t._ataqueLocalAguardando24=false;labRender_();}
+}
+
+const labRolarAtaqueSync24Base_=window.labRolarAtaque_;
+window.labRolarAtaque_=function(){
+    const t=labTokenAtual_();
+    if(!batalhaEhMestre_()&&labEstado_.fase==='combate'&&t&&labEhTokenDoJogador23_(t))return labRolarAtaqueJogador24_();
+    return labRolarAtaqueSync24Base_.apply(this,arguments);
+};
+
+window.labAtacarTokenContextual24_=function(id){
+    const t=labTokenAtual_(),alvo=labAlvoAtaquePorId_(id);
+    if(!t||!alvo||String(t.id)===String(alvo.id))return;
+    if(!batalhaEhMestre_()&&!labEhTokenDoJogador23_(t))return;
+    if(!batalhaEhMestre_())labAlvoLocalJogador23_.set(String(t.id),String(alvo.id));
+    t.alvoLab=String(alvo.id);t._alvoManualFixadoLab=String(alvo.id);t._alvoSelecionadoMapa763=true;
+    if(labEhAlvoObjeto_(alvo)){labEstado_.objetoSelecionadoId=String(alvo.id);labEstado_.selecionadoId='';}
+    else{labEstado_.objetoSelecionadoId='';labEstado_.selecionadoId=String(alvo.id);}
+    labApontarPara_(t,alvo);
+    return window.labRolarAtaque_();
+};
+
+const labMicroPainelSync24Base_=labMicroPainelHtml_;
+labMicroPainelHtml_=function(alvoVisual,ppm,d){
+    if(!alvoVisual)return '';
+    // Jogador nunca recebe controles de defesa de outro participante.
+    if(!batalhaEhMestre_()&&labEstado_.pendenciaLab&&String(labEstado_.pendenciaLab.defensorId)===String(alvoVisual.id)&&!labEhTokenDoJogador23_(alvoVisual))return '';
+    let html=labMicroPainelSync24Base_.apply(this,arguments);
+    if(!batalhaEhMestre_()&&labEstado_.fase==='combate'){
+        const ator=labTokenAtual_();
+        if(ator&&labEhTokenDoJogador23_(ator)&&String(alvoVisual.id)!==String(ator.id)){
+            const aid=String(alvoVisual.id).replace(/'/g,"\\'");
+            html=html.replace(/onclick="labMicroModoSelecionar_\('ataque'\);labMicroExecutar_\(\)"/g,`onclick="labAtacarTokenContextual24_('${aid}')"`);
+        }
+    }
+    return html;
+};
+
+async function labProcessarAtaqueRolado24_(personagemId,acao){
+    if(!batalhaEhMestre_()||labEstado_.fase!=='combate')return;
+    const t=labTokenPorId_(personagemId),atual=labTokenAtual_();
+    if(!t||String(atual?.id)!==String(t.id)||!labUidPertenceToken18_(t,acao?.donoUid))return;
+    if(labEstado_.pendenciaLab||labEstado_.danoPendenteLab)return;
+
+    const pl=acao?.payload||{};
+    t.periciaLab=String(pl.periciaLab||t.periciaLab||'');
+    t.equipamentoLab=String(pl.equipamentoLab||t.equipamentoLab||'');
+    const alvo=labAlvoAtaquePorId_(String(pl.alvoId||''));
+    if(!alvo||String(alvo.id)===String(t.id))return;
+    t.alvoLab=String(alvo.id);t._alvoManualFixadoLab=String(alvo.id);t._alvoComandoFixadoLab=String(alvo.id);t._alvoSelecionadoMapa763=true;
+
+    const c=labCharToken_(t),per=labPericiaPorToken_(t,t.periciaLab),item=labItemSelecionado_(t);
+    if(!c||!per||!item)return;
+    const st=labGarantirSnapshotCombate_(t);
+    if(st?.morto||st?.inconsciente||st?.incapacitado||Number(t.acoesAtuaisLab||0)<=0)return;
+    const dist=labDistanciaEntre_(t,alvo),alc=labAlcanceAtaque_(t,item);
+    if(dist>alc+.001)return;
+    if(labEhArmaMuniciada_(item)&&labMunicaoAtual_(t,item)<=0)return;
+
+    const bonusInt=Math.max(0,Number(t.bonusIntuicaoPendenteLab||0));
+    const bonusMente=Number(t.menteAceleradaCargasLab||0)>0&&/INT/.test(String(per.formula||''))?Math.max(0,Number(t.menteAceleradaBonusLab||20)):0;
+    const valor=labValorPericiaAtaque_(c,per,alvo,item)+bonusMente;
+    const roll=Math.max(1,Math.min(100,Math.floor(Number(pl.rolagem)||100)));
+    const r=classificarD100_(valor,roll);
+    if(bonusInt>0)t.bonusIntuicaoPendenteLab=0;
+    if(bonusMente>0)t.menteAceleradaCargasLab=Math.max(0,Number(t.menteAceleradaCargasLab||0)-1);
+    if(t.bonusDificuldadeFacilPsiLab)t.bonusDificuldadeFacilPsiLab=0;
+
+    labConsumirMunicao_(t,item,1);
+    t.acoesAtuaisLab=Math.max(0,Number(t.acoesAtuaisLab||0)-1);
+    if(r.grau==='Crítico')t.acoesAtuaisLab=Math.min(Number(t.acoesMaxLab||0)+6,Number(t.acoesAtuaisLab||0)+1);
+    else if(r.grau==='Fiasco'){
+        if(Number(t.acoesAtuaisLab||0)>0)t.acoesAtuaisLab--;
+        else t.penalidadeAcaoProximaLab=Math.max(1,Number(t.penalidadeAcaoProximaLab||0));
+    }
+    const base=`${t.nome} → ${alvo.nome}: ${getNome(per)} ${roll}/${valor} → ${r.grau} · ${dist.toFixed(2)} m · ${getNome(item)}.`;
+    let proprio=`Ataque: ${getNome(per)} ${roll}/${valor} → ${r.grau}.`;
+    if(r.grau==='Fiasco')proprio+=labAplicarFiascoAtaque24_(t,c,item);
+    labRegistrarResultadoProprio_(t,proprio);
+
+    if(r.sucesso&&labEhAlvoObjeto_(alvo)){
+        const expr=String(item?.dano||item?.damage||'').trim(),dr=expr?rolarExpressaoDanoCombate_(expr):null;
+        if(dr){
+            const bruto=Math.max(0,Number(dr.total||0)),duro=Math.max(0,Number(alvo.dureza||0)),final=Math.max(0,bruto-duro);
+            alvo.pvAtual=Math.max(0,Number(alvo.pvAtual??alvo.pvMax??0)-final);if(alvo.pvAtual<=0)alvo.destruido=true;
+            t.ultimoResultadoProprioLab=`${proprio} Dano ${bruto} - Dureza ${duro} = ${final} em ${alvo.nome}.${alvo.destruido?' Objeto destruído.':''}`;
+            labEstado_.ultimoResultadoLab=`${t.nome} atingiu ${alvo.nome}: ${final} de dano${alvo.destruido?' · destruído':''}.`;
+            if(final>0)labAdicionarFloat_(alvo,-final,'dano');
+        }else labEstado_.ultimoResultadoLab=`${t.nome} acertou ${alvo.nome}, mas o dano da arma não pôde ser interpretado.`;
+    }else if(r.sucesso){
+        const pend={id:`lab_${Date.now()}`,atacanteId:String(t.id),defensorId:String(alvo.id),grauAtaque:r.grau,rolagemAtaque:roll,valorAtaque:valor,pericia:getNome(per),item:JSON.parse(JSON.stringify(item)),distancia:dist,alcance:alc};
+        const stAlvo=labGarantirSnapshotCombate_(alvo),defs=String(alvo.id).startsWith('dummy:')?[]:labDefesasDisponiveis_(alvo);
+        const semReacao=String(alvo.id).startsWith('dummy:')||(Number(alvo.acoesAtuaisLab||0)<=0&&Number(alvo.acoesDefensivasPsiLab||0)<=0)||!defs.length||!!stAlvo?.morto||!!stAlvo?.inconsciente;
+        if(semReacao){
+            const qtd=(stAlvo?.morto||stAlvo?.inconsciente)?0:labEfeitosQuantidade_(r.grau,'Falha',true);
+            labEstado_.danoPendenteLab={...pend,efeitosRestantes:qtd,efeitosEscolhidos:[],danoAutomatico:true};
+            labEstado_.ultimoResultadoLab=base+` ${qtd?`${qtd} efeito(s) especial(is) antes do dano automático.`:'Dano automático.'}`;
+        }else{
+            labEstado_.pendenciaLab=pend;
+            labEstado_.ultimoResultadoLab=base+` Aguardando defesa de ${alvo.nome}.`;
+        }
+    }else{
+        labEstado_.ultimoResultadoLab=base+(r.grau==='Fiasco'?proprio.replace(/^Ataque:[^.]*\./,''):' O ataque falhou.');
+    }
+    t._ataqueLocalAguardando24=false;
+    labEstado_.logLab=Array.isArray(labEstado_.logLab)?labEstado_.logLab:[];
+    labEstado_.logLab.unshift({ts:new Date().toLocaleTimeString(),texto:labEstado_.ultimoResultadoLab});
+    labEstado_.logLab=labEstado_.logLab.slice(0,60);
+    labSalvarLocal_();labAgendarSyncRemoto_();labRender_();
+
+    if(labEstado_.danoPendenteLab&&labEstado_.danoPendenteLab.danoAutomatico&&Number(labEstado_.danoPendenteLab.efeitosRestantes||0)<=0){
+        setTimeout(()=>{if(labEstado_.danoPendenteLab?.atacanteId===String(t.id))window.labRolarDano_();},140);
+    }else if(!labEstado_.pendenciaLab&&!labEstado_.danoPendenteLab){labAutoAvancarSeSemAcoes_();}
+}
+
+// ------------------------------------------------------------
+// Passar oportunidade: primeira passagem vai ao fim sem custo e preserva AÇ;
+// segunda passagem na mesma rodada encerra a participação e perde AÇ restantes.
+// ------------------------------------------------------------
+function labFimEstadoOportunidade24_(t){
+    const st=labGarantirSnapshotCombate_(t);
+    if(st&&Number(st.ataquesBloqueadosTurnos||0)>0)st.ataquesBloqueadosTurnos=Math.max(0,Number(st.ataquesBloqueadosTurnos||0)-1);
+    if(st?.atordoado&&st?.atordoadoAteOportunidade){st.atordoado=false;st.atordoadoAteOportunidade=false;}
+}
+function labAplicarPassagem24_(t){
+    if(!t||labEstado_.fase!=='combate'||labEstado_.pendenciaLab||labEstado_.danoPendenteLab)return false;
+    const n=Math.max(0,Number(t.passagensLab||0));
+    if(n===0){
+        t.passagensLab=1;
+        t.alvoLab='';t._alvoManualFixadoLab='';t._alvoComandoFixadoLab='';t._alvoSelecionadoMapa763=false;t._alvoMortoManual510=false;
+        labEstado_.objetoSelecionadoId='';
+        t.ultimoResultadoProprioLab='Passou a oportunidade sem gastar AÇ; agirá novamente no fim da ordem.';
+        labFimEstadoOportunidade24_(t);
+        const ordem=labEstado_.ordemIniciativa||[],idx=Math.max(0,Math.min(ordem.length-1,Number(labEstado_.turnoIndex||0)));
+        const [id]=ordem.splice(idx,1);if(id!=null)ordem.push(id);
+        labEstado_.ordemIniciativa=ordem;
+        labEstado_.turnoIndex=Math.min(idx,Math.max(0,ordem.length-1));
+        const novo=labTokenAtual_();if(novo)labEstado_.selecionadoId=String(novo.id);
+        labSalvarLocal_();labAgendarSyncRemoto_();labRender_();
+        return true;
+    }
+    t.passagensLab=n+1;
+    t.acoesAtuaisLab=0;
+    t.ultimoResultadoProprioLab='Passou pela segunda vez na rodada; as AÇ restantes foram perdidas e sua participação nesta rodada terminou.';
+    labSalvarLocal_();
+    window.labEncerrarOportunidade_();
+    return true;
+}
+const labPassarAcaoSync24Base_=window.labPassarAcao_;
+window.labPassarAcao_=function(){
+    if(labEstado_.fase!=='combate'||labEstado_.pendenciaLab||labEstado_.danoPendenteLab)return;
+    const t=labTokenAtual_();if(!t)return;
+    if(!batalhaEhMestre_()){
+        if(!labEhTokenDoJogador23_(t))return;
+        labAlvoLocalJogador23_.delete(String(t.id));
+        labEnviarComandoJogador_('passar24',{},t);
+        return;
+    }
+    return labAplicarPassagem24_(t);
+};
+
+const labProcessarComandoJogadorSync24Base_=labProcessarComandoJogador_;
+labProcessarComandoJogador_=async function(personagemId,acao){
+    const tipo=String(acao?.tipo||'');
+    if(!['ataque_rolado24','passar24'].includes(tipo))return labProcessarComandoJogadorSync24Base_.apply(this,arguments);
+    const chave=`sync24:${tipo}:${personagemId}:${acao?.nonce||''}`;
+    if(labMapaComandosEmProcessamento_.has(chave))return;
+    labMapaComandosEmProcessamento_.add(chave);
+    try{
+        if(tipo==='ataque_rolado24')await labProcessarAtaqueRolado24_(personagemId,acao);
+        else{
+            const t=labTokenPorId_(personagemId);
+            if(batalhaEhMestre_()&&t&&String(labTokenAtual_()?.id||'')===String(t.id)&&labUidPertenceToken18_(t,acao?.donoUid))labAplicarPassagem24_(t);
+        }
+    }catch(e){console.error('[SYNC24] comando',tipo,e);}
+    finally{
+        try{await deleteDoc(doc(db,'combatesAtivos','mapaMesaExperimental','acoes',String(personagemId)));}catch(_){}
+        labMapaComandosEmProcessamento_.delete(chave);
+    }
+};
+
+function labGarantirBotaoPassar24_(){
+    if(labEstado_.fase!=='combate'||labEstado_.pendenciaLab||labEstado_.danoPendenteLab)return;
+    const t=labTokenAtual_(),el=document.getElementById('labActionPanel');if(!t||!el)return;
+    const autorizado=batalhaEhMestre_()?labTokenMestre19_(t):labEhTokenDoJogador23_(t);
+    if(!autorizado)return;
+    let b=[...el.querySelectorAll('button')].find(x=>(x.getAttribute('onclick')||'').includes('labPassarAcao_'));
+    if(!b){
+        b=document.createElement('button');b.className='btn-small';b.setAttribute('onclick','labPassarAcao_()');
+        b.style.cssText='height:34px;padding:0 10px;margin:6px 6px 0 0;';
+        const pv=el.querySelector('.lab-pv-title');if(pv)pv.parentElement.insertBefore(b,pv);else el.appendChild(b);
+    }
+    b.disabled=false;
+    b.title=Number(t.passagensLab||0)===0?'Adia esta oportunidade para o fim da ordem sem gastar AÇ.':'Segunda passagem da rodada: encerra sua participação e perde as AÇ restantes.';
+    b.textContent=Number(t.passagensLab||0)===0?'⏭ Passar':'⏭ Passar e encerrar';
+}
+
+// ------------------------------------------------------------
+// Regras públicas consolidadas.
+// ------------------------------------------------------------
+function renderizarRegrasD100_(){
+    let el=document.getElementById('d100CoreRules');
+    if(!el){const base=document.getElementById('combatCompatibilityRules');if(!base)return;el=document.createElement('div');el.id='d100CoreRules';el.style.marginTop='22px';base.insertAdjacentElement('beforebegin',el);}
+    el.innerHTML=`<h3>🎲 Resultados D100</h3><table style="width:100%;border-collapse:collapse;"><thead><tr><th>Resultado</th><th>Regra</th></tr></thead><tbody>
+      <tr><td>Crítico</td><td>Se a perícia efetiva for menor que 50%, o resultado deve ser igual ou inferior a 10% dela, arredondado para cima. A partir de 50%, resultados 01–05 são críticos.</td></tr>
+      <tr><td>Sucesso</td><td>Resultado igual ou inferior à perícia efetiva, desde que não seja crítico.</td></tr>
+      <tr><td>Falha</td><td>Resultado acima da perícia efetiva, sem atingir a faixa de falha crítica.</td></tr>
+      <tr><td>Falha crítica (Fiasco)</td><td>Com perícia efetiva até 95%, ocorre em 96–100. A partir de 96%, o limite inicial sobe junto com a perícia: 96% → 97–100; 97% → 98–100; 98% → 99–100; 99% ou mais → 100. O resultado 100 é sempre falha crítica. Em ataques, armas perdem 1 PV; ataques naturais causam 1 dano na parte corporal correspondente.</td></tr>
+    </tbody></table>`;
+}
+function renderizarTabelaFadigaCompleta_(){
+    const el=document.getElementById('fatigueRulesFull');if(!el)return;
+    const nomes={Fresh:'Descansado',Winded:'Ofegante',Tired:'Cansado',Wearied:'Fatigado',Exhausted:'Exausto',Debilitated:'Debilitado',Incapacitated:'Incapacitado','Semi-Conscious':'Semiconsciente',Comatose:'Comatoso',Dead:'Morto'};
+    const ordem=['Fresh','Winded','Tired','Wearied','Exhausted','Debilitated','Incapacitated','Semi-Conscious','Comatose','Dead'];
+    el.innerHTML=`<h3>😮‍💨 Fadiga</h3><table style="width:100%;border-collapse:collapse"><thead><tr><th>Estado</th><th>Dificuldade mínima</th><th>Movimento</th><th>Iniciativa</th><th>AÇ</th><th>Recuperação</th></tr></thead><tbody>${ordem.map(k=>{const r=REGRAS_FADIGA[k];return `<tr><td>${nomes[k]}</td><td>${r.grau}</td><td>${r.movimento}</td><td>${r.iniciativa==null?'—':r.iniciativa}</td><td>${r.pa==null?'—':(r.pa===0?'sem alteração':r.pa)}</td><td>${r.recuperacao}</td></tr>`;}).join('')}</tbody></table>`;
+}
+function renderizarRegrasPericiasSinergia24_(){
+    let el=document.getElementById('skillSynergyRules24');
+    const anchor=document.getElementById('d100CoreRules');if(!anchor)return;
+    if(!el){el=document.createElement('div');el.id='skillSynergyRules24';el.style.marginTop='22px';anchor.insertAdjacentElement('afterend',el);}
+    const linhas=[];
+    for(const p of (periciasDB||[])){
+        for(const [dest,taxa] of Object.entries(p.sinergias||{})){
+            const d=labRegistroSinergia24_(dest,false);if(!d)continue;
+            linhas.push([getNome(p),getNome(d),`${Math.round(Number(taxa||0)*100)}%`]);
+        }
+    }
+    linhas.sort((a,b)=>a[0].localeCompare(b[0],'pt-BR')||a[1].localeCompare(b[1],'pt-BR'));
+    el.innerHTML=`<h3>🧩 Perícias, famílias e sinergia</h3>
+      <ul style="line-height:1.55;margin-top:8px">
+        <li>Perícias Básicas podem ser testadas mesmo sem investimento. Perícias Profissionais e Especializações só podem ser usadas depois de receberem ao menos 1 ponto de investimento.</li>
+        <li>Dentro de uma família com sinergia, a perícia de maior valor efetivo é a referência. Em empate de valor, vence a que tiver mais pontos de treino; persistindo o empate, vale a ordem alfabética.</li>
+        <li>A perícia líder concede às relações de sinergia cadastradas uma porcentagem do próprio valor efetivo. O bônus é arredondado para baixo e nunca pode elevar a perícia beneficiada acima da perícia que o concedeu.</li>
+        <li>Uma perícia pertencente a mais de uma família recebe somente o maior bônus disponível, nunca a soma. Ela ainda pode usar esse valor aumentado para liderar outra família. Se liderar duas famílias, concede seus bônus nas duas.</li>
+        <li>As famílias não se combinam fora dessas relações. Algumas relações são assimétricas, portanto a porcentagem pode mudar conforme a direção.</li>
+      </ul>
+      <details style="margin-top:10px"><summary style="cursor:pointer;font-weight:700">Percentuais de sinergia cadastrados</summary><table style="width:100%;margin-top:8px"><thead><tr><th>Perícia líder</th><th>Perícia beneficiada</th><th>Bônus</th></tr></thead><tbody>${linhas.map(r=>`<tr><td>${escaparHtmlInventario_(r[0])}</td><td>${escaparHtmlInventario_(r[1])}</td><td>${r[2]}</td></tr>`).join('')}</tbody></table></details>`;
+}
+function renderizarRegrasTurnos24_(){
+    let el=document.getElementById('turnPassRules24');
+    const anchor=document.getElementById('fatigueRulesFull');if(!anchor)return;
+    if(!el){el=document.createElement('div');el.id='turnPassRules24';el.style.marginTop='22px';anchor.insertAdjacentElement('afterend',el);}
+    el.innerHTML=`<h3>⏭ Turnos, oportunidades e passagem</h3><table style="width:100%"><tbody>
+      <tr><td><b>Passar pela primeira vez</b></td><td>Não custa AÇ. O personagem mantém todas as AÇ restantes e sua oportunidade é movida para o fim da ordem da rodada.</td></tr>
+      <tr><td><b>Passar pela segunda vez</b></td><td>Encerra a participação do personagem naquela rodada e todas as AÇ que ainda restarem são perdidas.</td></tr>
+      <tr><td><b>Sem ninguém depois</b></td><td>Depois da segunda passagem, se não houver outro participante a agir, inicia-se a rodada seguinte normalmente.</td></tr>
+      <tr><td><b>Reações</b></td><td>Defesas e outras reações são resolvidas antes de a oportunidade avançar.</td></tr>
+    </tbody></table>`;
+}
+function renderizarRegrasExploracao24_(){
+    let el=document.getElementById('explorationRules24');
+    const anchor=document.getElementById('nutritionRules')||document.getElementById('firstAidCombatRules');if(!anchor)return;
+    if(!el){el=document.createElement('div');el.id='explorationRules24';el.style.marginTop='22px';anchor.insertAdjacentElement('afterend',el);}
+    el.innerHTML=`<h3>🧭 Exploração e objetos</h3><table style="width:100%"><tbody>
+      <tr><td><b>Movimento fora de combate</b></td><td>Não há turnos. Cada arrasto da miniatura é limitado ao deslocamento que o personagem realizaria em uma rodada; um novo arrasto renova esse limite.</td></tr>
+      <tr><td><b>Lenhar</b></td><td>Usa Força Bruta e exige machado. O dano mínimo de 1 PV após a Dureza só existe com FOR 10 ou mais.</td></tr>
+      <tr><td><b>Minerar com Força Bruta</b></td><td>Exige picareta. O dano mínimo de 1 PV após a Dureza só existe com FOR 10 ou mais.</td></tr>
+      <tr><td><b>Minerar com Mineração</b></td><td>Só está disponível para personagens que investiram na perícia Mineração. Não recebe dano mínimo automático, mas acumula apenas um quarto da fadiga do trabalho bruto.</td></tr>
+      <tr><td><b>Crítico no trabalho</b></td><td>Ignora a Dureza e aplica o dano máximo de trabalho.</td></tr>
+      <tr><td><b>Falha crítica no trabalho</b></td><td>O dano que seria causado ao objeto é aplicado à ferramenta utilizada.</td></tr>
+    </tbody></table>`;
+}
+function renderizarRegrasCombateMesa24_(){
+    let el=document.getElementById('combatTableRules24');
+    const anchor=document.getElementById('turnPassRules24');if(!anchor)return;
+    if(!el){el=document.createElement('div');el.id='combatTableRules24';el.style.marginTop='22px';anchor.insertAdjacentElement('afterend',el);}
+    el.innerHTML=`<h3>⚔️ Combate no Mapa da Mesa</h3><ul style="line-height:1.55">
+      <li>O participante da oportunidade escolhe suas próprias ações. Ataques de PJ são rolados primeiro na conta do jogador e o resultado é compartilhado; o mestre mantém autoridade sobre o estado comum, dano, PV, efeitos e avanço do combate.</li>
+      <li>O alvo é escolhido diretamente no mapa. O painel do jogador mostra apenas sua própria ficha e informações públicas do combate; PV, PA e opções defensivas privadas de adversários não são revelados.</li>
+      <li>Quando um ataque concede efeitos especiais, quem realizou o ataque escolhe seus próprios efeitos e localizações permitidas.</li>
+      <li>Ferimentos sérios ou graves podem exigir Resistência e impõem suas penalidades aos testes conforme o estado do personagem.</li>
+    </ul>`;
+}
+const renderizarRegrasSync24Base_=renderizarRegras;
+renderizarRegras=function(){
+    const r=renderizarRegrasSync24Base_.apply(this,arguments);
+    renderizarRegrasD100_();renderizarTabelaFadigaCompleta_();
+    renderizarRegrasPericiasSinergia24_();renderizarRegrasTurnos24_();renderizarRegrasCombateMesa24_();renderizarRegrasExploracao24_();
+    return r;
+};
+
+// Mostra o bônus de sinergia também na ficha, sem alterar o investimento.
+function labAplicarSinergiaNaTabelaFicha24_(char){
+    const rows=[...document.querySelectorAll('#corpoPericiasInvestidas tr,#corpoPericiasBasicas tr,#corpoPericiasProfissionais tr,#corpoEspecializacoes tr')];
+    if(!rows.length||!char)return;
+    for(const tr of rows){
+        const nome=tr.querySelector('td')?.childNodes?.[0]?.textContent?.trim()||tr.querySelector('td')?.textContent?.trim()||'';
+        const reg=[...(periciasDB||[]),...(especializacoesDB||[])].find(x=>getNome(x)===nome);
+        if(!reg)continue;
+        const esp=(especializacoesDB||[]).some(x=>x.id===reg.id);
+        const b=labBonusSinergia24_(char,reg.id,esp);
+        const td=tr.querySelector('.skill-total');if(!td||b<=0)continue;
+        const total=obterValorRegistroPericia_(char,reg.id,esp);
+        td.innerHTML=`${total} <small style="color:#8fd8ff">(+${b} sin.)</small>`;
+    }
+}
+const renderizarPericiasSync24Base_=renderizarPericias;
+renderizarPericias=function(char){
+    const r=renderizarPericiasSync24Base_.apply(this,arguments);
+    try{labCacheSinergia24_.delete(char);labAplicarSinergiaNaTabelaFicha24_(char);}catch(e){console.warn('[SYNC24] sinergia na ficha',e);}
+    return r;
+};
+
+// Pós-render: botão de passar sempre disponível na própria oportunidade e privacidade reforçada.
+const labRenderSync24Base_=labRender_;
+labRender_=function(){
+    const r=labRenderSync24Base_.apply(this,arguments);
+    try{labGarantirBotaoPassar24_();}catch(e){console.warn('[SYNC24] passar',e);}
+    return r;
+};
+window.labRender_=labRender_;
+
+
+window.renderizarRegras=renderizarRegras;
