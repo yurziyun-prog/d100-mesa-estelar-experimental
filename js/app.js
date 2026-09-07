@@ -56,8 +56,8 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-console.info('[Mesa Estelar] build EXP-RECOVERY-23 carregado');
-window.__MESA_BUILD__ = 'EXP-RECOVERY-23';
+console.info('[Mesa Estelar] build EXP-DIRECIONAL-1 carregado');
+window.__MESA_BUILD__ = 'EXP-DIRECIONAL-1';
 
 let currentUserUid = null;
 let userData = null;
@@ -35396,4 +35396,395 @@ labRender_=function(){
 };
 window.labRender_=labRender_;
 
+
+
+
+// ============================================================
+// EXP-DIRECIONAL-1
+// Base estável RECOVERY23 + primeiro núcleo do novo combate.
+// - Defesas separadas das AÇ e automáticas.
+// - Defesa ativa escolhível; Esquiva é o padrão.
+// - Ataque por direção: botão direito ou tecla A.
+// - Clique esquerdo no mapa muda a direção; segurar move nessa direção.
+// - Setas e teclado numérico movem o personagem controlado.
+// - Objetos imóveis atingidos pela linha recebem dano sem teste de acerto.
+// - Botões Atacar são retirados do mapa/painel.
+// - Mineração técnica só aparece com investimento real em Mineração.
+// ============================================================
+
+function labTemPericiaTreinadaExataD1_(t,id){
+    const c=labCharToken_(t);if(!c)return false;
+    const reg=c?.pericias?.[id];
+    return totalTreinoPericia_(reg||{})>0;
+}
+function labMineracaoTreinadaD1_(t){return labTemPericiaTreinadaExataD1_(t,'mineracao');}
+
+// Remove Mineração técnica quando não houve investimento real.
+const labObjetoMicroPainelD1Base_=labObjetoMicroPainelHtml_;
+labObjetoMicroPainelHtml_=function(o,ppm){
+    let h=labObjetoMicroPainelD1Base_.apply(this,arguments);
+    const ator=labAtorEfetivoE6_();
+    if(!h||!ator||labMineracaoTreinadaD1_(ator))return h;
+    h=h.replace(/<button[^>]*onclick="labObjetoAcao_\('minerar_pericia',[\s\S]*?<\/button>/g,'');
+    h=h.replace(/<button[^>]*onclick="labObjetoAcao_\('minerar_forca',([^>]*)>⛏️ Força<\/button>/g,
+                '<button class="btn-small btn-select" onclick="labObjetoAcao_(\'minerar_forca\',$1>⛏️ Minerar</button>');
+    return h;
+};
+
+const labObjetoAcaoD1Base_=window.labObjetoAcao_;
+window.labObjetoAcao_=function(tipo,id){
+    const t=labAtorInteracaoE4_();
+    if(String(tipo)==='minerar_pericia'&&!labMineracaoTreinadaD1_(t)){
+        notificar_('Este personagem não possui Mineração treinada.','aviso',2600);return;
+    }
+    return labObjetoAcaoD1Base_.apply(this,arguments);
+};
+
+// ------------------------------------------------------------
+// Autoridade de controle do participante atual.
+// ------------------------------------------------------------
+function labAtorControlavelD1_(){
+    if(labEstado_.fase==='combate'){
+        const t=labTokenAtual_();if(!t)return null;
+        if(batalhaEhMestre_())return labTokenMestre19_(t)?t:null;
+        return labEhTokenDoJogador23_(t)?t:null;
+    }
+    const t=batalhaEhMestre_()?labAtorEfetivoE6_():labTokenPainelJogador21_();
+    if(!t)return null;
+    if(batalhaEhMestre_()&&labModoMestreE6_())return null;
+    return t;
+}
+
+// ------------------------------------------------------------
+// Reservas de defesa.
+// ------------------------------------------------------------
+function labGarantirDefesasD1_(t){
+    if(!t)return;
+    const mx=Math.max(0,Number(t.acoesMaxLab||0));
+    if(!Number.isFinite(Number(t.defesasMaxLab)))t.defesasMaxLab=mx;
+    if(!Number.isFinite(Number(t.defesasAtuaisLab)))t.defesasAtuaisLab=Number(t.defesasMaxLab||mx);
+    if(!t.defesaAtivaD1){
+        const defs=labDefesasDisponiveis_(t)||[];
+        const esquiva=defs.find(p=>normalizarTextoCombate_(`${p.id||''} ${getNome(p)||''}`).includes('esquiva'))||defs[0];
+        t.defesaAtivaD1=esquiva?batalhaTokenPericia_(esquiva):'';
+    }
+}
+function labReporDefesasD1_(){
+    for(const t of labTokensCombatentes_()){
+        t.defesasMaxLab=Math.max(0,Number(t.acoesMaxLab||0));
+        t.defesasAtuaisLab=t.defesasMaxLab;
+        t.movimentoUsadoDirecionalD1=0;
+        labGarantirDefesasD1_(t);
+    }
+}
+const labPrepararNovaRodadaD1Base_=labPrepararNovaRodada_;
+labPrepararNovaRodada_=function(){
+    const r=labPrepararNovaRodadaD1Base_.apply(this,arguments);
+    labReporDefesasD1_();
+    return r;
+};
+const labIniciarCombateD1Base_=window.labIniciarCombate_;
+window.labIniciarCombate_=function(){
+    const r=labIniciarCombateD1Base_.apply(this,arguments);
+    if(labEstado_.fase==='combate')labReporDefesasD1_();
+    labSalvarLocal_();labRender_();
+    return r;
+};
+
+function labDefesasValidasD1_(t,itemAtaque=null){
+    let defs=labDefesasDisponiveis_(t)||[];
+    if(itemAtaque&&labAtaqueEhDistancia_(itemAtaque)){
+        defs=defs.filter(p=>normalizarTextoCombate_(`${p.id||''} ${getNome(p)||''}`).includes('esquiva'));
+    }
+    return defs;
+}
+function labDefesaAtivaD1_(t,itemAtaque=null){
+    labGarantirDefesasD1_(t);
+    const defs=labDefesasValidasD1_(t,itemAtaque);
+    if(!defs.length)return null;
+    let p=defs.find(x=>batalhaTokenPericia_(x)===String(t.defesaAtivaD1||''));
+    if(!p)p=defs.find(x=>normalizarTextoCombate_(`${x.id||''} ${getNome(x)||''}`).includes('esquiva'))||defs[0];
+    t.defesaAtivaD1=batalhaTokenPericia_(p);
+    return p;
+}
+window.labMudarDefesaAtivaD1_=function(v){
+    const t=labTokenPainel21_()||labAtorControlavelD1_();if(!t)return;
+    t.defesaAtivaD1=String(v||'');
+    if(!batalhaEhMestre_()){
+        labEnviarComandoJogador_('defesa_ativa_d1',{defesaAtivaD1:t.defesaAtivaD1},t);
+    }else{labSalvarLocal_();try{labAgendarSyncRemoto_();}catch(_){}}
+    labRender_();
+};
+
+// ------------------------------------------------------------
+// Auto-defesa. Reutiliza o resolvedor já testado, mas preserva AÇ.
+// ------------------------------------------------------------
+const labResponderDefesaD1Base_=window.labResponderDefesa_;
+function labAutoResolverDefesaD1_(){
+    if(!batalhaEhMestre_())return false;
+    const pend=labEstado_.pendenciaLab;if(!pend)return false;
+    const d=labTokenPorId_(pend.defensorId);if(!d)return false;
+    labGarantirDefesasD1_(d);
+    const st=labGarantirSnapshotCombate_(d);
+    if(st?.morto||st?.inconsciente||Number(d.defesasAtuaisLab||0)<=0){
+        labResponderDefesaD1Base_(false);return true;
+    }
+    const per=labDefesaAtivaD1_(d,pend.item);
+    if(!per){labResponderDefesaD1Base_(false);return true;}
+
+    const acoesAntes=Number(d.acoesAtuaisLab||0);
+    const psiAntes=Number(d.acoesDefensivasPsiLab||0);
+    d.defesaLab=batalhaTokenPericia_(per);
+    d.acoesAtuaisLab=Math.max(1,acoesAntes);
+    d.acoesDefensivasPsiLab=0;
+    d.defesasAtuaisLab=Math.max(0,Number(d.defesasAtuaisLab||0)-1);
+    try{labResponderDefesaD1Base_(true);}finally{
+        d.acoesAtuaisLab=acoesAntes;
+        d.acoesDefensivasPsiLab=psiAntes;
+    }
+    labSalvarLocal_();try{labAgendarSyncRemoto_();}catch(_){ }
+    labRender_();
+    return true;
+}
+
+// ------------------------------------------------------------
+// Geometria do ataque por direção.
+// ------------------------------------------------------------
+function labVetorFrenteD1_(t){
+    const rad=Number(t?.angulo||0)*Math.PI/180;
+    return {dx:Math.sin(rad),dy:-Math.cos(rad)};
+}
+function labRaioAlvoD1_(a){
+    if(!a)return .4;
+    if(labEhAlvoObjeto_(a)){
+        const w=Math.max(.1,Number(a.larguraM||1)),h=Math.max(.1,Number(a.alturaM||1));
+        return Math.max(.18,Math.min(2.5,Math.max(w,h)/2));
+    }
+    return Math.max(.25,Number(a.diametroM||.9)/2);
+}
+function labPrimeiroAlvoNaDirecaoD1_(t,alc){
+    const {dx,dy}=labVetorFrenteD1_(t),ox=Number(t.x||0),oy=Number(t.y||0);
+    const candidatos=[
+        ...(labEstado_.tokens||[]).filter(x=>String(x.id)!==String(t.id)),
+        ...(labEstado_.objetosLab||[]).filter(o=>!o.destruido&&o.destrutivel!==false)
+    ];
+    let melhor=null,melhorProj=Infinity;
+    for(const a of candidatos){
+        const vx=Number(a.x||0)-ox,vy=Number(a.y||0)-oy;
+        const proj=vx*dx+vy*dy;
+        if(proj<=0||proj>Number(alc||0)+labRaioAlvoD1_(a))continue;
+        const perp=Math.abs(vx*dy-vy*dx);
+        const margem=labRaioAlvoD1_(a)+.12;
+        if(perp>margem)continue;
+        if(proj<melhorProj){melhor=a;melhorProj=proj;}
+    }
+    return melhor;
+}
+function labEhAtaqueCorpoD1_(item){return !labAtaqueEhDistancia_(item);}
+
+function labConsumirAtaqueVazioD1_(t,item){
+    if(Number(t.acoesAtuaisLab||0)<=0)return false;
+    if(labEhArmaMuniciada_(item)&&labMunicaoAtual_(t,item)<=0){notificar_(`${getNome(item)} está sem munição.`,'aviso');return false;}
+    if(labEhArmaMuniciada_(item))labConsumirMunicao_(t,item,1);
+    t.acoesAtuaisLab=Math.max(0,Number(t.acoesAtuaisLab||0)-1);
+    const txt=labAtaqueEhDistancia_(item)?`${t.nome} disparou sem atingir um alvo.`:`${t.nome} golpeou o vazio.`;
+    labRegistrarResultadoProprio_(t,txt);
+    labEstado_.logLab=Array.isArray(labEstado_.logLab)?labEstado_.logLab:[];
+    labEstado_.logLab.unshift({ts:new Date().toLocaleTimeString(),texto:txt});
+    labSalvarLocal_();labRender_();labAutoAvancarSeSemAcoes_();
+    return true;
+}
+function labAtaqueObjetoDiretoD1_(t,o,item){
+    if(Number(t.acoesAtuaisLab||0)<=0)return false;
+    if(labEhArmaMuniciada_(item)&&labMunicaoAtual_(t,item)<=0){notificar_(`${getNome(item)} está sem munição.`,'aviso');return false;}
+    if(labEhArmaMuniciada_(item))labConsumirMunicao_(t,item,1);
+    t.acoesAtuaisLab=Math.max(0,Number(t.acoesAtuaisLab||0)-1);
+    const expr=labExpressaoDano_(t,item)||String(item?.dano||'');
+    const dr=expr?rolarExpressaoDanoCombate_(expr):null;
+    if(!dr){notificar_('Não foi possível interpretar o dano da arma.','aviso');return false;}
+    const bruto=Math.max(0,Number(dr.total||0)),duro=Math.max(0,Number(o.dureza||0)),final=Math.max(0,bruto-duro);
+    o.pvAtual=Math.max(0,Number(o.pvAtual??o.pvMax??0)-final);if(o.pvAtual<=0)o.destruido=true;
+    try{labSomAtaque_(item,'Sucesso');labDispararEfeitoVisualAtaque_(t,o,item,true,'Sucesso');}catch(_){ }
+    labRegistrarResultadoProprio_(t,`${getNome(item)}: ${bruto} bruto · Dureza ${duro} · dano ${final} em ${o.nome}.${o.destruido?' Objeto destruído.':''}`);
+    labEstado_.ultimoResultadoLab=`${t.nome} atingiu ${o.nome}: ${final} de dano${o.destruido?' · destruído':''}.`;
+    labEstado_.logLab=Array.isArray(labEstado_.logLab)?labEstado_.logLab:[];
+    labEstado_.logLab.unshift({ts:new Date().toLocaleTimeString(),texto:labEstado_.ultimoResultadoLab});
+    if(final>0)labAdicionarFloat_(o,-final,'dano');
+    labSalvarLocal_();labRender_();labAutoAvancarSeSemAcoes_();
+    return true;
+}
+
+const labRolarAtaqueD1Base_=window.labRolarAtaque_;
+function labExecutarAtaqueDirecionalMestreD1_(t,alvoId=''){
+    if(!batalhaEhMestre_()||labEstado_.fase!=='combate'||!t)return false;
+    if(labEstado_.pendenciaLab||labEstado_.danoPendenteLab)return false;
+    labGarantirPrefsAtaque_(t);
+    const item=labItemSelecionado_(t);if(!item)return false;
+    const alvo=alvoId?labAlvoAtaquePorId_(alvoId):null;
+    if(!alvo)return labConsumirAtaqueVazioD1_(t,item);
+    const dist=labDistanciaEntre_(t,alvo),alc=labAlcanceAtaque_(t,item);
+    if(dist>alc+labRaioAlvoD1_(alvo)+.01)return labConsumirAtaqueVazioD1_(t,item);
+    if(labEhAlvoObjeto_(alvo))return labAtaqueObjetoDiretoD1_(t,alvo,item);
+    t.alvoLab=String(alvo.id);t._alvoManualFixadoLab=String(alvo.id);t._alvoComandoFixadoLab=String(alvo.id);t._alvoSelecionadoMapa763=true;
+    labRolarAtaqueD1Base_();
+    if(labEstado_.pendenciaLab)labAutoResolverDefesaD1_();
+    return true;
+}
+
+window.labAtacarDirecaoD1_=function(){
+    const t=labAtorControlavelD1_();if(!t||labEstado_.fase!=='combate')return;
+    if(labEstado_.pendenciaLab||labEstado_.danoPendenteLab)return;
+    labGarantirPrefsAtaque_(t);
+    const item=labItemSelecionado_(t);if(!item)return notificar_('Escolha uma arma/ataque no painel.','aviso',2500);
+    const alc=labAlcanceAtaque_(t,item),alvo=labPrimeiroAlvoNaDirecaoD1_(t,alc);
+    const alvoId=String(alvo?.id||'');
+    if(batalhaEhMestre_())return labExecutarAtaqueDirecionalMestreD1_(t,alvoId);
+    labEnviarComandoJogador_('ataque_direcional_d1',{alvoId},t);
+};
+
+// ------------------------------------------------------------
+// Movimento por direção.
+// ------------------------------------------------------------
+function labAnguloDeVetorD1_(dx,dy){let d=Math.atan2(dx,-dy)*180/Math.PI;if(d<0)d+=360;return Math.round(d);}
+function labMoverPassoD1_(dx,dy,dist=.5){
+    const t=labAtorControlavelD1_();if(!t)return false;
+    const n=Math.hypot(dx,dy)||1;dx/=n;dy/=n;
+    const passo=Math.max(.1,Number(dist||.5));
+    t.angulo=labAnguloDeVetorD1_(dx,dy);
+
+    if(labEstado_.fase!=='combate'){
+        t.x=Math.max(0,Math.min(labEstado_.larguraM,Number(t.x||0)+dx*passo));
+        t.y=Math.max(0,Math.min(labEstado_.alturaM,Number(t.y||0)+dy*passo));
+        if(batalhaEhMestre_()){labSalvarLocal_();try{labAgendarSyncRemoto_();}catch(_){}}
+        else labEnviarComandoJogador_('movimento',{x:t.x,y:t.y},t);
+        labRender_();return true;
+    }
+
+    if(Number(t.acoesAtuaisLab||0)<=0&&t.movimentoGratisDisponivel===false)return false;
+    const p=Math.max(.1,labMovimentoPorAcao_(t));if(p<=0)return false;
+    const usado=Math.max(0,Number(t.movimentoUsadoDirecionalD1||0));
+    const gratis=t.movimentoGratisDisponivel!==false?1:0;
+    const custoAntes=Math.max(0,Math.ceil((Math.max(0,usado-gratis)-.0001)/p));
+    const novoUsado=usado+passo;
+    const custoDepois=Math.max(0,Math.ceil((Math.max(0,novoUsado-gratis)-.0001)/p));
+    const extra=Math.max(0,custoDepois-custoAntes);
+    if(extra>Number(t.acoesAtuaisLab||0))return false;
+    t.acoesAtuaisLab=Math.max(0,Number(t.acoesAtuaisLab||0)-extra);
+    if(novoUsado>=1-.001)t.movimentoGratisDisponivel=false;
+    t.movimentoUsadoDirecionalD1=novoUsado;
+    t.x=Math.max(0,Math.min(labEstado_.larguraM,Number(t.x||0)+dx*passo));
+    t.y=Math.max(0,Math.min(labEstado_.alturaM,Number(t.y||0)+dy*passo));
+    if(batalhaEhMestre_()){labSalvarLocal_();try{labAgendarSyncRemoto_();}catch(_){}}
+    else labEnviarComandoJogador_('movimento',{x:t.x,y:t.y},t);
+    labRender_();labAutoAvancarSeSemAcoes_();return true;
+}
+
+function labVirarParaPontoD1_(clientX,clientY){
+    const t=labAtorControlavelD1_(),map=document.getElementById('labMetricMap');if(!t||!map)return false;
+    const rect=map.getBoundingClientRect(),ppm=Number(labEstado_.pxPorMetro||48);
+    const px=(clientX-rect.left)/ppm,py=(clientY-rect.top)/ppm,dx=px-Number(t.x||0),dy=py-Number(t.y||0);
+    if(Math.hypot(dx,dy)<.02)return false;
+    t.angulo=labAnguloDeVetorD1_(dx,dy);
+    if(batalhaEhMestre_()){labSalvarLocal_();try{labAgendarSyncRemoto_();}catch(_){}}
+    labRender_();return true;
+}
+
+// ------------------------------------------------------------
+// Comandos remotos adicionais.
+// ------------------------------------------------------------
+const labProcessarComandoJogadorD1Base_=labProcessarComandoJogador_;
+labProcessarComandoJogador_=async function(personagemId,acao){
+    const tipo=String(acao?.tipo||'');
+    if(!['ataque_direcional_d1','defesa_ativa_d1'].includes(tipo))return labProcessarComandoJogadorD1Base_.apply(this,arguments);
+    const chave=`d1:${tipo}:${personagemId}:${acao?.nonce||''}`;
+    if(labMapaComandosEmProcessamento_.has(chave))return;
+    labMapaComandosEmProcessamento_.add(chave);
+    try{
+        if(!batalhaEhMestre_())return;
+        const t=labTokenPorId_(personagemId);if(!t||!labUidPertenceToken18_(t,acao?.donoUid))return;
+        if(tipo==='defesa_ativa_d1'){
+            t.defesaAtivaD1=String(acao?.payload?.defesaAtivaD1||'');labGarantirDefesasD1_(t);labSalvarLocal_();labAgendarSyncRemoto_();labRender_();return;
+        }
+        if(labEstado_.fase!=='combate'||String(labTokenAtual_()?.id||'')!==String(t.id))return;
+        labExecutarAtaqueDirecionalMestreD1_(t,String(acao?.payload?.alvoId||''));
+        labAgendarSyncRemoto_();
+    }catch(e){console.error('[DIRECIONAL1] comando',e);}finally{
+        try{await deleteDoc(doc(db,'combatesAtivos','mapaMesaExperimental','acoes',String(personagemId)));}catch(_){ }
+        labMapaComandosEmProcessamento_.delete(chave);
+    }
+};
+
+// ------------------------------------------------------------
+// UI: Defesa ativa e remoção dos botões Atacar.
+// ------------------------------------------------------------
+function labAnexarDefesaAtivaD1_(){
+    const el=document.getElementById('labActionPanel');if(!el)return;
+    const t=labTokenPainel21_();if(!t||labEstado_.fase!=='combate')return;
+    labGarantirDefesasD1_(t);
+    if(el.querySelector('.lab-defesa-ativa-d1'))return;
+    const defs=labDefesasDisponiveis_(t)||[];
+    if(!defs.length)return;
+    const row=document.createElement('div');row.className='lab-defesa-ativa-d1';
+    row.style.cssText='display:flex;gap:8px;align-items:center;margin-top:6px;padding:5px 7px;border-radius:7px;background:rgba(255,255,255,.035);font-size:.82em;';
+    row.innerHTML=`<label style="display:flex;align-items:center;gap:6px;margin:0;"><span>Defesa ativa</span><select onchange="labMudarDefesaAtivaD1_(this.value)" style="margin:0;height:32px;padding:2px 7px;">${defs.map(p=>`<option value="${batalhaTokenPericia_(p)}" ${batalhaTokenPericia_(p)===String(t.defesaAtivaD1||'')?'selected':''}>${escaparHtmlInventario_(getNome(p))}</option>`).join('')}</select></label><span>Defesas <b>${Number(t.defesasAtuaisLab||0)}/${Number(t.defesasMaxLab||0)}</b></span>`;
+    const pv=el.querySelector('.lab-pv-title');
+    if(pv&&pv.parentElement)pv.parentElement.insertBefore(row,pv);else el.appendChild(row);
+}
+function labRemoverBotoesAtacarD1_(){
+    const map=document.getElementById('labMetricMap');
+    if(map){for(const b of [...map.querySelectorAll('button')])if(/^\s*⚔️?\s*Atacar/i.test(b.textContent||''))b.remove();}
+    const painel=document.getElementById('labActionPanel');
+    if(painel){for(const b of [...painel.querySelectorAll('button')])if(/Atacar\s*\(/i.test(b.textContent||''))b.remove();}
+}
+
+// ------------------------------------------------------------
+// Mouse/teclado.
+// ------------------------------------------------------------
+let labMouseMoverTimerD1_=null,labMouseMoveIntervalD1_=null,labMousePontoD1_=null;
+function labPararMouseD1_(){if(labMouseMoverTimerD1_){clearTimeout(labMouseMoverTimerD1_);labMouseMoverTimerD1_=null;}if(labMouseMoveIntervalD1_){clearInterval(labMouseMoveIntervalD1_);labMouseMoveIntervalD1_=null;}labMousePontoD1_=null;}
+function labInstalarControlesD1_(){
+    const map=document.getElementById('labMetricMap');if(!map||map.dataset.direcionalD1==='1')return;
+    map.dataset.direcionalD1='1';
+    map.addEventListener('contextmenu',ev=>{ev.preventDefault();ev.stopPropagation();window.labAtacarDirecaoD1_();});
+    map.addEventListener('pointerdown',ev=>{
+        if(ev.button!==0)return;
+        if(ev.target.closest('button,select,input,textarea,.lab-token,.lab-map-object,.lab-micro-actions,.lab-facing-frame'))return;
+        labMousePontoD1_={x:ev.clientX,y:ev.clientY};
+        labVirarParaPontoD1_(ev.clientX,ev.clientY);
+        labMouseMoverTimerD1_=setTimeout(()=>{
+            labMouseMoveIntervalD1_=setInterval(()=>{
+                const t=labAtorControlavelD1_(),m=document.getElementById('labMetricMap');if(!t||!m||!labMousePontoD1_)return labPararMouseD1_();
+                const rect=m.getBoundingClientRect(),ppm=Number(labEstado_.pxPorMetro||48),px=(labMousePontoD1_.x-rect.left)/ppm,py=(labMousePontoD1_.y-rect.top)/ppm;
+                const dx=px-Number(t.x||0),dy=py-Number(t.y||0);if(Math.hypot(dx,dy)<.18)return;
+                labMoverPassoD1_(dx,dy,.35);
+            },120);
+        },220);
+    });
+    map.addEventListener('pointermove',ev=>{if(labMousePontoD1_){labMousePontoD1_={x:ev.clientX,y:ev.clientY};}});
+    map.addEventListener('pointerup',()=>labPararMouseD1_());
+    map.addEventListener('pointerleave',()=>labPararMouseD1_());
+}
+if(!window.__labTeclasD1){
+    window.__labTeclasD1=true;
+    window.addEventListener('keydown',ev=>{
+        const tag=String(ev.target?.tagName||'').toLowerCase();
+        if(['input','textarea','select'].includes(tag)||ev.target?.isContentEditable)return;
+        const mapAtivoD1=document.getElementById('labMetricMap');
+        if(!mapAtivoD1||mapAtivoD1.offsetParent===null)return;
+        const k=ev.key;
+        if(k==='a'||k==='A'){ev.preventDefault();window.labAtacarDirecaoD1_();return;}
+        const dirs={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0],'8':[0,-1],'2':[0,1],'4':[-1,0],'6':[1,0],'7':[-1,-1],'9':[1,-1],'1':[-1,1],'3':[1,1]};
+        const d=dirs[k];if(!d)return;
+        ev.preventDefault();labMoverPassoD1_(d[0],d[1],1);
+    });
+}
+
+const labRenderD1Base_=labRender_;
+labRender_=function(){
+    for(const t of (labEstado_.tokens||[]))labGarantirDefesasD1_(t);
+    const r=labRenderD1Base_.apply(this,arguments);
+    try{labAnexarDefesaAtivaD1_();labRemoverBotoesAtacarD1_();labInstalarControlesD1_();}catch(e){console.warn('[DIRECIONAL1] UI',e);}
+    return r;
+};
+window.labRender_=labRender_;
 
