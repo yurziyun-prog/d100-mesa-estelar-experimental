@@ -56,8 +56,8 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-console.info('[Mesa Estelar] build EXP-DIRECIONAL-4 carregado');
-window.__MESA_BUILD__ = 'EXP-DIRECIONAL-4';
+console.info('[Mesa Estelar] build EXP-DIRECIONAL-5 carregado');
+window.__MESA_BUILD__ = 'EXP-DIRECIONAL-5';
 
 let currentUserUid = null;
 let userData = null;
@@ -5294,7 +5294,7 @@ function labIniciarEscutaComandosJogadores_(){
 
 function labEstadoPublico_(){
     const clone=JSON.parse(JSON.stringify(labEstado_||{}));
-    clone.tokens=(clone.tokens||[]).map(t=>{const x={...t};delete x.charLab;delete x.municaoLab;delete x.attrs;delete x.psiSelecaoLab;delete x.psSelecaoLab;return x;});
+    clone.tokens=(clone.tokens||[]).map(t=>{const x={...t};delete x.charLab;delete x.attrs;delete x.psiSelecaoLab;delete x.psSelecaoLab;return x;});
     clone.objetosLab=(clone.objetosLab||[]).map(o=>{const x={...o};delete x.imagem;return x;});
     if(clone.oficina2State?.elements)clone.oficina2State.elements=clone.oficina2State.elements.map(e=>e.type==='object'?({...e,src:''}):e);
     clone.objetoSelecionadoId='';clone.selecionadoId='';clone.modoCriacaoMapa=false;return clone;
@@ -6374,7 +6374,7 @@ window.labEscolherEfeito_=function(id){
     dp.efeitosEscolhidos.push(efeito);dp.efeitosRestantes=Math.max(0,Number(dp.efeitosRestantes||0)-1);
     labSalvarLocal_();labRender_();
     if(Number(dp.efeitosRestantes||0)<=0){
-        setTimeout(()=>{if(labEstado_.danoPendenteLab===dp)window.labRolarDano_();},320);
+        setTimeout(()=>{if(labMesmaPendenciaD5_(dp))window.labRolarDano_();},320);
     }
 };
 window.labConfirmarLocalizacao_=function(loc){
@@ -6384,13 +6384,13 @@ window.labConfirmarLocalizacao_=function(loc){
     dp.efeitosEscolhidos.push('escolher_localizacao');dp.efeitosRestantes=Math.max(0,Number(dp.efeitosRestantes||0)-1);
     labSalvarLocal_();labRender_();
     if(Number(dp.efeitosRestantes||0)<=0){
-        setTimeout(()=>{if(labEstado_.danoPendenteLab===dp)window.labRolarDano_();},320);
+        setTimeout(()=>{if(labMesmaPendenciaD5_(dp))window.labRolarDano_();},320);
     }
 };
 window.labPularEfeitos_=function(){
     const dp=labEstado_.danoPendenteLab;if(!dp)return;
     dp.efeitosRestantes=0;dp.escolhendoLocalizacao=false;labSalvarLocal_();labRender_();
-    setTimeout(()=>{if(labEstado_.danoPendenteLab===dp)window.labRolarDano_();},260);
+    setTimeout(()=>{if(labMesmaPendenciaD5_(dp))window.labRolarDano_();},260);
 };
 window.labResponderDefesa_=function(defender=true){
     const pend=labEstado_.pendenciaLab;if(!pend)return;
@@ -6407,7 +6407,7 @@ window.labResponderDefesa_=function(defender=true){
         const r=classificarD100_(valorDef,rollDef);if(bonusInt>0)defensor.bonusIntuicaoPendenteLab=0;if(bonusMente>0)defensor.menteAceleradaCargasLab=Math.max(0,Number(defensor.menteAceleradaCargasLab||0)-1);if(defensor.bonusDificuldadeFacilPsiLab)defensor.bonusDificuldadeFacilPsiLab=0;labSomDefesa_();
         dg=batalhaResultadoGradeValor_(r.grau);grauDef=r.grau;
         const usouDefPsi=Number(defensor.acoesDefensivasPsiLab||0)>0;if(usouDefPsi)defensor.acoesDefensivasPsiLab=Math.max(0,Number(defensor.acoesDefensivasPsiLab||0)-1);else defensor.acoesAtuaisLab=Math.max(0,Number(defensor.acoesAtuaisLab||0)-1);if(r.grau==='Crítico'){if(usouDefPsi)defensor.acoesDefensivasPsiLab++;else defensor.acoesAtuaisLab=Math.min(Number(defensor.acoesMaxLab||0)+6,Number(defensor.acoesAtuaisLab||0)+1);}else if(r.grau==='Fiasco'){if(Number(defensor.acoesAtuaisLab||0)>0)defensor.acoesAtuaisLab--;else defensor.penalidadeAcaoProximaLab=Math.max(1,Number(defensor.penalidadeAcaoProximaLab||0));}
-        labRegistrarResultadoProprio_(defensor,`Defesa: ${getNome(per)} ${rollDef}/${valorDef} → ${r.grau}${bonusInt?` · Intuição +${bonusInt}%`:''}${bonusMente?` · Mente Acelerada +${bonusMente}%`:''}.`);
+        labRegistrarResultadoProprio_(defensor,`Defesa contra ${atacante.nome}: ${getNome(per)} ${rollDef}/${valorDef} → ${r.grau}${bonusInt?` · Intuição +${bonusInt}%`:''}${bonusMente?` · Mente Acelerada +${bonusMente}%`:''}.`);
         txtPublico=`${getNome(per)}: ${r.grau}`;
     }
 
@@ -6445,11 +6445,11 @@ window.labResponderDefesa_=function(defender=true){
         const qtd=labEfeitosQuantidade_(pend.grauAtaque,grauDef,!defender);
         labEstado_.danoPendenteLab={...pend,defesaTexto:txtPublico,grauDefesa:grauDef,rolagemDefesa:rollDef,valorDefesa:valorDef,
             defesaTipo:ehEsquiva?'esquiva':(defender?'aparar':'nenhuma'),efeitosRestantes:qtd,efeitosEscolhidos:[],danoAutomatico:false};
-        atacante.ultimoResultadoProprioLab=`${pend.pericia} ${pend.rolagemAtaque}/${pend.valorAtaque} → ${pend.grauAtaque}. ${ehEsquiva?`Esquiva adversária: ${grauDef}. `:''}Ataque atingiu o alvo.${qtd?` ${qtd} efeito(s) especial(is).`:''}`;
+        atacante.ultimoResultadoProprioLab=`Ataque contra ${defensor.nome}: ${pend.pericia} ${pend.rolagemAtaque}/${pend.valorAtaque} → ${pend.grauAtaque}. ${ehEsquiva?`Defesa adversária: ${grauDef}. `:''}Ataque atingiu o alvo.${qtd?` ${qtd} efeito(s) especial(is).`:''}`;
         labEstado_.ultimoResultadoLab=`${atacante.nome} atingiu ${defensor.nome}.${qtd?` ${qtd} efeito(s) especial(is) disponível(is).`:''}`;
     }else{
         labEstado_.danoPendenteLab=null;
-        atacante.ultimoResultadoProprioLab=`${pend.pericia} ${pend.rolagemAtaque}/${pend.valorAtaque} → ${pend.grauAtaque}. O alvo evitou o golpe.`;
+        atacante.ultimoResultadoProprioLab=`Ataque contra ${defensor.nome}: ${pend.pericia} ${pend.rolagemAtaque}/${pend.valorAtaque} → ${pend.grauAtaque}. O alvo evitou o golpe.`;
         labEstado_.ultimoResultadoLab=`${defensor.nome} evitou o ataque.`;
     }
     labEstado_.pendenciaLab=null;
@@ -6774,13 +6774,13 @@ window.labRolarAtaque_=function(){
         labEnviarComandoJogador_('ataque',{periciaLab:t.periciaLab,equipamentoLab:t.equipamentoLab,alvoId:String(alvo.id)},t);
         return;
     }
-    const bonusInt=Math.max(0,Number(t.bonusIntuicaoPendenteLab||0)),bonusMente=Number(t.menteAceleradaCargasLab||0)>0&&/INT/.test(String(per.formula||''))?Math.max(0,Number(t.menteAceleradaBonusLab||20)):0,valor=labValorPericiaAtaque_(c,per,alvo,item)+bonusMente,roll=1+Math.floor(Math.random()*100),r=classificarD100_(valor,roll);if(bonusInt>0)t.bonusIntuicaoPendenteLab=0;if(bonusMente>0)t.menteAceleradaCargasLab=Math.max(0,Number(t.menteAceleradaCargasLab||0)-1);if(t.bonusDificuldadeFacilPsiLab)t.bonusDificuldadeFacilPsiLab=0;
+    const bonusInt=Math.max(0,Number(t.bonusIntuicaoPendenteLab||0)),bonusMente=Number(t.menteAceleradaCargasLab||0)>0&&/INT/.test(String(per.formula||''))?Math.max(0,Number(t.menteAceleradaBonusLab||20)):0,valor=labValorPericiaAtaque_(c,per,alvo,item)+bonusMente,roll=labRolarD100MapaD5_(),r=classificarD100_(valor,roll);if(bonusInt>0)t.bonusIntuicaoPendenteLab=0;if(bonusMente>0)t.menteAceleradaCargasLab=Math.max(0,Number(t.menteAceleradaCargasLab||0)-1);if(t.bonusDificuldadeFacilPsiLab)t.bonusDificuldadeFacilPsiLab=0;
     labConsumirMunicao_(t,item,1);
     labSomAtaque_(item,r.grau);
     labDispararEfeitoVisualAtaque_(t,alvo,item,r.sucesso,r.grau);
     t.acoesAtuaisLab=Math.max(0,Number(t.acoesAtuaisLab||0)-1);if(r.grau==='Crítico')t.acoesAtuaisLab=Math.min(Number(t.acoesMaxLab||0)+6,Number(t.acoesAtuaisLab||0)+1);else if(r.grau==='Fiasco'){if(Number(t.acoesAtuaisLab||0)>0)t.acoesAtuaisLab--;else t.penalidadeAcaoProximaLab=Math.max(1,Number(t.penalidadeAcaoProximaLab||0));}
     const base=`${t.nome} → ${alvo.nome}: ${getNome(per)} ${roll}/${valor} → ${r.grau} · ${dist.toFixed(2)} m · ${getNome(item)}.`;
-    labRegistrarResultadoProprio_(t,`Ataque: ${getNome(per)} ${roll}/${valor} → ${r.grau}${bonusInt?` · Intuição +${bonusInt}%`:''}.`);
+    labRegistrarResultadoProprio_(t,`Ataque contra ${alvo.nome}: ${getNome(per)} ${roll}/${valor} → ${r.grau}${bonusInt?` · Intuição +${bonusInt}%`:''}.`);
     let danoAutomatico=false;
     if(r.sucesso&&labEhAlvoObjeto_(alvo)){
         const expr=String(item?.dano||item?.damage||'').trim(),dr=expr?rolarExpressaoDanoCombate_(expr):null;
@@ -6794,14 +6794,14 @@ window.labRolarAtaque_=function(){
         const stAlvo=labGarantirSnapshotCombate_(alvo);
         const defesasPossiveis=String(alvo.id).startsWith('dummy:')?[]:labDefesasDisponiveis_(alvo);
         const semReacao=String(alvo.id).startsWith('dummy:')
-            || (Number(alvo.acoesAtuaisLab||0)<=0&&Number(alvo.acoesDefensivasPsiLab||0)<=0)
+            || Number(alvo.defesasAtuaisLab||0)<=0
             || !defesasPossiveis.length
             || !!stAlvo?.morto
             || !!stAlvo?.inconsciente;
         if(semReacao){
             const qtd=(stAlvo?.morto||stAlvo?.inconsciente)?0:labEfeitosQuantidade_(r.grau,'Falha',true);
             labEstado_.danoPendenteLab={...pend,efeitosRestantes:qtd,efeitosEscolhidos:[],danoAutomatico:true};
-            const motivo=stAlvo?.morto?'alvo já incapacitado/morto':stAlvo?.inconsciente?'alvo inconsciente':(Number(alvo.acoesAtuaisLab||0)<=0&&Number(alvo.acoesDefensivasPsiLab||0)<=0)?'sem AÇ para reagir':!defesasPossiveis.length?'sem defesa possível':'alvo sem reação';
+            const motivo=stAlvo?.morto?'alvo já incapacitado/morto':stAlvo?.inconsciente?'alvo inconsciente':Number(alvo.defesasAtuaisLab||0)<=0?'sem Defesas restantes':!defesasPossiveis.length?'sem defesa possível':'alvo sem reação';
             labEstado_.ultimoResultadoLab=base+` ${motivo}; ${qtd?`${qtd} efeito(s) especial(is) antes do dano automático.`:'dano automático.'}`;
             danoAutomatico=qtd===0;
         }else{
@@ -6867,7 +6867,7 @@ function labRenderActionPanel_(){
             if(!p.escolhendoLocalizacao&&!efs.length){
                 p.efeitosRestantes=0;
                 labSalvarLocal_();
-                setTimeout(()=>{if(labEstado_.danoPendenteLab===p)window.labRolarDano_();},220);
+                setTimeout(()=>{if(labMesmaPendenciaD5_(p))window.labRolarDano_();},220);
                 el.innerHTML='<div style="color:#9fffb0;font-weight:700;">Nenhum efeito especial aplicável. Resolvendo dano…</div>';
                 return;
             }
@@ -7154,12 +7154,10 @@ window.labMicroExecutar_=function(){
 };
 // V46.79.0 — painéis contextuais nunca ficam escondidos para fora da borda inferior do mapa.
 function labMicroPosicaoVertical_(centroPx,meiaAlturaPx,ppm,alturaPainelPx=52){
-    const mapaH=Math.max(0,Number(labEstado_?.alturaM||0)*Number(ppm||0));
-    const baixo=Number(centroPx||0)+Number(meiaAlturaPx||0)+7;
-    const precisaSubir=mapaH>0 && baixo+Math.max(30,Number(alturaPainelPx||52))>mapaH-4;
-    return precisaSubir
-      ? {top:Math.max(2,Number(centroPx||0)-Number(meiaAlturaPx||0)-5),transform:'translate(-50%,-100%)'}
-      : {top:baixo,transform:'translateX(-50%)'};
+    return {
+      top:Math.max(2,Number(centroPx||0)-Number(meiaAlturaPx||0)-7),
+      transform:'translate(-50%,-100%)'
+    };
 }
 function labMicroPainelHtml_(alvoVisual,ppm,d){
     if(labEstado_.fase!=='combate'||!alvoVisual)return '';
@@ -7178,8 +7176,8 @@ function labMicroPainelHtml_(alvoVisual,ppm,d){
     }
 
     if(dp&&String(dp.defensorId)===String(alvoVisual.id)&&String(dp.atacanteId)===String(ator.id)&&Number(dp.efeitosRestantes||0)>0&&!dp.escolhendoLocalizacao){
-        const efs=labEfeitosDisponiveis_(dp),top=Math.max(2,alvoVisual.y*ppm-d/2-42);
-        return `<div class="lab-micro-actions" onclick="event.stopPropagation()" onpointerdown="event.stopPropagation()" style="position:absolute;left:${left}px;top:${top}px;transform:translateX(-50%);z-index:24;padding:4px;border-radius:8px;background:rgba(10,13,30,.97);border:1px solid rgba(255,213,74,.65);display:flex;gap:3px;flex-wrap:wrap;justify-content:center;max-width:330px;">
+        const efs=labEfeitosDisponiveis_(dp),top=Math.max(2,alvoVisual.y*ppm-d/2-7);
+        return `<div class="lab-micro-actions" onclick="event.stopPropagation()" onpointerdown="event.stopPropagation()" style="position:absolute;left:${left}px;top:${top}px;transform:translate(-50%,-100%);z-index:24;padding:4px;border-radius:8px;background:rgba(10,13,30,.97);border:1px solid rgba(255,213,74,.65);display:flex;gap:3px;flex-wrap:wrap;justify-content:center;max-width:330px;">
           ${efs.map(e=>`<button class="btn-small" onclick="labEscolherEfeito_('${e.id}')" style="min-height:21px;padding:1px 5px;font-size:.62em;line-height:1.1;">${escaparHtmlInventario_(e.nome)}</button>`).join('')}
           <button class="btn-small" onclick="labPularEfeitos_()" style="min-height:21px;padding:1px 5px;font-size:.62em;line-height:1.1;">Pular</button>
         </div>`;
@@ -32416,7 +32414,7 @@ function labEstadoPublicoSync10_(){
     clone.tokens=(clone.tokens||[]).map(t=>{
         const x={...t};
         delete x.charLab;
-        delete x.municaoLab;
+        
         delete x.attrs;
         delete x.psiSelecaoLab;
         delete x.psSelecaoLab;
@@ -34155,7 +34153,7 @@ labProcessarComandoJogador_=async function(personagemId,acao){
                     if(dp&&Number(dp.efeitosRestantes||0)<=0){
                         dp.danoAutomatico=true;
                         setTimeout(()=>{
-                            if(labEstado_.danoPendenteLab===dp)window.labRolarDano_();
+                            if(labMesmaPendenciaD5_(dp))window.labRolarDano_();
                         },80);
                     }
                 }
@@ -34195,7 +34193,7 @@ labProcessarComandoJogador_=async function(personagemId,acao){
                 if(dp&&Number(dp.efeitosRestantes||0)<=0){
                     dp.danoAutomatico=true;
                     setTimeout(()=>{
-                        if(labEstado_.danoPendenteLab===dp)window.labRolarDano_();
+                        if(labMesmaPendenciaD5_(dp))window.labRolarDano_();
                     },80);
                 }
             }
@@ -34465,7 +34463,7 @@ function labRenderResolucaoPJ19_(el,dp,a,d){
             if(window.__LAB_SKIP19__!==key){
                 window.__LAB_SKIP19__=key;
                 setTimeout(()=>{
-                    if(labEstado_.danoPendenteLab===dp)labPularEfeitos_();
+                    if(labMesmaPendenciaD5_(dp))labPularEfeitos_();
                 },60);
             }
             return;
@@ -36628,4 +36626,367 @@ labRender_=function(){
 };
 window.labRender_=labRender_;
 
+
+
+
+
+// ============================================================
+// EXP-DIRECIONAL-5
+// Combate responsivo:
+// - a própria conta do PJ rola o d100 de ataque imediatamente;
+// - o mestre reutiliza exatamente essa rolagem para resolver o ataque;
+// - munição do token é sincronizada;
+// - auto-defesa usa Defesas, não AÇ;
+// - dano automático não trava após snapshots;
+// - eventos visuais ficam numa pequena fila compartilhada;
+// - a sessão do mestre ignora o eco dos próprios writes no Firestore;
+// - outras sessões do mestre continuam recebendo os updates.
+// ============================================================
+
+function labMesmaPendenciaD5_(ref){
+    const atual=labEstado_.danoPendenteLab;
+    if(!atual||!ref)return false;
+    const a=String(atual.id||''),b=String(ref.id||'');
+    return a&&b?a===b:atual===ref;
+}
+
+let labRollForcadoD5_=null;
+function labRolarD100MapaD5_(){
+    const f=Number(labRollForcadoD5_);
+    if(Number.isFinite(f)&&f>=1&&f<=100){
+        labRollForcadoD5_=null;
+        return Math.floor(f);
+    }
+    return 1+Math.floor(Math.random()*100);
+}
+
+const LAB_SESSAO_D5_=`d5_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,8)}`;
+let labSyncD5Timer_=null;
+
+// O próprio mestre não precisa receber e reaplicar o snapshot que ele acabou
+// de publicar. Isso reduzia desempenho e podia invalidar timeouts por recriar
+// danoPendenteLab no meio da resolução.
+const labAplicarEstadoRemotoD5Base_=labAplicarEstadoRemotoD3_;
+labAplicarEstadoRemotoD3_=function(remoto){
+    if(
+        batalhaEhMestre_() &&
+        labD3EstadoInicializado_ &&
+        String(remoto?.origemSessaoD5||'')===LAB_SESSAO_D5_
+    ){
+        return true;
+    }
+
+    const r=labAplicarEstadoRemotoD5Base_.apply(this,arguments);
+
+    // Confirma uma ação local do PJ quando o mestre devolve a mesma sequência.
+    if(!batalhaEhMestre_()){
+        try{
+            for(const t of labTokensDoJogador21_()){
+                const seq=String(t?.ultimoAtaqueSeqD5||'');
+                if(seq&&window.__LAB_ATK_PEND_D5__===seq){
+                    window.__LAB_ATK_PEND_D5__='';
+                }
+            }
+        }catch(_){}
+    }
+
+    try{labRenderEventosVisuaisD5_();}catch(_){}
+    return r;
+};
+
+// Debounce curto para combate. Movimento contínuo continua sendo amortecido
+// pela DIRECIONAL4 antes de chegar aqui.
+labAgendarSyncRemoto_=function(){
+    if(!batalhaEhMestre_()||labAplicandoRemoto_||!labD3EstadoInicializado_)return;
+    clearTimeout(labSyncD5Timer_);
+    labSyncD5Timer_=setTimeout(async()=>{
+        try{
+            labSync13PurgarEstadoLocal_();
+            const estado=labSync13EstadoPublico_();
+            estado.origemSessaoD5=LAB_SESSAO_D5_;
+            await setDoc(
+                LAB_MAPA_MESA_REF_(),
+                {
+                    estado,
+                    atualizadoEm:new Date().toISOString(),
+                    canal:LAB_SYNC13_CANAL_,
+                    origemSessaoD5:LAB_SESSAO_D5_
+                },
+                {merge:false}
+            );
+        }catch(e){
+            console.error('[DIRECIONAL5] sincronização',e);
+        }
+    },55);
+};
+
+// ------------------------------------------------------------
+// Fila curta de FX: evita perder o tiro quando outro estado é publicado
+// imediatamente depois dele.
+// ------------------------------------------------------------
+const labFxVistosD5_=new Set();
+let labFxIdForcadoD5_='';
+
+function labPushFxD5_(fx){
+    if(!fx?.id)return;
+    labEstado_.efeitosVisuaisD5=Array.isArray(labEstado_.efeitosVisuaisD5)
+        ?labEstado_.efeitosVisuaisD5:[];
+    labEstado_.efeitosVisuaisD5.push(JSON.parse(JSON.stringify(fx)));
+    labEstado_.efeitosVisuaisD5=labEstado_.efeitosVisuaisD5
+        .filter(x=>Date.now()-Number(x?.ts||0)<8000)
+        .slice(-8);
+}
+
+function labRenderUmFxD5_(fx){
+    if(!fx?.id||labFxVistosD5_.has(String(fx.id)))return false;
+    if(Date.now()-Number(fx.ts||0)>6500){
+        labFxVistosD5_.add(String(fx.id));
+        return false;
+    }
+
+    let ok=false;
+    try{
+        if(fx.tipo==='energia_melee'){
+            const a=labTokenPorId_(fx.atacanteId);
+            const d=labAlvoAtaquePorId_(fx.alvoId);
+            const item=encontrarItemCombatePorId_(fx.itemId);
+            if(a&&d&&item){
+                labMostrarGolpeEnergiaV247_(a,d,item,fx.acertou);
+                ok=true;
+            }
+        }else{
+            ok=!!labLaserCriarBodyV3_(fx);
+        }
+    }catch(_){}
+
+    if(ok)labFxVistosD5_.add(String(fx.id));
+    return ok;
+}
+
+function labRenderEventosVisuaisD5_(){
+    for(const fx of (labEstado_.efeitosVisuaisD5||[])){
+        if(labFxVistosD5_.has(String(fx?.id||'')))continue;
+        if(!labRenderUmFxD5_(fx)){
+            // DOM pode ainda estar terminando o render do mapa.
+            setTimeout(()=>labRenderUmFxD5_(fx),80);
+            setTimeout(()=>labRenderUmFxD5_(fx),180);
+        }
+    }
+}
+
+const labDispararEfeitoVisualAtaqueD5Base_=labDispararEfeitoVisualAtaque_;
+labDispararEfeitoVisualAtaque_=function(atacante,alvo,item,acertou,grau){
+    const r=labDispararEfeitoVisualAtaqueD5Base_.apply(this,arguments);
+    try{
+        const fx=labEstado_.efeitoVisualLab;
+        if(fx?.id){
+            if(labFxIdForcadoD5_){
+                fx.id=String(labFxIdForcadoD5_);
+                labFxIdForcadoD5_='';
+            }
+            if(!fx.itemId&&item?.id)fx.itemId=String(item.id);
+            if(!fx.itemId&&item?.idBanco)fx.itemId=String(item.idBanco);
+            labPushFxD5_(fx);
+        }
+    }catch(_){}
+    return r;
+};
+
+// ------------------------------------------------------------
+// Auto-defesa: depois da defesa automática, se não houver efeitos,
+// o dano é resolvido automaticamente. A reserva é Defesas, não AÇ.
+// ------------------------------------------------------------
+const labAutoResolverDefesaD5Base_=labAutoResolverDefesaD1_;
+labAutoResolverDefesaD1_=function(){
+    const pendAntes=labEstado_.pendenciaLab
+        ?JSON.parse(JSON.stringify(labEstado_.pendenciaLab))
+        :null;
+
+    const r=labAutoResolverDefesaD5Base_.apply(this,arguments);
+
+    const dp=labEstado_.danoPendenteLab;
+    if(dp){
+        if(Number(dp.efeitosRestantes||0)<=0&&!dp.escolhendoLocalizacao){
+            dp.danoAutomatico=true;
+            const id=String(dp.id||'');
+            setTimeout(()=>{
+                const atual=labEstado_.danoPendenteLab;
+                if(atual&&String(atual.id||'')===id)window.labRolarDano_();
+            },55);
+        }
+    }
+
+    labAgendarSyncRemoto_();
+    return r;
+};
+
+// ------------------------------------------------------------
+// Ataque do jogador: d100 e feedback local imediatos.
+// O mestre recebe a rolagem e a reutiliza.
+// ------------------------------------------------------------
+function labFxPreviewD5_(t,alvo,item,grau,fxId){
+    if(!t||!alvo||!item||!fxId)return;
+    const tipo=labEhLaminaEnergia481_(item)?'energia_melee':labTipoVisualArma_(item);
+    if(!tipo)return;
+
+    const fx={
+        id:String(fxId),
+        tipo:tipo==='energia_melee'?'energia_melee':'laser',
+        atacanteId:String(t.id||''),
+        alvoId:String(alvo.id||''),
+        itemId:String(item.id||item.idBanco||''),
+        cor:tipo==='energia_melee'?labEnergyMeleeCorV247_(item):labCorVisualArma_(item),
+        acertou:!/falha|fiasco/i.test(String(grau||'')),
+        grau:String(grau||''),
+        ts:Date.now()
+    };
+    if(labRenderUmFxD5_(fx))labFxVistosD5_.add(String(fx.id));
+}
+
+window.labAtacarDirecaoD1_=async function(){
+    const t=labAtorControlavelD1_();
+    if(!t||labEstado_.fase!=='combate')return;
+    if(labEstado_.pendenciaLab||labEstado_.danoPendenteLab)return;
+    if(window.__LAB_ATK_PEND_D5__)return;
+
+    labGarantirPrefsAtaque_(t);
+    const item=labItemSelecionado_(t);
+    if(!item)return notificar_('Escolha uma arma/ataque no painel.','aviso',2500);
+
+    if(Number(t.acoesAtuaisLab||0)<=0){
+        notificar_('Sem AÇ restantes.','aviso',2200);
+        return;
+    }
+    if(labEhArmaMuniciada_(item)&&labMunicaoAtual_(t,item)<=0){
+        notificar_(`${getNome(item)} está sem munição.`,'aviso',2500);
+        return;
+    }
+
+    const alc=labAlcanceAtaque_(t,item);
+    const alvo=labPrimeiroAlvoNaDirecaoD1_(t,alc);
+    const alvoId=String(alvo?.id||'');
+
+    if(batalhaEhMestre_()){
+        return labExecutarAtaqueDirecionalMestreD1_(t,alvoId);
+    }
+
+    const per=labPericiaPorToken_(t,t.periciaLab);
+    const c=labCharToken_(t);
+    let rollLocal=null,valorLocal=null,grauLocal='';
+    const seq=`atk5_${Date.now()}_${Math.random().toString(36).slice(2,7)}`;
+    const fxId=`fxd5_${Date.now()}_${Math.random().toString(36).slice(2,7)}`;
+
+    // Ataque contra personagem: o próprio PJ já conhece sua rolagem.
+    if(alvo&&!labEhAlvoObjeto_(alvo)&&per&&c){
+        valorLocal=labValorPericiaAtaque_(c,per,alvo,item);
+        rollLocal=1+Math.floor(Math.random()*100);
+        grauLocal=classificarD100_(valorLocal,rollLocal).grau;
+        labRegistrarResultadoProprio_(
+            t,
+            `Ataque contra ${alvo.nome}: ${getNome(per)} ${rollLocal}/${valorLocal} → ${grauLocal}.`
+        );
+        labFxPreviewD5_(t,alvo,item,grauLocal,fxId);
+    }else if(alvo){
+        labRegistrarResultadoProprio_(t,`${getNome(item)} contra ${alvo.nome}.`);
+    }else{
+        labRegistrarResultadoProprio_(
+            t,
+            labAtaqueEhDistancia_(item)?`${getNome(item)}: disparo sem alvo.`:`${getNome(item)}: golpe sem alvo.`
+        );
+    }
+
+    // Feedback local: munição/AÇ mudam na hora. O mestre fará a mesma mutação
+    // na cópia autoritativa e a confirmação substituirá este estado.
+    const acoesAntes=Number(t.acoesAtuaisLab||0);
+    const munAntes=labEhArmaMuniciada_(item)?labMunicaoAtual_(t,item):Infinity;
+    if(labEhArmaMuniciada_(item))labConsumirMunicao_(t,item,1);
+    t.acoesAtuaisLab=Math.max(0,acoesAntes-1);
+    window.__LAB_ATK_PEND_D5__=seq;
+    labRender_();
+
+    const ok=await labEnviarComandoJogador_(
+        'ataque_direcional_d1',
+        {
+            alvoId,
+            periciaLab:String(t.periciaLab||''),
+            equipamentoLab:String(t.equipamentoLab||''),
+            rolagemD5:rollLocal,
+            valorPreviewD5:valorLocal,
+            ataqueSeqD5:seq,
+            fxIdD5:fxId
+        },
+        t
+    );
+
+    if(!ok){
+        t.acoesAtuaisLab=acoesAntes;
+        if(labEhArmaMuniciada_(item)){
+            t.municaoLab=t.municaoLab||{};
+            t.municaoLab[labChaveArma_(item)]=munAntes;
+        }
+        window.__LAB_ATK_PEND_D5__='';
+        labRender_();
+    }
+};
+
+// Mestre intercepta o comando direcional antes da camada DIRECIONAL1.
+const labProcessarComandoJogadorD5Base_=labProcessarComandoJogador_;
+labProcessarComandoJogador_=async function(personagemId,acao){
+    if(String(acao?.tipo||'')!=='ataque_direcional_d1'){
+        return labProcessarComandoJogadorD5Base_.apply(this,arguments);
+    }
+
+    const chave=`d5atk:${personagemId}:${acao?.nonce||''}`;
+    if(labMapaComandosEmProcessamento_.has(chave))return;
+    labMapaComandosEmProcessamento_.add(chave);
+
+    try{
+        if(!batalhaEhMestre_()||labEstado_.fase!=='combate')return;
+        const t=labTokenPorId_(personagemId);
+        if(!t||!labUidPertenceToken18_(t,acao?.donoUid))return;
+        if(String(labTokenAtual_()?.id||'')!==String(t.id))return;
+
+        const pl=acao?.payload||{};
+        if(pl.periciaLab)t.periciaLab=String(pl.periciaLab);
+        if(pl.equipamentoLab)t.equipamentoLab=String(pl.equipamentoLab);
+
+        const rr=Number(pl.rolagemD5);
+        labRollForcadoD5_=Number.isFinite(rr)&&rr>=1&&rr<=100?rr:null;
+        labFxIdForcadoD5_=String(pl.fxIdD5||'');
+
+        labGarantirDefesasD1_(t);
+        const alvo=labAlvoAtaquePorId_(String(pl.alvoId||''));
+        if(alvo&&!labEhAlvoObjeto_(alvo))labGarantirDefesasD1_(alvo);
+
+        labExecutarAtaqueDirecionalMestreD1_(t,String(pl.alvoId||''));
+
+        t.ultimoAtaqueSeqD5=String(pl.ataqueSeqD5||'');
+        labRollForcadoD5_=null;
+        labFxIdForcadoD5_='';
+
+        labAgendarSyncRemoto_();
+    }catch(e){
+        labRollForcadoD5_=null;
+        labFxIdForcadoD5_='';
+        console.error('[DIRECIONAL5] ataque remoto',e);
+    }finally{
+        try{
+            await deleteDoc(
+                doc(db,'combatesAtivos','mapaMesaExperimental','acoes',String(personagemId))
+            );
+        }catch(_){}
+        labMapaComandosEmProcessamento_.delete(chave);
+    }
+};
+
+// ------------------------------------------------------------
+// Render final: FX pendentes e balões acima do token.
+// ------------------------------------------------------------
+const labRenderD5Base_=labRender_;
+labRender_=function(){
+    const r=labRenderD5Base_.apply(this,arguments);
+    try{labRenderEventosVisuaisD5_();}catch(_){}
+    return r;
+};
+window.labRender_=labRender_;
 
