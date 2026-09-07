@@ -56,8 +56,8 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-console.info('[Mesa Estelar] build EXP-DIRECIONAL-5 carregado');
-window.__MESA_BUILD__ = 'EXP-DIRECIONAL-5';
+console.info('[Mesa Estelar] build EXP-DIRECIONAL-6 carregado');
+window.__MESA_BUILD__ = 'EXP-DIRECIONAL-6';
 
 let currentUserUid = null;
 let userData = null;
@@ -35919,7 +35919,7 @@ function labMoverPassoD2_(dx,dy,dist=.5,{renderizar=true,sincronizar=true}={}){
 
     if(renderizar){
         labRender_();
-        if(labEstado_.fase==='combate')labAutoAvancarSeSemAcoes_();
+        if(labEstado_.fase==='combate'&&batalhaEhMestre_())labAutoAvancarSeSemAcoes_();
     }
     return true;
 }
@@ -35966,7 +35966,7 @@ function labPararMouseD2_(renderizar=true){
         labSincronizarMovimentoD2_(t,true);
         if(renderizar){
             labRender_();
-            if(labEstado_.fase==='combate')labAutoAvancarSeSemAcoes_();
+            if(labEstado_.fase==='combate'&&batalhaEhMestre_())labAutoAvancarSeSemAcoes_();
         }
     }
 }
@@ -36988,5 +36988,245 @@ labRender_=function(){
     try{labRenderEventosVisuaisD5_();}catch(_){}
     return r;
 };
+window.labRender_=labRender_;
+
+
+
+
+// ============================================================
+// EXP-DIRECIONAL-6
+// Correção específica da sincronização do movimento pelo mouse.
+// Problemas corrigidos:
+// 1) movSeqD4 reiniciava em 0 a cada recarga. O mestre podia ter seq antigo
+//    maior e ignorar TODOS os movimentos novos do jogador.
+// 2) movimento usava o mesmo documento da fila e o mestre o apagava depois
+//    de processar. Um delete atrasado podia apagar uma atualização mais nova.
+// 3) o cliente do jogador podia avançar a oportunidade localmente antes de
+//    o mestre confirmar AÇ e posição, criando estados divergentes.
+// Agora:
+// - sequência usa relógio e continua monotônica após reload;
+// - documento de movimento NÃO é apagado;
+// - mestre processa posição absoluta e AÇ;
+// - mestre é quem encerra a oportunidade quando o movimento zera AÇ;
+// - snapshots antigos não fazem o token local voltar para trás.
+// ============================================================
+
+let labMovSeqD6Ultimo_=0;
+const labMovPendentesD6_=new Map();
+
+function labNovaSeqMovD6_(){
+    let s=Date.now()*100;
+    if(s<=labMovSeqD6Ultimo_)s=labMovSeqD6Ultimo_+1;
+    labMovSeqD6Ultimo_=s;
+    return s;
+}
+
+function labMovPendD6_(t,seq,final){
+    if(!t)return;
+    labMovPendentesD6_.set(String(t.id),{
+        seq:Number(seq||0),
+        x:Number(t.x||0),
+        y:Number(t.y||0),
+        angulo:Number(t.angulo||0),
+        acoesAtuaisLab:Number(t.acoesAtuaisLab||0),
+        movimentoUsadoDirecionalD1:Number(t.movimentoUsadoDirecionalD1||0),
+        movimentoGratisDisponivel:t.movimentoGratisDisponivel,
+        ate:performance.now()+(final?5000:2500)
+    });
+}
+
+function labMovConfirmarD6_(id,seq){
+    const p=labMovPendentesD6_.get(String(id));
+    if(p&&Number(seq||0)>=Number(p.seq||0))labMovPendentesD6_.delete(String(id));
+}
+
+// Substitui apenas a sincronização do movimento contínuo.
+// Movimento do mestre continua publicando o estado compartilhado.
+// Movimento do jogador usa a fila, mas com sequência persistente.
+labSincronizarMovimentoD2_=function(t,forcar=false){
+    if(!t)return;
+
+    if(batalhaEhMestre_()){
+        if(forcar)labAgendarPublicacaoMovimentoD4_(true);
+        else labAgendarPublicacaoMovimentoD4_(false);
+        return;
+    }
+
+    const agora=performance.now();
+    if(!forcar && agora-labMouseD2_.ultimoSync<350)return;
+    labMouseD2_.ultimoSync=agora;
+
+    const seq=labNovaSeqMovD6_();
+    t.movSeqD6=seq;
+
+    // Mantém também a proteção da camada D4 enquanto o mestre confirma.
+    labMovProtegidoAteD4_=performance.now()+(forcar?5000:2500);
+    labMovPendD6_(t,seq,forcar);
+
+    const payload={
+        x:Number(t.x||0),
+        y:Number(t.y||0),
+        angulo:Number(t.angulo||0),
+        movSeqD6:seq,
+        movFinalD6:!!forcar,
+        acoesClienteD6:Number(t.acoesAtuaisLab||0),
+        movimentoUsadoClienteD6:Number(t.movimentoUsadoDirecionalD1||0),
+        movimentoGratisClienteD6:t.movimentoGratisDisponivel
+    };
+
+    labEnviarComandoJogador_('movimento',payload,t).then(ok=>{
+        if(!ok){
+            const p=labMovPendentesD6_.get(String(t.id));
+            if(p&&Number(p.seq||0)===seq)labMovPendentesD6_.delete(String(t.id));
+        }
+    });
+};
+
+// A camada D6 intercepta movimento antes das camadas antigas.
+// Importante: não apaga o documento de movimento. O próximo setDoc o modifica,
+// e o onSnapshot recebe a nova sequência sem risco de um delete atrasado.
+const labProcessarComandoJogadorD6Base_=labProcessarComandoJogador_;
+labProcessarComandoJogador_=async function(personagemId,acao){
+    if(String(acao?.tipo||'')!=='movimento'){
+        return labProcessarComandoJogadorD6Base_.apply(this,arguments);
+    }
+
+    if(!batalhaEhMestre_())return;
+
+    try{
+        const criado=Date.parse(String(acao?.criadoEm||''));
+        if(Number.isFinite(criado)&&Date.now()-criado>15000)return;
+
+        const t=labTokenPorId_(personagemId);
+        if(!t||!labUidPertenceToken18_(t,acao?.donoUid))return;
+
+        const combate=labEstado_.fase==='combate';
+        if(combate&&String(labTokenAtual_()?.id||'')!==String(t.id))return;
+        if(combate&&t.primeirosSocorrosLab)return;
+
+        const pl=acao?.payload||{};
+        const seq=Math.max(0,Number(pl.movSeqD6||0));
+        if(!seq)return;
+        if(seq<=Math.max(0,Number(t.movSeqD6||0)))return;
+
+        const nx=Number(pl.x),ny=Number(pl.y),na=Number(pl.angulo);
+        if(!Number.isFinite(nx)||!Number.isFinite(ny))return;
+
+        const ox=Number(t.x||0),oy=Number(t.y||0);
+        const dx=nx-ox,dy=ny-oy,dist=Math.hypot(dx,dy);
+
+        if(dist>.001){
+            if(!combate){
+                t.x=Math.max(0,Math.min(labEstado_.larguraM,nx));
+                t.y=Math.max(0,Math.min(labEstado_.alturaM,ny));
+            }else{
+                labAplicarMovimentoEstadoD2_(t,dx,dy,dist);
+            }
+        }
+
+        if(Number.isFinite(na))t.angulo=na;
+        t.movSeqD6=seq;
+        labEstado_.selecionadoId=String(t.id);
+
+        // O mestre já vê o deslocamento sem reconstruir o mapa inteiro.
+        labAtualizarTokenDomD2_(t);
+
+        // Publica cada amostra recebida. O jogador envia no máximo ~3/s.
+        // Assim as demais telas acompanham sem esperar o fim do gesto.
+        try{labSalvarLocal_();}catch(_){}
+        try{labAgendarSyncRemoto_();}catch(_){}
+
+        if(pl.movFinalD6){
+            // Render final atualiza painel de AÇ/posição do mestre.
+            labRender_();
+
+            // A autoridade do turno é o mestre.
+            // Se o deslocamento consumiu as AÇ restantes, encerra agora.
+            if(
+                combate &&
+                String(labTokenAtual_()?.id||'')===String(t.id) &&
+                Number(t.acoesAtuaisLab||0)<=0 &&
+                !labEstado_.pendenciaLab &&
+                !labEstado_.danoPendenteLab
+            ){
+                window.labEncerrarOportunidade_();
+                try{labAgendarSyncRemoto_();}catch(_){}
+            }
+        }else{
+            try{labAtualizarInfo_();}catch(_){}
+        }
+    }catch(e){
+        console.error('[DIRECIONAL6] movimento remoto',e);
+    }
+};
+
+// Protege a posição local até o snapshot do mestre confirmar a mesma seq.
+// Isso impede que outro write do mestre carregando a posição antiga faça o PJ
+// "teletransportar" para trás enquanto o movimento ainda está sendo confirmado.
+const labAplicarEstadoRemotoD6Base_=labAplicarEstadoRemotoD3_;
+labAplicarEstadoRemotoD3_=function(remoto){
+    if(!remoto||typeof remoto!=='object'||batalhaEhMestre_()){
+        return labAplicarEstadoRemotoD6Base_.apply(this,arguments);
+    }
+
+    let copia=remoto;
+    const locais=Array.isArray(labEstado_.tokens)?labEstado_.tokens:[];
+
+    if(labMovPendentesD6_.size){
+        copia=JSON.parse(JSON.stringify(remoto));
+        copia.tokens=Array.isArray(copia.tokens)?copia.tokens:[];
+
+        for(const rt of copia.tokens){
+            const id=String(rt?.id||'');
+            const pend=labMovPendentesD6_.get(id);
+            if(!pend)continue;
+
+            const lt=locais.find(x=>String(x.id)===id);
+            if(!lt)continue;
+
+            const rseq=Math.max(0,Number(rt.movSeqD6||0));
+            if(rseq>=Number(pend.seq||0)){
+                labMovConfirmarD6_(id,rseq);
+                continue;
+            }
+
+            // Se a confirmação ainda não chegou, o estado local mais novo vence.
+            if(performance.now()<=Number(pend.ate||0)){
+                rt.x=Number(lt.x||pend.x||0);
+                rt.y=Number(lt.y||pend.y||0);
+                rt.angulo=Number(lt.angulo||pend.angulo||0);
+                rt.movSeqD6=Number(pend.seq||0);
+                rt.acoesAtuaisLab=Number(lt.acoesAtuaisLab??pend.acoesAtuaisLab??0);
+                rt.movimentoUsadoDirecionalD1=Number(
+                    lt.movimentoUsadoDirecionalD1??pend.movimentoUsadoDirecionalD1??0
+                );
+                rt.movimentoGratisDisponivel=
+                    lt.movimentoGratisDisponivel!==undefined
+                        ?lt.movimentoGratisDisponivel
+                        :pend.movimentoGratisDisponivel;
+            }else{
+                labMovPendentesD6_.delete(id);
+            }
+        }
+    }
+
+    return labAplicarEstadoRemotoD6Base_.call(this,copia);
+};
+
+// Garante confirmação final mesmo se o pointerup ocorrer logo após a última
+// amostra intermediária.
+const labPararMouseD6Base_=labPararMouseD2_;
+labPararMouseD2_=function(){
+    const t=labAtorControlavelD1_();
+    const r=labPararMouseD6Base_.apply(this,arguments);
+
+    // A função-base já chamou labSincronizarMovimentoD2_(..., true).
+    // Aqui apenas evita qualquer autoavanço local do jogador.
+    if(t&&!batalhaEhMestre_()&&labEstado_.fase==='combate'){
+        try{labRender_();}catch(_){}
+    }
+    return r;
+};
+
 window.labRender_=labRender_;
 
