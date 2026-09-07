@@ -56,8 +56,8 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-console.info('[Mesa Estelar] build EXP-SYNC-24 carregado');
-window.__MESA_BUILD__ = 'EXP-SYNC-24';
+console.info('[Mesa Estelar] build EXP-SYNC-25 carregado');
+window.__MESA_BUILD__ = 'EXP-SYNC-25';
 
 let currentUserUid = null;
 let userData = null;
@@ -35953,3 +35953,305 @@ window.labRender_=labRender_;
 
 
 window.renderizarRegras=renderizarRegras;
+
+
+// ============================================================
+// EXP-SYNC-25
+// Alvo direto do jogador, painel privado persistente e regras públicas
+// consolidadas. Mantém a sinergia da SYNC24 e a autoridade do mestre
+// somente sobre o estado compartilhado.
+// ============================================================
+
+// ------------------------------------------------------------
+// Ataque do PJ: o ID do alvo acompanha a chamada inteira.
+// Não depende de selecionadoId/alvoLab sobreviverem ao clique do botão.
+// ------------------------------------------------------------
+async function labRolarAtaqueJogador25_(alvoId=''){
+    if(labEstado_.fase!=='combate'||labEstado_.pendenciaLab||labEstado_.danoPendenteLab)return;
+    const t=labTokenAtual_();
+    if(!t||!labEhTokenDoJogador23_(t)||t._ataqueLocalAguardando24)return;
+    const c=labCharToken_(t);if(!c)return;
+    const st=labGarantirSnapshotCombate_(t);
+    if(st?.morto||st?.inconsciente||st?.incapacitado)return notificar_('Este participante não pode atacar neste estado.','aviso');
+    if(Number(st?.ataquesBloqueadosTurnos||0)>0)return notificar_(`Choque da ferida: não pode atacar por ${Number(st.ataquesBloqueadosTurnos)} oportunidade(s).`,'aviso',3200);
+    if(Number(t.acoesAtuaisLab||0)<=0)return notificar_('Sem AÇ restantes.','aviso');
+
+    labGarantirPrefsAtaque_(t);
+
+    const idDireto=String(alvoId||labAlvoLocalJogador23_.get(String(t.id))||t._alvoManualFixadoLab||t.alvoLab||'');
+    const alvo=idDireto?labAlvoAtaquePorId_(idDireto):null;
+    if(!alvo||String(alvo.id)===String(t.id))return notificar_('🎯 Clique no alvo diretamente dentro do mapa antes de atacar.','aviso',3300);
+
+    const per=labPericiaPorToken_(t,t.periciaLab),item=labItemSelecionado_(t);
+    if(!per||!item)return notificar_('Selecione perícia e arma/ataque.','aviso');
+    const dist=labDistanciaEntre_(t,alvo),alc=labAlcanceAtaque_(t,item);
+    if(dist>alc+.001)return notificar_(`Fora de alcance: ${dist.toFixed(2)} m; ${getNome(item)} alcança ${alc.toFixed(1)} m.`,'aviso',4200);
+    if(labEhArmaMuniciada_(item)&&labMunicaoAtual_(t,item)<=0)return notificar_(`${getNome(item)} está sem munição.`,'aviso');
+
+    // Mantém o alvo localmente para o painel, mas a rolagem não depende mais disso.
+    const aid=String(alvo.id);
+    labAlvoLocalJogador23_.set(String(t.id),aid);
+    t.alvoLab=aid;
+    t._alvoManualFixadoLab=aid;
+    t._alvoSelecionadoMapa763=true;
+    if(labEhAlvoObjeto_(alvo)){
+        labEstado_.objetoSelecionadoId=aid;
+    }
+
+    const bonusMente=Number(t.menteAceleradaCargasLab||0)>0&&/INT/.test(String(per.formula||''))?Math.max(0,Number(t.menteAceleradaBonusLab||20)):0;
+    const valor=labValorPericiaAtaque_(c,per,alvo,item)+bonusMente;
+    const roll=1+Math.floor(Math.random()*100),r=classificarD100_(valor,roll);
+
+    // O ator vê sua rolagem imediatamente. O mestre recebe a mesma rolagem.
+    labSomAtaque_(item,r.grau);
+    labDispararEfeitoVisualAtaque_(t,alvo,item,r.sucesso,r.grau);
+    labRegistrarResultadoProprio_(t,`Ataque: ${getNome(per)} ${roll}/${valor} → ${r.grau}.`);
+    t._ataqueLocalAguardando24=true;
+    labRender_();
+
+    const ok=await labEnviarComandoJogador_('ataque_rolado24',{
+        periciaLab:String(t.periciaLab||''),
+        equipamentoLab:String(t.equipamentoLab||''),
+        alvoId:aid,
+        rolagem:roll,
+        valorLocal:valor,
+        grauLocal:r.grau
+    },t);
+    if(!ok){t._ataqueLocalAguardando24=false;labRender_();}
+}
+
+window.labAtacarTokenContextual25_=function(id){
+    const t=labTokenAtual_(),alvo=labAlvoAtaquePorId_(id);
+    if(!t||!alvo||String(t.id)===String(alvo.id))return;
+    if(!batalhaEhMestre_()&&!labEhTokenDoJogador23_(t))return;
+
+    if(batalhaEhMestre_()){
+        t.alvoLab=String(alvo.id);
+        t._alvoManualFixadoLab=String(alvo.id);
+        t._alvoSelecionadoMapa763=true;
+        if(labEhAlvoObjeto_(alvo)){
+            labEstado_.objetoSelecionadoId=String(alvo.id);
+            labEstado_.selecionadoId='';
+        }else{
+            labEstado_.objetoSelecionadoId='';
+            labEstado_.selecionadoId=String(alvo.id);
+        }
+        labApontarPara_(t,alvo);
+        return labRolarAtaqueSync24Base_.apply(window,[]);
+    }
+
+    labAlvoLocalJogador23_.set(String(t.id),String(alvo.id));
+    t.alvoLab=String(alvo.id);
+    t._alvoManualFixadoLab=String(alvo.id);
+    t._alvoSelecionadoMapa763=true;
+    labApontarPara_(t,alvo);
+    return labRolarAtaqueJogador25_(String(alvo.id));
+};
+
+const labRolarAtaqueSync25Base_=window.labRolarAtaque_;
+window.labRolarAtaque_=function(){
+    const t=labTokenAtual_();
+    if(!batalhaEhMestre_()&&labEstado_.fase==='combate'&&t&&labEhTokenDoJogador23_(t)){
+        const alvoId=String(labAlvoLocalJogador23_.get(String(t.id))||t._alvoManualFixadoLab||t.alvoLab||'');
+        return labRolarAtaqueJogador25_(alvoId);
+    }
+    return labRolarAtaqueSync25Base_.apply(this,arguments);
+};
+
+// Substitui qualquer variante antiga do botão contextual por uma chamada que
+// carrega explicitamente o ID do alvo. O clique não depende mais da seleção DOM.
+const labMicroPainelSync25Base_=labMicroPainelHtml_;
+labMicroPainelHtml_=function(alvoVisual,ppm,d){
+    let html=labMicroPainelSync25Base_.apply(this,arguments);
+    if(!html||batalhaEhMestre_()||labEstado_.fase!=='combate'||!alvoVisual)return html;
+    const ator=labTokenAtual_();
+    if(!ator||!labEhTokenDoJogador23_(ator)||String(ator.id)===String(alvoVisual.id))return html;
+    const aid=String(alvoVisual.id).replace(/'/g,"\\'");
+    html=html
+      .replace(/onclick="labMicroModoSelecionar_\('ataque'\);labMicroExecutar_\(\)"/g,`onclick="event.stopPropagation();labAtacarTokenContextual25_('${aid}')"`)
+      .replace(/onclick="labAtacarTokenContextual24_\('[^']*'\)"/g,`onclick="event.stopPropagation();labAtacarTokenContextual25_('${aid}')"`);
+    return html;
+};
+
+// ------------------------------------------------------------
+// Painel do jogador: nunca mostra PV/PA/defesa/AÇ do adversário.
+// O painel próprio permanece visível em todos os momentos.
+// ------------------------------------------------------------
+function labRenderPainelConsultaJogador25_(el,t,mensagem=''){
+    labRenderPainelExploracao18_(el,t);
+    for(const b of el.querySelectorAll('button'))b.disabled=true;
+    for(const sel of el.querySelectorAll('select,input'))sel.disabled=true;
+    const botoes=[...el.querySelectorAll('button')];
+    for(const b of botoes){
+        if(/Testar|Usar|Atacar|Defender/i.test(b.textContent||''))b.style.display='none';
+    }
+    if(mensagem){
+        const aviso=document.createElement('div');
+        aviso.style.cssText='margin:0 0 7px;padding:6px 8px;border-radius:7px;background:rgba(80,150,220,.10);color:#9fc6d8;font-size:.86em;';
+        aviso.textContent=mensagem;
+        el.prepend(aviso);
+    }
+}
+
+function labRenderPainelPrivadoJogador25_(el){
+    const meu=labTokenPainelJogador21_();
+    if(!meu){el.style.display='none';el.innerHTML='';return;}
+
+    if(labEstado_.fase!=='combate')return labRenderPainelExploracao18_(el,meu);
+
+    const pend=labEstado_.pendenciaLab;
+    if(pend){
+        const atacante=labTokenPorId_(pend.atacanteId),defensor=labTokenPorId_(pend.defensorId);
+        if(defensor&&String(defensor.id)===String(meu.id)){
+            // Aqui o painel original mostra somente a defesa/PV do próprio jogador.
+            return labRenderActionPanelE6Base_.apply(this,arguments);
+        }
+        if(atacante&&String(atacante.id)===String(meu.id)){
+            return labRenderPainelConsultaJogador25_(el,meu,'Aguardando a reação do alvo.');
+        }
+        return labRenderPainelConsultaJogador25_(el,meu);
+    }
+
+    const dp=labEstado_.danoPendenteLab;
+    if(dp){
+        const atacante=labTokenPorId_(dp.atacanteId),defensor=labTokenPorId_(dp.defensorId);
+        if(atacante&&String(atacante.id)===String(meu.id))return labRenderResolucaoPJ19_(el,dp,meu,defensor);
+        return labRenderPainelConsultaJogador25_(el,meu);
+    }
+
+    const atual=labTokenAtual_();
+    if(atual&&String(atual.id)===String(meu.id)){
+        labRenderActionPanelE6Base_.apply(this,arguments);
+        try{labGarantirBotaoPassar24_();}catch(_){ }
+        return;
+    }
+
+    return labRenderPainelConsultaJogador25_(el,meu);
+}
+
+const labRenderPainelPersistenteSync25Base_=labRenderPainelPersistente21_;
+labRenderPainelPersistente21_=function(){
+    const el=document.getElementById('labActionPanel');if(!el)return;
+    if(!batalhaEhMestre_())return labRenderPainelPrivadoJogador25_(el);
+    return labRenderPainelPersistenteSync25Base_.apply(this,arguments);
+};
+
+// ------------------------------------------------------------
+// Regras públicas. A seção livre antiga "Graus de Sucesso" é omitida da
+// visualização para não contradizer a tabela D100 atual do sistema.
+// O texto salvo não é apagado automaticamente.
+// ------------------------------------------------------------
+function labRemoverSecaoLegadaGraus25_(){
+    const root=document.getElementById('regrasViewMode');if(!root)return;
+    const heads=[...root.querySelectorAll('h1,h2,h3,h4')];
+    for(const h of heads){
+        const txt=normalizarTextoCombate_(h.textContent||'');
+        if(txt!=='graus de sucesso')continue;
+        const nivel=Number(h.tagName.slice(1));
+        let n=h.nextSibling;
+        while(n){
+            const prox=n.nextSibling;
+            if(n.nodeType===1&&/^H[1-4]$/.test(n.tagName)&&Number(n.tagName.slice(1))<=nivel)break;
+            n.remove();n=prox;
+        }
+        h.remove();
+    }
+}
+
+renderizarRegrasD100_=function(){
+    let el=document.getElementById('d100CoreRules');
+    if(!el){
+        const base=document.getElementById('combatCompatibilityRules');if(!base)return;
+        el=document.createElement('div');el.id='d100CoreRules';el.style.marginTop='22px';base.insertAdjacentElement('beforebegin',el);
+    }
+    el.innerHTML=`<h3>🎲 Resultados D100</h3><table style="width:100%;border-collapse:collapse"><thead><tr><th>Resultado</th><th>Regra</th></tr></thead><tbody>
+      <tr><td><b>Crítico</b></td><td>Se a perícia efetiva for menor que 50, a rolagem deve ser igual ou inferior a 10% do valor, arredondado para cima. Com perícia efetiva 50 ou maior, 01–05 é Crítico.</td></tr>
+      <tr><td><b>Sucesso</b></td><td>Rolagem igual ou inferior à perícia efetiva, sem estar na faixa de Crítico.</td></tr>
+      <tr><td><b>Falha</b></td><td>Rolagem acima da perícia efetiva, sem estar na faixa de Falha Crítica.</td></tr>
+      <tr><td><b>Falha Crítica</b></td><td>Com perícia efetiva até 95: 96–100. Com 96: 97–100; com 97: 98–100; com 98: 99–100; com 99 ou mais: apenas 100. O resultado 100 é sempre Falha Crítica. Em ataques com arma, a arma perde 1 PV; em ataques naturais, o atacante sofre 1 dano na parte corporal correspondente.</td></tr>
+    </tbody></table>`;
+};
+
+renderizarTabelaFadigaCompleta_=function(){
+    const el=document.getElementById('fatigueRulesFull');if(!el)return;
+    const nomesPT={Fresh:'Descansado',Winded:'Ofegante',Tired:'Cansado',Wearied:'Fatigado',Exhausted:'Exausto',Debilitated:'Debilitado',Incapacitated:'Incapacitado','Semi-Conscious':'Semiconsciente',Comatose:'Comatoso',Dead:'Morto'};
+    const nomesEN={Fresh:'Fresh',Winded:'Winded',Tired:'Tired',Wearied:'Wearied',Exhausted:'Exhausted',Debilitated:'Debilitated',Incapacitated:'Incapacitated','Semi-Conscious':'Semi-Conscious',Comatose:'Comatose',Dead:'Dead'};
+    const nomesZH={Fresh:'精力充沛',Winded:'气喘',Tired:'疲倦',Wearied:'疲劳',Exhausted:'精疲力竭',Debilitated:'虚弱',Incapacitated:'失能','Semi-Conscious':'半清醒',Comatose:'昏迷',Dead:'死亡'};
+    const nomes=idiomaAtual==='en'?nomesEN:idiomaAtual==='zh'?nomesZH:nomesPT;
+    const ordem=['Fresh','Winded','Tired','Wearied','Exhausted','Debilitated','Incapacitated','Semi-Conscious','Comatose','Dead'];
+    const h=idiomaAtual==='en'
+      ? ['State','Minimum difficulty','Movement','Initiative','Actions','Recovery']
+      : idiomaAtual==='zh'
+      ? ['状态','最低难度','移动','先攻','行动点','恢复']
+      : ['Estado','Dificuldade mínima','Movimento','Iniciativa','AÇ','Recuperação'];
+    el.innerHTML=`<h3>😮‍💨 ${idiomaAtual==='en'?'Fatigue':idiomaAtual==='zh'?'疲劳':'Fadiga'}</h3><table style="width:100%;border-collapse:collapse"><thead><tr>${h.map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>${ordem.map(k=>{const r=REGRAS_FADIGA[k];return `<tr><td>${nomes[k]}</td><td>${r.grau}</td><td>${r.movimento}</td><td>${r.iniciativa==null?'—':r.iniciativa}</td><td>${r.pa==null?'—':(r.pa===0?'—':r.pa)}</td><td>${r.recuperacao}</td></tr>`;}).join('')}</tbody></table>`;
+};
+
+// Explicita na aba de Regras o comportamento da sinergia já usado pelo cálculo.
+const renderizarRegrasPericiasSinergiaSync25Base_=renderizarRegrasPericiasSinergia24_;
+renderizarRegrasPericiasSinergia24_=function(){
+    renderizarRegrasPericiasSinergiaSync25Base_();
+    const el=document.getElementById('skillSynergyRules24');if(!el)return;
+    const ul=el.querySelector('ul');if(!ul)return;
+    const extra=document.createElement('li');
+    extra.textContent='A porcentagem de sinergia é calculada sobre o valor efetivo atual da perícia líder. O bônus não conta como investimento e nunca torna utilizável uma perícia Profissional ou Especialização sem treino.';
+    ul.appendChild(extra);
+};
+
+const renderizarRegrasSync25Base_=renderizarRegras;
+renderizarRegras=function(){
+    const r=renderizarRegrasSync25Base_.apply(this,arguments);
+    labRemoverSecaoLegadaGraus25_();
+    renderizarRegrasD100_();
+    renderizarTabelaFadigaCompleta_();
+    renderizarRegrasPericiasSinergia24_();
+    renderizarRegrasTurnos24_();
+    renderizarRegrasCombateMesa24_();
+    renderizarRegrasExploracao24_();
+    return r;
+};
+window.renderizarRegras=renderizarRegras;
+
+// Ao abrir Regras, sempre redesenha as tabelas depois de todos os patches.
+const mostrarAbaSync25Base_=window.mostrarAba;
+window.mostrarAba=function(abaId,btn){
+    const r=mostrarAbaSync25Base_.apply(this,arguments);
+    if(abaId==='regras')setTimeout(()=>{try{renderizarRegras();}catch(e){console.warn('[SYNC25] regras',e);}},0);
+    return r;
+};
+
+// ------------------------------------------------------------
+// Verificação interna da sinergia: preserva as invariantes combinadas.
+// Não altera valores; apenas avisa no Console se algum dado violar a regra.
+// ------------------------------------------------------------
+function labValidarSinergias25_(char){
+    if(!char)return true;
+    const calc=labCalcularSinergias24_(char);
+    let ok=true;
+    for(const x of calc.regs||[]){
+        const k=x.key,raw=Number(calc.raw.get(k)||0),val=Number(calc.valores.get(k)||0),b=Number(calc.bonus.get(k)||0);
+        if(val<raw||b<0){ok=false;console.warn('[SYNC25] sinergia inválida',x.id,{raw,val,b});}
+        for(const fam of (x.reg.familias||[])){
+            const lk=calc.lideres?.[fam];if(!lk||lk===k)continue;
+            const lider=Number(calc.valores.get(lk)||0);
+            if(val>lider&&b>0){ok=false;console.warn('[SYNC25] sinergia ultrapassou líder',fam,x.id,{val,lider});}
+        }
+    }
+    return ok;
+}
+window.__labValidarSinergias25_=labValidarSinergias25_;
+
+// ------------------------------------------------------------
+// Render final: painel privado, Passar e substituição do botão contextual.
+// ------------------------------------------------------------
+const labRenderSync25Base_=labRender_;
+labRender_=function(){
+    const r=labRenderSync25Base_.apply(this,arguments);
+    try{
+        labRenderPainelPersistente21_();
+        labGarantirBotaoPassar24_();
+    }catch(e){console.warn('[SYNC25] painel/passagem',e);}
+    return r;
+};
+window.labRender_=labRender_;
+
