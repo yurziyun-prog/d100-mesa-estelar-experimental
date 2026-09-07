@@ -56,8 +56,8 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-console.info('[Mesa Estelar] build EXP-SYNC-20 carregado');
-window.__MESA_BUILD__ = 'EXP-SYNC-20';
+console.info('[Mesa Estelar] build EXP-SYNC-21 carregado');
+window.__MESA_BUILD__ = 'EXP-SYNC-21';
 
 let currentUserUid = null;
 let userData = null;
@@ -34433,6 +34433,312 @@ labRender_=function(){
         labRenderActionPanel_();
     }catch(e){
         console.warn('[SYNC20] atualização de autoridade',e);
+    }
+    return r;
+};
+window.labRender_=labRender_;
+
+
+
+
+// ============================================================
+// EXP-SYNC-21
+// Painel de personagem persistente.
+// - PJ/PM/NPC/Monstro mantêm painel de perícias visível.
+// - Só some para o mestre quando "Atuar como Mestre" fora de combate.
+// - Jogador: no próprio turno, o painel troca automaticamente para o PJ da vez;
+//   fora do próprio turno, mostra o PJ selecionado/local.
+// - Mestre: durante combate, painel acompanha turno/reação automaticamente.
+// - Quando o usuário não é a autoridade daquele participante, o painel fica
+//   visível para consulta, mas sem executar ações.
+// ============================================================
+
+let labJogadorPainelSelecionado21_='';
+
+function labEhTokenDoJogador21_(t){
+    if(!t||batalhaEhMestre_())return false;
+    const uid=String(currentUserUid||currentUser?.uid||'');
+    return !!uid && String(labOwnerUid20_(t)||t.donoUid||'')===uid;
+}
+
+function labTokensDoJogador21_(){
+    if(batalhaEhMestre_())return [];
+    return (labEstado_.tokens||[]).filter(labEhTokenDoJogador21_);
+}
+
+function labTokenPainelJogador21_(){
+    const meus=labTokensDoJogador21_();
+    if(!meus.length)return null;
+
+    // Durante o turno de um PJ desta conta, ele tem prioridade absoluta.
+    if(labEstado_.fase==='combate'){
+        const atual=labTokenAtual_();
+        if(atual&&labEhTokenDoJogador21_(atual)){
+            labJogadorPainelSelecionado21_=String(atual.id);
+            return atual;
+        }
+
+        // Se o próprio PJ estiver defendendo ou resolvendo seu ataque, ele também
+        // tem prioridade sobre a seleção manual.
+        const pend=labEstado_.pendenciaLab;
+        if(pend){
+            const d=labTokenPorId_(pend.defensorId);
+            if(d&&labEhTokenDoJogador21_(d)){
+                labJogadorPainelSelecionado21_=String(d.id);
+                return d;
+            }
+        }
+
+        const dp=labEstado_.danoPendenteLab;
+        if(dp){
+            const a=labTokenPorId_(dp.atacanteId);
+            if(a&&labEhTokenDoJogador21_(a)){
+                labJogadorPainelSelecionado21_=String(a.id);
+                return a;
+            }
+        }
+    }
+
+    const local=labJogadorPainelSelecionado21_
+        ? meus.find(t=>String(t.id)===String(labJogadorPainelSelecionado21_))
+        : null;
+    if(local)return local;
+
+    const sid=String(labEstado_.selecionadoId||'');
+    const sel=meus.find(t=>String(t.id)===sid);
+    if(sel){
+        labJogadorPainelSelecionado21_=String(sel.id);
+        return sel;
+    }
+
+    const cid=String(currentCharId||'');
+    const atual=meus.find(t=>
+        String(t.id||'')===cid ||
+        String(t.origemId||'')===cid ||
+        String(t.charLab?.id||'')===cid
+    );
+    if(atual){
+        labJogadorPainelSelecionado21_=String(atual.id);
+        return atual;
+    }
+
+    labJogadorPainelSelecionado21_=String(meus[0].id);
+    return meus[0];
+}
+
+function labTokenPainelMestre21_(){
+    if(!batalhaEhMestre_())return null;
+
+    if(labEstado_.fase!=='combate'){
+        if(labModoMestreE6_())return null;
+        return labAtorEfetivoE6_();
+    }
+
+    const pend=labEstado_.pendenciaLab;
+    if(pend){
+        const d=labTokenPorId_(pend.defensorId);
+        if(d)return d;
+    }
+
+    const dp=labEstado_.danoPendenteLab;
+    if(dp){
+        const a=labTokenPorId_(dp.atacanteId);
+        if(a)return a;
+    }
+
+    return labTokenAtual_();
+}
+
+function labTokenPainel21_(){
+    return batalhaEhMestre_()?labTokenPainelMestre21_():labTokenPainelJogador21_();
+}
+
+function labUsuarioPodeAgirComPainel21_(t){
+    if(!t)return false;
+
+    if(labEstado_.fase!=='combate'){
+        if(batalhaEhMestre_())return !labModoMestreE6_() && String(labAtorEfetivoE6_()?.id||'')===String(t.id);
+        return labEhTokenDoJogador21_(t);
+    }
+
+    if(batalhaEhMestre_()){
+        const pend=labEstado_.pendenciaLab;
+        if(pend&&String(pend.defensorId)===String(t.id))return labTokenMestre19_(t);
+
+        const dp=labEstado_.danoPendenteLab;
+        if(dp&&String(dp.atacanteId)===String(t.id))return labTokenMestre19_(t);
+
+        const atual=labTokenAtual_();
+        return !!atual && String(atual.id)===String(t.id) && labTokenMestre19_(t);
+    }
+
+    const pend=labEstado_.pendenciaLab;
+    if(pend&&String(pend.defensorId)===String(t.id))return labEhTokenDoJogador21_(t);
+
+    const dp=labEstado_.danoPendenteLab;
+    if(dp&&String(dp.atacanteId)===String(t.id))return labEhTokenDoJogador21_(t);
+
+    const atual=labTokenAtual_();
+    return !!atual && String(atual.id)===String(t.id) && labEhTokenDoJogador21_(t);
+}
+
+function labRenderPainelConsulta21_(el,t){
+    if(!el||!t)return;
+
+    // Reaproveita o painel de perícias da exploração para manter todas as
+    // especializações/perícias/psi visíveis durante a espera.
+    labRenderPainelExploracao18_(el,t);
+
+    // Em combate, se não for a vez/reação deste usuário, o painel fica apenas
+    // consultivo. Seletores permanecem visíveis; ações não podem ser executadas.
+    if(labEstado_.fase==='combate'){
+        for(const b of el.querySelectorAll('button')){
+            b.disabled=true;
+        }
+    }
+}
+
+function labRenderPainelPersistente21_(){
+    const el=document.getElementById('labActionPanel');
+    if(!el)return;
+
+    const t=labTokenPainel21_();
+
+    // Único caso em que o mestre fica sem painel.
+    if(batalhaEhMestre_() && labEstado_.fase!=='combate' && labModoMestreE6_()){
+        el.style.display='none';
+        el.innerHTML='';
+        return;
+    }
+
+    if(!t){
+        el.style.display='none';
+        el.innerHTML='';
+        return;
+    }
+
+    const podeAgir=labUsuarioPodeAgirComPainel21_(t);
+
+    // Fora de combate, sempre usa o painel de exploração completo.
+    if(labEstado_.fase!=='combate'){
+        return labRenderPainelExploracao18_(el,t);
+    }
+
+    // Durante combate, se este usuário controla o contexto atual, usa o painel
+    // completo de combate, inclusive ataque, defesa, efeitos e dano.
+    if(podeAgir){
+        // Jogador resolvendo efeito especial/dano do próprio ataque.
+        if(!batalhaEhMestre_() && labEstado_.danoPendenteLab
+           && String(labEstado_.danoPendenteLab.atacanteId)===String(t.id)){
+            const dp=labEstado_.danoPendenteLab;
+            const d=labTokenPorId_(dp.defensorId);
+            return labRenderResolucaoPJ19_(el,dp,t,d);
+        }
+
+        // Painel original é o mais completo para turno e defesa.
+        return labRenderActionPanelE6Base_.apply(this,arguments);
+    }
+
+    // Outro participante está agindo. O painel do personagem continua visível,
+    // mas apenas para consulta.
+    return labRenderPainelConsulta21_(el,t);
+}
+
+// ------------------------------------------------------------
+// Seleção local de PJ para contas que porventura tenham mais de um no mapa.
+// O turno de combate continua tendo prioridade sobre esta seleção.
+// ------------------------------------------------------------
+const labSelecionarSync21Base_=window.labSelecionar_;
+window.labSelecionar_=function(id){
+    const t=labTokenPorId_(id);
+    if(!batalhaEhMestre_()&&t&&labEhTokenDoJogador21_(t)){
+        labJogadorPainelSelecionado21_=String(t.id);
+    }
+    const r=labSelecionarSync21Base_.apply(this,arguments);
+    try{labRenderPainelPersistente21_();}catch(_){}
+    return r;
+};
+
+// ------------------------------------------------------------
+// "Atuar como" do mestre continua automático durante combate,
+// mas o painel mostrado acompanha a mesma pessoa da iniciativa/reação.
+// ------------------------------------------------------------
+const labAtualizarAtuarComoSync21Base_=labAtualizarAtuarComoE6_;
+labAtualizarAtuarComoE6_=function(){
+    const r=labAtualizarAtuarComoSync21Base_.apply(this,arguments);
+
+    if(batalhaEhMestre_()&&labEstado_.fase==='combate'){
+        const sel=document.getElementById('labActAsE6');
+        const t=labTokenPainelMestre21_();
+        if(sel&&t){
+            const g=labGrupo19_(t)||'Participante';
+            const sufixo=(g==='PJ')?' · jogador':' · automático';
+            sel.innerHTML=`<option value="">${escaparHtmlInventario_(`${g} · ${t.nome||'Sem nome'}${sufixo}`)}</option>`;
+            sel.disabled=true;
+        }
+    }
+    return r;
+};
+
+// ------------------------------------------------------------
+// Painel final: não some entre oportunidades.
+// ------------------------------------------------------------
+labRenderActionPanel_=function(){
+    return labRenderPainelPersistente21_();
+};
+window.labRenderActionPanel_=labRenderActionPanel_;
+
+// ------------------------------------------------------------
+// Barra de informações acompanha o mesmo personagem que o painel.
+// ------------------------------------------------------------
+const labAtualizarInfoSync21Base_=labAtualizarInfo_;
+labAtualizarInfo_=function(){
+    const t=labTokenPainel21_();
+    if(!t)return labAtualizarInfoSync21Base_.apply(this,arguments);
+
+    const salvo=labEstado_.selecionadoId;
+    try{
+        labEstado_.selecionadoId=String(t.id);
+        return labAtualizarInfoE6Base_.apply(this,arguments);
+    }finally{
+        labEstado_.selecionadoId=salvo;
+    }
+};
+window.labAtualizarInfo_=labAtualizarInfo_;
+
+// ------------------------------------------------------------
+// Mini painel contextual:
+// a opção Atacar só aparece para quem realmente está na vez,
+// mas nunca depende de o painel superior estar visível.
+// ------------------------------------------------------------
+const labMicroPainelSync21Base_=labMicroPainelHtml_;
+labMicroPainelHtml_=function(alvoVisual,ppm,d){
+    if(labEstado_.fase!=='combate'||!alvoVisual)return '';
+
+    const atual=labTokenAtual_();
+    if(!atual)return '';
+
+    let autorizado=false;
+    if(batalhaEhMestre_())autorizado=labTokenMestre19_(atual);
+    else autorizado=labEhTokenDoJogador21_(atual);
+
+    if(!autorizado)return '';
+
+    return labMicroPainelSync21Base_.apply(this,arguments);
+};
+
+// ------------------------------------------------------------
+// Render final.
+// ------------------------------------------------------------
+const labRenderSync21Base_=labRender_;
+labRender_=function(){
+    const r=labRenderSync21Base_.apply(this,arguments);
+    try{
+        labAtualizarAtuarComoE6_();
+        labAtualizarInfo_();
+        labRenderPainelPersistente21_();
+    }catch(e){
+        console.warn('[SYNC21] painel persistente',e);
     }
     return r;
 };
