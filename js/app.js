@@ -3,6 +3,7 @@
 // um comando remoto. O redutor recebe uma cópia do estado lido na transação.
 let labTransport_=null,labLeaseTimer_=null,labConfirmedPacket_=null;
 let labReducing_=false,labDrawing_=false,labDraftGeneration_=0;
+let labSuspensoParaNova_=false;
 const labVisualMovement_=new Map();
 const labRuleHandlers_=new Map();
 const LAB_SESSION_SYNC_=crypto.randomUUID();
@@ -5058,7 +5059,11 @@ window.mostrarAba = (abaId, btn) => {
         else renderizarMercado();
     }
     if (abaId === 'batalha') renderizarBatalhaCompartilhada_();
-    if (abaId === 'laboratorio-combate') labRender_();
+    if (abaId === 'laboratorio-combate') {
+        labSuspensoParaNova_=false;
+        if(!labTransport_)labIniciarTransporte_();
+        labRender_();
+    }
     if (abaId === 'cenario-publico') renderizarCenarioAtualPublico_();
 };
 
@@ -36299,7 +36304,8 @@ function labIniciarTransporte_(){
     labTransport_?.close();clearInterval(labLeaseTimer_);
     labMapaMesaUnsub_?.();labMapaAcoesUnsub_?.();
     labMapaMesaUnsub_=null;labMapaAcoesUnsub_=null;
-    if(!currentUserUid)return;
+    labTransport_=null;
+    if(!currentUserUid||labSuspensoParaNova_)return;
     labConfirmedPacket_=null;
     const reference=path=>doc(db,...path.split('/'));
     labTransport_=createMesaTransport({session:LAB_SESSION_SYNC_,uid:()=>currentUserUid,isMaster:batalhaEhMestre_,
@@ -36427,7 +36433,7 @@ function labInstalarAcoesConfirmadas_(){
 labInstalarAcoesConfirmadas_();
 
 // Aba paralela: controlador independente e adaptador Firestore.
-import {mountPositionLab} from './nova-sync.js?v=2';
+import {mountPositionLab} from './nova-sync.js?v=3';
 const novaSyncController_=mountPositionLab({
     user:()=>currentUserUid?{uid:String(currentUserUid),master:batalhaEhMestre_()}:null,
     characters:()=>labEstado_?.tokens?.length?labEstado_.tokens:(userCharacters||[]),
@@ -36440,9 +36446,16 @@ const novaSyncController_=mountPositionLab({
         write:(p,v)=>setDoc(doc(db,...p.split('/')),v),remove:p=>deleteDoc(doc(db,...p.split('/'))),
         subscribe:(p,receive,many,fail)=>many?
             onSnapshot(query(collection(db,...p.split('/')),where('status','==','new')),s=>s.docChanges().forEach(c=>{if(c.type!=='removed')receive({path:c.doc.ref.path,data:c.doc.data()});}),fail):
-            onSnapshot(doc(db,...p.split('/')),s=>{if(s.exists()&&!s.metadata.hasPendingWrites)receive(s.data());},fail)
+            onSnapshot(doc(db,...p.split('/')),{includeMetadataChanges:true},s=>{if(s.exists()&&!s.metadata.hasPendingWrites)receive(s.data());},fail)
     }
 });
-window.novaSyncAbrir_=()=>novaSyncController_.open();
+window.novaSyncAbrir_=()=>{
+    labSuspensoParaNova_=true;
+    labTransport_?.close();labTransport_=null;
+    clearInterval(labLeaseTimer_);labLeaseTimer_=null;
+    labMapaMesaUnsub_?.();labMapaAcoesUnsub_?.();
+    labMapaMesaUnsub_=null;labMapaAcoesUnsub_=null;
+    return novaSyncController_.open();
+};
 window.novaSyncInicializar_=()=>novaSyncController_.initialize();
 window.novaSyncMover_=(dx,dy)=>novaSyncController_.move(dx,dy);

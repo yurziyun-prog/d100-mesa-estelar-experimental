@@ -68,3 +68,18 @@ test('transporte separa documento de movimento e ataque',async()=>{
  const writes=[];const t=createTransport({session:'s',uid:()=> 'u',isMaster:()=>false,commandPath:'actions',movementPath:'moves',write:async(path,data)=>writes.push({path,data})});
  await t.send('movement','v',{},'op');await t.send('attack','v',{},'op');assert.equal(writes[0].path,'moves/s_1');assert.equal(writes[1].path,'actions/s_2');assert.notEqual(writes[0].data.id,writes[1].data.id);
 });
+
+test('renovação e comando não abrem transações simultâneas',async()=>{
+ let p={...packet(),authority:null},active=0,maxActive=0,listener;
+ const c={...command(p.estado,1),status:'new'};
+ const t=createTransport({session:'gm',uid:()=> 'gm',isMaster:()=>true,now:()=>100,
+ statePath:'state',commandPath:'actions',movementPath:'actions',reduce:attack,onState:()=>{},onError:e=>{throw e},
+ transact:async fn=>{active++;maxActive=Math.max(maxActive,active);try{
+   await new Promise(r=>setTimeout(r,10));
+   return await fn({get:async path=>path==='state'?p:c,set:(path,value)=>{p=value;}});
+ }finally{active--;}},read:async()=>[],remove:async()=>{},
+ subscribe:(path,fn,many)=>{if(many)listener=fn;return()=>{};}});
+ t.start();await t.renew();listener({path:'actions/c1',data:c});
+ await Promise.all([t.renew(),t.renew()]);
+ assert.equal(maxActive,1);assert.equal(p.lastCommand.accepted,true);t.close();
+});

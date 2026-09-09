@@ -3,7 +3,7 @@ import { PROTOCOL, claimAuthority, ownsAuthority, applyCommand } from './mesa-sy
 // O adaptador Firebase é injetado para testar disputas e retries sem produção.
 export function createTransport({ transact, read, write, remove, subscribe, statePath, commandPath, movementPath,
     session, uid, isMaster, reduce, onState, onError, now = Date.now }) {
-    let lease=null,closed=false,busy=Promise.resolve(),stops=[],sequence=0,revision=0;
+    let lease=null,closed=false,busy=Promise.resolve(),stops=[],sequence=0,revision=0,renewing=null;
     const enqueue=job=>{busy=busy.then(job).catch(onError);return busy;};
     async function claim(){
         if(closed||!isMaster()){lease=null;return false;}
@@ -56,12 +56,18 @@ export function createTransport({ transact, read, write, remove, subscribe, stat
             if(doc.data?.status==='new')enqueue(()=>process(doc.path));
         },true));
     }
-    async function renew(){
-        const ok=await claim();
+    function renew(){
+        if(closed)return Promise.resolve(false);
+        if(renewing)return renewing;
+        renewing=(async()=>{
+        // A renovação grava o mesmo documento que process(). Use a mesma fila.
+        const ok=await enqueue(claim);
         // Depois de assumir liderança, reenvia a lista de comandos pendentes:
         // snapshots anteriores podem ter chegado enquanto éramos observadores.
         if(ok){for(const path of [...new Set([commandPath,movementPath])])for(const d of await read(path))if(d.data.status==='new')await enqueue(()=>process(d.path));}
         return ok;
+        })().finally(()=>{renewing=null;});
+        return renewing;
     }
     return {start,send,renew,isLeader:()=>!!lease&&!closed&&lease.until>now(),close(){closed=true;lease=null;stops.splice(0).forEach(f=>f());}};
 }

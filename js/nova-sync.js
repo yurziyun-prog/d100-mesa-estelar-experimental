@@ -30,7 +30,7 @@ export function mountPositionLab({user, characters, database, root=document}) {
         if(!message && !packet) message='Aguardando o mestre inicializar os personagens.';
         if(!message) {
             const leader=packet.authority?.until>Date.now();
-            message=`Sincronização nova 2 · revisão ${packet.revision} · ${packet.estado.tokens.length} personagem(ns)`;
+            message=`Sincronização nova 3 · revisão ${packet.revision} · ${packet.estado.tokens.length} personagem(ns)`;
             if(pending.size) message+=' · movimento aguardando confirmação';
             if(!leader) message+=' · aguardando sessão do mestre';
         }
