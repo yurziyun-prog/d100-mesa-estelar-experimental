@@ -41,7 +41,8 @@ const dir=path.join(__dirname,'../js');
     writeMap:async()=>{}
    };
    const {mountDirectPositionLab}=await import('/nova-direta.js');
-   window.lab=mountDirectPositionLab({database:db,user:()=>({uid,master}),characters:()=>[],loadCombatants:async rows=>rows.map(t=>({...t,initiative:t.id==='pj'?20:0,actions:t.id==='pj'?2:3}))});
+   const picker=document.createElement('select');picker.id='novaSyncMestrePersonagem';document.body.prepend(picker);
+   window.lab=mountDirectPositionLab({database:db,user:()=>({uid,master}),characters:()=>[],catalog:()=>[{id:'npc:guarda',nome:'Guarda',donoUid:''}],loadCombatants:async rows=>rows.map(t=>({...t,initiative:t.id==='pj'?20:0,actions:t.id==='pj'?2:3}))});
 
    await lab.open();
   },{uid,master});
@@ -50,20 +51,24 @@ const dir=path.join(__dirname,'../js');
  try {
   const player=await pageFor('player',false);
   await player.waitForFunction(()=>document.querySelectorAll('[data-token]').length===2);
-  async function walkTo(p,x,y){const b=await p.locator('#novaSyncBoard').boundingBox();await p.mouse.click(b.x+x/28*b.width,b.y+y/14*b.height);}
-  await walkTo(player,20,6);
+  async function walkTo(p,x,y){const b=await p.locator('#novaSyncBoard').boundingBox();const start=await p.evaluate(()=>{const id=document.querySelector('#novaSyncPersonagem').value;const n=[...document.querySelectorAll('[data-token]')].find(n=>n.dataset.token===id);return {x:+n.dataset.x,y:+n.dataset.y};});await p.mouse.move(b.x+x/28*b.width,b.y+y/14*b.height);await p.mouse.down();await p.waitForTimeout(Math.hypot(x-start.x,y-start.y)/3*1000+150);await p.mouse.up();}
+  const b=await player.locator('#novaSyncBoard').boundingBox();
+  await player.mouse.move(b.x+600,b.y+180);await player.mouse.down();
+  await player.waitForFunction(()=>Number(document.querySelector('[data-token="pj"]').dataset.x)>10);
   assert.equal(store[statePath+'/pj'].revision,0);
   const local=await player.locator('[data-token="pj"]').evaluate(n=>parseFloat(n.style.left));
-  assert.ok(local>40,'miniatura responde antes da confirmação');
+  assert.ok(local>10/28*100,'miniatura responde antes da confirmação');
   await player.mouse.up();
   await player.waitForFunction(()=>!document.getElementById('novaSyncStatus').textContent.includes('salvando'));
-  assert.ok(store[statePath+'/pj'].x>11.9);
+  const stopped=store[statePath+'/pj'].x;
+  assert.ok(stopped>10&&stopped<10.6,'soltar interrompe antes do destino a 3 m/s');
+  await player.waitForTimeout(500);assert.equal(store[statePath+'/pj'].x,stopped,'não continua andando após soltar');
   console.log('PASS jogador move e salva sem nenhuma sessão do mestre; resposta local imediata');
   const master=await pageFor('master',true);
   await master.waitForFunction(()=>document.querySelectorAll('[data-token]').length===2);
   const poses=async p=>p.locator('[data-token]').evaluateAll(ns=>ns.map(n=>[n.dataset.token,n.style.left,n.style.top]));
   assert.deepEqual(await poses(master),await poses(player));
-  await Promise.all([walkTo(player,21,6),walkTo(master,10,5)]);
+  await Promise.all([walkTo(player,21,6),walkTo(master,10,8)]);
   for(const p of [player,master])await p.waitForFunction(()=>!document.getElementById('novaSyncStatus').textContent.includes('salvando'));
   assert.deepEqual(await poses(master),await poses(player));
   assert.ok(store[statePath+'/pm'].x>6.9);
@@ -114,6 +119,13 @@ const dir=path.join(__dirname,'../js');
   assert.deepEqual(await poses(master),await poses(player));
   assert.deepEqual(errors,[]);
   console.log('PASS iniciativa, ações do dono, duas passagens, avanço automático e saldo de movimento por turno');
+  assert.equal(await player.locator('#novaSyncMestrePersonagem').isDisabled(),true);
+  await master.locator('#novaSyncMestrePersonagem').selectOption('npc:guarda');
+  const mb=await master.locator('#novaSyncBoard').boundingBox();await master.mouse.click(mb.x+60,mb.y+60);
+  await player.waitForFunction(()=>document.querySelectorAll('[data-token]').length===3);
+  assert.equal(store[statePath+'/npc%3Aguarda'].nome,'Guarda');
+  assert.equal(store[statePath+'/npc%3Aguarda'].x,2);
+  console.log('PASS seletor lista e coloca NPC no mapa de ambas as contas');
 
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exit(1)});

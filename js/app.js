@@ -36444,14 +36444,22 @@ function labInstalarAcoesConfirmadas_(){
 labInstalarAcoesConfirmadas_();
 
 // Aba paralela: controlador independente e adaptador Firestore.
-import {mountDirectPositionLab} from './nova-direta.js?v=22';
+import {mountDirectPositionLab} from './nova-direta.js?v=23';
 const novaSyncController_=mountDirectPositionLab({
  user:()=>currentUserUid?{uid:String(currentUserUid),master:batalhaEhMestre_()}:null,
  characters:()=>labEstado_?.tokens?.length?labEstado_.tokens:(userCharacters||[]),
+ catalog:()=>[
+  ...(userCharacters||[]),
+  ...(npcsDB||[]).filter(t=>t.selecionavelCombate!==false).map(t=>({...t,id:'syncnpc:'+t.id,donoUid:'',dono:'',nome:'NPC · '+t.nome})),
+  ...(criaturasDB||[]).filter(t=>t.selecionavelCombate!==false).map(t=>({...t,id:'synccriatura:'+t.id,donoUid:'',dono:'',nome:'Criatura · '+t.nome}))
+ ],
  mapas:()=>mapasDB||[],
  loadCombatants:async tokens=>Promise.all(tokens.map(async t=>{
   const legacy=(labEstado_?.tokens||[]).find(x=>String(x.id)===String(t.id));
   let c=batalhaCharLocal_(t.id)||legacy?.charLab;
+  const source=decodeURIComponent(t.id);
+  if(source.startsWith('syncnpc:'))c=criarNPCCombateDoBanco_(npcBancoPorId_(source.slice(8)));
+  if(source.startsWith('synccriatura:'))c=criarCriaturaCombateDoBanco_(criaturaBancoPorId_(source.slice(13)));
   if(!String(t.id).startsWith('dummy:')&&!c?.__npcTemporario&&!c?.__criaturaTemporaria){
    const snap=await getDoc(doc(db,'personagens',decodeURIComponent(t.id)));
    if(snap.exists())c={id:t.id,...snap.data()};

@@ -2,14 +2,24 @@
 import {saldoMovimento,moverNoTurno,iniciarIniciativa,acaoIniciativa} from './nova-turnos.js?v=18';
 export const POSITION_PATH='combatesAtivos/mapaMesaSyncDireta/posicoes';
 export const MAP_PATH='combatesAtivos/mapaMesaSyncDireta';
-export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=async()=>null,renderMap=()=>'',loadCombatants=async()=>{throw new Error('Não foi possível carregar as fichas');},database,root=document}) {
+export function mountDirectPositionLab({user,characters,catalog=characters,mapas=()=>[],loadMap=async()=>null,renderMap=()=>'',loadCombatants=async()=>{throw new Error('Não foi possível carregar as fichas');},database,root=document}) {
  const el=id=>root.getElementById(id), tokens=new Map(), previews=new Map(), queues=new Map();
  let stop=null,stopMap=null,account='',error='',generation=0,mapPacket=null,mapData=null,renderedMap=null,mapRequest=0;
  let changingTurn=false,lastSelectedTurn='';
+ let held=null,frame=0,placing=false;
+ function drawCatalog(){
+  const select=el('novaSyncMestrePersonagem');if(!select)return;
+  const old=select.value;
+  const placeholder=root.createElement('option');placeholder.value='';placeholder.textContent='Escolher personagem para colocar no mapa';
+  select.replaceChildren(placeholder,...(user()?.master?catalog():[]).map(t=>{const o=root.createElement('option');o.value=t.id;o.textContent=t.nome;o.disabled=tokens.has(encodeURIComponent(t.id));return o;}));
+  select.value=old;select.disabled=!user()?.master||!!mapPacket?.combat?.active||placing;
+ }
  const canView=t=>!!t&&!!user()&&(user().master||user().uid===t.donoUid);
  const controlled=t=>!!t&&!!user()&&(user().uid===t.donoUid||(user().master&&!t.donoUid));
  function status(){
-  el('novaSyncStatus').textContent=(queues.size?'Sincronização direta 20 · salvando posição…':error)||`Sincronização direta 20 · ${tokens.size} personagem(ns) · clique no destino para caminhar`;
+  el('novaSyncStatus').textContent=(queues.size?'Sincronização direta 23 · salvando posição…':error)||`Sincronização direta 23 · ${tokens.size} personagem(ns) · mantenha o mouse pressionado para caminhar`;
+  if(held)el('novaSyncStatus').textContent='Solte o botão do mouse para parar · 3 m/s';
+  else if(el('novaSyncMestrePersonagem')?.value)el('novaSyncStatus').textContent='Clique no mapa para colocar o personagem escolhido.';
   const masterPanel=el('novaSyncMasterPanel'),playerInfo=el('novaSyncPlayerInfo');
   if(masterPanel)masterPanel.hidden=false;
   const masterTitle=el('novaSyncMasterTitle');if(masterTitle)masterTitle.textContent=user()?.master?'Painel do mestre · combate':'Sessão de combate · somente leitura';
@@ -67,7 +77,6 @@ export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=asy
   }
   el('novaSyncInit').style.display=user()?.master?'':'none';
   for(const node of [...board.children])if(node.dataset.token&&!tokens.has(node.dataset.token))node.remove();
-  const oldPositions=new Map([...board.querySelectorAll('[data-token]')].map(n=>[n.dataset.token,{x:Number(n.dataset.x||0),y:Number(n.dataset.y||0)}]));
   for(const t of tokens.values()){
    let node=[...board.children].find(n=>n.dataset.token===t.id);
    if(!node){
@@ -77,13 +86,12 @@ export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=asy
     const label=root.createElement('span');label.textContent=t.nome;label.style.cssText='position:absolute;top:46px;left:50%;transform:translateX(-50%);white-space:nowrap;background:#172337;font-size:12px';node.append(label);board.append(node);
    }
    const p=previews.get(t.id)||t;
-   const before=oldPositions.get(t.id),mw=Number(mapData?.larguraM||28),mh=Number(mapData?.alturaM||14),distance=before?Math.hypot((p.x-before.x)*mw/28,(p.y-before.y)*mh/14):0;
-   node.style.transition=`left ${Math.max(.15,distance/3)}s linear,top ${Math.max(.15,distance/3)}s linear`;
+   node.style.transition=previews.has(t.id)?'none':'left .2s linear,top .2s linear';
    node.style.left=`${p.x/28*100}%`;node.style.top=`${p.y/14*100}%`;
    node.dataset.x=p.x;node.dataset.y=p.y;
    node.style.cursor=controlled(t)?'grab':'default';node.style.borderColor=t.id===select.value?'#ffd447':'#00d4ff';
   }
-  drawMap();status();
+  drawMap();drawCatalog();status();
  }
  function fail(e){
   const detail=String(e.code||e.message||e);
@@ -92,7 +100,7 @@ export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=asy
    `Não foi possível salvar/sincronizar: ${detail}. O movimento não confirmado volta ao último ponto salvo.`;
   status();console.error('[Sync direta]',e);
  }
- function close(){generation++;stop?.();stopMap?.();stop=null;stopMap=null;account='';tokens.clear();previews.clear();queues.clear();mapPacket=null;mapData=null;renderedMap=null;mapRequest++;}
+ function close(){held=null;cancelAnimationFrame(frame);generation++;stop?.();stopMap?.();stop=null;stopMap=null;account='';tokens.clear();previews.clear();queues.clear();mapPacket=null;mapData=null;renderedMap=null;mapRequest++;}
  function open(){
   const u=user();if(!u)return;if(account===u.uid&&stop)return;close();account=u.uid;error='';const g=generation;
   stop=database.subscribe(POSITION_PATH,rows=>{
@@ -156,13 +164,41 @@ export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=asy
     error='';
     if(!tokens.has(id)||saved.revision>=tokens.get(id).revision)tokens.set(id,{...saved,id});
    }
-  }catch(e){if(g===generation)fail(e);}
-  finally{if(g===generation){queues.delete(id);previews.delete(id);draw();}}
+  }catch(e){if(g===generation){held=null;cancelAnimationFrame(frame);fail(e);}}
+  finally{if(g===generation){queues.delete(id);if(held?.id!==id)previews.delete(id);draw();}}
  }
  const board=el('novaSyncBoard');
  function point(e){const r=board.getBoundingClientRect();return {x:Math.max(.7,Math.min(27.3,(e.clientX-r.left)/r.width*28)),y:Math.max(.8,Math.min(13.2,(e.clientY-r.top)/r.height*14))};}
+ function release(){
+  const h=held;if(!h)return;held=null;cancelAnimationFrame(frame);
+  const p=previews.get(h.id);if(p)save(h.id,{x:p.x,y:p.y});status();
+ }
+ function step(now){
+  const h=held;if(!h)return;
+  const dt=Math.min(.05,(now-h.time)/1000);h.time=now;
+  const t=previews.get(h.id)||tokens.get(h.id);
+  const w=Number(mapPacket?.larguraM)||28,height=Number(mapPacket?.alturaM)||14;
+  const distance=Math.hypot((h.target.x-t.x)*w/28,(h.target.y-t.y)*height/14);
+  try{
+   if(distance>0){
+    const ratio=Math.min(1,3*dt/distance);
+    const p=moverNoTurno(t,{x:t.x+(h.target.x-t.x)*ratio,y:t.y+(h.target.y-t.y)*ratio},mapPacket,h.turn);
+    if(p.x!==t.x||p.y!==t.y){
+     previews.set(h.id,p);draw();
+     if(now-h.sent>=200){h.sent=now;save(h.id,{x:p.x,y:p.y});}
+    }
+   }
+  }catch(e){release();error=e.message;status();return;}
+  frame=requestAnimationFrame(step);
+ }
+ board.addEventListener('pointermove',e=>{if(held&&e.pointerId===held.pointer){if(!(e.buttons&1))release();else held.target=point(e);}});
+ for(const event of ['pointerup','pointercancel','lostpointercapture'])board.addEventListener(event,release);
+ root.defaultView?.addEventListener('blur',release);
+ root.addEventListener('visibilitychange',()=>{if(root.hidden)release();});
  board.addEventListener('pointerdown',e=>{
   if(e.button!==0)return;
+  const chosen=el('novaSyncMestrePersonagem')?.value;
+  if(chosen&&user()?.master&&!mapPacket?.combat?.active){place(chosen,point(e));return;}
   const clicked=e.target.closest('[data-token]')?.dataset.token;
   if(clicked){
    if(canView(tokens.get(clicked)||{})){el('novaSyncPersonagem').value=clicked;draw();}
@@ -172,10 +208,27 @@ export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=asy
   if(!t||!controlled(t))return;
   e.preventDefault();
   try{
-   const p=moverNoTurno(previews.get(id)||t,point(e),mapPacket,mapPacket?.combat?.active?mapPacket.combat.turnId:null);
-   previews.set(id,p);draw();save(id,{x:p.x,y:p.y});
+   const turn=mapPacket?.combat?.active?mapPacket.combat.turnId:null;
+   moverNoTurno(previews.get(id)||t,{x:t.x,y:t.y},mapPacket,turn);
+   release();held={id,target:point(e),turn,pointer:e.pointerId,time:performance.now(),sent:performance.now()};
+   board.setPointerCapture(e.pointerId);frame=requestAnimationFrame(step);
   }catch(e){error=e.message;status();}
  });
+ async function place(chosen,p){
+  if(placing)return;const t=catalog().find(t=>String(t.id)===chosen);if(!t)return;
+  placing=true;drawCatalog();
+  try{
+   const id=encodeURIComponent(t.id);
+   await database.transact(async tx=>{
+    const s=await tx.get(MAP_PATH),existing=await tx.get(POSITION_PATH+'/'+id);
+    if(s?.combat?.active)throw new Error('Coloque personagens fora de combate.');
+    if(existing)throw new Error('Este personagem já está no mapa.');
+    tx.set(POSITION_PATH+'/'+id,{nome:String(t.nome||'Personagem'),imagem:String(t.imagem||''),donoUid:String(t.donoUid||t.dono||''),...p,revision:0});
+   });
+   el('novaSyncMestrePersonagem').value='';error='';
+  }catch(e){fail(e);}finally{placing=false;draw();}
+ }
+ el('novaSyncMestrePersonagem')?.addEventListener('change',()=>{release();status();});
  el('novaSyncPersonagem').addEventListener('change',()=>{
   if(mapPacket?.combat?.active&&mapPacket.combat.schema===2){draw();return;}
   draw();
