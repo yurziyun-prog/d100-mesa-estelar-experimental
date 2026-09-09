@@ -36444,27 +36444,47 @@ function labInstalarAcoesConfirmadas_(){
 labInstalarAcoesConfirmadas_();
 
 // Aba paralela: controlador independente e adaptador Firestore.
-import {mountDirectPositionLab} from './nova-direta.js?v=24';
+import {mountDirectPositionLab} from './nova-direta.js?v=25';
+async function novaFicha_(t){
+ const legacy=(labEstado_?.tokens||[]).find(x=>String(x.id)===String(t.id));
+ let c=batalhaCharLocal_(t.id)||legacy?.charLab;
+ const source=decodeURIComponent(t.id);
+ if(source.startsWith('syncnpc:'))c=criarNPCCombateDoBanco_(npcBancoPorId_(source.slice(8)));
+ if(source.startsWith('synccriatura:'))c=criarCriaturaCombateDoBanco_(criaturaBancoPorId_(source.slice(13)));
+ if(!String(t.id).startsWith('dummy:')&&!c?.__npcTemporario&&!c?.__criaturaTemporaria){
+  const snap=await getDoc(doc(db,'personagens',source));if(snap.exists())c={id:t.id,...snap.data()};
+ }
+ if(!c)throw new Error('Ficha não encontrada para '+t.nome);
+ return c;
+}
 const novaSyncController_=mountDirectPositionLab({
  user:()=>currentUserUid?{uid:String(currentUserUid),master:batalhaEhMestre_()}:null,
  characters:()=>labEstado_?.tokens?.length?labEstado_.tokens:(userCharacters||[]),
  catalog:()=>[
   ...(userCharacters||[]).map(t=>({...t,catalogType:(t.donoUid||t.dono)===currentUserUid?'pm':'pj'})),
   ...(npcsDB||[]).filter(t=>t.selecionavelCombate!==false).map(t=>({...t,id:'syncnpc:'+t.id,catalogType:'npc',donoUid:'',dono:'',nome:'NPC · '+t.nome})),
-  ...(criaturasDB||[]).filter(t=>t.selecionavelCombate!==false).map(t=>({...t,id:'synccriatura:'+t.id,catalogType:'monstro',donoUid:'',dono:'',nome:'Monstro · '+t.nome}))
+  ...(criaturasDB||[]).filter(t=>t.selecionavelCombate!==false).map(t=>({...t,id:'synccriatura:'+t.id,catalogType:'monstro',donoUid:'',dono:'',nome:'Monstro · '+t.nome})),
+  ...(objetosMapaDB||[]).map(t=>({...t,id:'syncobjeto:'+t.id,catalogType:'objeto'})),
+  ...(itensDB||[]).map(t=>({...t,id:'syncitem:'+t.id,catalogType:'item'}))
  ],
+ loadProp:async o=>{
+  const id=o.modeloId.slice(o.modeloId.indexOf(':')+1);
+  let model=o.tipo==='objeto'?await map806BuscarModelo_(id):(itensDB||[]).find(t=>String(t.id)===id);
+  if(!model&&o.tipo==='item'){const s=await getDoc(doc(db,'itens',id));if(s.exists())model=s.data();}
+  return {imagem:String(model?.imagem||'')};
+ },
+ loadActions:async t=>{
+  const c=await novaFicha_(t),snapshot={...t,charLab:structuredClone(c)};
+  const skills=(batalhaListaPericias_(c)||[]).map(per=>({
+   id:batalhaTokenPericia_(per),nome:getNome(per),valor:labValorTeste_(snapshot,per),descricao:getDescricao(per)||'',
+   weapons:batalhaEquipamentos_(c,per).map(w=>({id:w.valor,nome:w.rotulo,descricao:getDescricao(w.item)||'',dano:w.item?.dano||''}))
+  }));
+  return {skills,pvHtml:labResumoPVHtml_(snapshot,'SEUS PV')};
+ },
+ rollTest:valor=>{const die=1+Math.floor(Math.random()*100);return {die,...classificarD100_(valor,die)};},
  mapas:()=>mapasDB||[],
  loadCombatants:async tokens=>Promise.all(tokens.map(async t=>{
-  const legacy=(labEstado_?.tokens||[]).find(x=>String(x.id)===String(t.id));
-  let c=batalhaCharLocal_(t.id)||legacy?.charLab;
-  const source=decodeURIComponent(t.id);
-  if(source.startsWith('syncnpc:'))c=criarNPCCombateDoBanco_(npcBancoPorId_(source.slice(8)));
-  if(source.startsWith('synccriatura:'))c=criarCriaturaCombateDoBanco_(criaturaBancoPorId_(source.slice(13)));
-  if(!String(t.id).startsWith('dummy:')&&!c?.__npcTemporario&&!c?.__criaturaTemporaria){
-   const snap=await getDoc(doc(db,'personagens',decodeURIComponent(t.id)));
-   if(snap.exists())c={id:t.id,...snap.data()};
-  }
-  if(!c)throw new Error('Ficha não encontrada para '+t.nome+'. Carregue os personagens antes de iniciar.');
+  const c=await novaFicha_(t);
   const fatigue=obterRegraFadiga_(c);
   const int=(c.atributos?.INT||10)+(c.bonus?.INT||0),dex=(c.atributos?.DES||10)+(c.bonus?.DES||0);
   return {...t,initiative:Math.max(0,Math.ceil((int+dex)/2)+(fatigue.iniciativa||0)),actions:obterPAMaxCombate_(c)};

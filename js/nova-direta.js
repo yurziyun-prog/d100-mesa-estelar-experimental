@@ -1,29 +1,56 @@
 // Movimento livre: uma posição por personagem, sem sessão-mestre ou fila de comandos.
 import {saldoMovimento,moverNoTurno,iniciarIniciativa,acaoIniciativa} from './nova-turnos.js?v=18';
+import {destinoSemColisao,TOKEN_DIAMETER} from './nova-colisao.js?v=25';
+import {criarPainelAcoes} from './nova-painel.js?v=25';
 export const POSITION_PATH='combatesAtivos/mapaMesaSyncDireta/posicoes';
 export const MAP_PATH='combatesAtivos/mapaMesaSyncDireta';
-export function mountDirectPositionLab({user,characters,catalog=characters,mapas=()=>[],loadMap=async()=>null,renderMap=()=>'',loadCombatants=async()=>{throw new Error('Não foi possível carregar as fichas');},database,root=document}) {
+export const SCENE_PATH='combatesAtivos/mapaMesaSyncDiretaCena';
+export function mountDirectPositionLab({user,characters,catalog=characters,mapas=()=>[],loadMap=async()=>null,renderMap=()=>'',loadProp=async o=>o,loadActions=async()=>({skills:[]}),rollTest=()=>({die:0,grau:'Indisponível'}),loadCombatants=async()=>{throw new Error('Não foi possível carregar as fichas');},database,root=document}) {
  const el=id=>root.getElementById(id), tokens=new Map(), previews=new Map(), queues=new Map();
  let stop=null,stopMap=null,account='',error='',generation=0,mapPacket=null,mapData=null,renderedMap=null,mapRequest=0;
  let changingTurn=false,lastSelectedTurn='';
  let held=null,frame=0,placing=false,placementChoice='';
+ let catalogKey='',catalogLimit=48,sceneRef=null,sceneMapId=null;
+ const quickChoices=new Map();
+ let stopScene=null,sceneData=null,sceneRequest=0;
+ const propCache=new Map();
  function drawCatalog(){
   const select=el('novaSyncMestrePersonagem');if(!select)return;
+  const details=el('novaSyncCatalog');if(details)details.hidden=!user()?.master;
   const old=select.value;
+  const type=el('novaSyncMestreTipo')?.value,search=(el('novaSyncCatalogSearch')?.value||'').toLocaleLowerCase('pt-BR');
+  const key=JSON.stringify([type,search,old,details?.open,placing,placementChoice,!!mapPacket?.combat?.active,user()?.master,[...tokens.keys()],catalogLimit]);
+  if(key===catalogKey)return;catalogKey=key;
   const placeholder=root.createElement('option');placeholder.value='';placeholder.textContent='Escolher personagem para colocar no mapa';
-  const type=el('novaSyncMestreTipo')?.value;
-  select.replaceChildren(placeholder,...(user()?.master?catalog():[]).filter(t=>!type||t.catalogType===type).map(t=>{const o=root.createElement('option');o.value=t.id;o.textContent=t.nome;o.disabled=tokens.has(encodeURIComponent(t.id));if(o.disabled)o.textContent+=' (já está no mapa)';return o;}));
+  const list=(user()?.master?catalog():[]).filter(t=>(!type||t.catalogType===type)&&String(t.nome).toLocaleLowerCase('pt-BR').includes(search));
+  select.replaceChildren(placeholder,...list.map(t=>{const o=root.createElement('option');o.value=t.id;o.textContent=t.nome;o.disabled=tokens.has(encodeURIComponent(t.id));if(o.disabled)o.textContent+=' (já está no mapa)';return o;}));
   select.value=old;select.disabled=!user()?.master||!!mapPacket?.combat?.active||placing;
   if(el('novaSyncMestreTipo'))el('novaSyncMestreTipo').disabled=select.disabled;
   if(select.disabled)placementChoice='';
   const button=el('novaSyncAdicionar');
   if(button){button.disabled=select.disabled||!select.value||tokens.has(encodeURIComponent(select.value));button.textContent=placementChoice?'Cancelar colocação':'Adicionar ao mapa';}
   const hint=el('novaSyncAdicionarHint');if(hint)hint.textContent=!user()?.master?'O mestre adiciona personagens ao mapa.':placing?'Adicionando personagem…':placementChoice?'Clique no mapa para escolher a posição.':mapPacket?.combat?.active?'Adicione personagens fora de combate.':'Escolha o tipo e o personagem, depois clique em Adicionar ao mapa.';
+  const grid=el('novaSyncCatalogGrid');
+  if(grid){
+   grid.replaceChildren();
+   if(details?.open&&user()?.master)for(const [i,t] of list.slice(0,catalogLimit).entries()){
+    const card=root.createElement('button');card.type='button';card.disabled=select.disabled||tokens.has(encodeURIComponent(t.id));card.setAttribute('aria-pressed',String(select.value===String(t.id)));
+    if(t.imagem){const img=root.createElement('img');img.src=t.imagem;img.loading='lazy';img.decoding='async';img.alt='';card.append(img);}
+    const name=root.createElement('span');name.textContent=(i+1)+'. '+t.nome+(card.disabled&&tokens.has(encodeURIComponent(t.id))?' (no mapa)':'');card.append(name);
+    card.addEventListener('click',()=>{select.value=t.id;placementChoice='';drawCatalog();status();});grid.append(card);
+   }
+   if(details?.open&&!list.length)grid.textContent='Nenhum resultado para este filtro.';
+  }
+  const more=el('novaSyncCatalogMore');if(more)more.hidden=!details?.open||list.length<=catalogLimit;
  }
  const canView=t=>!!t&&!!user()&&(user().master||user().uid===t.donoUid);
  const controlled=t=>!!t&&!!user()&&(user().uid===t.donoUid||(user().master&&!t.donoUid));
+ const updateActions=criarPainelAcoes({root,load:loadActions,roll:rollTest,spend:async(id,turn)=>{
+  if(mapPacket?.combat?.activeId!==id||mapPacket.combat.turnId!==turn)return false;
+  return changeTurn('spend');
+ }});
  function status(){
-  el('novaSyncStatus').textContent=(queues.size?'Sincronização direta 24 · salvando posição…':error)||`Sincronização direta 24 · ${tokens.size} personagem(ns) · mantenha o mouse pressionado para caminhar`;
+  el('novaSyncStatus').textContent=(queues.size?'Sincronização direta 25 · salvando posição…':error)||`Sincronização direta 25 · ${tokens.size} personagem(ns) · mantenha o mouse pressionado para caminhar`;
   if(held)el('novaSyncStatus').textContent='Solte o botão do mouse para parar · 3 m/s';
   else if(placementChoice)el('novaSyncStatus').textContent='Clique no mapa para colocar o personagem escolhido.';
   const masterPanel=el('novaSyncMasterPanel'),playerInfo=el('novaSyncPlayerInfo');
@@ -44,12 +71,16 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   const list=el('novaSyncOrdem');
   if(list)list.textContent=c?.active&&c.schema===2?'Iniciativa: '+c.order.map(id=>`${tokens.get(id)?.nome||id}: ${c.rolls[id].die} + ${c.rolls[id].initiative} = ${c.rolls[id].total} (${c.actors[id].remaining} Ações; ${c.actors[id].passes>=2?'encerrou':c.actors[id].passes+' passagem(ns)'})`).join(' → '):'';
   for(const [id,available]of [['novaSyncStart',user()?.master&&!c?.active],['novaSyncNext',c?.active&&c.schema===2&&controlled(t)],['novaSyncSpend',c?.active&&c.schema===2&&controlled(t)],['novaSyncEnd',user()?.master&&c?.active]]){
-   const b=el(id);if(b){b.hidden=false;b.disabled=!available||queues.size>0||changingTurn;}
+   const b=el(id);if(b){b.hidden=id==='novaSyncStart'?!!c?.active:id==='novaSyncEnd'?!c?.active:false;b.disabled=!available||queues.size>0||changingTurn;}
   }
   const roleHint=el('novaSyncTurnoHint');
   if(roleHint)roleHint.textContent='Passar ação preserva as Ações na primeira passagem; a segunda encerra sua participação neste turno. Registrar 1 Ação apenas desconta o gasto, sem resolver ataques ou testes.';
   if(el('novaSyncMapa'))el('novaSyncMapa').disabled=!!c?.active||!user()?.master;
   if(el('novaSyncInit'))el('novaSyncInit').disabled=!!c?.active;
+  const quick=el('novaSyncQuickSearch'),quickAdd=el('novaSyncQuickAdd');
+  if(quick)quick.disabled=!user()?.master||!!c?.active||placing;
+  if(quickAdd)quickAdd.disabled=!user()?.master||!!c?.active||placing||!quickChoices.has(quick?.value);
+  updateActions(selected,c,controlled(selected)&&(!c?.active||c.activeId===selected?.id)&&!queues.size&&!changingTurn);
  }
  function drawMap(){
   const board=el('novaSyncBoard'),select=el('novaSyncMapa'); if(!board||!select)return;
@@ -92,12 +123,29 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
     const label=root.createElement('span');label.textContent=t.nome;label.style.cssText='position:absolute;top:46px;left:50%;transform:translateX(-50%);white-space:nowrap;background:#172337;font-size:12px';node.append(label);board.append(node);
    }
    const p=previews.get(t.id)||t;
+   node.style.boxSizing='border-box';
+   node.style.width=TOKEN_DIAMETER/(Number(mapPacket?.larguraM)||28)*board.clientWidth+'px';
+   node.style.height=TOKEN_DIAMETER/(Number(mapPacket?.alturaM)||14)*board.clientHeight+'px';
    node.style.transition=previews.has(t.id)?'none':'left .2s linear,top .2s linear';
    node.style.left=`${p.x/28*100}%`;node.style.top=`${p.y/14*100}%`;
    node.dataset.x=p.x;node.dataset.y=p.y;
    node.style.cursor=controlled(t)?'grab':'default';node.style.borderColor=t.id===select.value?'#ffd447':'#00d4ff';
   }
-  drawMap();drawCatalog();status();
+  drawMap();drawScene();drawCatalog();status();
+ }
+ function drawScene(){
+  const board=el('novaSyncBoard'),scene=sceneData;
+  if(sceneRef===scene&&sceneMapId===mapPacket?.mapId)return;sceneRef=scene;sceneMapId=mapPacket?.mapId;
+  for(const node of board.querySelectorAll('[data-scene-object]'))node.remove();
+  if(scene?.mapId!==(mapPacket?.mapId||''))return;
+  for(const o of scene.objects||[]){
+   const node=root.createElement('div');node.dataset.sceneObject=o.id;node.title=o.nome;
+   node.style.cssText='position:absolute;pointer-events:none;transform:translate(-50%,-50%);';
+   node.style.left=o.x/28*100+'%';node.style.top=o.y/14*100+'%';
+   node.style.width=o.larguraM/(Number(mapPacket?.larguraM)||28)*100+'%';node.style.height=o.alturaM/(Number(mapPacket?.alturaM)||14)*100+'%';
+   if(o.imagem){const img=root.createElement('img');img.src=o.imagem;img.alt=o.nome;img.style.cssText='width:100%;height:100%;object-fit:contain';node.append(img);}else{node.textContent=o.nome;node.style.background='#37455b';}
+   const firstToken=board.querySelector('[data-token]');board.insertBefore(node,firstToken);
+  }
  }
  function fail(e){
   const detail=String(e.code||e.message||e);
@@ -106,7 +154,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
    `Não foi possível salvar/sincronizar: ${detail}. O movimento não confirmado volta ao último ponto salvo.`;
   status();console.error('[Sync direta]',e);
  }
- function close(){held=null;cancelAnimationFrame(frame);generation++;stop?.();stopMap?.();stop=null;stopMap=null;account='';tokens.clear();previews.clear();queues.clear();mapPacket=null;mapData=null;renderedMap=null;mapRequest++;}
+ function close(){held=null;placementChoice='';cancelAnimationFrame(frame);generation++;stop?.();stopMap?.();stopScene?.();stopScene=null;sceneData=null;sceneRequest++;stop=null;stopMap=null;account='';tokens.clear();previews.clear();queues.clear();mapPacket=null;mapData=null;renderedMap=null;mapRequest++;}
  function open(){
   const u=user();if(!u)return;if(account===u.uid&&stop)return;close();account=u.uid;error='';const g=generation;
   stop=database.subscribe(POSITION_PATH,rows=>{
@@ -120,6 +168,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   },fail);
   stopMap=database.subscribeDoc(MAP_PATH,async p=>{
    if(g!==generation)return;
+   if(p?.combat?.session===mapPacket?.combat?.session&&Number(p?.combat?.sequence)<Number(mapPacket?.combat?.sequence))return;
    const request=++mapRequest;
    try{
     if(p?.mapId===mapPacket?.mapId){mapPacket=p||null;draw();return;}
@@ -127,6 +176,17 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
     if(g!==generation||request!==mapRequest)return;
     mapPacket=p||null;mapData=loaded;draw();
    }catch(e){if(g===generation&&request===mapRequest)fail(e);}
+  },fail);
+  stopScene=database.subscribeDoc(SCENE_PATH,async scene=>{
+   const request=++sceneRequest;
+   try{
+    const objects=await Promise.all((scene?.objects||[]).map(async o=>{
+     if(!propCache.has(o.modeloId))propCache.set(o.modeloId,loadProp(o).catch(e=>{propCache.delete(o.modeloId);throw e;}));
+     return {...await propCache.get(o.modeloId),...o};
+    }));
+    if(g!==generation||request!==sceneRequest)return;
+    sceneData=scene?{...scene,objects}:null;drawScene();
+   }catch(e){if(g===generation)fail(e);}
   },fail);
   draw();
  }
@@ -162,7 +222,9 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
      const state=await tx.get(MAP_PATH);
      const path=POSITION_PATH+'/'+id,t=await tx.get(path);
      if(!t)throw new Error('Personagem não encontrado');
-     const moved=moverNoTurno({...t,id},next,state,expectedTurn);
+     const others=await Promise.all([...tokens.keys()].filter(key=>key!==id).map(async key=>{const value=await tx.get(POSITION_PATH+'/'+key);return value?{...value,id:key}:null;}));
+     const destination=destinoSemColisao({...t,id},next,others.filter(Boolean),state);
+     const moved=moverNoTurno({...t,id},destination,state,expectedTurn);
      const {id:ignored,...value}=moved;
      value.revision=t.revision+1;tx.set(path,value);return value;
     });
@@ -188,7 +250,8 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   try{
    if(distance>0){
     const ratio=Math.min(1,3*dt/distance);
-    const p=moverNoTurno(t,{x:t.x+(h.target.x-t.x)*ratio,y:t.y+(h.target.y-t.y)*ratio},mapPacket,h.turn);
+    const dest=destinoSemColisao(t,{x:t.x+(h.target.x-t.x)*ratio,y:t.y+(h.target.y-t.y)*ratio},[...tokens.values()].map(t=>previews.get(t.id)||t),mapPacket);
+    const p=moverNoTurno(t,dest,mapPacket,h.turn);
     if(p.x!==t.x||p.y!==t.y){
      previews.set(h.id,p);draw();
      if(now-h.sent>=200){h.sent=now;save(h.id,{x:p.x,y:p.y});}
@@ -228,6 +291,11 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
    await database.transact(async tx=>{
     const s=await tx.get(MAP_PATH),existing=await tx.get(POSITION_PATH+'/'+id);
     if(s?.combat?.active)throw new Error('Coloque personagens fora de combate.');
+    if(['objeto','item'].includes(t.catalogType)){
+     const scene=await tx.get(SCENE_PATH),objects=scene?.mapId===(s?.mapId||'')?scene.objects:[];
+     const object={id:crypto.randomUUID(),nome:String(t.nome),tipo:t.catalogType,modeloId:String(t.id),larguraM:Math.max(.1,Number(t.larguraM)||1),alturaM:Math.max(.1,Number(t.alturaM)||1),pvMax:Number(t.pvMax||t.pv)||0,dureza:Number(t.dureza)||0,...p};
+     tx.set(SCENE_PATH,{mapId:s?.mapId||'',objects:[...objects,object]});return;
+    }
     if(existing)throw new Error('Este personagem já está no mapa.');
     tx.set(POSITION_PATH+'/'+id,{nome:String(t.nome||'Personagem'),imagem:String(t.imagem||''),donoUid:String(t.donoUid||t.dono||''),...p,revision:0});
    });
@@ -236,6 +304,32 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
  }
  el('novaSyncMestrePersonagem')?.addEventListener('change',()=>{release();placementChoice='';drawCatalog();status();});
  el('novaSyncMestreTipo')?.addEventListener('change',()=>{placementChoice='';el('novaSyncMestrePersonagem').value='';drawCatalog();status();});
+ el('novaSyncCatalog')?.addEventListener('toggle',()=>{catalogKey='';drawCatalog();});
+ el('novaSyncCatalogSearch')?.addEventListener('input',()=>{catalogLimit=48;placementChoice='';drawCatalog();status();});
+ el('novaSyncCatalogMore')?.addEventListener('click',()=>{catalogLimit+=48;drawCatalog();});
+ el('novaSyncQuickSearch')?.addEventListener('focus',()=>{
+  if(!user()?.master)return;quickChoices.clear();const options=el('novaSyncQuickOptions');options.replaceChildren();
+  const labels={pj:'PJ',pm:'PM',npc:'NPC',monstro:'Monstro',objeto:'Objeto',item:'Item'};
+  for(const t of catalog()){
+   if(tokens.has(encodeURIComponent(t.id)))continue;
+   const base=t.nome+' · '+(labels[t.catalogType]||'Personagem');let label=base,n=2;while(quickChoices.has(label))label=base+' ('+(n++)+')';
+   quickChoices.set(label,t.id);const option=root.createElement('option');option.value=label;options.append(option);
+  }
+ });
+ el('novaSyncQuickSearch')?.addEventListener('input',status);
+ el('novaSyncQuickAdd')?.addEventListener('click',async()=>{
+  if(!user()?.master||mapPacket?.combat?.active||placing)return;
+  const input=el('novaSyncQuickSearch'),id=quickChoices.get(input.value);if(!id)return;
+  const entry=catalog().find(t=>t.id===id);let p={x:14,y:7};
+  if(!['objeto','item'].includes(entry?.catalogType)){
+   const w=(Number(mapPacket?.larguraM)||28)/28,h=(Number(mapPacket?.alturaM)||14)/14;
+   const candidates=[];for(let y=.8;y<=13.2;y+=.8)for(let x=.8;x<=27.2;x+=.8)candidates.push({x,y});
+   candidates.sort((a,b)=>Math.hypot((a.x-14)*w,(a.y-7)*h)-Math.hypot((b.x-14)*w,(b.y-7)*h));
+   p=candidates.find(p=>[...tokens.values()].every(t=>Math.hypot((p.x-t.x)*w,(p.y-t.y)*h)>=TOKEN_DIAMETER));
+   if(!p){error='Não há espaço livre para outra miniatura.';status();return;}
+  }
+  await place(id,p);input.value='';quickChoices.clear();status();
+ });
  el('novaSyncAdicionar')?.addEventListener('click',()=>{
   if(!user()?.master||mapPacket?.combat?.active||placing)return;
   release();placementChoice=placementChoice?'':el('novaSyncMestrePersonagem').value;drawCatalog();status();
@@ -269,11 +363,11 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
     }
     tx.set(MAP_PATH,{...state,combat});
    });
-   error='';status();
+   error='';status();return true;
   }catch(e){fail(e);}
   finally{changingTurn=false;status();}
  }
- for(const [id,action]of [['novaSyncStart','start'],['novaSyncNext','pass'],['novaSyncSpend','spend'],['novaSyncEnd','end']])el(id)?.addEventListener('click',()=>changeTurn(action));
+ for(const [id,action]of [['novaSyncStart','start'],['novaSyncNext','pass'],['novaSyncSpend','spend'],['novaSyncEnd','end']])el(id)?.addEventListener('click',e=>{if(e.detail<2)changeTurn(action);});
  el('novaSyncJoin')?.addEventListener('click',async()=>{
   const t=tokens.get(el('novaSyncPersonagem')?.value);if(!t||t.donoUid!==user()?.uid||mapPacket?.combat?.active)return;
   try{await database.transact(async tx=>{const s=await tx.get(MAP_PATH)||{};tx.set(MAP_PATH,{...s,joined:{...(s.joined||{}),[t.id]:(s.joined||{})[t.id]===false}});});error='';status();}catch(e){fail(e);}

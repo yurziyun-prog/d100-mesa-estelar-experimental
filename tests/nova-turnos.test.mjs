@@ -65,3 +65,10 @@ test('ação duplicada da mesma oportunidade é rejeitada',()=>{
  const c=iniciarIniciativa(actors,'s',()=>1),next=step(c,'spend');
  assert.throws(()=>acaoIniciativa(next,'spend',c.turnId));
 });
+test('três NPCs que passam uma vez voltam antes de renovar o turno',()=>{
+ const npcs=[1,2,3].map(i=>({id:'npc'+i,nome:'NPC '+i,initiative:10-i,actions:3,donoUid:''}));
+ let c=iniciarIniciativa(npcs,'npcs',()=>1);
+ for(const id of c.order){assert.equal(c.activeId,id);c=step(c,'pass');assert.equal(c.round,1);}
+ for(const id of c.order){assert.equal(c.activeId,id);assert.equal(c.actors[id].passes,1);assert.equal(c.actors[id].remaining,3);c=step(c,'pass');}
+ assert.equal(c.round,2);
+});

@@ -39,7 +39,7 @@ const {chromium}=require('C:/Users/yurzi/.cache/codex-runtimes/codex-primary-run
   let positions,mapListener;
   const ctl=mountDirectPositionLab({user:()=>({uid:'player',master:false}),characters:()=>[],mapas:()=>[],
    loadMap:async()=>map,renderMap:window.novaSyncRenderMap_,
-   database:{subscribe:(p,fn)=>{positions=fn;return ()=>{};},subscribeDoc:(p,fn)=>{mapListener=fn;return ()=>{};}}});
+   database:{subscribe:(p,fn)=>{positions=fn;return ()=>{};},subscribeDoc:(p,fn)=>{if(p==='combatesAtivos/mapaMesaSyncDireta')mapListener=fn;return ()=>{};}}});
   ctl.open();await mapListener({mapId:'fixture',nome:'Mapa compartilhado'});
   positions([{id:'pj',data:{nome:'Jogador',donoUid:'player',x:4,y:4,revision:1}}]);
   const layer=document.querySelector('[data-map-layer]'),svg=layer.firstChild;

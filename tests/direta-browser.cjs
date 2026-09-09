@@ -28,7 +28,10 @@ const dir=path.join(__dirname,'../js');
   await page.route('https://nova.test/**',route=>{
    const name=new URL(route.request().url()).pathname.slice(1);
    if(name.endsWith('.js'))return route.fulfill({contentType:'text/javascript',body:fs.readFileSync(path.join(dir,name),'utf8')});
-   return route.fulfill({contentType:'text/html',body:'<div id="novaSyncStatus"></div><div id="novaSyncTurno"></div><div id="novaSyncOrdem"></div><button id="novaSyncSpend">Registrar 1 Ação</button><button id="novaSyncStart">Iniciar</button><button id="novaSyncNext">Próximo</button><button id="novaSyncEnd">Encerrar</button><button id="novaSyncInit">Inicializar</button><select id="novaSyncPersonagem"></select><div id="novaSyncBoard" style="position:relative;width:840px;height:420px"></div>'});
+   const html=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8');
+   const css=html.slice(html.indexOf('<style>'),html.indexOf('</style>')+8);
+   const panel=html.slice(html.indexOf('<div id="novaSyncStatus"'),html.indexOf('<!-- ABA BATALHA COMPARTILHADA'));
+   return route.fulfill({contentType:'text/html',body:css+'<main style="padding:12px">'+panel+'</main>'});
   });
   await page.goto('https://nova.test/');
   await page.evaluate(async({uid,master})=>{
@@ -41,9 +44,7 @@ const dir=path.join(__dirname,'../js');
     writeMap:async()=>{}
    };
    const {mountDirectPositionLab}=await import('/nova-direta.js');
-   const picker=document.createElement('select');picker.id='novaSyncMestrePersonagem';document.body.prepend(picker);
-   document.body.insertAdjacentHTML('afterbegin','<select id="novaSyncMestreTipo"><option value="">Todos</option><option>pj</option><option>pm</option><option>npc</option><option>monstro</option></select><button id="novaSyncAdicionar">Adicionar ao mapa</button><span id="novaSyncAdicionarHint"></span>');
-   window.lab=mountDirectPositionLab({database:db,user:()=>({uid,master}),characters:()=>[],catalog:()=>[{id:'npc:guarda',nome:'Guarda',donoUid:'',catalogType:'npc'},...['pj','pm','monstro'].map(type=>({id:type+'extra',nome:type,catalogType:type}))],loadCombatants:async rows=>rows.map(t=>({...t,initiative:t.id==='pj'?20:0,actions:t.id==='pj'?2:3}))});
+   window.lab=mountDirectPositionLab({database:db,user:()=>({uid,master}),characters:()=>[],catalog:()=>[{id:'npc:guarda',nome:'Guarda',donoUid:'',catalogType:'npc'},...['pj','pm','monstro','objeto','item'].map(type=>({id:type+'extra',nome:type,catalogType:type,imagem:'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg"/%3E'}))],loadActions:async()=>({skills:[{id:'per',nome:'Percepção',valor:50,weapons:[],descricao:'Observe o ambiente'}],pvHtml:'<span>PV 5/5 · PA 0</span>'}),rollTest:()=>({die:25,grau:'Sucesso'}),loadCombatants:async rows=>rows.map(t=>({...t,initiative:t.id==='pj'?20:0,actions:t.id==='pj'?2:3}))});
 
    await lab.open();
   },{uid,master});
@@ -52,7 +53,9 @@ const dir=path.join(__dirname,'../js');
  try {
   const player=await pageFor('player',false);
   await player.waitForFunction(()=>document.querySelectorAll('[data-token]').length===2);
-  async function walkTo(p,x,y){const b=await p.locator('#novaSyncBoard').boundingBox();const start=await p.evaluate(()=>{const id=document.querySelector('#novaSyncPersonagem').value;const n=[...document.querySelectorAll('[data-token]')].find(n=>n.dataset.token===id);return {x:+n.dataset.x,y:+n.dataset.y};});await p.mouse.move(b.x+x/28*b.width,b.y+y/14*b.height);await p.mouse.down();await p.waitForTimeout(Math.hypot(x-start.x,y-start.y)/3*1000+150);await p.mouse.up();}
+  async function walkTo(p,x,y){await p.locator('#novaSyncBoard').scrollIntoViewIfNeeded();const b=await p.locator('#novaSyncBoard').boundingBox();const start=await p.evaluate(()=>{const id=document.querySelector('#novaSyncPersonagem').value;const n=[...document.querySelectorAll('[data-token]')].find(n=>n.dataset.token===id);return {x:+n.dataset.x,y:+n.dataset.y};});await p.mouse.move(b.x+x/28*b.width,b.y+y/14*b.height);await p.mouse.down();await p.waitForTimeout(Math.hypot(x-start.x,y-start.y)/3*1000+150);await p.mouse.up();}
+  async function placeAt(p,x,y){await p.locator('#novaSyncBoard').scrollIntoViewIfNeeded();const r=await p.locator('#novaSyncBoard').boundingBox();await p.mouse.click(r.x+x/28*r.width,r.y+y/14*r.height);}
+  await player.locator('#novaSyncBoard').scrollIntoViewIfNeeded();
   const b=await player.locator('#novaSyncBoard').boundingBox();
   await player.mouse.move(b.x+600,b.y+180);await player.mouse.down();
   await player.waitForFunction(()=>Number(document.querySelector('[data-token="pj"]').dataset.x)>10);
@@ -121,6 +124,7 @@ const dir=path.join(__dirname,'../js');
   assert.deepEqual(errors,[]);
   console.log('PASS iniciativa, ações do dono, duas passagens, avanço automático e saldo de movimento por turno');
   assert.equal(await player.locator('#novaSyncMestrePersonagem').isDisabled(),true);
+  await master.locator('#novaSyncCatalog summary').click();
   for(const type of ['pj','pm','monstro','npc']){
    await master.locator('#novaSyncMestreTipo').selectOption(type);
    assert.equal(await master.locator('#novaSyncMestrePersonagem option').count(),2,'filtro mostra somente o tipo escolhido');
@@ -132,11 +136,61 @@ const dir=path.join(__dirname,'../js');
   await master.locator('#novaSyncAdicionar').click();
   assert.equal(await master.locator('#novaSyncAdicionar').textContent(),'Adicionar ao mapa');
   await master.locator('#novaSyncAdicionar').click();
-  const mb=await master.locator('#novaSyncBoard').boundingBox();await master.mouse.click(mb.x+60,mb.y+60);
+  await placeAt(master,2,2);
   await player.waitForFunction(()=>document.querySelectorAll('[data-token]').length===3);
   assert.equal(store[statePath+'/npc%3Aguarda'].nome,'Guarda');
-  assert.equal(store[statePath+'/npc%3Aguarda'].x,2);
+  assert.ok(Math.abs(store[statePath+'/npc%3Aguarda'].x-2)<.02);
   console.log('PASS seletor lista e coloca NPC no mapa de ambas as contas');
+  await master.locator('#novaSyncCatalog summary').click();
+  await master.waitForFunction(()=>document.querySelectorAll('#novaSyncCatalogGrid img').length===0);
+  await master.locator('#novaSyncCatalog summary').click();
+  await master.locator('#novaSyncMestreTipo').selectOption('objeto');
+  await master.waitForFunction(()=>document.querySelectorAll('#novaSyncCatalogGrid img').length===1);
+  await master.locator('#novaSyncCatalogGrid button').click();
+  await master.locator('#novaSyncAdicionar').click();
+  await placeAt(master,6,6);
+  await player.waitForFunction(()=>document.querySelectorAll('[data-scene-object]').length===1);
+  assert.equal(store['combatesAtivos/mapaMesaSyncDiretaCena'].objects[0].tipo,'objeto');
+  assert.equal(store[combatPath].scene,undefined,'objetos não pesam no documento usado para movimento');
+  assert.equal(Object.keys(store).filter(p=>p.startsWith(statePath+'/')).length,3,'objeto não vira personagem');
+  assert.equal(await master.locator('#novaSyncStart').isVisible(),true);
+  assert.equal(await master.locator('#novaSyncEnd').isVisible(),false);
+  await master.locator('#novaSyncStart').click();
+  await master.waitForFunction(()=>document.querySelector('#novaSyncEnd').hidden===false);
+  assert.equal(await master.locator('#novaSyncStart').isVisible(),false);
+  const order=[...store[combatPath].combat.order];
+  for(const id of order){
+   assert.equal(store[combatPath].combat.activeId,id);
+   await act(id==='pj'?player:master,'#novaSyncNext');
+   assert.equal(store[combatPath].combat.round,1);
+  }
+  for(const id of order){
+   assert.equal(store[combatPath].combat.activeId,id);
+   assert.equal(store[combatPath].combat.actors[id].passes,1);
+   assert.ok(store[combatPath].combat.actors[id].remaining>0);
+   await act(id==='pj'?player:master,'#novaSyncNext');
+  }
+  assert.equal(store[combatPath].combat.round,2);
+  const beforeActions=store[combatPath].combat.actors.pj.remaining;
+  await player.locator('#novaSyncActionPanel button').click();
+  await player.waitForFunction(()=>document.querySelector('#novaSyncActionPanel').textContent.includes('Sucesso'));
+  assert.equal(store[combatPath].combat.actors.pj.remaining,beforeActions-1);
+  assert.deepEqual(errors,[]);
+  console.log('PASS galeria sob demanda, objeto compartilhado, botão contextual, retorno do NPC e teste gastando Ação');
+  await master.locator('#novaSyncEnd').click();
+  await master.locator('#novaSyncQuickSearch').fill('item · Item');
+  await master.locator('#novaSyncQuickAdd').click();
+  await player.waitForFunction(()=>document.querySelectorAll('[data-scene-object]').length===2);
+  assert.equal(store['combatesAtivos/mapaMesaSyncDiretaCena'].objects[1].tipo,'item');
+  await master.locator('#novaSyncPersonagem').selectOption('pm');
+  await walkTo(master,27.2,store[statePath+'/pj'].y);
+  await master.waitForFunction(()=>!document.getElementById('novaSyncStatus').textContent.includes('salvando'));
+  const pm=store[statePath+'/pm'],pj=store[statePath+'/pj'];
+  assert.ok(Math.hypot(pm.x-pj.x,pm.y-pj.y)>=1.4-1e-5,'miniaturas param sem se sobrepor');
+  assert.ok(pm.x<pj.x,'não atravessa o jogador');
+  await master.locator('#novaSyncMasterPanel').scrollIntoViewIfNeeded();
+  await master.screenshot({path:path.join(__dirname,'../../../sync25-ui.png'),fullPage:true});
+  console.log('PASS busca rápida adiciona diretamente e colisão persiste na outra conta');
 
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exit(1)});
