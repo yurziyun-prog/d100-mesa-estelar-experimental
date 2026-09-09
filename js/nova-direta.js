@@ -29,7 +29,25 @@ export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=asy
   let layer=board.querySelector('[data-map-layer]');
   if(!layer){layer=root.createElement('div');layer.dataset.mapLayer='';layer.style.cssText='position:absolute;inset:0;pointer-events:none;overflow:hidden';board.prepend(layer);}
   const mw=Number(mapData?.larguraM||mapPacket?.larguraM||28),mh=Number(mapData?.alturaM||mapPacket?.alturaM||14);
-  layer.replaceChildren(...(mapData?.oficina2State?.elements||[]).filter(e=>e.type==='image'&&e.src).map(e=>{const img=root.createElement('img');img.src=e.src;img.draggable=false;img.style.cssText=`position:absolute;left:${Number(e.x||0)/mw*100}%;top:${Number(e.y||0)/mh*100}%;width:${Number(e.w||1)/mw*100}%;height:${Number(e.h||1)/mh*100}%;object-fit:fill;opacity:${Number(e.opacity??1)}`;return img;}));
+  const elements=[...(mapData?.oficina2State?.elements||mapData?.elements||mapData?.elementos||[]),...(mapData?.objetos||[]),...(mapData?.desenhos||[])];
+  layer.replaceChildren();
+  const svg=root.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox',`0 0 ${mw} ${mh}`);svg.setAttribute('preserveAspectRatio','none');svg.style.cssText='position:absolute;inset:0;width:100%;height:100%;overflow:visible';layer.append(svg);
+  for(const e of elements){
+   const kind=e.type||e.kind;
+   if(kind==='image'||kind==='object'){
+    const src=e.src||e.imagem||e.image||e.dadosBanco?.imagem||e.dadosBanco?.src;if(!src)continue;
+    const img=root.createElement('img');img.src=src;img.draggable=false;img.style.cssText=`position:absolute;left:${Number(e.x||0)/mw*100}%;top:${Number(e.y||0)/mh*100}%;width:${Number(e.w||e.width||1)/mw*100}%;height:${Number(e.h||e.height||1)/mh*100}%;object-fit:fill;opacity:${Number(e.opacity??1)}`;layer.append(img);continue;
+   }
+   let shape=null;
+   if(kind==='path'||kind==='freehand'){
+    const pts=e.points||e.pts||e.pontos||[];shape=root.createElementNS('http://www.w3.org/2000/svg','polyline');shape.setAttribute('points',pts.map(p=>`${Number(p.x||0)},${Number(p.y||0)}`).join(' '));
+   }else if(kind==='line'){
+    shape=root.createElementNS('http://www.w3.org/2000/svg','line');for(const k of ['x','y','x2','y2'])shape.setAttribute(k,Number(e[k]||0));
+   }else if(kind==='rect'||kind==='rectangle'){
+    shape=root.createElementNS('http://www.w3.org/2000/svg','rect');shape.setAttribute('x',Number(e.x||0));shape.setAttribute('y',Number(e.y||0));shape.setAttribute('width',Number(e.w||e.width||1));shape.setAttribute('height',Number(e.h||e.height||1));
+   }
+   if(shape){shape.setAttribute('fill',kind==='rect'||kind==='rectangle'?(e.fill||'none'):'none');shape.setAttribute('stroke',e.stroke||e.cor||'#ffcf4d');shape.setAttribute('stroke-width',Number(e.strokeWidthM||e.strokeWidth||e.esp||.08));shape.setAttribute('stroke-opacity',Number(e.opacity??e.strokeOpacity??1));shape.setAttribute('stroke-linecap','round');svg.append(shape);}
+  }
  }
  function draw(){
   const board=el('novaSyncBoard'),select=el('novaSyncPersonagem'),old=select.value;
