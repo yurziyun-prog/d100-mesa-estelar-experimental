@@ -50,7 +50,10 @@ service cloud.firestore {
 
     match /combatesAtivos/{combateId} {
       allow read: if autenticado();
-      allow create, update, delete: if ehMestre();
+      allow create, delete: if ehMestre();
+      allow update: if ehMestre() && (combateId != 'mapaMesaSyncDireta' ||
+        !resource.data.get('combat', {}).get('active', false) ||
+        request.resource.data.get('combat', {}).get('active', false) == false);
 
       // Cada comando usa um ID único de sessão, sem permitir que um jogador
       // escreva em nome de outro personagem. O mestre processa e apaga a fila.
@@ -82,26 +85,71 @@ service cloud.firestore {
         let c = map.get('combat', {});
         let d = request.resource.data;
         let previous = resource.data;
-        let spent = previous.get('movementTurn', '') == c.get('turnId', '') ? previous.get('movementUsed', 0) : 0;
+        let spent = previous.get('movementTurn', '') == c.get('roundId', c.get('turnId', '')) ? previous.get('movementUsed', 0) : 0;
         let delta = d.get('movementUsed', 0) - spent;
         let dx = (d.x - previous.x) * map.get('larguraM', 28) / 28;
         let dy = (d.y - previous.y) * map.get('alturaM', 14) / 14;
         return !c.get('active', false) ?
           d.diff(previous).affectedKeys().hasOnly(['x','y','revision']) :
           (c.activeId == tokenId &&
-           d.get('movementTurn', '') == c.turnId &&
+           d.get('movementTurn', '') == c.get('roundId', c.turnId) &&
            d.get('movementUsed', -1) is number &&
            d.movementUsed >= spent && d.movementUsed <= 6 &&
            dx * dx + dy * dy <= delta * delta + 0.00000001);
       }
       allow read: if autenticado();
       allow create: if ehMestre() && posicaoValida() && request.resource.data.revision == 0;
-      allow update: if (ehMestre() || ehDono(resource.data.donoUid)) &&
+      allow update: if ((ehMestre() && resource.data.donoUid == '') || ehDono(resource.data.donoUid)) &&
         posicaoValida() &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['x','y','revision','movementTurn','movementUsed']) &&
         request.resource.data.revision == resource.data.revision + 1 &&
         movimentoPermitido();
       allow delete: if ehMestre();
+    }
+
+    // A oportunidade avança na transação do próprio ator, sem fila do mestre.
+    match /combatesAtivos/mapaMesaSyncDireta {
+      function controlaAtor(c) {
+        return ehDono(c.rolls[c.activeId].owner) ||
+          (ehMestre() && c.rolls[c.activeId].owner == '');
+      }
+      function filaDepois(c, action) {
+        let tail = c.queue.removeAll([c.activeId]);
+        return action == 'pass' ?
+          (c.actors[c.activeId].passes == 0 ? tail.concat([c.activeId]) : tail) :
+          (c.actors[c.activeId].remaining == 1 ? tail : c.queue);
+      }
+      function atorAlterado(c, n) {
+        let a = c.actors[c.activeId];
+        let b = n.actors[c.activeId];
+        return n.actors.diff(c.actors).affectedKeys().hasOnly([c.activeId]) &&
+          b.keys().hasOnly(['remaining','passes']) &&
+          (n.lastAction == 'spend' ?
+           (b.remaining == a.remaining - 1 && b.passes == a.passes) :
+           (b.remaining == a.remaining && b.passes == a.passes + 1));
+      }
+      function fluxoValido(c, n) {
+        let queue = filaDepois(c, n.lastAction);
+        let renewed = queue.size() == 0;
+        return n.queue == (renewed ? c.order : queue) &&
+          n.activeId == n.queue[0] &&
+          n.round == c.round + (renewed ? 1 : 0) &&
+          n.roundId == (renewed ? c.session + ':' + string(n.round) : c.roundId) &&
+          (renewed ? n.actors == c.initial : atorAlterado(c, n));
+      }
+      function acaoValida() {
+        let c = resource.data.combat;
+        let n = request.resource.data.combat;
+        return autenticado() && c.schema == 2 && c.active && controlaAtor(c) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['combat']) &&
+          n.diff(c).affectedKeys().hasOnly(['queue','actors','activeId','round','roundId','sequence','turnId','lastAction']) &&
+          n.lastAction in ['pass','spend'] &&
+          c.actors[c.activeId].remaining > 0 && c.actors[c.activeId].passes < 2 &&
+          n.sequence == c.sequence + 1 &&
+          n.turnId == c.session + ':' + string(n.sequence) &&
+          fluxoValido(c,n);
+      }
+      allow update: if acaoValida();
     }
 
     match /{document=**} { allow read, write: if false; }

@@ -36444,11 +36444,23 @@ function labInstalarAcoesConfirmadas_(){
 labInstalarAcoesConfirmadas_();
 
 // Aba paralela: controlador independente e adaptador Firestore.
-import {mountDirectPositionLab} from './nova-direta.js?v=17';
+import {mountDirectPositionLab} from './nova-direta.js?v=18';
 const novaSyncController_=mountDirectPositionLab({
  user:()=>currentUserUid?{uid:String(currentUserUid),master:batalhaEhMestre_()}:null,
  characters:()=>labEstado_?.tokens?.length?labEstado_.tokens:(userCharacters||[]),
  mapas:()=>mapasDB||[],
+ loadCombatants:async tokens=>Promise.all(tokens.map(async t=>{
+  const legacy=(labEstado_?.tokens||[]).find(x=>String(x.id)===String(t.id));
+  let c=batalhaCharLocal_(t.id)||legacy?.charLab;
+  if(!String(t.id).startsWith('dummy:')&&!c?.__npcTemporario&&!c?.__criaturaTemporaria){
+   const snap=await getDoc(doc(db,'personagens',decodeURIComponent(t.id)));
+   if(snap.exists())c={id:t.id,...snap.data()};
+  }
+  if(!c)throw new Error('Ficha não encontrada para '+t.nome+'. Carregue os personagens antes de iniciar.');
+  const fatigue=obterRegraFadiga_(c);
+  const int=(c.atributos?.INT||10)+(c.bonus?.INT||0),dex=(c.atributos?.DES||10)+(c.bonus?.DES||0);
+  return {...t,initiative:Math.max(0,Math.ceil((int+dex)/2)+(fatigue.iniciativa||0)),actions:obterPAMaxCombate_(c)};
+ })),
  renderMap:map=>window.novaSyncRenderMap_(map),
  loadMap:async id=>{
   let base=(mapasDB||[]).find(x=>String(x.id)===String(id));

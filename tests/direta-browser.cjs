@@ -28,7 +28,7 @@ const dir=path.join(__dirname,'../js');
   await page.route('https://nova.test/**',route=>{
    const name=new URL(route.request().url()).pathname.slice(1);
    if(name.endsWith('.js'))return route.fulfill({contentType:'text/javascript',body:fs.readFileSync(path.join(dir,name),'utf8')});
-   return route.fulfill({contentType:'text/html',body:'<div id="novaSyncStatus"></div><div id="novaSyncTurno"></div><button id="novaSyncStart">Iniciar</button><button id="novaSyncNext">Próximo</button><button id="novaSyncEnd">Encerrar</button><button id="novaSyncInit">Inicializar</button><select id="novaSyncPersonagem"></select><div id="novaSyncBoard" style="position:relative;width:840px;height:420px"></div>'});
+   return route.fulfill({contentType:'text/html',body:'<div id="novaSyncStatus"></div><div id="novaSyncTurno"></div><div id="novaSyncOrdem"></div><button id="novaSyncSpend">Registrar 1 Ação</button><button id="novaSyncStart">Iniciar</button><button id="novaSyncNext">Próximo</button><button id="novaSyncEnd">Encerrar</button><button id="novaSyncInit">Inicializar</button><select id="novaSyncPersonagem"></select><div id="novaSyncBoard" style="position:relative;width:840px;height:420px"></div>'});
   });
   await page.goto('https://nova.test/');
   await page.evaluate(async({uid,master})=>{
@@ -41,7 +41,7 @@ const dir=path.join(__dirname,'../js');
     writeMap:async()=>{}
    };
    const {mountDirectPositionLab}=await import('/nova-direta.js');
-   window.lab=mountDirectPositionLab({database:db,user:()=>({uid,master}),characters:()=>[]});
+   window.lab=mountDirectPositionLab({database:db,user:()=>({uid,master}),characters:()=>[],loadCombatants:async rows=>rows.map(t=>({...t,initiative:t.id==='pj'?20:0,actions:t.id==='pj'?2:3}))});
 
    await lab.open();
   },{uid,master});
@@ -69,31 +69,43 @@ const dir=path.join(__dirname,'../js');
   assert.ok(store[statePath+'/pm'].x>6.9);
   assert.deepEqual(errors,[]);
   console.log('PASS cliques simultâneos convergem em documentos separados, sem setas');
-  await master.locator('#novaSyncPersonagem').selectOption('pj');
   await master.locator('#novaSyncStart').click();
-  await player.waitForFunction(()=>document.querySelector('#novaSyncTurno').textContent.includes('Turno de Jogador'));
+  await player.waitForFunction(()=>document.querySelector('#novaSyncTurno').textContent.includes('Vez de Jogador'));
+  assert.equal(await master.locator('#novaSyncNext').isDisabled(),true,'mestre não passa pelo jogador');
+  const combatPath='combatesAtivos/mapaMesaSyncDireta';
+  const rolls=JSON.stringify(store[combatPath].combat.rolls);
   const origin={...store[statePath+'/pj']};
   await walkTo(player,origin.x-3,origin.y);
   await player.waitForFunction(()=>!document.querySelector('#novaSyncStatus').textContent.includes('salvando'));
   assert.ok(Math.abs(store[statePath+'/pj'].movementUsed-3)<.001);
+  async function act(page,button){
+   const before=store[combatPath].combat.sequence;
+   await page.locator(button).click();
+   const until=Date.now()+5000;
+   while(store[combatPath].combat.sequence===before&&Date.now()<until)await new Promise(r=>setTimeout(r,20));
+   assert.equal(store[combatPath].combat.sequence,before+1);
+  }
+  await act(player,'#novaSyncNext');
+  await master.waitForFunction(()=>document.querySelector('#novaSyncTurno').textContent.includes('Vez de Mestre'));
+  assert.equal(store[combatPath].combat.actors.pj.remaining,2);
+  await act(master,'#novaSyncNext');
+  await player.waitForFunction(()=>document.querySelector('#novaSyncTurno').textContent.includes('Vez de Jogador'));
+  assert.ok((await player.locator('#novaSyncTurno').textContent()).includes('3.00 / 6'));
   await walkTo(player,1,origin.y);
   await player.waitForFunction(()=>!document.querySelector('#novaSyncStatus').textContent.includes('salvando'));
   assert.equal(store[statePath+'/pj'].movementUsed,6);
   assert.ok(Math.abs(store[statePath+'/pj'].x-(origin.x-6))<.001);
-  const exhausted=store[statePath+'/pj'].x;
-  await walkTo(player,25,origin.y);
-  await player.waitForFunction(()=>!document.querySelector('#novaSyncStatus').textContent.includes('salvando'));
-  assert.equal(store[statePath+'/pj'].x,exhausted);
-  await master.locator('#novaSyncNext').click();
-  await player.waitForFunction(()=>document.querySelector('#novaSyncTurno').textContent.includes('Turno de Mestre'));
-  await walkTo(player,2,2);
-  assert.equal(store[statePath+'/pj'].x,exhausted);
-  await master.locator('#novaSyncNext').click();
-  await player.waitForFunction(()=>document.querySelector('#novaSyncTurno').textContent.includes('Rodada 2'));
+  await act(player,'#novaSyncSpend');
+  await player.waitForFunction(()=>document.querySelector('#novaSyncTurno').textContent.includes('Ações: 1 / 2'));
+  await act(player,'#novaSyncSpend');
+  await master.waitForFunction(()=>document.querySelector('#novaSyncTurno').textContent.includes('Vez de Mestre'));
+  assert.equal(store[combatPath].combat.round,1);
+  await act(master,'#novaSyncNext');
+  await player.waitForFunction(()=>document.querySelector('#novaSyncTurno').textContent.includes('Turno 2'));
   assert.ok((await player.locator('#novaSyncTurno').textContent()).includes('6.00 / 6'));
-  await walkTo(player,exhausted-2,origin.y);
-  await player.waitForFunction(()=>!document.querySelector('#novaSyncStatus').textContent.includes('salvando'));
-  assert.ok(Math.abs(store[statePath+'/pj'].movementUsed-2)<.001);
+  assert.equal(JSON.stringify(store[combatPath].combat.rolls),rolls);
+  assert.equal(store[combatPath].combat.actors.pj.remaining,2);
+  assert.equal(store[combatPath].combat.actors.pm.remaining,3);
   await master.locator('#novaSyncEnd').click();
   await player.waitForFunction(()=>document.querySelector('#novaSyncTurno').textContent.includes('Fora de combate'));
   await walkTo(player,26,origin.y);
@@ -101,6 +113,7 @@ const dir=path.join(__dirname,'../js');
   assert.ok(Math.abs(store[statePath+'/pj'].x-26)<.001);
   assert.deepEqual(await poses(master),await poses(player));
   assert.deepEqual(errors,[]);
-  console.log('PASS 6 m divididos, limite, bloqueio fora do turno, renovação e movimento livre ao encerrar');
+  console.log('PASS iniciativa, ações do dono, duas passagens, avanço automático e saldo de movimento por turno');
+
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exit(1)});

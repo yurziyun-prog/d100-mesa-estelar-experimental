@@ -1,22 +1,27 @@
 // Movimento livre: uma posição por personagem, sem sessão-mestre ou fila de comandos.
-import {saldoMovimento,moverNoTurno} from './nova-turnos.js?v=15';
+import {saldoMovimento,moverNoTurno,iniciarIniciativa,acaoIniciativa} from './nova-turnos.js?v=18';
 export const POSITION_PATH='combatesAtivos/mapaMesaSyncDireta/posicoes';
 export const MAP_PATH='combatesAtivos/mapaMesaSyncDireta';
-export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=async()=>null,renderMap=()=>'',database,root=document}) {
+export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=async()=>null,renderMap=()=>'',loadCombatants=async()=>{throw new Error('Não foi possível carregar as fichas');},database,root=document}) {
  const el=id=>root.getElementById(id), tokens=new Map(), previews=new Map(), queues=new Map();
  let stop=null,stopMap=null,account='',error='',generation=0,mapPacket=null,mapData=null,renderedMap=null,mapRequest=0;
- const controlled=t=>!!user()&&(user().master||user().uid===t.donoUid);
+ let changingTurn=false,lastSelectedTurn='';
+ const controlled=t=>!!t&&!!user()&&(user().uid===t.donoUid||(user().master&&!t.donoUid));
  function status(){
-  el('novaSyncStatus').textContent=(queues.size?'Sincronização direta 17 · salvando posição…':error)||`Sincronização direta 17 · ${tokens.size} personagem(ns) · clique no destino para caminhar`;
+  el('novaSyncStatus').textContent=(queues.size?'Sincronização direta 18 · salvando posição…':error)||`Sincronização direta 18 · ${tokens.size} personagem(ns) · clique no destino para caminhar`;
   const alert=el('novaSyncErro');
   if(alert){alert.hidden=!error;alert.textContent=error;}
   const c=mapPacket?.combat,t=tokens.get(c?.activeId),panel=el('novaSyncTurno');
-  if(panel)panel.textContent=c?.active?`Rodada ${c.round} · Turno de ${t?.nome||'personagem'} · Movimento: ${saldoMovimento(previews.get(c.activeId)||t,c).toFixed(2)} / 6 m · Sem gasto de PA. Ordem: ${c.order.map(id=>tokens.get(id)?.nome||id).join(' → ')}`:'Fora de combate · movimento livre. Selecione quem começa antes de iniciar; os demais seguem a ordem da lista.';
-  for(const [id,visible]of [['novaSyncStart',!c?.active],['novaSyncNext',c?.active],['novaSyncEnd',c?.active]]){
-   const b=el(id);if(b){b.hidden=false;b.disabled=!user()?.master||!visible||queues.size>0;b.title=!user()?.master?'O mestre controla o sistema de turnos.':'';}
+  if(panel)panel.textContent=c?.active?(c.schema===2?
+   `Turno ${c.round} · Vez de ${t?.nome||'personagem'} · Ações: ${c.actors[c.activeId].remaining} / ${c.initial[c.activeId].remaining} · Passagens: ${c.actors[c.activeId].passes} / 2 · Movimento: ${saldoMovimento(previews.get(c.activeId)||t,c).toFixed(2)} / 6 m`:
+   'Combate da versão anterior: encerre e inicie novamente para rolar a iniciativa.'):'Fora de combate · movimento livre. Ao iniciar, a iniciativa será rolada uma vez para cada personagem.';
+  const list=el('novaSyncOrdem');
+  if(list)list.textContent=c?.active&&c.schema===2?'Iniciativa: '+c.order.map(id=>`${tokens.get(id)?.nome||id}: ${c.rolls[id].die} + ${c.rolls[id].initiative} = ${c.rolls[id].total} (${c.actors[id].remaining} Ações; ${c.actors[id].passes>=2?'encerrou':c.actors[id].passes+' passagem(ns)'})`).join(' → '):'';
+  for(const [id,available]of [['novaSyncStart',user()?.master&&!c?.active],['novaSyncNext',c?.active&&c.schema===2&&controlled(t)],['novaSyncSpend',c?.active&&c.schema===2&&controlled(t)],['novaSyncEnd',user()?.master&&c?.active]]){
+   const b=el(id);if(b){b.hidden=false;b.disabled=!available||queues.size>0||changingTurn;}
   }
   const roleHint=el('novaSyncTurnoHint');
-  if(roleHint)roleHint.textContent=user()?.master?'Você controla o início, a passagem e o fim dos turnos.':'O mestre controla o início, a passagem e o fim dos turnos.';
+  if(roleHint)roleHint.textContent='Passar ação preserva as Ações na primeira passagem; a segunda encerra sua participação neste turno. Registrar 1 Ação apenas desconta o gasto, sem resolver ataques ou testes.';
   if(el('novaSyncMapa'))el('novaSyncMapa').disabled=!!c?.active||!user()?.master;
   if(el('novaSyncInit'))el('novaSyncInit').disabled=!!c?.active;
  }
@@ -44,6 +49,10 @@ export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=asy
   const mine=[...tokens.values()].filter(controlled);
   select.replaceChildren(...mine.map(t=>{const o=root.createElement('option');o.value=t.id;o.textContent=t.nome;return o;}));
   select.value=mine.some(t=>t.id===old)?old:mine[0]?.id||'';
+  if(mapPacket?.combat?.turnId!==lastSelectedTurn){
+   lastSelectedTurn=mapPacket?.combat?.turnId||'';
+   if(controlled(tokens.get(mapPacket?.combat?.activeId)))select.value=mapPacket.combat.activeId;
+  }
   el('novaSyncInit').style.display=user()?.master?'':'none';
   for(const node of [...board.children])if(node.dataset.token&&!tokens.has(node.dataset.token))node.remove();
   for(const t of tokens.values()){
@@ -154,31 +163,33 @@ export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=asy
  el('novaSyncPersonagem').addEventListener('change',draw);
  el('novaSyncMapa')?.addEventListener('change',()=>{if(user()?.master){const m=(mapas()||[]).find(x=>String(x.id)===String(el('novaSyncMapa').value));if(m)database.writeMap(MAP_PATH,{mapId:String(m.id),nome:String(m.nome||m.id),fundo:String(m.fundo||''),larguraM:Number(m.larguraM)||28,alturaM:Number(m.alturaM)||14}).catch(fail);}});
  async function changeTurn(action){
-  if(!user()?.master||queues.size)return;
+  if(queues.size||changingTurn)return;
+  if(['start','end'].includes(action)?!user()?.master:!controlled(tokens.get(mapPacket?.combat?.activeId)))return;
   const expected=mapPacket?.combat?.turnId||null;
+  const g=generation;
+  changingTurn=true;status();
   try{
+   const started=action==='start'?iniciarIniciativa(await loadCombatants([...tokens.values()]),crypto.randomUUID()):null;
    await database.transact(async tx=>{
+    if(g!==generation)throw new Error('A sessão mudou');
     const state=await tx.get(MAP_PATH)||{},c=state.combat;
     if((c?.turnId||null)!==expected)throw new Error('O turno mudou. Confira a tela antes de avançar.');
     let combat;
     if(action==='start'){
      if(c?.active)return;
-     const first=el('novaSyncPersonagem').value;
-     const order=[first,...tokens.keys()].filter((id,i,a)=>id&&a.indexOf(id)===i);
-     if(!order.length)throw new Error('Inicialize os personagens antes de começar.');
-     combat={active:true,order,index:0,round:1,activeId:order[0],turnId:crypto.randomUUID()};
+     combat=started;
     }else{
      if(!c?.active)return;
-     const index=(c.index+1)%c.order.length;
-     combat=action==='end'?{...c,active:false,turnId:crypto.randomUUID()}:
-      {...c,index,round:c.round+(index===0?1:0),activeId:c.order[index],turnId:crypto.randomUUID()};
+     if(action!=='end'&&!controlled(tokens.get(c.activeId)))throw new Error('Você não controla este personagem.');
+     combat=action==='end'?{...c,active:false,turnId:crypto.randomUUID()}:acaoIniciativa(c,action,expected);
     }
     tx.set(MAP_PATH,{...state,combat});
    });
    error='';status();
   }catch(e){fail(e);}
+  finally{changingTurn=false;status();}
  }
- for(const [id,action]of [['novaSyncStart','start'],['novaSyncNext','next'],['novaSyncEnd','end']])el(id)?.addEventListener('click',()=>changeTurn(action));
+ for(const [id,action]of [['novaSyncStart','start'],['novaSyncNext','pass'],['novaSyncSpend','spend'],['novaSyncEnd','end']])el(id)?.addEventListener('click',()=>changeTurn(action));
  status();
  return {open,close,initialize};
 }
