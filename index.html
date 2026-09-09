@@ -838,20 +838,25 @@
                     <h2 style="margin:0 0 6px;">🔗 Sincronização nova</h2>
                     <p style="color:#aaa;margin:0 0 16px;">Área experimental isolada. Ela começa apenas com posições compartilhadas entre os navegadores.</p>
                     <div id="novaSyncStatus" style="padding:10px;border-radius:8px;background:rgba(0,0,0,.2);margin-bottom:12px;">Aguardando conexão.</div>
-                    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;">
-                        <button class="btn-small btn-select" id="novaSyncInit" onclick="novaSyncInicializar_()">Inicializar com os personagens atuais</button>
-                        <select id="novaSyncMapa" class="lab-control"><option value="">Mapa padrão</option></select>
-                        <select id="novaSyncPersonagem" class="lab-control"><option value="">Escolha um personagem</option></select>
-                    </div>
                     <div style="padding:14px;margin-bottom:12px;border:1px solid #49668a;border-radius:10px;background:rgba(0,0,0,.25);">
-                        <strong>Sistema de turnos</strong>
+                        <strong>Painel do mestre · combate</strong>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+                            <button class="btn-small btn-select" id="novaSyncInit" onclick="novaSyncInicializar_()">Preparar personagens</button>
+                            <select id="novaSyncMapa" class="lab-control"><option value="">Mapa padrão</option></select>
+                            <button id="novaSyncStart" class="btn-small btn-select" disabled>▶ Iniciar combate</button>
+                            <button id="novaSyncEnd" class="btn-small" disabled>■ Encerrar combate</button>
+                        </div>
                         <div id="novaSyncErro" role="alert" hidden style="margin:10px 0;padding:12px;border:1px solid #ff7474;background:#48242b;color:white;border-radius:8px;"></div>
                         <div id="novaSyncTurno" role="status" style="margin:8px 0;">Fora de combate · movimento livre.</div>
-                        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                            <button id="novaSyncStart" class="btn-small btn-select" disabled>▶ Iniciar combate</button>
+                    </div>
+                    <div style="padding:14px;margin-bottom:12px;border:1px solid #49668a;border-radius:10px;background:rgba(0,0,0,.18);">
+                        <strong>Painel do personagem</strong>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+                            <select id="novaSyncPersonagem" class="lab-control"><option value="">Escolha um personagem</option></select>
                             <button id="novaSyncSpend" class="btn-small" disabled>Registrar 1 Ação</button>
                             <button id="novaSyncNext" class="btn-small" disabled>Passar ação</button>
-                            <button id="novaSyncEnd" class="btn-small" disabled>■ Encerrar combate</button>
+                        </div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;">
                         </div>
                         <small id="novaSyncTurnoHint" style="display:block;margin-top:8px;">Cada personagem controla suas Ações; o mestre inicia e encerra o combate.</small>
                         <div id="novaSyncOrdem" style="margin-top:10px;font-size:.9em;"></div>

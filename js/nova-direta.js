@@ -6,6 +6,7 @@ export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=asy
  const el=id=>root.getElementById(id), tokens=new Map(), previews=new Map(), queues=new Map();
  let stop=null,stopMap=null,account='',error='',generation=0,mapPacket=null,mapData=null,renderedMap=null,mapRequest=0;
  let changingTurn=false,lastSelectedTurn='';
+ const canView=t=>!!t&&!!user()&&(user().master||user().uid===t.donoUid);
  const controlled=t=>!!t&&!!user()&&(user().uid===t.donoUid||(user().master&&!t.donoUid));
  function status(){
   el('novaSyncStatus').textContent=(queues.size?'Sincronização direta 18 · salvando posição…':error)||`Sincronização direta 18 · ${tokens.size} personagem(ns) · clique no destino para caminhar`;
@@ -46,12 +47,11 @@ export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=asy
  }
  function draw(){
   const board=el('novaSyncBoard'),select=el('novaSyncPersonagem'),old=select.value;
-  const mine=[...tokens.values()].filter(controlled);
+  const mine=[...tokens.values()].filter(canView);
   select.replaceChildren(...mine.map(t=>{const o=root.createElement('option');o.value=t.id;o.textContent=t.nome;return o;}));
   select.value=mine.some(t=>t.id===old)?old:mine[0]?.id||'';
-  if(mapPacket?.combat?.active&&mapPacket.combat.schema===2&&controlled(tokens.get(mapPacket.combat.activeId))){
-   // Durante o combate, a seleção acompanha automaticamente quem tem a vez.
-   // Isso evita que um jogador tente mover/gastar Ações de outro personagem.
+  if(mapPacket?.combat?.active&&mapPacket.combat.schema===2&&canView(tokens.get(mapPacket.combat.activeId))){
+   // Durante o combate, o painel acompanha quem tem a vez.
    select.value=mapPacket.combat.activeId;
   }else if(mapPacket?.combat?.turnId!==lastSelectedTurn){
    lastSelectedTurn=mapPacket?.combat?.turnId||'';
@@ -152,7 +152,7 @@ export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=asy
   if(e.button!==0)return;
   const clicked=e.target.closest('[data-token]')?.dataset.token;
   if(clicked){
-   if(controlled(tokens.get(clicked)||{})){el('novaSyncPersonagem').value=clicked;draw();}
+   if(canView(tokens.get(clicked)||{})){el('novaSyncPersonagem').value=clicked;draw();}
    return;
   }
   const id=el('novaSyncPersonagem').value, t=tokens.get(id);
