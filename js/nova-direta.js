@@ -49,9 +49,12 @@ export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=asy
   const mine=[...tokens.values()].filter(controlled);
   select.replaceChildren(...mine.map(t=>{const o=root.createElement('option');o.value=t.id;o.textContent=t.nome;return o;}));
   select.value=mine.some(t=>t.id===old)?old:mine[0]?.id||'';
-  if(mapPacket?.combat?.turnId!==lastSelectedTurn){
+  if(mapPacket?.combat?.active&&mapPacket.combat.schema===2&&controlled(tokens.get(mapPacket.combat.activeId))){
+   // Durante o combate, a seleção acompanha automaticamente quem tem a vez.
+   // Isso evita que um jogador tente mover/gastar Ações de outro personagem.
+   select.value=mapPacket.combat.activeId;
+  }else if(mapPacket?.combat?.turnId!==lastSelectedTurn){
    lastSelectedTurn=mapPacket?.combat?.turnId||'';
-   if(controlled(tokens.get(mapPacket?.combat?.activeId)))select.value=mapPacket.combat.activeId;
   }
   el('novaSyncInit').style.display=user()?.master?'':'none';
   for(const node of [...board.children])if(node.dataset.token&&!tokens.has(node.dataset.token))node.remove();
@@ -160,7 +163,10 @@ export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=asy
    previews.set(id,p);draw();save(id,{x:p.x,y:p.y});
   }catch(e){error=e.message;status();}
  });
- el('novaSyncPersonagem').addEventListener('change',draw);
+ el('novaSyncPersonagem').addEventListener('change',()=>{
+  if(mapPacket?.combat?.active&&mapPacket.combat.schema===2){draw();return;}
+  draw();
+ });
  el('novaSyncMapa')?.addEventListener('change',()=>{if(user()?.master){const m=(mapas()||[]).find(x=>String(x.id)===String(el('novaSyncMapa').value));if(m)database.writeMap(MAP_PATH,{mapId:String(m.id),nome:String(m.nome||m.id),fundo:String(m.fundo||''),larguraM:Number(m.larguraM)||28,alturaM:Number(m.alturaM)||14}).catch(fail);}});
  async function changeTurn(action){
   if(queues.size||changingTurn)return;
