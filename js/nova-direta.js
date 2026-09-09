@@ -24,7 +24,7 @@ export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=asy
   if(panel)panel.textContent=c?.active?(c.schema===2?
    `Turno ${c.round} · Vez de ${t?.nome||'personagem'} · Ações: ${c.actors[c.activeId].remaining} / ${c.initial[c.activeId].remaining} · Passagens: ${c.actors[c.activeId].passes} / 2 · Movimento: ${saldoMovimento(previews.get(c.activeId)||t,c).toFixed(2)} / 6 m`:
    'Combate da versão anterior: encerre e inicie novamente para rolar a iniciativa.'):'Fora de combate · movimento livre. Ao iniciar, a iniciativa será rolada uma vez para cada personagem.';
-  if(panel&&!user()?.master)panel.textContent=c?.active?'Turno de combate iniciado · turno '+c.round+'. Aguarde sua vez para agir.':'Modo explorador · movimento livre. O mestre controla o combate.';
+  if(panel&&!user()?.master)panel.textContent=c?.active?'Turno de combate iniciado · Turno '+c.round+'. Aguarde sua vez para agir.':'Modo explorador · movimento livre. O mestre controla o combate.';
   const list=el('novaSyncOrdem');
   if(list)list.textContent=c?.active&&c.schema===2?'Iniciativa: '+c.order.map(id=>`${tokens.get(id)?.nome||id}: ${c.rolls[id].die} + ${c.rolls[id].initiative} = ${c.rolls[id].total} (${c.actors[id].remaining} Ações; ${c.actors[id].passes>=2?'encerrou':c.actors[id].passes+' passagem(ns)'})`).join(' → '):'';
   for(const [id,available]of [['novaSyncStart',user()?.master&&!c?.active],['novaSyncNext',c?.active&&c.schema===2&&controlled(t)],['novaSyncSpend',c?.active&&c.schema===2&&controlled(t)],['novaSyncEnd',user()?.master&&c?.active]]){
