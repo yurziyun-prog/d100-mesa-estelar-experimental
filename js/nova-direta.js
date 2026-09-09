@@ -17,13 +17,14 @@ export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=asy
   const selected=tokens.get(el('novaSyncPersonagem')?.value),joined=mapPacket?.joined||{};
   const join=el('novaSyncJoin');
   if(join){join.hidden=!!user()?.master;join.textContent=joined[selected?.id]===false?'Entrar no combate':'Sair do combate';join.disabled=!!mapPacket?.combat?.active||!selected||selected.donoUid!==user()?.uid;}
-  if(playerInfo){playerInfo.hidden=!!user()?.master;const c=mapPacket?.combat;el('novaSyncPlayerInfoText').textContent=c?.active?`Turno de combate iniciado · turno ${c.round} · ${mapPacket?.nome||mapPacket?.mapId||'mapa atual'}. Aguarde sua vez para agir.`:`Modo explorador · movimento livre · ${mapPacket?.nome||mapPacket?.mapId||'mapa atual'}.`;}
+  if(playerInfo)playerInfo.hidden=true;
   const alert=el('novaSyncErro');
   if(alert){alert.hidden=!error;alert.textContent=error;}
   const c=mapPacket?.combat,t=tokens.get(c?.activeId),panel=el('novaSyncTurno');
   if(panel)panel.textContent=c?.active?(c.schema===2?
    `Turno ${c.round} · Vez de ${t?.nome||'personagem'} · Ações: ${c.actors[c.activeId].remaining} / ${c.initial[c.activeId].remaining} · Passagens: ${c.actors[c.activeId].passes} / 2 · Movimento: ${saldoMovimento(previews.get(c.activeId)||t,c).toFixed(2)} / 6 m`:
    'Combate da versão anterior: encerre e inicie novamente para rolar a iniciativa.'):'Fora de combate · movimento livre. Ao iniciar, a iniciativa será rolada uma vez para cada personagem.';
+  if(panel&&!user()?.master)panel.textContent=c?.active?'Turno de combate iniciado · turno '+c.round+'. Aguarde sua vez para agir.':'Modo explorador · movimento livre. O mestre controla o combate.';
   const list=el('novaSyncOrdem');
   if(list)list.textContent=c?.active&&c.schema===2?'Iniciativa: '+c.order.map(id=>`${tokens.get(id)?.nome||id}: ${c.rolls[id].die} + ${c.rolls[id].initiative} = ${c.rolls[id].total} (${c.actors[id].remaining} Ações; ${c.actors[id].passes>=2?'encerrou':c.actors[id].passes+' passagem(ns)'})`).join(' → '):'';
   for(const [id,available]of [['novaSyncStart',user()?.master&&!c?.active],['novaSyncNext',c?.active&&c.schema===2&&controlled(t)],['novaSyncSpend',c?.active&&c.schema===2&&controlled(t)],['novaSyncEnd',user()?.master&&c?.active]]){
