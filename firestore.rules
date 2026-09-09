@@ -40,7 +40,7 @@ service cloud.firestore {
     match /npcs/{documento} { allow read, write: if ehMestre(); }
     match /criaturas/{documento} { allow read, write: if ehMestre(); }
     match /cenarios/{documento} { allow read, write: if ehMestre(); }
-    match /mapas/{documento} { allow read, write: if ehMestre(); }
+    match /mapas/{documento} { allow read: if autenticado(); allow write: if ehMestre(); }
 
     match /configuracoes/{documento} {
       allow read: if autenticado() && documento != 'escudoMestre';

@@ -36433,11 +36433,12 @@ function labInstalarAcoesConfirmadas_(){
 labInstalarAcoesConfirmadas_();
 
 // Aba paralela: controlador independente e adaptador Firestore.
-import {mountDirectPositionLab} from './nova-direta.js?v=8';
+import {mountDirectPositionLab} from './nova-direta.js?v=9';
 const novaSyncController_=mountDirectPositionLab({
  user:()=>currentUserUid?{uid:String(currentUserUid),master:batalhaEhMestre_()}:null,
  characters:()=>labEstado_?.tokens?.length?labEstado_.tokens:(userCharacters||[]),
  mapas:()=>mapasDB||[],
+ loadMap:async id=>{const base=(mapasDB||[]).find(x=>String(x.id)===String(id));return base&&typeof labMapaHidratar_==='function'?labMapaHidratar_(base):base;},
  database:{
   get:async p=>{const s=await getDoc(doc(db,...p.split('/')));return s.exists()?s.data():null;},
   transact:fn=>runTransaction(db,async native=>fn({

@@ -1,9 +1,9 @@
 // Movimento livre: uma posição por personagem, sem sessão-mestre ou fila de comandos.
 export const POSITION_PATH='combatesAtivos/mapaMesaSyncDireta/posicoes';
 export const MAP_PATH='combatesAtivos/mapaMesaSyncDireta';
-export function mountDirectPositionLab({user,characters,mapas=()=>[],database,root=document}) {
+export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=async()=>null,database,root=document}) {
  const el=id=>root.getElementById(id), tokens=new Map(), previews=new Map(), queues=new Map();
- let stop=null,stopMap=null,account='',error='',generation=0,mapPacket=null;
+ let stop=null,stopMap=null,account='',error='',generation=0,mapPacket=null,mapData=null;
  const controlled=t=>!!user()&&(user().master||user().uid===t.donoUid);
  function status(){el('novaSyncStatus').textContent=error||`Sincronização direta 6 · ${tokens.size} personagem(ns) · ${queues.size?'salvando posição…':'clique no destino para caminhar'}`;}
  function drawMap(){
@@ -11,11 +11,15 @@ export function mountDirectPositionLab({user,characters,mapas=()=>[],database,ro
   const list=mapas()||[],old=select.value;
   select.replaceChildren(...list.map(m=>{const o=root.createElement('option');o.value=m.id;o.textContent=m.nome||m.id;return o;}));
   select.value=mapPacket?.mapId||old||'';
-  const fundo=String(mapPacket?.fundo||'');
+  const fundo=String(mapPacket?.fundo||mapData?.fundo||'');
   board.style.backgroundImage=/^(#|rgb|hsl|linear-gradient)/i.test(fundo)?'none':(fundo?`url("${fundo.replaceAll('"','%22')}")`:'linear-gradient(135deg,#20314c,#18233a)');
   board.style.backgroundColor=/^(#|rgb|hsl)/i.test(fundo)?fundo:'#20314c';
   board.style.backgroundSize='cover';board.style.backgroundPosition='center';
   if(mapPacket?.larguraM&&mapPacket?.alturaM){board.dataset.mapWidth=mapPacket.larguraM;board.dataset.mapHeight=mapPacket.alturaM;}
+  let layer=board.querySelector('[data-map-layer]');
+  if(!layer){layer=root.createElement('div');layer.dataset.mapLayer='';layer.style.cssText='position:absolute;inset:0;pointer-events:none;overflow:hidden';board.prepend(layer);}
+  const mw=Number(mapData?.larguraM||mapPacket?.larguraM||28),mh=Number(mapData?.alturaM||mapPacket?.alturaM||14);
+  layer.replaceChildren(...(mapData?.oficina2State?.elements||[]).filter(e=>e.type==='image'&&e.src).map(e=>{const img=root.createElement('img');img.src=e.src;img.draggable=false;img.style.cssText=`position:absolute;left:${Number(e.x||0)/mw*100}%;top:${Number(e.y||0)/mh*100}%;width:${Number(e.w||1)/mw*100}%;height:${Number(e.h||1)/mh*100}%;object-fit:fill;opacity:${Number(e.opacity??1)}`;return img;}));
  }
  function draw(){
   const board=el('novaSyncBoard'),select=el('novaSyncPersonagem'),old=select.value;
@@ -51,7 +55,7 @@ export function mountDirectPositionLab({user,characters,mapas=()=>[],database,ro
    }
    draw();
   },fail);
-  stopMap=database.subscribeDoc(MAP_PATH,p=>{if(g===generation){mapPacket=p||null;draw();}},fail);
+  stopMap=database.subscribeDoc(MAP_PATH,async p=>{if(g!==generation)return;mapPacket=p||null;mapData=mapPacket?.mapId?await loadMap(mapPacket.mapId).catch(fail):null;draw();},fail);
   draw();
  }
  async function initialize(){
