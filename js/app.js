@@ -36423,7 +36423,7 @@ function labInstalarAcoesConfirmadas_(){
 labInstalarAcoesConfirmadas_();
 
 // Laboratório paralelo: estado mínimo de posições, separado do mapa antigo.
-let novaSyncTransport_=null,novaSyncState_=null,novaSyncUnsub_=null;
+let novaSyncTransport_=null,novaSyncState_=null,novaSyncUnsub_=null,novaSyncLeaseTimer_=null;
 const NOVA_SYNC_PATH_='combatesAtivos/mapaMesaSyncNova';
 function novaSyncStatus_(s){const e=document.getElementById('novaSyncStatus');if(e)e.textContent=s;}
 function novaSyncRender_(){
@@ -36444,8 +36444,9 @@ async function novaSyncAbrir_(){
     novaSyncTransport_.start();
     if(batalhaEhMestre_()){const s=await getDoc(doc(db,'combatesAtivos','mapaMesaSyncNova'));if(!s.exists()){const tokens=(labEstado_?.tokens||[]).filter(t=>t.id).map(t=>({id:String(t.id),nome:t.nome||'Personagem',imagem:t.imagem||'',donoUid:String(t.donoUid||t.dono||''),x:Number(t.x||0),y:Number(t.y||0)}));await setDoc(doc(db,'combatesAtivos','mapaMesaSyncNova'),{protocol:1,revision:0,estado:{tokens}});}}
     setTimeout(()=>novaSyncTransport_?.renew(),300);
+    clearInterval(novaSyncLeaseTimer_);novaSyncLeaseTimer_=setInterval(()=>novaSyncTransport_?.renew().catch(novaSyncErro_),4000);
 }
 function novaSyncErro_(e){console.error('[Sync nova]',e);novaSyncStatus_('Erro de conexão na aba experimental.');}
 window.novaSyncAbrir_=novaSyncAbrir_;
 window.novaSyncInicializar_=async()=>{await novaSyncAbrir_();if(!batalhaEhMestre_())return;novaSyncStatus_('Estado inicializado; abra a outra conta e teste o movimento.');};
-window.novaSyncMover_=async(dx,dy)=>{await novaSyncAbrir_();const id=document.getElementById('novaSyncPersonagem')?.value,t=(novaSyncState_?.tokens||[]).find(x=>String(x.id)===String(id));if(!t)return novaSyncStatus_('Escolha um personagem.');if(!batalhaEhMestre_()&&String(t.donoUid)!==String(currentUserUid))return novaSyncStatus_('Esse personagem pertence a outra conta.');try{await novaSyncTransport_.send('nova_move',id,{dx,dy},'nova:0');}catch(e){novaSyncErro_(e);}};
+window.novaSyncMover_=async(dx,dy)=>{await novaSyncAbrir_();const id=document.getElementById('novaSyncPersonagem')?.value,t=(novaSyncState_?.tokens||[]).find(x=>String(x.id)===String(id));if(!t)return novaSyncStatus_('Escolha um personagem.');if(!batalhaEhMestre_()&&String(t.donoUid)!==String(currentUserUid))return novaSyncStatus_('Esse personagem pertence a outra conta.');try{if(batalhaEhMestre_())await novaSyncTransport_.renew();await novaSyncTransport_.send('nova_move',id,{dx,dy},'nova:0');novaSyncStatus_('Movimento enviado; aguardando confirmação…');}catch(e){novaSyncErro_(e);}};
