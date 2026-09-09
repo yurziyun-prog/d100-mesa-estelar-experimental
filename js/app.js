@@ -36433,21 +36433,20 @@ function labInstalarAcoesConfirmadas_(){
 labInstalarAcoesConfirmadas_();
 
 // Aba paralela: controlador independente e adaptador Firestore.
-import {mountPositionLab,listenConfirmedCommands} from './nova-sync.js?v=4';
-const novaSyncController_=mountPositionLab({
-    user:()=>currentUserUid?{uid:String(currentUserUid),master:batalhaEhMestre_()}:null,
-    characters:()=>labEstado_?.tokens?.length?labEstado_.tokens:(userCharacters||[]),
-    database:{
-        transact:fn=>runTransaction(db,async native=>fn({
-            get:async p=>{const s=await native.get(doc(db,...p.split('/')));return s.exists()?s.data():null;},
-            set:(p,v)=>native.set(doc(db,...p.split('/')),v)
-        })),
-        read:async p=>(await getDocs(query(collection(db,...p.split('/')),where('status','==','new')))).docs.filter(d=>!d.metadata.hasPendingWrites).map(d=>({path:d.ref.path,data:d.data()})),
-        write:(p,v)=>setDoc(doc(db,...p.split('/')),v),remove:p=>deleteDoc(doc(db,...p.split('/'))),
-        subscribe:(p,receive,many,fail)=>many?
-            listenConfirmedCommands(onSnapshot,query(collection(db,...p.split('/')),where('status','==','new')),receive,fail):
-            onSnapshot(doc(db,...p.split('/')),{includeMetadataChanges:true},s=>{if(s.exists()&&!s.metadata.hasPendingWrites)receive(s.data());},fail)
-    }
+import {mountDirectPositionLab} from './nova-direta.js?v=5';
+const novaSyncController_=mountDirectPositionLab({
+ user:()=>currentUserUid?{uid:String(currentUserUid),master:batalhaEhMestre_()}:null,
+ characters:()=>labEstado_?.tokens?.length?labEstado_.tokens:(userCharacters||[]),
+ database:{
+  get:async p=>{const s=await getDoc(doc(db,...p.split('/')));return s.exists()?s.data():null;},
+  transact:fn=>runTransaction(db,async native=>fn({
+   get:async p=>{const s=await native.get(doc(db,...p.split('/')));return s.exists()?s.data():null;},
+   set:(p,v)=>native.set(doc(db,...p.split('/')),v)
+  })),
+  subscribe:(p,receive,fail)=>onSnapshot(collection(db,...p.split('/')),{includeMetadataChanges:true},s=>{
+   receive(s.docChanges({includeMetadataChanges:true}).filter(c=>!c.doc.metadata.hasPendingWrites).map(c=>({id:c.doc.id,data:c.doc.data(),removed:c.type==='removed'})));
+  },fail)
+ }
 });
 window.novaSyncAbrir_=()=>{
     labSuspensoParaNova_=true;
@@ -36458,4 +36457,3 @@ window.novaSyncAbrir_=()=>{
     return novaSyncController_.open();
 };
 window.novaSyncInicializar_=()=>novaSyncController_.initialize();
-window.novaSyncMover_=(dx,dy)=>novaSyncController_.move(dx,dy);
