@@ -48,12 +48,8 @@ const dir=path.join(__dirname,'../js');
  try {
   const player=await pageFor('player',false);
   await player.waitForFunction(()=>document.querySelectorAll('[data-token]').length===2);
-  async function drag(p,id,dx,dy){
-   const b=await p.locator(`[data-token="${id}"]`).boundingBox();
-   await p.mouse.move(b.x+b.width/2,b.y+b.height/2);await p.mouse.down();
-   await p.mouse.move(b.x+b.width/2+dx,b.y+b.height/2+dy);
-  }
-  await drag(player,'pj',60,30);
+  async function walkTo(p,x,y){const b=await p.locator('#novaSyncBoard').boundingBox();await p.mouse.click(b.x+x/28*b.width,b.y+y/14*b.height);}
+  await walkTo(player,20,6);
   assert.equal(store[statePath+'/pj'].revision,0);
   const local=await player.locator('[data-token="pj"]').evaluate(n=>parseFloat(n.style.left));
   assert.ok(local>40,'miniatura responde antes da confirmação');
@@ -65,12 +61,11 @@ const dir=path.join(__dirname,'../js');
   await master.waitForFunction(()=>document.querySelectorAll('[data-token]').length===2);
   const poses=async p=>p.locator('[data-token]').evaluateAll(ns=>ns.map(n=>[n.dataset.token,n.style.left,n.style.top]));
   assert.deepEqual(await poses(master),await poses(player));
-  await Promise.all([drag(player,'pj',30,0),drag(master,'pm',60,0)]);
-  await Promise.all([player.mouse.up(),master.mouse.up()]);
+  await Promise.all([walkTo(player,21,6),walkTo(master,10,5)]);
   for(const p of [player,master])await p.waitForFunction(()=>!document.getElementById('novaSyncStatus').textContent.includes('salvando'));
   assert.deepEqual(await poses(master),await poses(player));
   assert.ok(store[statePath+'/pm'].x>6.9);
   assert.deepEqual(errors,[]);
-  console.log('PASS arrastes simultâneos convergem em documentos separados, sem setas');
+  console.log('PASS cliques simultâneos convergem em documentos separados, sem setas');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exit(1)});
