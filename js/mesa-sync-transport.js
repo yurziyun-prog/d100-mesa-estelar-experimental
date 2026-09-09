@@ -36,7 +36,10 @@ export function createTransport({ transact, read, write, remove, subscribe, stat
     async function send(type,actor,payload,opportunity){
         if(closed)throw new Error('transport-closed');
         const n=++sequence,id=`${session}_${n}`,moving=type==='movement';
-        const c={protocol:PROTOCOL,id,sequence:n,stream:session,uid:uid(),actor:String(actor||''),type,payload,opportunity,
+        const actorId=String(actor||'');
+        const ownerUid=uid();
+        const c={protocol:PROTOCOL,id,sequence:n,stream:session,uid:ownerUid,donoUid:ownerUid,
+            actor:actorId,personagemId:actorId,type,payload,opportunity,
             baseRevision:revision,createdAt:now(),status:'new'};
         // Um ID por comando. Movimento também tem IDs independentes para não
         // perder o último ponto quando uma ação chega durante o mesmo gesto.

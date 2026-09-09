@@ -1,0 +1,73 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function autenticado() { return request.auth != null; }
+    function ehMestre() {
+      return autenticado() && request.auth.token.email == 'yurziyun@gmail.com';
+    }
+    function ehDono(uid) { return autenticado() && request.auth.uid == uid; }
+    function donoDoPersonagem() {
+      return autenticado() && resource.data.dono == request.auth.uid;
+    }
+    function donoDoNovoPersonagem() {
+      return autenticado() && request.resource.data.dono == request.auth.uid;
+    }
+
+    match /usuarios/{userId} {
+      allow read: if ehDono(userId) || ehMestre();
+      allow create: if ehDono(userId) &&
+        ((ehMestre() && request.resource.data.role == 'mestre') ||
+         (!ehMestre() && request.resource.data.role == 'jogador'));
+      allow update: if (ehDono(userId) && request.resource.data.role == resource.data.role) || ehMestre();
+      allow delete: if ehMestre();
+    }
+
+    match /personagens/{personagemId} {
+      allow read: if donoDoPersonagem() || ehMestre();
+      allow create: if donoDoNovoPersonagem() || ehMestre();
+      allow update: if (donoDoPersonagem() && request.resource.data.dono == resource.data.dono) || ehMestre();
+      allow delete: if donoDoPersonagem() || ehMestre();
+    }
+
+    match /pericias/{documento} { allow read: if autenticado(); allow write: if ehMestre(); }
+    match /especializacoes/{documento} { allow read: if autenticado(); allow write: if ehMestre(); }
+    match /origens/{documento} { allow read: if autenticado(); allow write: if ehMestre(); }
+    match /carreiras/{documento} { allow read: if autenticado(); allow write: if ehMestre(); }
+    match /itens/{documento} { allow read: if autenticado(); allow write: if ehMestre(); }
+    match /especies/{documento} { allow read: if autenticado(); allow write: if ehMestre(); }
+    match /poderesPsi/{documento} { allow read: if autenticado(); allow write: if ehMestre(); }
+    match /npcs/{documento} { allow read, write: if ehMestre(); }
+    match /criaturas/{documento} { allow read, write: if ehMestre(); }
+    match /cenarios/{documento} { allow read, write: if ehMestre(); }
+    match /mapas/{documento} { allow read, write: if ehMestre(); }
+
+    match /configuracoes/{documento} {
+      allow read: if autenticado() && documento != 'escudoMestre';
+      allow read: if documento == 'escudoMestre' && ehMestre();
+      allow write: if ehMestre();
+    }
+
+    match /combatesAtivos/{combateId} {
+      allow read: if autenticado();
+      allow create, update, delete: if ehMestre();
+
+      // Cada comando usa um ID único de sessão, sem permitir que um jogador
+      // escreva em nome de outro personagem. O mestre processa e apaga a fila.
+      match /acoes/{acaoId} {
+        allow read: if ehMestre() ||
+          (autenticado() && resource.data.donoUid == request.auth.uid);
+        allow create: if ehMestre() || (
+          autenticado() &&
+          request.resource.data.donoUid == request.auth.uid &&
+          request.resource.data.personagemId is string &&
+          get(/databases/$(database)/documents/personagens/$(request.resource.data.personagemId)).data.dono == request.auth.uid
+        );
+        allow update: if ehMestre();
+        allow delete: if ehMestre();
+      }
+    }
+
+    match /{document=**} { allow read, write: if false; }
+  }
+}
