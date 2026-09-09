@@ -1,11 +1,21 @@
 // Movimento livre: uma posição por personagem, sem sessão-mestre ou fila de comandos.
+import {saldoMovimento,moverNoTurno} from './nova-turnos.js?v=15';
 export const POSITION_PATH='combatesAtivos/mapaMesaSyncDireta/posicoes';
 export const MAP_PATH='combatesAtivos/mapaMesaSyncDireta';
 export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=async()=>null,renderMap=()=>'',database,root=document}) {
  const el=id=>root.getElementById(id), tokens=new Map(), previews=new Map(), queues=new Map();
  let stop=null,stopMap=null,account='',error='',generation=0,mapPacket=null,mapData=null,renderedMap=null,mapRequest=0;
  const controlled=t=>!!user()&&(user().master||user().uid===t.donoUid);
- function status(){el('novaSyncStatus').textContent=error||`Sincronização direta 14 · ${tokens.size} personagem(ns) · ${queues.size?'salvando posição…':'clique no destino para caminhar'}`;}
+ function status(){
+  el('novaSyncStatus').textContent=error||`Sincronização direta 15 · ${tokens.size} personagem(ns) · ${queues.size?'salvando posição…':'clique no destino para caminhar'}`;
+  const c=mapPacket?.combat,t=tokens.get(c?.activeId),panel=el('novaSyncTurno');
+  if(panel)panel.textContent=c?.active?`Rodada ${c.round} · Turno de ${t?.nome||'personagem'} · Movimento: ${saldoMovimento(previews.get(c.activeId)||t,c).toFixed(2)} / 6 m · Sem gasto de PA. Ordem: ${c.order.map(id=>tokens.get(id)?.nome||id).join(' → ')}`:'Fora de combate · movimento livre. Selecione quem começa antes de iniciar; os demais seguem a ordem da lista.';
+  for(const [id,visible]of [['novaSyncStart',!c?.active],['novaSyncNext',c?.active],['novaSyncEnd',c?.active]]){
+   const b=el(id);if(b){b.hidden=!user()?.master||!visible;b.disabled=queues.size>0;}
+  }
+  if(el('novaSyncMapa'))el('novaSyncMapa').disabled=!!c?.active||!user()?.master;
+  if(el('novaSyncInit'))el('novaSyncInit').disabled=!!c?.active;
+ }
  function drawMap(){
   const board=el('novaSyncBoard'),select=el('novaSyncMapa'); if(!board||!select)return;
   const list=mapas()||[],old=select.value;
@@ -63,6 +73,7 @@ export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=asy
    if(g!==generation)return;
    const request=++mapRequest;
    try{
+    if(p?.mapId===mapPacket?.mapId){mapPacket=p||null;draw();return;}
     const loaded=p?.mapId?await loadMap(p.mapId):null;
     if(g!==generation||request!==mapRequest)return;
     mapPacket=p||null;mapData=loaded;error='';draw();
@@ -71,7 +82,7 @@ export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=asy
   draw();
  }
  async function initialize(){
-  open();if(!user()?.master)return;
+  open();if(!user()?.master||mapPacket?.combat?.active)return;
  try{
    const mapaId=el('novaSyncMapa')?.value;
    if(mapaId){const m=(mapas()||[]).find(x=>String(x.id)===String(mapaId));if(m)await database.writeMap(MAP_PATH,{mapId:String(m.id),nome:String(m.nome||m.id),fundo:String(m.fundo||''),larguraM:Number(m.larguraM)||28,alturaM:Number(m.alturaM)||14});}
@@ -92,15 +103,19 @@ export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=asy
  // substitui pontos intermediários pelo destino mais recente, sem perder o final.
  async function save(id,point){
   if(!controlled(tokens.get(id)||{}))return;
-  const existing=queues.get(id);if(existing){existing.next=point;return;}
-  const q={next:point},g=generation;queues.set(id,q);error='';status();
+  const expectedTurn=mapPacket?.combat?.active?mapPacket.combat.turnId:null;
+  const existing=queues.get(id);if(existing){if(expectedTurn)existing.points.push(point);else existing.points=[point];return;}
+  const q={points:[point]},g=generation;queues.set(id,q);error='';status();
   try{
-   while(q.next&&g===generation){
-    const next=q.next;q.next=null;
+   while(q.points.length&&g===generation){
+    const next=q.points.shift();
     const saved=await database.transact(async tx=>{
+     const state=await tx.get(MAP_PATH);
      const path=POSITION_PATH+'/'+id,t=await tx.get(path);
      if(!t)throw new Error('Personagem não encontrado');
-     const value={...t,...next,revision:t.revision+1};tx.set(path,value);return value;
+     const moved=moverNoTurno({...t,id},next,state,expectedTurn);
+     const {id:ignored,...value}=moved;
+     value.revision=t.revision+1;tx.set(path,value);return value;
     });
     if(g!==generation)return;
     if(!tokens.has(id)||saved.revision>=tokens.get(id).revision)tokens.set(id,{...saved,id});
@@ -120,9 +135,38 @@ export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=asy
   const id=el('novaSyncPersonagem').value, t=tokens.get(id);
   if(!t||!controlled(t))return;
   e.preventDefault();
-  const p=point(e);previews.set(id,p);draw();save(id,p);
+  try{
+   const p=moverNoTurno(previews.get(id)||t,point(e),mapPacket,mapPacket?.combat?.active?mapPacket.combat.turnId:null);
+   error='';previews.set(id,p);draw();save(id,{x:p.x,y:p.y});
+  }catch(e){error=e.message;status();}
  });
  el('novaSyncPersonagem').addEventListener('change',draw);
  el('novaSyncMapa')?.addEventListener('change',()=>{if(user()?.master){const m=(mapas()||[]).find(x=>String(x.id)===String(el('novaSyncMapa').value));if(m)database.writeMap(MAP_PATH,{mapId:String(m.id),nome:String(m.nome||m.id),fundo:String(m.fundo||''),larguraM:Number(m.larguraM)||28,alturaM:Number(m.alturaM)||14}).catch(fail);}});
+ async function changeTurn(action){
+  if(!user()?.master||queues.size)return;
+  const expected=mapPacket?.combat?.turnId||null;
+  try{
+   await database.transact(async tx=>{
+    const state=await tx.get(MAP_PATH)||{},c=state.combat;
+    if((c?.turnId||null)!==expected)throw new Error('O turno mudou. Confira a tela antes de avançar.');
+    let combat;
+    if(action==='start'){
+     if(c?.active)return;
+     const first=el('novaSyncPersonagem').value;
+     const order=[first,...tokens.keys()].filter((id,i,a)=>id&&a.indexOf(id)===i);
+     if(!order.length)throw new Error('Inicialize os personagens antes de começar.');
+     combat={active:true,order,index:0,round:1,activeId:order[0],turnId:crypto.randomUUID()};
+    }else{
+     if(!c?.active)return;
+     const index=(c.index+1)%c.order.length;
+     combat=action==='end'?{...c,active:false,turnId:crypto.randomUUID()}:
+      {...c,index,round:c.round+(index===0?1:0),activeId:c.order[index],turnId:crypto.randomUUID()};
+    }
+    tx.set(MAP_PATH,{...state,combat});
+   });
+   error='';status();
+  }catch(e){fail(e);}
+ }
+ for(const [id,action]of [['novaSyncStart','start'],['novaSyncNext','next'],['novaSyncEnd','end']])el(id)?.addEventListener('click',()=>changeTurn(action));
  return {open,close,initialize};
 }

@@ -7,7 +7,7 @@ const dir=path.join(__dirname,'../js');
  const statePath='combatesAtivos/mapaMesaSyncDireta/posicoes';
  store[statePath+'/pm']={nome:'Mestre',donoUid:'master',x:5,y:5,revision:0};
  store[statePath+'/pj']={nome:'Jogador',donoUid:'player',x:10,y:5,revision:0};
- const emit=async p=>{for(const l of [...listeners])if(p.startsWith(l.path+'/'))await l.page.evaluate(({id,data})=>window.callbacks[id]?.(data),{id:l.id,data:[{id:p.split('/').pop(),data:store[p]}]}).catch(()=>{});};
+ const emit=async p=>{for(const l of [...listeners])if(l.document?p===l.path:p.startsWith(l.path+'/'))await l.page.evaluate(({id,data})=>window.callbacks[id]?.(data),{id:l.id,data:l.document?store[p]:[{id:p.split('/').pop(),data:store[p]}]}).catch(()=>{});};
  async function pageFor(uid,master){
   const context=await browser.newContext(),page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
   await page.exposeBinding('dbCall',async(_,op,arg)=>{
@@ -28,7 +28,7 @@ const dir=path.join(__dirname,'../js');
   await page.route('https://nova.test/**',route=>{
    const name=new URL(route.request().url()).pathname.slice(1);
    if(name.endsWith('.js'))return route.fulfill({contentType:'text/javascript',body:fs.readFileSync(path.join(dir,name),'utf8')});
-   return route.fulfill({contentType:'text/html',body:'<div id="novaSyncStatus"></div><button id="novaSyncInit">Inicializar</button><select id="novaSyncPersonagem"></select><div id="novaSyncBoard" style="position:relative;width:840px;height:420px"></div>'});
+   return route.fulfill({contentType:'text/html',body:'<div id="novaSyncStatus"></div><div id="novaSyncTurno"></div><button id="novaSyncStart">Iniciar</button><button id="novaSyncNext">Próximo</button><button id="novaSyncEnd">Encerrar</button><button id="novaSyncInit">Inicializar</button><select id="novaSyncPersonagem"></select><div id="novaSyncBoard" style="position:relative;width:840px;height:420px"></div>'});
   });
   await page.goto('https://nova.test/');
   await page.evaluate(async({uid,master})=>{
@@ -37,7 +37,7 @@ const dir=path.join(__dirname,'../js');
     transact:async fn=>{await dbCall('lock');const writes=[];try{const result=await fn({get:p=>dbCall('get',p),set:(p,v)=>writes.push([p,v])});await dbCall('commit',writes);return result;}catch(e){await dbCall('commit',[]);throw e;}},
     read:p=>dbCall('read',p),write:(path,data)=>dbCall('write',{path,data}),remove:p=>dbCall('remove',p),
     subscribe:(path,receive)=>{const id=++next;callbacks[id]=receive;dbCall('subscribe',{path,id});return()=>{delete callbacks[id];dbCall('unsubscribe',id);};},
-    subscribeDoc:(path,receive)=>{const id=++next;callbacks[id]=receive;dbCall('subscribe',{path,id});return()=>{delete callbacks[id];dbCall('unsubscribe',id);};},
+    subscribeDoc:(path,receive)=>{const id=++next;callbacks[id]=receive;dbCall('subscribe',{path,id,document:true});return()=>{delete callbacks[id];dbCall('unsubscribe',id);};},
     writeMap:async()=>{}
    };
    const {mountDirectPositionLab}=await import('/nova-direta.js');
@@ -69,5 +69,38 @@ const dir=path.join(__dirname,'../js');
   assert.ok(store[statePath+'/pm'].x>6.9);
   assert.deepEqual(errors,[]);
   console.log('PASS cliques simultâneos convergem em documentos separados, sem setas');
+  await master.locator('#novaSyncPersonagem').selectOption('pj');
+  await master.locator('#novaSyncStart').click();
+  await player.waitForFunction(()=>document.querySelector('#novaSyncTurno').textContent.includes('Turno de Jogador'));
+  const origin={...store[statePath+'/pj']};
+  await walkTo(player,origin.x-3,origin.y);
+  await player.waitForFunction(()=>!document.querySelector('#novaSyncStatus').textContent.includes('salvando'));
+  assert.ok(Math.abs(store[statePath+'/pj'].movementUsed-3)<.001);
+  await walkTo(player,1,origin.y);
+  await player.waitForFunction(()=>!document.querySelector('#novaSyncStatus').textContent.includes('salvando'));
+  assert.equal(store[statePath+'/pj'].movementUsed,6);
+  assert.ok(Math.abs(store[statePath+'/pj'].x-(origin.x-6))<.001);
+  const exhausted=store[statePath+'/pj'].x;
+  await walkTo(player,25,origin.y);
+  await player.waitForFunction(()=>!document.querySelector('#novaSyncStatus').textContent.includes('salvando'));
+  assert.equal(store[statePath+'/pj'].x,exhausted);
+  await master.locator('#novaSyncNext').click();
+  await player.waitForFunction(()=>document.querySelector('#novaSyncTurno').textContent.includes('Turno de Mestre'));
+  await walkTo(player,2,2);
+  assert.equal(store[statePath+'/pj'].x,exhausted);
+  await master.locator('#novaSyncNext').click();
+  await player.waitForFunction(()=>document.querySelector('#novaSyncTurno').textContent.includes('Rodada 2'));
+  assert.ok((await player.locator('#novaSyncTurno').textContent()).includes('6.00 / 6'));
+  await walkTo(player,exhausted-2,origin.y);
+  await player.waitForFunction(()=>!document.querySelector('#novaSyncStatus').textContent.includes('salvando'));
+  assert.ok(Math.abs(store[statePath+'/pj'].movementUsed-2)<.001);
+  await master.locator('#novaSyncEnd').click();
+  await player.waitForFunction(()=>document.querySelector('#novaSyncTurno').textContent.includes('Fora de combate'));
+  await walkTo(player,26,origin.y);
+  await player.waitForFunction(()=>!document.querySelector('#novaSyncStatus').textContent.includes('salvando'));
+  assert.ok(Math.abs(store[statePath+'/pj'].x-26)<.001);
+  assert.deepEqual(await poses(master),await poses(player));
+  assert.deepEqual(errors,[]);
+  console.log('PASS 6 m divididos, limite, bloqueio fora do turno, renovação e movimento livre ao encerrar');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exit(1)});
