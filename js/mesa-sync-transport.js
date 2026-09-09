@@ -48,7 +48,11 @@ export function createTransport({ transact, read, write, remove, subscribe, stat
     }
     function start(){
         stops.push(subscribe(statePath,p=>{if(p){revision=Math.max(revision,Number(p.revision||0));onState(p);}},false));
-        for(const path of [...new Set([commandPath,movementPath])])stops.push(subscribe(path,doc=>{
+        // Apenas a sessão do mestre precisa observar a fila inteira. Um jogador
+        // só pode ler as próprias ações pelas regras do Firestore; assinar a
+        // coleção completa fazia a conta receber PERMISSION_DENIED e exibir o
+        // falso aviso de sincronização.
+        if(isMaster()) for(const path of [...new Set([commandPath,movementPath])])stops.push(subscribe(path,doc=>{
             if(doc.data?.status==='new')enqueue(()=>process(doc.path));
         },true));
     }
