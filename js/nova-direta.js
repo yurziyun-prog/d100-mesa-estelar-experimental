@@ -7,12 +7,14 @@ export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=asy
  let stop=null,stopMap=null,account='',error='',generation=0,mapPacket=null,mapData=null,renderedMap=null,mapRequest=0;
  const controlled=t=>!!user()&&(user().master||user().uid===t.donoUid);
  function status(){
-  el('novaSyncStatus').textContent=error||`Sincronização direta 15 · ${tokens.size} personagem(ns) · ${queues.size?'salvando posição…':'clique no destino para caminhar'}`;
+  el('novaSyncStatus').textContent=error||`Sincronização direta 16 · ${tokens.size} personagem(ns) · ${queues.size?'salvando posição…':'clique no destino para caminhar'}`;
   const c=mapPacket?.combat,t=tokens.get(c?.activeId),panel=el('novaSyncTurno');
   if(panel)panel.textContent=c?.active?`Rodada ${c.round} · Turno de ${t?.nome||'personagem'} · Movimento: ${saldoMovimento(previews.get(c.activeId)||t,c).toFixed(2)} / 6 m · Sem gasto de PA. Ordem: ${c.order.map(id=>tokens.get(id)?.nome||id).join(' → ')}`:'Fora de combate · movimento livre. Selecione quem começa antes de iniciar; os demais seguem a ordem da lista.';
   for(const [id,visible]of [['novaSyncStart',!c?.active],['novaSyncNext',c?.active],['novaSyncEnd',c?.active]]){
-   const b=el(id);if(b){b.hidden=!user()?.master||!visible;b.disabled=queues.size>0;}
+   const b=el(id);if(b){b.hidden=false;b.disabled=!user()?.master||!visible||queues.size>0;b.title=!user()?.master?'O mestre controla o sistema de turnos.':'';}
   }
+  const roleHint=el('novaSyncTurnoHint');
+  if(roleHint)roleHint.textContent=user()?.master?'Você controla o início, a passagem e o fim dos turnos.':'O mestre controla o início, a passagem e o fim dos turnos.';
   if(el('novaSyncMapa'))el('novaSyncMapa').disabled=!!c?.active||!user()?.master;
   if(el('novaSyncInit'))el('novaSyncInit').disabled=!!c?.active;
  }
@@ -168,5 +170,6 @@ export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=asy
   }catch(e){fail(e);}
  }
  for(const [id,action]of [['novaSyncStart','start'],['novaSyncNext','next'],['novaSyncEnd','end']])el(id)?.addEventListener('click',()=>changeTurn(action));
+ status();
  return {open,close,initialize};
 }
