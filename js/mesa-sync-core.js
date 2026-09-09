@@ -98,5 +98,8 @@ export function applyCommand(packet, command, lease, now, reduce) {
     const state=copy(packet.estado);
     const accepted=reduce(state,{...command,authorityRevision:(packet.revision||0)+1})!==false;
     return {...packet,protocol:PROTOCOL,revision:(packet.revision||0)+1,estado:accepted?state:packet.estado,
-        receipts:Object.fromEntries([...Object.entries(receipts),[key,true]].slice(-512)),lastCommand:{id:command.id,accepted}};
+        receipts:Object.fromEntries([...Object.entries(receipts),[key,true]].slice(-512)),
+        lastCommand:{id:command.id,accepted,type:command.type,actor:String(command.actor||''),
+            sequence:command.sequence,opportunity:command.opportunity,baseRevision:command.baseRevision||0,
+            rejection:accepted?'': 'reducer-rejected'}};
 }
