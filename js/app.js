@@ -1,3 +1,19 @@
+// Integração única do protocolo confirmado com as regras existentes.
+// labEstado_ continua atendendo os controles antigos; nunca é a origem de
+// um comando remoto. O redutor recebe uma cópia do estado lido na transação.
+let labTransport_=null,labLeaseTimer_=null,labConfirmedPacket_=null;
+let labReducing_=false,labDrawing_=false,labDraftGeneration_=0;
+const labVisualMovement_=new Map();
+const labRuleHandlers_=new Map();
+const LAB_SESSION_SYNC_=crypto.randomUUID();
+const LAB_SYNC_STATE_PATH_='combatesAtivos/mapaMesaExperimental';
+const LAB_SYNC_COMMAND_PATH_=LAB_SYNC_STATE_PATH_+'/acoes';
+// Usa a subcoleção já autorizada (/acoes), mantendo IDs e tipos de comando
+// separados sem exigir mudança imediata nas regras do Firebase.
+const LAB_SYNC_MOVEMENT_PATH_=LAB_SYNC_COMMAND_PATH_;
+
+import {copy as mesaCopy, opportunity as mesaOpportunity, move as mesaMove, advance as mesaAdvance, acceptSnapshot as mesaAcceptSnapshot} from './mesa-sync-core.js';
+import {createTransport as createMesaTransport} from './mesa-sync-transport.js';
 import {
   gmOficinaV2Cfg_,
   gm580_,
@@ -19,7 +35,7 @@ import {
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, doc, setDoc, getDoc, collection, query, where, getDocs, deleteDoc, writeBatch, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, doc, setDoc, getDoc, collection, query, where, getDocs, deleteDoc, writeBatch, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
 
@@ -56,8 +72,8 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-console.info('[Mesa Estelar] build EXP-DIRECIONAL-8 carregado');
-window.__MESA_BUILD__ = 'EXP-DIRECIONAL-8';
+console.info('[Mesa Estelar] build EXP-SYNC-CONSISTENTE-1 carregado');
+window.__MESA_BUILD__ = 'EXP-SYNC-CONSISTENTE-1';
 
 let currentUserUid = null;
 let userData = null;
@@ -340,6 +356,7 @@ function obterAudioCtx_() {
     } catch (_) { return null; }
 }
 function somDado_() {
+    if(labReducing_)return;
     const ctx = obterAudioCtx_(); if (!ctx) return;
     const agora = ctx.currentTime;
     for (let i=0;i<5;i++) {
@@ -353,6 +370,7 @@ function somDado_() {
     }
 }
 function somMagico_() {
+    if(labReducing_)return;
     const ctx = obterAudioCtx_(); if (!ctx) return;
     const agora = ctx.currentTime;
     [523.25,659.25,783.99,1046.5].forEach((freq,i)=>{
@@ -367,6 +385,7 @@ function somMagico_() {
 }
 
 function somSalvar_() {
+    if(labReducing_)return;
     const ctx = obterAudioCtx_(); if (!ctx) return;
     const agora = ctx.currentTime;
     [440,554.37,659.25].forEach((freq,i)=>{
@@ -380,6 +399,7 @@ function somSalvar_() {
     });
 }
 function somEspada_() {
+    if(labReducing_)return;
     const ctx=obterAudioCtx_(); if(!ctx) return;
     const t=ctx.currentTime, osc=ctx.createOscillator(), gain=ctx.createGain();
     osc.type='sawtooth'; osc.frequency.setValueAtTime(1250,t); osc.frequency.exponentialRampToValueAtTime(220,t+.18);
@@ -387,6 +407,7 @@ function somEspada_() {
     osc.connect(gain).connect(ctx.destination); osc.start(t); osc.stop(t+.21);
 }
 function somLaser_(plasma=false) {
+    if(labReducing_)return;
     const ctx=obterAudioCtx_(); if(!ctx) return;
     const t=ctx.currentTime, osc=ctx.createOscillator(), gain=ctx.createGain();
     osc.type=plasma?'sawtooth':'square';
@@ -396,6 +417,7 @@ function somLaser_(plasma=false) {
 }
 
 function somSoco_() {
+    if(labReducing_)return;
     const ctx = obterAudioCtx_(); if (!ctx) return;
     const agora = ctx.currentTime;
     const buffer = ctx.createBuffer(1, Math.floor(ctx.sampleRate*.10), ctx.sampleRate);
@@ -412,6 +434,7 @@ function somSoco_() {
 
 
 function somFiasco_(){
+    if(labReducing_)return;
     const ctx=obterAudioCtx_(); if(!ctx)return;
     const t=ctx.currentTime;
     [0,.06,.12].forEach((d,i)=>{
@@ -425,6 +448,7 @@ function somFiasco_(){
     });
 }
 function somCriticoArma_(item, nomeEquip='') {
+    if(labReducing_)return;
     const tipo = tipoSomArma_(item, nomeEquip);
     const tocar = () => {
         if (tipo === 'plasma') return somLaser_(true);
@@ -446,6 +470,7 @@ function tipoSomArma_(item,nomeEquip='') {
     return 'dado';
 }
 function tocarSomDano_(item,nomeEquip) {
+    if(labReducing_)return;
     const tipo=tipoSomArma_(item,nomeEquip);
     if(tipo==='plasma') return somLaser_(true);
     if(tipo==='laser') return somLaser_(false);
@@ -455,6 +480,7 @@ function tocarSomDano_(item,nomeEquip) {
 }
 
 function somCaixaRegistradora_() {
+    if(labReducing_)return;
     const ctx = obterAudioCtx_(); if (!ctx) return;
     const t = ctx.currentTime;
 
@@ -5230,60 +5256,8 @@ let labMapaAcoesUnsub_=null;
 const labMapaComandosEmProcessamento_=new Set();
 const LAB_MAPA_MESA_REF_=()=>doc(db,'combatesAtivos','mapaMesaExperimental');
 const LAB_MAPA_ACOES_REF_=()=>collection(db,'combatesAtivos','mapaMesaExperimental','acoes');
-async function labEnviarComandoJogador_(tipo,payload={},ator=null){
-    if(batalhaEhMestre_())return false;
-    const t=ator||labTokenAtual_();
-    if(!t||!labPodeControlarToken_(t)){notificar_('Você só pode comandar seu próprio personagem.','aviso',3500);return false;}
-    const id=String(t.id||'');
-    try{
-        await setDoc(doc(db,'combatesAtivos','mapaMesaExperimental','acoes',id),{
-            personagemId:id,donoUid:String(currentUserUid||currentUser?.uid||''),tipo:String(tipo||''),
-            payload:JSON.parse(JSON.stringify(payload||{})),nonce:`${Date.now()}_${Math.random().toString(36).slice(2,8)}`,
-            status:'novo',criadoEm:new Date().toISOString()
-        },{merge:false});
-        return true;
-    }catch(e){console.error('Comando do jogador no Mapa da Mesa',e);notificar_('Não foi possível enviar sua ação ao mestre.','erro',5000);return false;}
-}
-async function labProcessarComandoJogador_(personagemId,acao){
-    const chave=`${personagemId}:${acao?.nonce||''}`;if(labMapaComandosEmProcessamento_.has(chave))return;labMapaComandosEmProcessamento_.add(chave);
-    try{
-        const t=labTokenPorId_(personagemId);
-        if(!t||String(t.donoUid||'')!==String(acao?.donoUid||''))return;
-        if(acao.tipo==='movimento'){
-            const prep=labEstado_.fase!=='combate',at=labTokenAtual_();
-            if(!prep&&String(at?.id)!==String(t.id))return;
-            if(!prep&&t.primeirosSocorrosLab)return;
-            const origem={x:Number(t.x||0),y:Number(t.y||0)};let x=Number(acao?.payload?.x),y=Number(acao?.payload?.y);
-            if(!Number.isFinite(x)||!Number.isFinite(y))return;
-            const saltoMax=Math.max(0,Number(t.saltoPsiPendenteLab||0));const maxM=saltoMax>0?saltoMax:(prep?999:labMovimentoMaxM_(t)),dx=x-origem.x,dy=y-origem.y,dist0=Math.hypot(dx,dy);
-            if(!prep&&maxM<=0)return;
-            if(!prep&&dist0>maxM&&dist0>0){const f=maxM/dist0;x=origem.x+dx*f;y=origem.y+dy*f;}
-            t.x=Math.max(0,Math.min(labEstado_.larguraM,x));t.y=Math.max(0,Math.min(labEstado_.alturaM,y));
-            const dist=Math.hypot(t.x-origem.x,t.y-origem.y),usouSalto=saltoMax>0,c=(prep||usouSalto)?{acoes:0}:labCustoMovimento_(t,dist);
-            if(!prep&&dist>.08){let deg=Math.atan2(t.x-origem.x,-(t.y-origem.y))*180/Math.PI;if(deg<0)deg+=360;t.angulo=Math.round(deg);}
-            if(usouSalto){t.saltoPsiPendenteLab=0;t.teletransportePsiPendenteLab=0;}if(!prep&&!usouSalto){if(c.usaBonus>0)t.movimentoBonusLab=Math.max(0,Number(t.movimentoBonusLab||0)-Number(c.usaBonus||0));if(c.usaGratis)t.movimentoGratisDisponivel=false;if(c.acoes>0)t.acoesAtuaisLab=Math.max(0,Number(t.acoesAtuaisLab||0)-c.acoes);}
-            labEstado_.selecionadoId=String(t.id);labSalvarLocal_();labRender_();if(!prep)labAutoAvancarSeSemAcoes_();
-        }else if(acao.tipo==='psiquismo'){
-            if(labEstado_.fase!=='combate'||String(labTokenAtual_()?.id)!==String(t.id))return;
-            const pl=acao?.payload||{};t.microModoLab='psi';t.acaoAuxLab={tipo:'psiquismo',poderId:String(pl.poderId||''),alvoId:String(pl.alvoId||t.id),custo:Math.max(0,Number(pl.custo||0)),local:String(pl.local||'')};labUsarPsiExecutar_();
-        }else if(acao.tipo==='teste_pericia'){
-            if(labEstado_.fase!=='combate'||String(labTokenAtual_()?.id)!==String(t.id))return;const pl=acao?.payload||{};t.acaoAuxLab={tipo:'teste_pericia',periciaToken:String(pl.periciaToken||'')};labExecutarTeste_();
-        }else if(acao.tipo==='acao_objeto'){
-            if(labEstado_.fase!=='combate'||String(labTokenAtual_()?.id)!==String(t.id))return;const pl=acao?.payload||{},o=labObjetoPorId_(pl.objetoId);if(!o)return;labObjetoAcaoExecutar_(t,o,String(pl.tipo||''));
-        }else if(acao.tipo==='ataque'){
-            if(labEstado_.fase!=='combate'||String(labTokenAtual_()?.id)!==String(t.id))return;
-            t.periciaLab=String(acao?.payload?.periciaLab||t.periciaLab||'');
-            t.equipamentoLab=String(acao?.payload?.equipamentoLab||t.equipamentoLab||'');
-            t.alvoLab=String(acao?.payload?.alvoId||t.alvoLab||'');t._alvoComandoFixadoLab=t.alvoLab;t.microModoLab='ataque';
-            labEstado_.selecionadoId=t.alvoLab||String(t.id);
-            window.labRolarAtaque_();
-        }
-    }catch(e){console.error('Processar comando do jogador',e);}finally{
-        try{await deleteDoc(doc(db,'combatesAtivos','mapaMesaExperimental','acoes',String(personagemId)));}catch(_){}
-        labMapaComandosEmProcessamento_.delete(chave);
-        if(batalhaEhMestre_())labAgendarSyncRemoto_();
-    }
-}
+
+
 function labIniciarEscutaComandosJogadores_(){
     if(labMapaAcoesUnsub_){labMapaAcoesUnsub_();labMapaAcoesUnsub_=null;}
     if(!batalhaEhMestre_()||!currentUserUid)return;
@@ -5304,37 +5278,15 @@ async function labCarregarModelosObjetosFaltantes_(objetos){
     for(const id of ids){try{const ds=await getDoc(doc(db,'configuracoes',objetoMapaDocId_(id)));if(ds.exists()){objetosMapaDB.push({id,...ds.data()});mudou=true;}}catch(e){console.warn('Modelo de objeto remoto indisponível',id,e);}}
     if(mudou&&document.getElementById('laboratorio-combate')?.classList.contains('active'))labRender_();
 }
-function labAgendarSyncRemoto_(){
-    if(!batalhaEhMestre_()||labAplicandoRemoto_)return;clearTimeout(labSyncTimer_);labSyncTimer_=setTimeout(async()=>{try{await setDoc(LAB_MAPA_MESA_REF_(),{estado:labEstadoPublico_(),atualizadoEm:new Date().toISOString()},{merge:false});}catch(e){console.warn('Sincronização da Mapa da Mesa:',e);}},320);
-}
+
 let labLocalSaveHandle_=null,labLocalSavePendente_=false;
 function labPersistirLocalAgora_(){
     labLocalSaveHandle_=null;if(!labLocalSavePendente_)return;labLocalSavePendente_=false;
     try{localStorage.setItem('mesaEstelarLabCombate',JSON.stringify(labEstado_));}catch(_){}
 }
-function labSalvarLocal_(){
-    // Evita serializar mapas grandes dentro do evento de clique/arraste. Várias alterações próximas viram uma só gravação local.
-    labLocalSavePendente_=true;
-    if(labLocalSaveHandle_==null){
-        if(typeof requestIdleCallback==='function')labLocalSaveHandle_=requestIdleCallback(labPersistirLocalAgora_,{timeout:700});
-        else labLocalSaveHandle_=setTimeout(labPersistirLocalAgora_,90);
-    }
-    labAgendarSyncRemoto_();
-}
+
 window.addEventListener('beforeunload',()=>{if(labLocalSavePendente_)labPersistirLocalAgora_();});
-window.iniciarMapaMesaCompartilhado_=function(){
-    if(labMapaMesaUnsub_){labMapaMesaUnsub_();labMapaMesaUnsub_=null;}
-    if(labMapaAcoesUnsub_){labMapaAcoesUnsub_();labMapaAcoesUnsub_=null;}
-    if(!currentUserUid)return;
-    labIniciarEscutaComandosJogadores_();
-    labMapaMesaUnsub_=onSnapshot(LAB_MAPA_MESA_REF_(),snap=>{
-        if(batalhaEhMestre_()){if(!snap.exists())labAgendarSyncRemoto_();return;}
-        if(!snap.exists())return;const remoto=snap.data()?.estado;if(!remoto||typeof remoto!=='object')return;
-        labAplicandoRemoto_=true;labEstado_={...labEstado_,...remoto,tokens:Array.isArray(remoto.tokens)?remoto.tokens:[],objetosLab:Array.isArray(remoto.objetosLab)?remoto.objetosLab:[]};labAplicandoRemoto_=false;
-        labCarregarModelosObjetosFaltantes_(labEstado_.objetosLab);
-        if(document.getElementById('laboratorio-combate')?.classList.contains('active'))labRender_();
-    },e=>console.warn('Mapa da Mesa compartilhado indisponível:',e));
-};
+
 function labCarregarLocal_(){
     try{
         const v=JSON.parse(localStorage.getItem('mesaEstelarLabCombate')||'null');
@@ -5400,6 +5352,7 @@ function labCriarSnapshotCombate_(c){
 }
 function labGarantirSnapshotCombate_(t){
     if(!t)return null;
+    if(labDrawing_)return t.combateLab||{hitMax:{},hit:{},armor:{},ferimentos:{}};
     if(!t.combateLab){
         const c=labCharToken_(t);
         t.combateLab=c?labCriarSnapshotCombate_(c):{hitMax:{'PV Global':20},hit:{'PV Global':20},armor:{'PV Global':0},ferimentos:{}};
@@ -5610,20 +5563,7 @@ window.labEncerrarOportunidade_=function(){
 };
 
 let labAutoAvancoArmado_=false;
-function labAutoAvancarSeSemAcoes_(){
-    if(!batalhaEhMestre_()||labEstado_.fase!=='combate'||labEstado_.pendenciaLab||labEstado_.danoPendenteLab)return false;
-    const atual=labTokenAtual_();if(!atual||Number(atual.acoesAtuaisLab||0)>0)return false;
-    const oportunidade=labChaveOportunidadeD8_();
-    if(labAutoAvancoArmado_)return true;
-    labAutoAvancoArmado_=true;
-    setTimeout(()=>{
-        labAutoAvancoArmado_=false;
-        if(!batalhaEhMestre_()||oportunidade!==labChaveOportunidadeD8_()||labEstado_.fase!=='combate'||labEstado_.pendenciaLab||labEstado_.danoPendenteLab)return;
-        const a=labTokenAtual_();
-        if(a&&Number(a.acoesAtuaisLab||0)<=0){window.labEncerrarOportunidade_();setTimeout(()=>labAutoAvancarSeSemAcoes_(),100);}
-    },180);
-    return true;
-}
+
 window.labVoltarPreparacao_=function(){
     if(labEstado_.fase==='combate'&&!confirm('Encerrar combate? As posições serão mantidas, mas rodada, turnos e iniciativa serão encerrados.'))return;
     labEstado_.fase='preparacao';labEstado_.rodada=0;labEstado_.turnoIndex=0;labEstado_.ordemIniciativa=[];labEstado_.pendenciaLab=null;labEstado_.danoPendenteLab=null;for(const t of labEstado_.tokens||[])t.iniciativaLab=null;labSalvarLocal_();try{labAgendarSyncRemoto_();}catch(_){}labRender_();
@@ -5904,6 +5844,7 @@ window.labSelecionarAlvo_=function(v){
 
 
 function labSomAtaque_(item,grau=''){
+    if(labReducing_)return;
     try{
         const nome=getNome(item)||item?.nome||'';
         if(String(grau).toLowerCase().includes('crít')||String(grau).toLowerCase().includes('crit')){
@@ -5999,6 +5940,7 @@ function labResultadoPrivadoDoUsuario_(){
 let labUltimoResultadoNotificado_='';
 let labResultadoPrivadoInicializado_=false;
 function labRenderResultadoPrivado_(){
+    if(labReducing_)return;
     const el=document.getElementById('labPlayerPrivateResult');if(!el)return;
     if(batalhaEhMestre_()){el.style.display='none';el.innerHTML='';return;}
     const t=labResultadoPrivadoDoUsuario_();
@@ -6032,6 +5974,7 @@ function labRegistrarResultadoProprio_(t,texto){
     if(t.historicoPrivadoLab.length>60)t.historicoPrivadoLab.length=60;
 }
 function labRenderHistoricoMesa_(){
+    if(labReducing_)return;
     const el=document.getElementById('labHistoricoMesa');if(!el)return;
     let linhas=[];
     if(batalhaEhMestre_()){
@@ -6232,7 +6175,7 @@ window.labPSIniciar_=function(){
     labEstado_.ultimoResultadoLab=`${t.nome} iniciou Primeiros Socorros em ${alvo.nome} (${a.local}). A oportunidade termina; na próxima poderá concluir ou continuar.`;
     labEstado_.logLab.unshift({ts:new Date().toLocaleTimeString(),texto:labEstado_.ultimoResultadoLab});
     labSalvarLocal_();labRender_();
-    setTimeout(()=>{if(labTokenAtual_()===t&&!labEstado_.pendenciaLab&&!labEstado_.danoPendenteLab)window.labEncerrarOportunidade_();},320);
+    0;
 };
 window.labPSContinuar_=function(){
     const t=labTokenAtual_(),ps=t?.primeirosSocorrosLab;if(!t||!ps||Number(t.acoesAtuaisLab||0)<=0)return;
@@ -6242,7 +6185,7 @@ window.labPSContinuar_=function(){
     labEstado_.ultimoResultadoLab=`${t.nome} continuou Primeiros Socorros em ${ps.alvoNome} (${ps.local}). Tempo: ${ps.turnosInvestidos}/3 turnos.`;
     labEstado_.logLab.unshift({ts:new Date().toLocaleTimeString(),texto:labEstado_.ultimoResultadoLab});
     labSalvarLocal_();labRender_();
-    setTimeout(()=>{if(labTokenAtual_()===t)window.labEncerrarOportunidade_();},320);
+    0;
 };
 function labReavaliarFerimento_(t,local){
     const st=labGarantirSnapshotCombate_(t);if(!st)return;
@@ -6296,7 +6239,7 @@ window.labPSConcluir_=function(){
     t.primeirosSocorrosLab=null;
     if(t.microModoLab==='socorros'&&t.psSelecaoLab)t.acaoAuxLab=JSON.parse(JSON.stringify(t.psSelecaoLab));
     labSalvarLocal_();labRender_();
-    setTimeout(()=>{if(labTokenAtual_()===t)window.labEncerrarOportunidade_();},420);
+    0;
 };
 function labEfeitosQuantidade_(grauAtaque,grauDefesa='Falha',semDefesa=false){
     const ag=batalhaResultadoGradeValor_(grauAtaque);
@@ -6375,7 +6318,7 @@ window.labEscolherEfeito_=function(id){
     dp.efeitosEscolhidos.push(efeito);dp.efeitosRestantes=Math.max(0,Number(dp.efeitosRestantes||0)-1);
     labSalvarLocal_();labRender_();
     if(Number(dp.efeitosRestantes||0)<=0){
-        setTimeout(()=>{if(labMesmaPendenciaD5_(dp))window.labRolarDano_();},320);
+        0;
     }
 };
 window.labConfirmarLocalizacao_=function(loc){
@@ -6385,13 +6328,13 @@ window.labConfirmarLocalizacao_=function(loc){
     dp.efeitosEscolhidos.push('escolher_localizacao');dp.efeitosRestantes=Math.max(0,Number(dp.efeitosRestantes||0)-1);
     labSalvarLocal_();labRender_();
     if(Number(dp.efeitosRestantes||0)<=0){
-        setTimeout(()=>{if(labMesmaPendenciaD5_(dp))window.labRolarDano_();},320);
+        0;
     }
 };
 window.labPularEfeitos_=function(){
     const dp=labEstado_.danoPendenteLab;if(!dp)return;
     dp.efeitosRestantes=0;dp.escolhendoLocalizacao=false;labSalvarLocal_();labRender_();
-    setTimeout(()=>{if(labMesmaPendenciaD5_(dp))window.labRolarDano_();},260);
+    0;
 };
 window.labResponderDefesa_=function(defender=true){
     const pend=labEstado_.pendenciaLab;if(!pend)return;
@@ -6817,11 +6760,7 @@ window.labRolarAtaque_=function(){
     labEstado_.logLab=labEstado_.logLab.slice(0,60);
     labSalvarLocal_();labRender_();
     if(danoAutomatico){
-        setTimeout(()=>{
-            if(labEstado_.danoPendenteLab?.atacanteId===String(t.id)&&labEstado_.danoPendenteLab?.defensorId===String(alvo.id)){
-                window.labRolarDano_();
-            }
-        },420);
+        0;
     }else if(!labEstado_.pendenciaLab&&!labEstado_.danoPendenteLab){
         labAutoAvancarSeSemAcoes_();
     }
@@ -6831,6 +6770,7 @@ window.labRolarAtaque_=function(){
     }
 };
 function labRenderActionPanel_(){
+    if(labReducing_)return;
     const el=document.getElementById('labActionPanel');if(!el)return;
     if(labEstado_.fase!=='combate'){el.style.display='none';el.innerHTML='';return;}
     if(!batalhaEhMestre_()){
@@ -6869,7 +6809,7 @@ function labRenderActionPanel_(){
             if(!p.escolhendoLocalizacao&&!efs.length){
                 p.efeitosRestantes=0;
                 labSalvarLocal_();
-                setTimeout(()=>{if(labMesmaPendenciaD5_(p))window.labRolarDano_();},220);
+                0;
                 el.innerHTML='<div style="color:#9fffb0;font-weight:700;">Nenhum efeito especial aplicável. Resolvendo dano…</div>';
                 return;
             }
@@ -7532,6 +7472,7 @@ function labDesenhoAplicarTextura_(ctx,texture,pts,inicio,size,color,ppm,brush='
     return false;
 }
 function labDesenhoRender_(){
+    if(labReducing_)return;
     const cv=document.getElementById('labDrawCanvas'),map=document.getElementById('labMetricMap');if(!cv||!map)return;
     const ppm=Number(labEstado_.pxPorMetro||48),w=Math.round(labEstado_.larguraM*ppm),h=Math.round(labEstado_.alturaM*ppm);
     cv.width=w;cv.height=h;cv.style.width=`${w}px`;cv.style.height=`${h}px`;
@@ -7582,6 +7523,7 @@ function labDesenhoRender_(){
 // O mapa completo só é recomposto ao finalizar o traço ou quando realmente necessário.
 let labDesenhoRaf_=0;
 function labDesenhoRenderTrecho_(st,inicio){
+    if(labReducing_)return;
     const cv=document.getElementById('labDrawCanvas');if(!cv)return;
     const ctx=cv.getContext('2d'),ppm=Number(labEstado_.pxPorMetro||48),pts=Array.isArray(st?.pts)?st.pts:[];
     if(!pts.length)return;
@@ -7766,8 +7708,7 @@ window.labAdicionarParticipanteSelecionado_=function(){
     labEstado_.selecionadoId=t.id;labSalvarLocal_();labRender_();
 };
 
-function labRender_(){
-    labSanearEstado_();
+function labDesenharBase_(){
     labAtualizarModoCriacaoMapa_();
     labAtualizarParticipantesSelect_();
     const map=document.getElementById('labMetricMap');if(!map)return;const ppm=Number(labEstado_.pxPorMetro||48);
@@ -15738,6 +15679,7 @@ window.labPsiResponderMestre_=function(id){
     m.respondida=true;m.resposta=txt;m.respondidaEm=new Date().toISOString();labSalvarLocal_();labRender_();labRenderPsiInboxMestre_();
 };
 function labRenderPsiInboxMestre_(){
+    if(labReducing_)return;
     const e=document.getElementById('gmPsiInbox');if(!e||!batalhaEhMestre_())return;
     const ms=(labEstado_.psiMensagensMestreLab||[]).filter(x=>!x.respondida).slice(0,12);
     e.innerHTML=ms.length?`<h4 style="color:#d8b4ff;margin:0 0 8px">🔮 Pedidos Psi ao mestre</h4>${ms.map(m=>`<div style="padding:9px;margin:7px 0;border-radius:9px;border:1px solid rgba(216,180,255,.28);background:rgba(50,22,78,.28)"><b>${escaparHtmlInventario_(m.atorNome)}</b> · ${escaparHtmlInventario_(m.poderNome)} · margem <b>${Number(m.margem||0)}</b><div style="font-size:.82em;color:#cbb9dd;margin:3px 0 7px">${escaparHtmlInventario_(m.texto||'Interprete o resultado e responda ao jogador.')}</div><textarea id="psiReply_${escaparHtmlInventario_(m.id)}" rows="2" placeholder="Resposta privada ao jogador..." style="width:100%;margin:0 0 6px"></textarea><button class="btn-small btn-select" onclick="labPsiResponderMestre_('${String(m.id).replace(/'/g,"\\'")}')">Enviar resposta</button></div>`).join('')}`:'<div style="color:#777">Nenhum pedido Psi pendente.</div>';
@@ -15901,8 +15843,9 @@ window.gmOficinaPublicarMesa_=function(){if(!batalhaEhMestre_())return;if(!confi
 // Caixa Psi no Escudo, criada de forma leve ao abrir/renderizar o mestre.
 (function(){const camp=document.getElementById('gm-sub-campanha');if(camp&&!document.getElementById('gmPsiInbox')){const d=document.createElement('div');d.id='gmPsiInbox';d.style.cssText='margin-top:14px;padding:12px;border-radius:12px;background:rgba(0,0,0,.16);border:1px solid rgba(216,180,255,.20)';camp.appendChild(d);}})();
 setTimeout(()=>{try{gmOficinaRender_();labRenderPsiInboxMestre_();}catch(_){}},500);
-function labRenderPsiVisuais_(){const map=document.getElementById('labMetricMap');if(!map)return;map.querySelectorAll('.lab-psi-zone-v4645').forEach(e=>e.remove());const ppm=Number(labEstado_.pxPorMetro||48);for(const t of (labEstado_.tokens||[])){if(t.circuloProtecaoPsiLab?.raio){const r=Number(t.circuloProtecaoPsiLab.raio),d=document.createElement('div');d.className='lab-psi-zone-v4645';d.style.cssText=`position:absolute;left:${(t.x-r)*ppm}px;top:${(t.y-r)*ppm}px;width:${r*2*ppm}px;height:${r*2*ppm}px;border:2px solid rgba(110,180,255,.75);background:rgba(80,120,255,.09);border-radius:50%;pointer-events:none;z-index:2;box-shadow:0 0 18px rgba(110,180,255,.22)`;map.appendChild(d);}if(t.anoitecerPsiLab?.raio){const r=Number(t.anoitecerPsiLab.raio),d=document.createElement('div');d.className='lab-psi-zone-v4645';d.style.cssText=`position:absolute;left:${(t.x-r)*ppm}px;top:${(t.y-r)*ppm}px;width:${r*2*ppm}px;height:${r*2*ppm}px;border:1px solid rgba(160,120,220,.55);background:rgba(5,3,14,.72);border-radius:50%;pointer-events:none;z-index:12`;map.appendChild(d);}if(t.mimetismoPsiLab?.imagem){const n=map.querySelector(`.lab-token[data-id="${CSS.escape(String(t.id))}"] img`);if(n)n.src=t.mimetismoPsiLab.imagem;}}}
-const labRenderV4645PsiVisual_=labRender_;labRender_=function(){const r=labRenderV4645PsiVisual_();try{labRenderPsiVisuais_();labRenderPsiInboxMestre_();}catch(_){}return r;};window.labRender_=labRender_;
+function labRenderPsiVisuais_(){
+    if(labReducing_)return;const map=document.getElementById('labMetricMap');if(!map)return;map.querySelectorAll('.lab-psi-zone-v4645').forEach(e=>e.remove());const ppm=Number(labEstado_.pxPorMetro||48);for(const t of (labEstado_.tokens||[])){if(t.circuloProtecaoPsiLab?.raio){const r=Number(t.circuloProtecaoPsiLab.raio),d=document.createElement('div');d.className='lab-psi-zone-v4645';d.style.cssText=`position:absolute;left:${(t.x-r)*ppm}px;top:${(t.y-r)*ppm}px;width:${r*2*ppm}px;height:${r*2*ppm}px;border:2px solid rgba(110,180,255,.75);background:rgba(80,120,255,.09);border-radius:50%;pointer-events:none;z-index:2;box-shadow:0 0 18px rgba(110,180,255,.22)`;map.appendChild(d);}if(t.anoitecerPsiLab?.raio){const r=Number(t.anoitecerPsiLab.raio),d=document.createElement('div');d.className='lab-psi-zone-v4645';d.style.cssText=`position:absolute;left:${(t.x-r)*ppm}px;top:${(t.y-r)*ppm}px;width:${r*2*ppm}px;height:${r*2*ppm}px;border:1px solid rgba(160,120,220,.55);background:rgba(5,3,14,.72);border-radius:50%;pointer-events:none;z-index:12`;map.appendChild(d);}if(t.mimetismoPsiLab?.imagem){const n=map.querySelector(`.lab-token[data-id="${CSS.escape(String(t.id))}"] img`);if(n)n.src=t.mimetismoPsiLab.imagem;}}}
+const labRenderV4645PsiVisual_=labRender_;window.labRender_=labRender_;
 
 
 
@@ -15925,6 +15868,7 @@ function labPsiModalMestre_(){
     if(!d){d=document.createElement('div');d.id='labPsiModalMestre';d.style.cssText='display:none;position:fixed;right:22px;bottom:22px;z-index:100000;width:min(520px,calc(100vw - 36px));max-height:72vh;overflow:auto;padding:15px;border:1px solid rgba(216,180,255,.65);border-radius:14px;background:rgba(25,14,45,.97);box-shadow:0 16px 50px rgba(0,0,0,.55);color:white';document.body.appendChild(d);}return d;
 }
 function labPsiRenderModalMestre_(){
+    if(labReducing_)return;
     const d=labPsiModalMestre_();if(!batalhaEhMestre_()){d.style.display='none';return;}
     const m=(labEstado_.psiMensagensMestreLab||[]).find(x=>!x.respondida);
     const q=labEstado_.psiTestePendenteLab,alvo=q&&labTokenPorId_(q.alvoId),npc=q&&alvo&&!q.alvoUid;
@@ -15968,7 +15912,7 @@ const gmOficinaSalvarComoMapaV46451_=gmOficinaSalvarComoMapa_;
 gmOficinaSalvarComoMapa_=async function(){await gmOficinaSalvarComoMapaV46451_();labAtualizarSelectMapas_();};
 
 // Render principal também atualiza a janela Psi, sem polling adicional.
-const labRenderV46451_=labRender_;labRender_=function(){const r=labRenderV46451_();try{labPsiRenderModalMestre_();}catch(_){}return r;};window.labRender_=labRender_;
+const labRenderV46451_=labRender_;window.labRender_=labRender_;
 
 
 
@@ -16071,6 +16015,7 @@ function labPsiTokenMensagemParaUsuario_(){
     return null;
 }
 function labPsiRenderModalJogador_(){
+    if(labReducing_)return;
     const d=labPsiModalJogador_(),t=labPsiTokenMensagemParaUsuario_();
     if(!t){d.style.display='none';d.innerHTML='';return;}
     const m=t.psiMensagemRecebidaLab;
@@ -16319,11 +16264,7 @@ labEncerrarOportunidade_=function(){
 
 // Render geral atualiza também mensagens e visuais.
 const labRenderV46452_=labRender_;
-labRender_=function(){
-    const r=labRenderV46452_();
-    try{labPsiRenderModalMestre_();labPsiRenderModalJogador_();labRenderPsiVisuais_();}catch(e){console.warn(e);}
-    return r;
-};window.labRender_=labRender_;
+window.labRender_=labRender_;
 
 
 
@@ -16632,16 +16573,7 @@ labRenderPsiVisuais_=function(){
 // Render final: garante que a pendência seja roteada e que o jogador receba
 // o painel sem depender de estar selecionando o token ou de ser sua oportunidade.
 const labRenderV46454_=labRender_;
-labRender_=function(){
-    const r=labRenderV46454_();
-    try{
-        labPsiNormalizarPendenciaAtual_();
-        labRenderActionPanel_();
-        labPsiRenderModalMestre_();
-        labRenderPsiVisuais_();
-    }catch(e){console.warn('v46.51.0',e);}
-    return r;
-};
+
 window.labRender_=labRender_;
 window.labRenderActionPanel_=labRenderActionPanel_;
 window.labPsiRenderModalMestre_=labPsiRenderModalMestre_;
@@ -16881,6 +16813,7 @@ function labDispararEfeitoVisualAtaque_(atacante,alvo,item,acertou,grau){
     labSalvarLocal_();labAgendarSyncRemoto_();labRenderEfeitoVisualAtaque_();
 }
 function labRenderEfeitoVisualAtaque_(){
+    if(labReducing_)return;
     const fx=labEstado_.efeitoVisualLab,map=document.getElementById('labMetricMap');if(!fx||!map||String(fx.id)===labUltimoEfeitoVisualId_)return;
     if(Date.now()-Number(fx.ts||0)>4000){labUltimoEfeitoVisualId_=String(fx.id);return;}
     labUltimoEfeitoVisualId_=String(fx.id);
@@ -16893,11 +16826,7 @@ function labRenderEfeitoVisualAtaque_(){
 
 // Garante que clientes remotos renderizem o disparo recebido por sincronização.
 const labRenderV46460_=labRender_;
-labRender_=function(){
-    const r=labRenderV46460_();
-    try{labRenderEfeitoVisualAtaque_();}catch(e){console.warn('laser fx',e);}
-    return r;
-};
+
 window.labRender_=labRender_;
 
 
@@ -17200,11 +17129,7 @@ gmOficinaV2RenderObjetos_=function(){
 
 // Renderiza o laser depois que o mapa terminou de ser recriado.
 const labRenderV46461_ = labRender_;
-labRender_ = function(){
-    const r=labRenderV46461_();
-    try{setTimeout(()=>labRenderEfeitoVisualAtaque_(),0);}catch(_){}
-    return r;
-};
+
 window.labRender_=labRender_;
 
 
@@ -17492,17 +17417,7 @@ labRenderEfeitoVisualAtaque_=function(){
 
 // ---------- Evita que o mapa "pule" na página ao aparecer/desaparecer painel ----------
 const labRenderV46462_=labRender_;
-labRender_=function(){
-    const sy=window.scrollY,sx=window.scrollX;
-    const map=document.getElementById('labMetricMap');
-    const estavaVisivel=!!map && map.getBoundingClientRect().bottom>0 && map.getBoundingClientRect().top<window.innerHeight;
-    const r=labRenderV46462_();
-    labCompactarPainelMesaV46462_();
-    if(estavaVisivel){
-        requestAnimationFrame(()=>window.scrollTo(sx,sy));
-    }
-    return r;
-};
+
 window.labRender_=labRender_;
 window.labAtualizarStatusCombate_=labAtualizarStatusCombate_;
 window.labAtualizarInfo_=labAtualizarInfo_;
@@ -17528,6 +17443,7 @@ function labLaserCentroRectV3_(el){
     return {x:r.left+r.width/2,y:r.top+r.height/2,w:r.width,h:r.height};
 }
 function labLaserCriarBodyV3_(fx){
+    if(labReducing_)return;
     if(!fx||!fx.id||String(fx.id)===labLaserBodyUltimoIdV3_)return false;
     const a=labLaserCentroRectV3_(labLaserElementoTokenV3_(fx.atacanteId));
     const b=labLaserCentroRectV3_(labLaserElementoTokenV3_(fx.alvoId));
@@ -17608,16 +17524,7 @@ labDispararEfeitoVisualAtaque_=function(atacante,alvo,item,acertou,grau){
 
 // Para clientes remotos: ao receber o novo estado, a mesma animação é disparada.
 const labRenderV46463_=labRender_;
-labRender_=function(){
-    const r=labRenderV46463_();
-    try{
-        const fx=labEstado_.efeitoVisualLab;
-        if(fx?.tipo==='laser' && Date.now()-Number(fx.ts||0)<5000){
-            labLaserAgendarBodyV3_(fx);
-        }
-    }catch(e){console.warn('laser v46.51.0',e);}
-    return r;
-};
+
 window.labRender_=labRender_;
 
 
@@ -18065,11 +17972,7 @@ labDispararEfeitoVisualAtaque_=function(atacante,alvo,item,acertou,grau){
 
 // ---------- Render final: ocultação do Anoitecer ----------
 const labRenderV46470_=labRender_;
-labRender_=function(){
-    const r=labRenderV46470_();
-    try{labAplicarOcultacaoAnoitecerV46470_();}catch(e){console.warn('Anoitecer',e);}
-    return r;
-};
+
 window.labRender_=labRender_;
 
 
@@ -18359,6 +18262,7 @@ function labCentroAlvoV247_(id){
     }catch(_){return null;}
 }
 function labMostrarGolpeEnergiaV247_(atacante,alvo,item,acertou){
+    if(labReducing_)return;
     if(!labItemEnergiaCorpoACorpoV247_(item)||!atacante||!alvo)return;
     const a=labCentroAlvoV247_(atacante.id),b=labCentroAlvoV247_(alvo.id);if(!a||!b)return;
     const cor=labEnergyMeleeCorV247_(item);
@@ -18405,18 +18309,7 @@ labDispararEfeitoVisualAtaque_=function(atacante,alvo,item,acertou,grau){
 
 // Clientes remotos também veem o arco de energia.
 const labRenderV247FX_=labRender_;
-labRender_=function(){
-    const r=labRenderV247FX_();
-    try{
-        const fx=labEstado_.efeitoVisualLab;
-        if(fx?.tipo==='energia_melee'&&String(fx.id)!==labEnergySlashUltimoV247_&&Date.now()-Number(fx.ts||0)<4000){
-            const atk=labTokenPorId_(fx.atacanteId),alvo=labAlvoAtaquePorId_(fx.alvoId),item=encontrarItemCombatePorId_(fx.itemId);
-            labEnergySlashUltimoV247_=String(fx.id);
-            if(atk&&alvo&&item)setTimeout(()=>labMostrarGolpeEnergiaV247_(atk,alvo,item,fx.acertou),70);
-        }
-    }catch(e){console.warn('FX energia melee',e);}
-    return r;
-};
+
 window.labRender_=labRender_;
 
 // ---------- Objetos: fogo, rachaduras e explosão ----------
@@ -18570,6 +18463,7 @@ penalidadeCompatibilidadeArma_=function(pericia,item){
 // Som próprio de lâmina energética: zumbido + varredura.
 // É original/procedural e não usa áudio de franquias externas.
 function somLaminaEnergia481_(){
+    if(labReducing_)return;
     const ctx=obterAudioCtx_();if(!ctx)return;
     const t=ctx.currentTime;
 
@@ -18586,6 +18480,7 @@ function somLaminaEnergia481_(){
 }
 const labSomAtaque481Base_=labSomAtaque_;
 labSomAtaque_=function(item,grau=''){
+    if(labReducing_)return;
     if(labEhLaminaEnergia481_(item)){
         somLaminaEnergia481_();
         if(String(grau).toLowerCase().includes('crít')||String(grau).toLowerCase().includes('crit')){
@@ -18679,6 +18574,7 @@ labAlvosAtaque_=function(t){
 // Overlay de fogo robusto aplicado depois do render, sem depender de
 // substituição de HTML interno.
 function labRenderFogoObjetos481_(){
+    if(labReducing_)return;
     const map=document.getElementById('labMetricMap');if(!map)return;
     for(const o of (labEstado_.objetosLab||[])){
         let node=null;
@@ -18693,11 +18589,7 @@ function labRenderFogoObjetos481_(){
 }
 
 const labRender481Base_=labRender_;
-labRender_=function(){
-    const r=labRender481Base_();
-    try{labRenderFogoObjetos481_();}catch(e){console.warn('fogo 481',e);}
-    return r;
-};
+
 window.labRender_=labRender_;
 
 
@@ -19192,6 +19084,7 @@ window.labCarregarMapaBanco_=async function(){
 };
 
 function labRenderFormasMapa490_(){
+    if(labReducing_)return;
     const map=document.getElementById('labMetricMap');if(!map)return;
     let svg=document.getElementById('labFormasMapa490');
     if(!svg){svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.id='labFormasMapa490';map.appendChild(svg);}
@@ -19296,6 +19189,7 @@ function labMusicaInstalar490_(){
     root.appendChild(box);labTrilhasCarregar490_();
 }
 function labMusicaRender490_(){
+    if(labReducing_)return;
     const el=document.getElementById('gmMusicaLista490');if(!el)return;
     el.innerHTML=trilhasMesaDB490_.length?trilhasMesaDB490_.map((t,i)=>`<div style="display:flex;gap:7px;align-items:center;padding:6px 0;border-top:1px solid rgba(255,255,255,.08)">
       <strong style="min-width:160px">${escaparHtmlInventario_(t.nome||'Trilha')}</strong><span style="color:#9fb4c8;min-width:100px">${escaparHtmlInventario_(t.categoria||'')}</span>
@@ -19326,17 +19220,7 @@ window.gmMusicaParar490_=function(){
 // 7) Render geral
 // ------------------------------------------------------------
 const labRender490Base_=labRender_;
-labRender_=function(){
-    const r=labRender490Base_();
-    try{
-        labSanearPendenciasMortos490_();
-        labRenderFormasMapa490_();
-        labAudioAplicar490_();
-        labAudioFloat490_();
-        labMusicaInstalar490_();
-    }catch(e){console.warn('v46.49 render',e);}
-    return r;
-};
+
 window.labRender_=labRender_;
 
 // Estado inicial da preferência de áudio.
@@ -19679,14 +19563,7 @@ window.gmMusicaTocar490_=function(i){
 // 4) Render final desta versão
 // ------------------------------------------------------------
 const labRender500Base_=labRender_;
-labRender_=function(){
-    const r=labRender500Base_();
-    try{
-        gmVet490InstalarUI_?.();
-        labAudioFloat490_();
-    }catch(e){console.warn('v46.50 render',e);}
-    return r;
-};
+
 window.labRender_=labRender_;
 
 
@@ -20025,15 +19902,7 @@ window.gmVet501SalvarComposicao_=async function(){
 // 6) Render: aplicar fogo remoto ANTES de montar os objetos
 // ------------------------------------------------------------
 const labRender501Base_=labRender_;
-labRender_=function(){
-    try{labAplicarEfeitosObjetosPublicos501_();}catch(_){}
-    const r=labRender501Base_();
-    try{
-        gmVet501AtualizarCamadas_();
-        gmVet501TrocarBotaoSelecao_();
-    }catch(e){console.warn('v46.51.0',e);}
-    return r;
-};
+
 window.labRender_=labRender_;
 
 
@@ -20493,12 +20362,7 @@ renderizarCampanhaMestre_=function(){
 };
 
 const labRender510Base_=labRender_;
-labRender_=function(){
-    try{labAplicarEfeitosObjetosPublicos501_();}catch(_){}
-    const r=labRender510Base_();
-    try{if(batalhaEhMestre_())gmMusicaInstalar510_();}catch(_){}
-    return r;
-};
+
 window.labRender_=labRender_;
 
 
@@ -20654,7 +20518,7 @@ window.labRestaurarParticipantes_=async function(){
 
 // Reinstala pequenos ajustes quando a Oficina/Banco forem redesenhados.
 const labRender520Base_=labRender_;
-labRender_=function(){const r=labRender520Base_();try{const old=document.getElementById('gmVet501CompBtn');if(old){old.textContent='✂️ Recortar e transformar em objeto';old.setAttribute('onclick','gmRecorte520Iniciar_()');}}catch(_){}return r;};window.labRender_=labRender_;
+window.labRender_=labRender_;
 
 
 
@@ -20867,42 +20731,7 @@ window.labPlayerJoin530_=async function(){
 };
 
 const labProcessarComandoJogador530Base_=labProcessarComandoJogador_;
-labProcessarComandoJogador_=async function(personagemId,acao){
-    if(acao?.tipo!=='entrar_mapa')return labProcessarComandoJogador530Base_(personagemId,acao);
-    const chave=`join:${personagemId}:${acao?.nonce||''}`;
-    if(labMapaComandosEmProcessamento_.has(chave))return;
-    labMapaComandosEmProcessamento_.add(chave);
-    try{
-        if(!batalhaEhMestre_()||!labEstado_.entradaLivreLab)return;
-        const id=String(personagemId||acao?.payload?.personagemId||'');
-        if((labEstado_.tokens||[]).some(t=>String(t.origemId||t.id)===id))return;
-        let c=(userCharacters||[]).find(x=>String(x.id)===id);
-        if(!c){
-            try{const ds=await getDoc(doc(db,'personagens',id));if(ds.exists())c={id,...ds.data()};}catch(_){}
-        }
-        if(!c||String(c.dono||c.donoUid||'')!==String(acao?.donoUid||''))return;
 
-        const atorAntes=labTokenAtual_()?.id||'';
-        const t=labTokenDeCharDireto_(c,id,(labEstado_.tokens||[]).length);
-        if(labEstado_.fase==='combate')t.iniciativaLab=1+Math.floor(Math.random()*10)+Number(t.iniciativaBonus||0);
-        labEstado_.tokens.push(t);
-
-        if(labEstado_.fase==='combate'){
-            const ids=(labEstado_.ordemIniciativa||[]).filter(x=>(labEstado_.tokens||[]).some(t0=>String(t0.id)===String(x)));
-            ids.push(String(t.id));
-            ids.sort((ia,ib)=>{const a=labTokenPorId_(ia),b=labTokenPorId_(ib);return Number(b?.iniciativaLab||0)-Number(a?.iniciativaLab||0)||String(a?.nome||'').localeCompare(String(b?.nome||''));});
-            labEstado_.ordemIniciativa=ids;
-            const ix=ids.findIndex(x=>String(x)===String(atorAntes));if(ix>=0)labEstado_.turnoIndex=ix;
-        }
-        labEstado_.logLab=Array.isArray(labEstado_.logLab)?labEstado_.logLab:[];
-        labEstado_.logLab.unshift({ts:new Date().toLocaleTimeString(),texto:`${t.nome} entrou pela entrada livre${t.iniciativaLab!=null?` · INI ${t.iniciativaLab}`:''}.`});
-        labSalvarLocal_();labAgendarSyncRemoto_();labRender_();
-    }catch(e){console.error('Entrada livre',e);}
-    finally{
-        try{await deleteDoc(doc(db,'combatesAtivos','mapaMesaExperimental','acoes',String(personagemId)));}catch(_){}
-        labMapaComandosEmProcessamento_.delete(chave);
-    }
-};
 
 // ------------------------------------------------------------
 // 4) Fogo — contato de personagens realmente aplica dano
@@ -21002,16 +20831,7 @@ window.labRestaurarParticipantes_=async function(){
 // 6) Render final desta versão
 // ------------------------------------------------------------
 const labRender530Base_=labRender_;
-labRender_=function(){
-    const r=labRender530Base_();
-    try{
-        gmVet490InstalarUI_();
-        labEntradaLivreAtualizar530_();
-        if(batalhaEhMestre_())labFogoContatoImediato530_();
-        if(batalhaEhMestre_())gmMusicaSelectorRender510_();
-    }catch(e){console.warn('v46.53 render',e);}
-    return r;
-};
+
 window.labRender_=labRender_;
 
 
@@ -21201,102 +21021,13 @@ window.labPlayerJoin540_=async function(){
 window.labPlayerJoin530_=window.labPlayerJoin540_;
 
 const labProcessarComandoJogador540Base_=labProcessarComandoJogador_;
-labProcessarComandoJogador_=async function(personagemId,acao){
-    if(acao?.tipo!=='entrar_mapa')return labProcessarComandoJogador540Base_(personagemId,acao);
 
-    const chave=`join540:${personagemId}:${acao?.nonce||''}`;
-    if(labMapaComandosEmProcessamento_.has(chave))return;
-    labMapaComandosEmProcessamento_.add(chave);
-    try{
-        if(!batalhaEhMestre_()||!labEstado_.entradaLivreLab)return;
-        const id=String(personagemId||acao?.payload?.personagemId||'');
-        if((labEstado_.tokens||[]).some(t=>String(t.origemId||t.id)===id))return;
-
-        let c=(userCharacters||[]).find(x=>String(x.id)===id);
-        if(!c){
-            try{
-                const ds=await getDoc(doc(db,'personagens',id));
-                if(ds.exists())c={id,...ds.data()};
-            }catch(_){}
-        }
-        if(!c||!labCharPertenceAoUid540_(c,acao?.donoUid))return;
-
-        const atorAntes=labTokenAtual_()?.id||'';
-        const t=labTokenDeCharDireto_(c,id,(labEstado_.tokens||[]).length);
-        // Garante que o token público saiba quem o controla.
-        if(!t.donoUid)t.donoUid=String(acao?.donoUid||'');
-        if(labEstado_.fase==='combate')t.iniciativaLab=1+Math.floor(Math.random()*10)+Number(t.iniciativaBonus||0);
-        labEstado_.tokens.push(t);
-
-        if(labEstado_.fase==='combate'){
-            const ids=(labEstado_.ordemIniciativa||[]).filter(x=>(labEstado_.tokens||[]).some(t0=>String(t0.id)===String(x)));
-            ids.push(String(t.id));
-            ids.sort((ia,ib)=>{
-                const a=labTokenPorId_(ia),b=labTokenPorId_(ib);
-                return Number(b?.iniciativaLab||0)-Number(a?.iniciativaLab||0)
-                    ||String(a?.nome||'').localeCompare(String(b?.nome||''));
-            });
-            labEstado_.ordemIniciativa=ids;
-            const ix=ids.findIndex(x=>String(x)===String(atorAntes));
-            if(ix>=0)labEstado_.turnoIndex=ix;
-        }
-
-        // Sem pop-up/pedido para o mestre. Só registra no histórico técnico.
-        labEstado_.logLab=Array.isArray(labEstado_.logLab)?labEstado_.logLab:[];
-        labEstado_.logLab.unshift({
-            ts:new Date().toLocaleTimeString(),
-            texto:`${t.nome} entrou pela entrada livre${t.iniciativaLab!=null?` · INI ${t.iniciativaLab}`:''}.`
-        });
-        labSalvarLocal_();
-        labAgendarSyncRemoto_();
-        labRender_();
-    }catch(e){
-        console.error('Entrada livre automática',e);
-    }finally{
-        try{await deleteDoc(doc(db,'combatesAtivos','mapaMesaExperimental','acoes',String(personagemId)));}catch(_){}
-        labMapaComandosEmProcessamento_.delete(chave);
-    }
-};
 
 // ------------------------------------------------------------
 // 6) O mapa não muda de posição na tela quando painel/log muda
 // ------------------------------------------------------------
 const labRender540Base_=labRender_;
-labRender_=function(){
-    labLimparFloatsAntigos540_();
 
-    const antes=document.getElementById('labMetricMap');
-    const visivel=!!antes && antes.getBoundingClientRect().bottom>0 && antes.getBoundingClientRect().top<window.innerHeight;
-    const topAntes=visivel?antes.getBoundingClientRect().top:null;
-    const viewportAntes=antes?.parentElement;
-    const scrollTopAntes=viewportAntes?.scrollTop||0;
-    const scrollLeftAntes=viewportAntes?.scrollLeft||0;
-
-    const r=labRender540Base_();
-
-    try{
-        labAvisarJogadorQueimando540_();
-        labEntradaLivreAtualizar530_();
-    }catch(e){console.warn('v46.54 pós-render',e);}
-
-    if(visivel){
-        // Duplo frame: roda depois das restaurações de scroll das versões
-        // antigas e depois da atualização de altura dos painéis.
-        requestAnimationFrame(()=>requestAnimationFrame(()=>{
-            const depois=document.getElementById('labMetricMap');
-            if(!depois)return;
-            const vp=depois.parentElement;
-            if(vp){
-                vp.scrollTop=scrollTopAntes;
-                vp.scrollLeft=scrollLeftAntes;
-            }
-            const topDepois=depois.getBoundingClientRect().top;
-            const delta=topDepois-topAntes;
-            if(Math.abs(delta)>.5)window.scrollBy(0,delta);
-        }));
-    }
-    return r;
-};
 window.labRender_=labRender_;
 
 
@@ -21589,11 +21320,7 @@ function gmOficina552EspessuraMinima_(){
     if(esp){esp.min='1';esp.step='1';}
 }
 const labRender552Base_=labRender_;
-labRender_=function(){
-    const r=labRender552Base_();
-    try{gmOficina552EspessuraMinima_();gmVet552AtualizarNovaCor_();}catch(_){}
-    return r;
-};
+
 window.labRender_=labRender_;
 
 
@@ -29313,12 +29040,9 @@ function gm2installMesaNativeLayer_(){
  map.style.backgroundImage=labEstado_.gradeVisivel===false?'none':`linear-gradient(to right,${labEstado_.corGrade||state.grid||'#777'} 1px,transparent 1px),linear-gradient(to bottom,${labEstado_.corGrade||state.grid||'#777'} 1px,transparent 1px)`;
  map.style.backgroundSize=`${ppm}px ${ppm}px,${ppm}px ${ppm}px`;
 }
+window.labViewNativeInstall_=gm2installMesaNativeLayer_;
 const labRenderV4673Base_=labRender_;
-labRender_=function(){
- const r=labRenderV4673Base_();
- try{gm2installMesaNativeLayer_();}catch(e){console.warn('Mesa/Oficina2 native layer',e);}
- return r;
-};
+
 window.labRender_=labRender_;
 
 // A escala da Mesa é somente visual. O estado nativo permanece em metros.
@@ -29798,6 +29522,7 @@ function labQuickPointerDown760_(ev){
 document.addEventListener('pointerdown',labQuickPointerDown760_,true);
 
 function labQuickRender760_(){
+    if(labReducing_)return;
   const map=document.getElementById('labMetricMap');if(!map)return;
   let ov=document.getElementById('labQuickOverlay760');
   if(!ov){ov=document.createElement('div');ov.id='labQuickOverlay760';map.appendChild(ov);}
@@ -29825,15 +29550,7 @@ labOverlayMovimentoHtml_=function(t,ppm){
 
 // ---------- Atualização pós-render ----------
 const labRender760Base_=labRender_;
-labRender_=function(){
-  const r=labRender760Base_.apply(this,arguments);
-  try{
-    labAtualizarControlePJ760_();
-    labQuickToolsUpdate760_();
-    labQuickRender760_();
-  }catch(e){console.warn('v46.76 UI',e);}
-  return r;
-};
+
 window.labRender_=labRender_;
 
 // instalação inicial sem depender de uma renderização específica
@@ -30211,14 +29928,7 @@ function labEstadosVisuais763_(){
 
 // Render final desta correção.
 const labRender763Base_=labRender_;
-labRender_=function(){
-    const r=labRender763Base_.apply(this,arguments);
-    try{
-        labAlvoMapaUI763_();
-        labEstadosVisuais763_();
-    }catch(e){console.warn('v46.77.0 visual/alvo',e);}
-    return r;
-};
+
 window.labRender_=labRender_;
 
 // Zera alvos herdados de versões antigas ao abrir esta versão.
@@ -30309,11 +30019,7 @@ function labRemoverDropdownAtaque764_(){
     }
 }
 const labRender764Base_=labRender_;
-labRender_=function(){
-    const r=labRender764Base_.apply(this,arguments);
-    try{labRemoverDropdownAtaque764_();}catch(e){console.warn('v46.77.0 alvo UI',e);}
-    return r;
-};
+
 window.labRender_=labRender_;
 
 // ============================================================
@@ -30436,17 +30142,14 @@ window.labRenderActionPanel_=labRenderActionPanel_;
 
 // Também executa após labRender, caso um painel seja desenhado por uma resolução assíncrona.
 const labRender765Base_=labRender_;
-labRender_=function(){
-    const r=labRender765Base_.apply(this,arguments);
-    try{labRetirarTodoDropdownAlvo765_();}catch(_){}
-    return r;
-};
+
 window.labRender_=labRender_;
 
 // ============================================================
 // V46.77.0 — banco de objetos também no Mapa da Mesa
 // ============================================================
 function labLiveRenderObjectBank770_(){
+    if(labReducing_)return;
  const box=document.getElementById('labLiveObjectBank770'),list=document.getElementById('labLiveObjectList770');
  if(!box||!list)return;
  box.style.display=batalhaEhMestre_()?'block':'none';
@@ -30511,12 +30214,7 @@ function labRepararObjetosBanco770_(){
 }
 
 const labRender770Base_=labRender_;
-labRender_=function(){
- try{labRepararObjetosBanco770_();}catch(e){console.warn('reparo objetos banco',e);}
- const r=labRender770Base_.apply(this,arguments);
- try{labLiveRenderObjectBank770_();}catch(e){console.warn('banco objetos ao vivo',e);}
- return r;
-};
+
 window.labRender_=labRender_;
 
 setTimeout(()=>{try{labLiveRenderObjectBank770_();}catch(_){}},900);
@@ -30611,10 +30309,7 @@ if(map804LoadMesaBase_){
 
 // Também reidrata quando o Banco termina de carregar depois do mapa.
 const map804RenderBase_=labRender_;
-labRender_=function(){
-  try{map804HidratarMesa_();}catch(e){console.warn('hidratação refs Mesa',e);}
-  return map804RenderBase_.apply(this,arguments);
-};
+
 window.labRender_=labRender_;
 window.map804HidratarMesa_=map804HidratarMesa_;
 
@@ -30945,19 +30640,7 @@ const renderBase=
     : null;
 
 if(renderBase){
-  labRender_=function(...args){
-
-    try{
-      hidratarMesaAgora();
-    }catch(e){
-      console.warn(
-        '[PATCH2] hidratação antes do render falhou',
-        e
-      );
-    }
-
-    return renderBase.apply(this,args);
-  };
+  
 
   window.labRender_=labRender_;
 }
@@ -31224,16 +30907,7 @@ window.labObjetoAcao_=function(tipo,id){const ator=labAtorInteracaoE4_(),o=labOb
 
 // Mestre processa ações de exploração dos jogadores mesmo sem iniciativa ativa.
 const labProcessarComandoJogadorE4Base_=labProcessarComandoJogador_;
-labProcessarComandoJogador_=async function(personagemId,acao){
-    if(acao?.tipo==='acao_objeto'&&labEstado_.fase!=='combate'){
-        const t=labTokenPorId_(personagemId);if(!t||String(t.donoUid||'')!==String(acao?.donoUid||''))return;
-        const o=labObjetoPorId_(acao?.payload?.objetoId);if(!o)return;
-        labObjetoAcaoExecutar_(t,o,String(acao?.payload?.tipo||''));
-        try{await deleteDoc(doc(db,'combatesAtivos','mapaMesaExperimental','acoes',String(personagemId)));}catch(_){}
-        if(batalhaEhMestre_())labAgendarSyncRemoto_();return;
-    }
-    return labProcessarComandoJogadorE4Base_.apply(this,arguments);
-};
+
 
 // Painel contextual: exploração mostra trabalho; combate mostra ataque/movimento, nunca Lenhar/Minerar.
 labObjetoMicroPainelHtml_=function(o,ppm){
@@ -31589,13 +31263,7 @@ function labArrastarExploracaoE6_(ev,t){
         const dx=t.x-origem.x,dy=t.y-origem.y,dist=Math.hypot(dx,dy);
         if(dist>.08){let deg=Math.atan2(dx,-dy)*180/Math.PI;if(deg<0)deg+=360;t.angulo=Math.round(deg);}
 
-        if(!batalhaEhMestre_()){
-            labEnviarComandoJogador_('movimento',{x:t.x,y:t.y},t).then(ok=>{
-                if(!ok){t.x=origem.x;t.y=origem.y;labRender_();}
-            });
-        }else{
-            labSalvarLocal_();try{labAgendarSyncRemoto_();}catch(_){}labRender_();
-        }
+        labEnviarComandoJogador_('movimento',{x:t.x,y:t.y},t);
     };
     window.addEventListener('pointermove',move,{passive:true});
     window.addEventListener('pointerup',up,{once:true});
@@ -31814,30 +31482,7 @@ window.labAtualizarInfo_=labAtualizarInfo_;
 // Movimento remoto do jogador fora do combate recebe o MESMO limite.
 // ------------------------------------------------------------
 const labProcessarComandoJogadorE6Base_=labProcessarComandoJogador_;
-labProcessarComandoJogador_=async function(personagemId,acao){
-    if(acao?.tipo==='movimento'&&labEstado_.fase!=='combate'){
-        const chave=`moveE6:${personagemId}:${acao?.nonce||''}`;
-        if(labMapaComandosEmProcessamento_.has(chave))return;
-        labMapaComandosEmProcessamento_.add(chave);
-        try{
-            if(!batalhaEhMestre_())return;
-            const t=labTokenPorId_(personagemId);
-            if(!t||String(t.donoUid||'')!==String(acao?.donoUid||''))return;
-            const origem={x:Number(t.x||0),y:Number(t.y||0)};
-            const alvo=labClampMovimentoE6_(origem,Number(acao?.payload?.x),Number(acao?.payload?.y),labMovimentoExploracaoMaxE6_(t));
-            if(!Number.isFinite(alvo.x)||!Number.isFinite(alvo.y))return;
-            t.x=alvo.x;t.y=alvo.y;
-            const dx=t.x-origem.x,dy=t.y-origem.y;
-            if(Math.hypot(dx,dy)>.08){let deg=Math.atan2(dx,-dy)*180/Math.PI;if(deg<0)deg+=360;t.angulo=Math.round(deg);}
-            labSalvarLocal_();labRender_();labAgendarSyncRemoto_();
-        }finally{
-            try{await deleteDoc(doc(db,'combatesAtivos','mapaMesaExperimental','acoes',String(personagemId)));}catch(_){}
-            labMapaComandosEmProcessamento_.delete(chave);
-        }
-        return;
-    }
-    return labProcessarComandoJogadorE6Base_.apply(this,arguments);
-};
+
 
 // ------------------------------------------------------------
 // Jogador: escala fixa de 48 px/m. Mestre mantém zoom livre.
@@ -31941,75 +31586,13 @@ async function labAplicarCenarioCompartilhadoE6_(ref){
     }
 }
 
-window.iniciarMapaMesaCompartilhado_=function(){
-    if(labMapaMesaUnsub_){labMapaMesaUnsub_();labMapaMesaUnsub_=null;}
-    if(labMapaAcoesUnsub_){labMapaAcoesUnsub_();labMapaAcoesUnsub_=null;}
-    if(!currentUserUid)return;
-    labIniciarEscutaComandosJogadores_();
 
-    labMapaMesaUnsub_=onSnapshot(LAB_MAPA_MESA_REF_(),snap=>{
-        if(batalhaEhMestre_()){
-            if(!snap.exists())labAgendarSyncRemoto_();
-            return;
-        }
-        if(!snap.exists())return;
-        const pacote=snap.data()||{};
-        if(pacote.canal!=='experimental-v11')return;
-        const remoto=pacote.estado;
-        if(!remoto||typeof remoto!=='object')return;
-
-        const ref=remoto.mapaCompartilhadoRefE7||remoto.mapaCompartilhadoRefE6||null;
-        const cenarioAtual=ref?.id?{
-            oficina2State:labEstado_.oficina2State,
-            desenhosLab:labEstado_.desenhosLab,
-            formasLab:labEstado_.formasLab
-        }:null;
-
-        labAplicandoRemoto_=true;
-        labEstado_={
-            ...labEstado_,...remoto,
-            pxPorMetro:48,
-            tokens:Array.isArray(remoto.tokens)?remoto.tokens:[],
-            objetosLab:Array.isArray(remoto.objetosLab)?remoto.objetosLab:[]
-        };
-        if(cenarioAtual){
-            labEstado_.oficina2State=cenarioAtual.oficina2State;
-            labEstado_.desenhosLab=cenarioAtual.desenhosLab;
-            labEstado_.formasLab=cenarioAtual.formasLab;
-        }
-        labAplicandoRemoto_=false;
-
-        labCarregarModelosObjetosFaltantes_(labEstado_.objetosLab);
-        if(ref?.id){
-            labAplicarCenarioCompartilhadoE6_(ref).finally(()=>{
-                if(document.getElementById('laboratorio-combate')?.classList.contains('active'))labRender_();
-            });
-        }else if(document.getElementById('laboratorio-combate')?.classList.contains('active')){
-            labRender_();
-        }
-    },e=>console.warn('Mapa da Mesa compartilhado indisponível:',e));
-
-    if(batalhaEhMestre_())labAgendarSyncRemoto_();
-};
 
 // ------------------------------------------------------------
 // Render final: UI, câmera, zoom e limpeza do toggle antigo.
 // ------------------------------------------------------------
 const labRenderE6Base_=labRender_;
-labRender_=function(){
-    if(!batalhaEhMestre_())labEstado_.pxPorMetro=48;
-    labEstado_.mestreControlaPJLab=true;
 
-    const r=labRenderE6Base_.apply(this,arguments);
-    try{
-        labRemoverControlePjE6_();
-        labAtualizarAtuarComoE6_();
-        labAtualizarZoomE6_();
-        labCameraAtualizarE6_();
-        if(labEstado_.objetoSelecionadoId)window.labRenderObjetoPainel_();
-    }catch(e){console.warn('EXP-ATUAR-CAMERA-6 pós-render',e);}
-    return r;
-};
 window.labRender_=labRender_;
 
 // Primeira normalização desta versão.
@@ -32244,71 +31827,13 @@ async function labAplicarCenaLiveE8_(ref){
 }
 
 // Reescreve o listener final para aplicar estado dinâmico + cena live.
-window.iniciarMapaMesaCompartilhado_=function(){
-    if(labMapaMesaUnsub_){labMapaMesaUnsub_();labMapaMesaUnsub_=null;}
-    if(labMapaAcoesUnsub_){labMapaAcoesUnsub_();labMapaAcoesUnsub_=null;}
-    if(!currentUserUid)return;
 
-    labIniciarEscutaComandosJogadores_();
-
-    labMapaMesaUnsub_=onSnapshot(LAB_MAPA_MESA_REF_(),snap=>{
-        if(batalhaEhMestre_()){
-            if(!snap.exists())labAgendarSyncRemoto_();
-            return;
-        }
-        if(!snap.exists())return;
-
-        const remoto=snap.data()?.estado;
-        if(!remoto||typeof remoto!=='object')return;
-
-        labAplicandoRemoto_=true;
-        labEstado_={
-            ...labEstado_,
-            ...remoto,
-            pxPorMetro:48,
-            tokens:Array.isArray(remoto.tokens)?remoto.tokens:[],
-            objetosLab:Array.isArray(remoto.objetosLab)?remoto.objetosLab:[]
-        };
-        labAplicandoRemoto_=false;
-
-        const ref=remoto.mapaCompartilhadoRefE8
-            || remoto.mapaCompartilhadoRefE7
-            || remoto.mapaCompartilhadoRefE6
-            || null;
-
-        labCarregarModelosObjetosFaltantes_(labEstado_.objetosLab);
-
-        const finalizar=()=>{
-            labRepararObjetosMesaE8_();
-            if(document.getElementById('laboratorio-combate')?.classList.contains('active'))labRender_();
-        };
-
-        if(ref?.id)labAplicarCenaLiveE8_(ref).finally(finalizar);
-        else finalizar();
-    },e=>console.warn('Mapa da Mesa indisponível:',e));
-
-    if(batalhaEhMestre_()){
-        Promise.resolve(labSalvarCenaLiveE8_())
-            .then(()=>{labRepararObjetosMesaE8_();labSalvarLocal_();labAgendarSyncRemoto_();})
-            .catch(e=>console.warn('[E8] publicação inicial da cena',e));
-    }
-};
 
 // ------------------------------------------------------------
 // Pós-render: reparar vínculos antigos silenciosamente.
 // ------------------------------------------------------------
 const labRenderE8Base_=labRender_;
-labRender_=function(){
-    try{labRepararObjetosMesaE8_();}catch(_){}
-    const r=labRenderE8Base_.apply(this,arguments);
 
-    // Jogador não recebe painel de metadados.
-    if(!batalhaEhMestre_()){
-        const op=document.getElementById('labObjetoPainel');
-        if(op){op.style.display='flex';op.innerHTML='';}
-    }
-    return r;
-};
 window.labRender_=labRender_;
 
 // Primeira reparação e sincronização curta.
@@ -32438,22 +31963,7 @@ function labEstadoPublicoSync10_(){
 // Substitui o escritor remoto por uma versão que primeiro garante
 // que o cenário atual da Mesa exista no Firestore e depois publica
 // apenas o estado dinâmico.
-labAgendarSyncRemoto_=function(){
-    if(!batalhaEhMestre_()||labAplicandoRemoto_)return;
-    clearTimeout(labSync10Timer_);
-    labSync10Timer_=setTimeout(async()=>{
-        try{
-            await labGarantirCenaSync10_();
-            await setDoc(
-                LAB_MAPA_MESA_REF_(),
-                {estado:labEstadoPublicoSync10_(),atualizadoEm:new Date().toISOString(),canal:'experimental-v11'},
-                {merge:false}
-            );
-        }catch(e){
-            console.warn('Sincronização da Mesa:',e);
-        }
-    },350);
-};
+
 
 async function labAplicarCenaSync10_(ref){
     if(batalhaEhMestre_()||!ref?.id)return false;
@@ -32481,65 +31991,7 @@ async function labAplicarCenaSync10_(ref){
     return true;
 }
 
-window.iniciarMapaMesaCompartilhado_=function(){
-    if(labMapaMesaUnsub_){labMapaMesaUnsub_();labMapaMesaUnsub_=null;}
-    if(labMapaAcoesUnsub_){labMapaAcoesUnsub_();labMapaAcoesUnsub_=null;}
-    if(!currentUserUid)return;
 
-    labIniciarEscutaComandosJogadores_();
-
-    labMapaMesaUnsub_=onSnapshot(LAB_MAPA_MESA_REF_(),snap=>{
-        if(batalhaEhMestre_()){
-            if(!snap.exists())labAgendarSyncRemoto_();
-            return;
-        }
-        if(!snap.exists())return;
-
-        const remoto=snap.data()?.estado;
-        if(!remoto||typeof remoto!=='object')return;
-
-        const cenaAtual={
-            oficina2State:labEstado_.oficina2State,
-            desenhosLab:labEstado_.desenhosLab,
-            formasLab:labEstado_.formasLab
-        };
-
-        labAplicandoRemoto_=true;
-        labEstado_={
-            ...labEstado_,
-            ...remoto,
-            pxPorMetro:48,
-            tokens:Array.isArray(remoto.tokens)?remoto.tokens:[],
-            objetosLab:Array.isArray(remoto.objetosLab)?remoto.objetosLab:[]
-        };
-
-        // Enquanto a nova cena não termina de carregar, não deixa o merge
-        // apagar a cena atual.
-        labEstado_.oficina2State=cenaAtual.oficina2State;
-        labEstado_.desenhosLab=cenaAtual.desenhosLab;
-        labEstado_.formasLab=cenaAtual.formasLab;
-        labAplicandoRemoto_=false;
-
-        const ref=remoto.mapaCompartilhadoRefSync10||null;
-        labCarregarModelosObjetosFaltantes_(labEstado_.objetosLab);
-
-        const render=()=>{
-            try{labRepararObjetosMesaE8_();}catch(_){}
-            if(document.getElementById('laboratorio-combate')?.classList.contains('active'))labRender_();
-        };
-
-        if(ref?.id){
-            labAplicarCenaSync10_(ref).then(render).catch(e=>{
-                console.warn('Carregar cenário compartilhado:',e);
-                render();
-            });
-        }else{
-            render();
-        }
-    },e=>console.warn('Mapa da Mesa compartilhado indisponível:',e));
-
-    if(batalhaEhMestre_())labAgendarSyncRemoto_();
-};
 
 // Força uma primeira publicação curta após o módulo terminar.
 setTimeout(()=>{if(batalhaEhMestre_())labAgendarSyncRemoto_();},1200);
@@ -32704,21 +32156,12 @@ function labCenaDireta12Escutar_(){
 // Toda alteração local relevante passa por labSalvarLocal_.
 // Só haverá gravação de cenário se oficina2State tiver sido substituído.
 const labSalvarLocalCena12Base_=labSalvarLocal_;
-labSalvarLocal_=function(){
-    const r=labSalvarLocalCena12Base_.apply(this,arguments);
-    labCenaDireta12Agendar_();
-    return r;
-};
+
 
 // A função de login já chama iniciarMapaMesaCompartilhado_.
 // Acrescentamos a escuta independente do cenário ao mesmo ponto.
 const iniciarMapaMesaCompartilhadoCena12Base_=window.iniciarMapaMesaCompartilhado_;
-window.iniciarMapaMesaCompartilhado_=function(){
-    const r=iniciarMapaMesaCompartilhadoCena12Base_.apply(this,arguments);
-    if(batalhaEhMestre_())labCenaDireta12Agendar_();
-    else labCenaDireta12Escutar_();
-    return r;
-};
+
 
 // Se a autenticação já tiver terminado antes desta camada ser instalada.
 setTimeout(()=>{
@@ -32835,27 +32278,7 @@ try{clearTimeout(labSync10Timer_);}catch(_){}
 // ------------------------------------------------------------
 // Estado dinâmico: mesmo documento compartilhado já usado pela Mesa.
 // ------------------------------------------------------------
-labAgendarSyncRemoto_=function(){
-    if(!batalhaEhMestre_()||labAplicandoRemoto_)return;
-    clearTimeout(labSync13DynamicTimer_);
-    labSync13DynamicTimer_=setTimeout(async()=>{
-        try{
-            labSync13PurgarEstadoLocal_();
-            await setDoc(
-                LAB_MAPA_MESA_REF_(),
-                {
-                    estado:labSync13EstadoPublico_(),
-                    atualizadoEm:new Date().toISOString(),
-                    canal:LAB_SYNC13_CANAL_
-                },
-                {merge:false}
-            );
-            console.info('[SYNC13] estado publicado');
-        }catch(e){
-            console.error('[SYNC13] estado',e);
-        }
-    },120);
-};
+
 
 // ------------------------------------------------------------
 // Cenário: JSON em partes dentro de /combatesAtivos.
@@ -33018,68 +32441,12 @@ function labSync13EscutarCena_(){
 // Listener final do estado dinâmico.
 // Preserva o cenário recebido pelo canal de cena.
 // ------------------------------------------------------------
-window.iniciarMapaMesaCompartilhado_=function(){
-    if(labMapaMesaUnsub_){labMapaMesaUnsub_();labMapaMesaUnsub_=null;}
-    if(labMapaAcoesUnsub_){labMapaAcoesUnsub_();labMapaAcoesUnsub_=null;}
-    if(!currentUserUid)return;
 
-    labIniciarEscutaComandosJogadores_();
-
-    labMapaMesaUnsub_=onSnapshot(
-        LAB_MAPA_MESA_REF_(),
-        snap=>{
-            if(batalhaEhMestre_()){
-                if(!snap.exists())labAgendarSyncRemoto_();
-                return;
-            }
-            if(!snap.exists())return;
-
-            const pacote=snap.data()||{};
-            if(pacote.canal!==LAB_SYNC13_CANAL_)return;
-            const remoto=pacote.estado;
-            if(!remoto||typeof remoto!=='object')return;
-
-            const cenaAtual=labEstado_.oficina2State;
-
-            labAplicandoRemoto_=true;
-            try{
-                labEstado_={
-                    ...labEstado_,
-                    ...remoto,
-                    pxPorMetro:48,
-                    tokens:Array.isArray(remoto.tokens)?remoto.tokens:[],
-                    objetosLab:Array.isArray(remoto.objetosLab)?remoto.objetosLab:[]
-                };
-                labEstado_.oficina2State=cenaAtual;
-                labSync13PurgarEstadoLocal_();
-            }finally{
-                labAplicandoRemoto_=false;
-            }
-
-            labCarregarModelosObjetosFaltantes_(labEstado_.objetosLab);
-            console.info('[SYNC13] estado recebido');
-            if(document.getElementById('laboratorio-combate')?.classList.contains('active'))labRender_();
-        },
-        e=>console.error('[SYNC13] listener estado',e)
-    );
-
-    if(batalhaEhMestre_()){
-        labSync13PurgarEstadoLocal_();
-        labAgendarSyncRemoto_();
-        labSync13AgendarCena_();
-    }else{
-        labSync13EscutarCena_();
-    }
-};
 
 // Toda troca/publicação de cenário acaba passando por labSalvarLocal_.
 // O wrapper apenas agenda a cena quando a referência realmente mudou.
 const labSalvarLocalSync13Base_=labSalvarLocal_;
-labSalvarLocal_=function(){
-    const r=labSalvarLocalSync13Base_.apply(this,arguments);
-    labSync13AgendarCena_();
-    return r;
-};
+
 
 // Limpa agora o resíduo __patched__ que aparece no erro do Firestore.
 labSync13PurgarEstadoLocal_();
@@ -33126,44 +32493,7 @@ window.labResponderDefesa_=function(defender=true){
 };
 
 const labProcessarComandoJogadorSync14Base_=labProcessarComandoJogador_;
-labProcessarComandoJogador_=async function(personagemId,acao){
-    if(acao?.tipo!=='defesa'){
-        return labProcessarComandoJogadorSync14Base_.apply(this,arguments);
-    }
 
-    const chave=`defesa14:${personagemId}:${acao?.nonce||''}`;
-    if(labMapaComandosEmProcessamento_.has(chave))return;
-    labMapaComandosEmProcessamento_.add(chave);
-
-    try{
-        if(!batalhaEhMestre_())return;
-
-        const pend=labEstado_.pendenciaLab;
-        const defensor=labTokenPorId_(personagemId);
-        if(!pend||!defensor)return;
-
-        if(String(pend.defensorId)!==String(personagemId))return;
-        if(String(defensor.donoUid||'')!==String(acao?.donoUid||''))return;
-
-        const pl=acao?.payload||{};
-        if(pl.defesaLab)defensor.defesaLab=String(pl.defesaLab);
-
-        // Resolve na Mesa do mestre; labSalvarLocal_ dentro da rotina
-        // publica imediatamente o resultado para o jogador.
-        labResponderDefesaSync14Base_(pl.defender!==false);
-
-    }catch(e){
-        console.error('[SYNC14] defesa',e);
-    }finally{
-        try{
-            await deleteDoc(
-                doc(db,'combatesAtivos','mapaMesaExperimental','acoes',String(personagemId))
-            );
-        }catch(_){}
-        labMapaComandosEmProcessamento_.delete(chave);
-        if(batalhaEhMestre_())labAgendarSyncRemoto_();
-    }
-};
 
 // Rechecagens após a página terminar de restaurar/carregar o cenário.
 // O hash impede gravações duplicadas quando nada mudou.
@@ -33284,9 +32614,7 @@ labRenderActionPanel_=function(){
                 if(!defs.length || semAcao){
                     el.style.display='block';
                     el.innerHTML='<div style="min-height:30px;color:#9fc6d8">Resolvendo ataque…</div>';
-                    setTimeout(()=>{
-                        if(labEstado_.pendenciaLab===pend)window.labResponderDefesa_(false);
-                    },40);
+                    0;
                     return;
                 }
 
@@ -33329,16 +32657,7 @@ window.labRenderActionPanel_=labRenderActionPanel_;
 
 // Garante que o pós-render use as versões finais acima.
 const labRenderSync15Base_=labRender_;
-labRender_=function(){
-    const r=labRenderSync15Base_.apply(this,arguments);
-    try{
-        labAtualizarInfo_();
-        labRenderActionPanel_();
-    }catch(e){
-        console.warn('[SYNC15] pós-render',e);
-    }
-    return r;
-};
+
 window.labRender_=labRender_;
 
 
@@ -33489,11 +32808,7 @@ labRenderActionPanel_=function(){
             if(!defs.length || !temAcao){
                 el.style.display='block';
                 el.innerHTML='<div style="min-height:30px;color:#9fc6d8">Resolvendo ataque…</div>';
-                setTimeout(()=>{
-                    if(labEstado_.pendenciaLab===pend){
-                        window.labResponderDefesa_(false);
-                    }
-                },25);
+                0;
                 return;
             }
 
@@ -33561,25 +32876,13 @@ function labSanearReacaoMestre16_(){
         Number(defensor?.acoesDefensivasPsiLab||0)>0;
 
     if(!defs.length||!temAcao){
-        setTimeout(()=>{
-            if(labEstado_.pendenciaLab===pend)window.labResponderDefesa_(false);
-        },20);
+        0;
     }
 }
 
 // Pós-render final.
 const labRenderSync16Base_=labRender_;
-labRender_=function(){
-    const r=labRenderSync16Base_.apply(this,arguments);
-    try{
-        labSanearReacaoMestre16_();
-        labAtualizarInfo_();
-        labRenderActionPanel_();
-    }catch(e){
-        console.warn('[SYNC16] pós-render',e);
-    }
-    return r;
-};
+
 window.labRender_=labRender_;
 
 
@@ -33630,65 +32933,13 @@ window.labObjetoAcao_=function(tipo,id){
 // Não depende de iniciativa, Atuar como ou seleção do mestre.
 const labProcessarComandoJogadorSync17Base_=labProcessarComandoJogador_;
 
-labProcessarComandoJogador_=async function(personagemId,acao){
-    if(acao?.tipo!=='acao_objeto_auto17'){
-        return labProcessarComandoJogadorSync17Base_.apply(this,arguments);
-    }
 
-    const chave=`objauto17:${personagemId}:${acao?.nonce||''}`;
-    if(labMapaComandosEmProcessamento_.has(chave))return;
-    labMapaComandosEmProcessamento_.add(chave);
-
-    try{
-        if(!batalhaEhMestre_())return;
-        if(labEstado_.fase==='combate')return;
-
-        const ator=labTokenPorId_(personagemId);
-        if(!ator)return;
-
-        const donoRecebido=String(acao?.donoUid||'');
-        const donoToken=String(labDonoToken16_(ator)||ator.donoUid||'');
-        if(!donoRecebido || donoToken!==donoRecebido)return;
-
-        const pl=acao?.payload||{};
-        const objeto=labObjetoPorId_(pl.objetoId);
-        if(!objeto)return;
-
-        labObjetoAcaoExecutar_(ator,objeto,String(pl.tipo||''));
-
-        // A própria rotina registra o resultado no token e salva o estado.
-        // Reforça a publicação após a resolução automática.
-        labAgendarSyncRemoto_();
-
-    }catch(e){
-        console.error('[SYNC17] ação automática de exploração',e);
-    }finally{
-        try{
-            await deleteDoc(
-                doc(db,'combatesAtivos','mapaMesaExperimental','acoes',String(personagemId))
-            );
-        }catch(_){}
-        labMapaComandosEmProcessamento_.delete(chave);
-    }
-};
 
 // Quando o estado novo chega ao jogador, libera imediatamente a próxima ação.
 // O resultado já vem em ultimoResultadoProprioLab/historicoPrivadoLab.
 const iniciarMapaMesaCompartilhadoSync17Base_=window.iniciarMapaMesaCompartilhado_;
 
-window.iniciarMapaMesaCompartilhado_=function(){
-    const r=iniciarMapaMesaCompartilhadoSync17Base_.apply(this,arguments);
 
-    if(!batalhaEhMestre_()){
-        setTimeout(()=>{
-            const meus=(labEstado_.tokens||[]).filter(t=>
-                String(t.donoUid||'')===String(currentUserUid||currentUser?.uid||'')
-            );
-            for(const t of meus)delete t._acaoObjetoPendente17;
-        },120);
-    }
-    return r;
-};
 
 // Não deixa a flag local de "aguardando" viajar para o Firestore.
 const labSync13EstadoPublicoSync17Base_=labSync13EstadoPublico_;
@@ -33875,11 +33126,11 @@ function labExplorarResolverPsi18_(t,payload){
     let antes=String(t.ultimoResultadoProprioLab||'');
     try{
         labTokenAtual_=()=>t;
-        labAgendarSyncRemoto_=function(){};
+        
         labUsarPsiExecutar_();
     }finally{
         labTokenAtual_=oldTokenAtual;
-        labAgendarSyncRemoto_=oldSync;
+        
         t.acoesAtuaisLab=oldAcoes;
     }
 
@@ -33979,6 +33230,7 @@ window.labObjetoPointerDown_=function(ev,id){
 // Painel fora de combate.
 // ------------------------------------------------------------
 function labRenderPainelExploracao18_(el,t){
+    if(labReducing_)return;
     const c=labCharToken_(t);
     if(!c){el.style.display='none';el.innerHTML='';return;}
 
@@ -34090,136 +33342,11 @@ function labUidPertenceToken18_(t,uid){
 }
 
 const labProcessarComandoJogadorSync18Base_=labProcessarComandoJogador_;
-labProcessarComandoJogador_=async function(personagemId,acao){
-    if(acao?.tipo==='explorar_auto18'){
-        const chave=`expl18:${personagemId}:${acao?.nonce||''}`;
-        if(labMapaComandosEmProcessamento_.has(chave))return;
-        labMapaComandosEmProcessamento_.add(chave);
-        try{
-            if(!batalhaEhMestre_()||labEstado_.fase==='combate')return;
-            const t=labTokenPorId_(personagemId);
-            if(!t||!labUidPertenceToken18_(t,acao?.donoUid))return;
-            labExplorarResolver18_(t,acao?.payload||{});
-            labAgendarSyncRemoto_();
-        }catch(e){
-            console.error('[SYNC18] exploração',e);
-        }finally{
-            try{await deleteDoc(doc(db,'combatesAtivos','mapaMesaExperimental','acoes',String(personagemId)));}catch(_){}
-            labMapaComandosEmProcessamento_.delete(chave);
-        }
-        return;
-    }
 
-    if(acao?.tipo==='ataque'){
-        const chave=`atk18:${personagemId}:${acao?.nonce||''}`;
-        if(labMapaComandosEmProcessamento_.has(chave))return;
-        labMapaComandosEmProcessamento_.add(chave);
-        try{
-            if(!batalhaEhMestre_()||labEstado_.fase!=='combate')return;
-            const t=labTokenPorId_(personagemId);
-            const atual=labTokenAtual_();
-            if(!t||String(atual?.id)!==String(t.id)||!labUidPertenceToken18_(t,acao?.donoUid))return;
-
-            const alvoId=String(acao?.payload?.alvoId||'');
-            const alvo=labAlvoAtaquePorId_(alvoId);
-            if(!alvo||String(alvo.id)===String(t.id))return;
-
-            t.periciaLab=String(acao?.payload?.periciaLab||t.periciaLab||'');
-            t.equipamentoLab=String(acao?.payload?.equipamentoLab||t.equipamentoLab||'');
-            t.alvoLab=alvoId;
-            t._alvoManualFixadoLab=alvoId;
-            t._alvoComandoFixadoLab=alvoId;
-            t._alvoSelecionadoMapa763=true;
-            t.microModoLab='ataque';
-
-            if(labEhAlvoObjeto_(alvo)){
-                labEstado_.objetoSelecionadoId=alvoId;
-                labEstado_.selecionadoId='';
-            }else{
-                labEstado_.objetoSelecionadoId='';
-                labEstado_.selecionadoId=alvoId;
-            }
-
-            window.labRolarAtaque_();
-
-            // Segurança para pendências impossíveis de defesa.
-            const pend=labEstado_.pendenciaLab;
-            if(pend&&String(pend.defensorId)===alvoId){
-                const d=labTokenPorId_(pend.defensorId);
-                const defs=d?(labDefesasDisponiveis_(d)||[]):[];
-                const temAcao=d&&(Number(d.acoesAtuaisLab||0)>0||Number(d.acoesDefensivasPsiLab||0)>0);
-                const st=d?labGarantirSnapshotCombate_(d):null;
-                if(!d||!defs.length||!temAcao||st?.morto||st?.inconsciente){
-                    labResponderDefesaSync14Base_(false);
-                    const dp=labEstado_.danoPendenteLab;
-                    if(dp&&Number(dp.efeitosRestantes||0)<=0){
-                        dp.danoAutomatico=true;
-                        setTimeout(()=>{
-                            if(labMesmaPendenciaD5_(dp))window.labRolarDano_();
-                        },80);
-                    }
-                }
-            }
-
-            labAgendarSyncRemoto_();
-            labRender_();
-        }catch(e){
-            console.error('[SYNC18] ataque do jogador',e);
-        }finally{
-            try{await deleteDoc(doc(db,'combatesAtivos','mapaMesaExperimental','acoes',String(personagemId)));}catch(_){}
-            labMapaComandosEmProcessamento_.delete(chave);
-        }
-        return;
-    }
-
-    if(acao?.tipo==='defesa'){
-        const chave=`def18:${personagemId}:${acao?.nonce||''}`;
-        if(labMapaComandosEmProcessamento_.has(chave))return;
-        labMapaComandosEmProcessamento_.add(chave);
-        try{
-            if(!batalhaEhMestre_())return;
-            const pend=labEstado_.pendenciaLab;
-            const d=labTokenPorId_(personagemId);
-            if(!pend||!d||String(pend.defensorId)!==String(d.id)||!labUidPertenceToken18_(d,acao?.donoUid))return;
-
-            const pl=acao?.payload||{};
-            const defs=labDefesasDisponiveis_(d)||[];
-            const temAcao=Number(d.acoesAtuaisLab||0)>0||Number(d.acoesDefensivasPsiLab||0)>0;
-
-            if(pl.defender!==false&&defs.length&&temAcao){
-                if(pl.defesaLab)d.defesaLab=String(pl.defesaLab);
-                labResponderDefesaSync14Base_(true);
-            }else{
-                labResponderDefesaSync14Base_(false);
-                const dp=labEstado_.danoPendenteLab;
-                if(dp&&Number(dp.efeitosRestantes||0)<=0){
-                    dp.danoAutomatico=true;
-                    setTimeout(()=>{
-                        if(labMesmaPendenciaD5_(dp))window.labRolarDano_();
-                    },80);
-                }
-            }
-            labAgendarSyncRemoto_();
-            labRender_();
-        }catch(e){
-            console.error('[SYNC18] defesa do jogador',e);
-        }finally{
-            try{await deleteDoc(doc(db,'combatesAtivos','mapaMesaExperimental','acoes',String(personagemId)));}catch(_){}
-            labMapaComandosEmProcessamento_.delete(chave);
-        }
-        return;
-    }
-
-    return labProcessarComandoJogadorSync18Base_.apply(this,arguments);
-};
 
 // Pós-render final usa painel da exploração/combatente atual.
 const labRenderSync18Base_=labRender_;
-labRender_=function(){
-    const r=labRenderSync18Base_.apply(this,arguments);
-    try{labRenderActionPanel_();}catch(e){console.warn('[SYNC18] painel',e);}
-    return r;
-};
+
 window.labRender_=labRender_;
 
 
@@ -34349,70 +33476,7 @@ window.labRolarDano_=function(){
 // ------------------------------------------------------------
 const labProcessarComandoJogadorSync19Base_=labProcessarComandoJogador_;
 
-labProcessarComandoJogador_=async function(personagemId,acao){
-    const tipos19=new Set([
-        'efeito_especial19',
-        'efeito_localizacao19',
-        'efeito_pular19',
-        'dano19'
-    ]);
 
-    if(!tipos19.has(String(acao?.tipo||''))){
-        return labProcessarComandoJogadorSync19Base_.apply(this,arguments);
-    }
-
-    const chave=`res19:${acao.tipo}:${personagemId}:${acao?.nonce||''}`;
-    if(labMapaComandosEmProcessamento_.has(chave))return;
-    labMapaComandosEmProcessamento_.add(chave);
-
-    try{
-        if(!batalhaEhMestre_()||labEstado_.fase!=='combate')return;
-
-        const atacante=labTokenPorId_(personagemId);
-        const dp=labEstado_.danoPendenteLab;
-        if(!atacante||!dp)return;
-        if(String(dp.atacanteId)!==String(atacante.id))return;
-        if(!labUidPertenceToken18_(atacante,acao?.donoUid))return;
-
-        const pid=String(acao?.payload?.danoPendenteId||'');
-        if(pid&&String(dp.id||'')!==pid)return;
-
-        if(acao.tipo==='efeito_especial19'){
-            const efeito=String(acao?.payload?.efeito||'');
-            const disponiveis=labEfeitosDisponiveis_(dp)||[];
-            if(!disponiveis.some(e=>String(e.id)===efeito))return;
-            labEscolherEfeitoSync19Base_(efeito);
-        }
-        else if(acao.tipo==='efeito_localizacao19'){
-            if(!dp.escolhendoLocalizacao)return;
-            const d=labTokenPorId_(dp.defensorId);
-            const st=d?labGarantirSnapshotCombate_(d):null;
-            const loc=String(acao?.payload?.local||'');
-            if(!loc||!Object.keys(st?.hitMax||{}).includes(loc))return;
-            labConfirmarLocalizacaoSync19Base_(loc);
-        }
-        else if(acao.tipo==='efeito_pular19'){
-            labPularEfeitosSync19Base_();
-        }
-        else if(acao.tipo==='dano19'){
-            if(Number(dp.efeitosRestantes||0)>0||dp.escolhendoLocalizacao)return;
-            labRolarDanoSync19Base_();
-        }
-
-        labAgendarSyncRemoto_();
-        labRender_();
-
-    }catch(e){
-        console.error('[SYNC19] resolução do ataque do jogador',e);
-    }finally{
-        try{
-            await deleteDoc(
-                doc(db,'combatesAtivos','mapaMesaExperimental','acoes',String(personagemId))
-            );
-        }catch(_){}
-        labMapaComandosEmProcessamento_.delete(chave);
-    }
-};
 
 // ------------------------------------------------------------
 // Depois de um ataque remoto, limpar efeitos impossíveis sem
@@ -34439,6 +33503,7 @@ function labSanearEfeitosPJ19_(){
 // Painel especial do PJ atacante.
 // ------------------------------------------------------------
 function labRenderResolucaoPJ19_(el,dp,a,d){
+    if(labReducing_)return;
     const rest=Math.max(0,Number(dp.efeitosRestantes||0));
 
     if(rest>0){
@@ -34464,9 +33529,7 @@ function labRenderResolucaoPJ19_(el,dp,a,d){
             const key=String(dp.id||'');
             if(window.__LAB_SKIP19__!==key){
                 window.__LAB_SKIP19__=key;
-                setTimeout(()=>{
-                    if(labMesmaPendenciaD5_(dp))labPularEfeitos_();
-                },60);
+                0;
             }
             return;
         }
@@ -34643,17 +33706,7 @@ window.labAtualizarInfo_=labAtualizarInfo_;
 // Render final.
 // ------------------------------------------------------------
 const labRenderSync19Base_=labRender_;
-labRender_=function(){
-    labSanearEfeitosPJ19_();
-    const r=labRenderSync19Base_.apply(this,arguments);
-    try{
-        labAtualizarInfo_();
-        labRenderActionPanel_();
-    }catch(e){
-        console.warn('[SYNC19] painel de combate',e);
-    }
-    return r;
-};
+
 window.labRender_=labRender_;
 
 
@@ -34724,17 +33777,7 @@ labMestreControlaTurnoE6_=function(t){return labTokenMestre19_(t);};
 
 // Re-render final para corrigir imediatamente rótulo/painel após snapshots.
 const labRenderSync20Base_=labRender_;
-labRender_=function(){
-    const r=labRenderSync20Base_.apply(this,arguments);
-    try{
-        labAtualizarAtuarComoE6_();
-        labAtualizarInfo_();
-        labRenderActionPanel_();
-    }catch(e){
-        console.warn('[SYNC20] atualização de autoridade',e);
-    }
-    return r;
-};
+
 window.labRender_=labRender_;
 
 
@@ -34882,6 +33925,7 @@ function labUsuarioPodeAgirComPainel21_(t){
 }
 
 function labRenderPainelConsulta21_(el,t){
+    if(labReducing_)return;
     if(!el||!t)return;
 
     // Reaproveita o painel de perícias da exploração para manter todas as
@@ -34898,6 +33942,7 @@ function labRenderPainelConsulta21_(el,t){
 }
 
 function labRenderPainelPersistente21_(){
+    if(labReducing_)return;
     const el=document.getElementById('labActionPanel');
     if(!el)return;
 
@@ -35030,17 +34075,7 @@ labMicroPainelHtml_=function(alvoVisual,ppm,d){
 // Render final.
 // ------------------------------------------------------------
 const labRenderSync21Base_=labRender_;
-labRender_=function(){
-    const r=labRenderSync21Base_.apply(this,arguments);
-    try{
-        labAtualizarAtuarComoE6_();
-        labAtualizarInfo_();
-        labRenderPainelPersistente21_();
-    }catch(e){
-        console.warn('[SYNC21] painel persistente',e);
-    }
-    return r;
-};
+
 window.labRender_=labRender_;
 
 
@@ -35077,47 +34112,7 @@ window.labPSConcluir_=function(){
 };
 
 const labProcessarComandoJogadorSync22Base_=labProcessarComandoJogador_;
-labProcessarComandoJogador_=async function(personagemId,acao){
-    const tipo=String(acao?.tipo||'');
-    if(!['ps_iniciar22','ps_continuar22','ps_concluir22'].includes(tipo)){
-        return labProcessarComandoJogadorSync22Base_.apply(this,arguments);
-    }
 
-    const chave=`ps22:${tipo}:${personagemId}:${acao?.nonce||''}`;
-    if(labMapaComandosEmProcessamento_.has(chave))return;
-    labMapaComandosEmProcessamento_.add(chave);
-
-    try{
-        if(!batalhaEhMestre_()||labEstado_.fase!=='combate')return;
-        const t=labTokenPorId_(personagemId);
-        if(!t||!labUidPertenceToken18_(t,acao?.donoUid))return;
-        if(String(labTokenAtual_()?.id||'')!==String(t.id))return;
-
-        if(tipo==='ps_iniciar22'){
-            const pl=acao?.payload||{};
-            t.acaoAuxLab={
-                tipo:'primeiros_socorros',
-                alvoId:String(pl.alvoId||''),
-                local:String(pl.local||'')
-            };
-            labPSIniciarSync22Base_();
-        }else if(tipo==='ps_continuar22'){
-            labPSContinuarSync22Base_();
-        }else{
-            labPSConcluirSync22Base_();
-        }
-
-        labAgendarSyncRemoto_();
-        labRender_();
-    }catch(e){
-        console.error('[SYNC22] Primeiros Socorros',e);
-    }finally{
-        try{
-            await deleteDoc(doc(db,'combatesAtivos','mapaMesaExperimental','acoes',String(personagemId)));
-        }catch(_){}
-        labMapaComandosEmProcessamento_.delete(chave);
-    }
-};
 
 // Mestre vê PV completos do último alvo/selecionado sem expor isso ao jogador.
 function labAnexarPVAlvoMestre22_(){
@@ -35148,17 +34143,11 @@ function labAnexarPVAlvoMestre22_(){
 // Mantém margem para evitar tempestade de writes, mas reduz a espera perceptível.
 try{
     const labAgendarSyncRemoto22Base_=labAgendarSyncRemoto_;
-    labAgendarSyncRemoto_=function(){
-        return labAgendarSyncRemoto22Base_.apply(this,arguments);
-    };
+    
 }catch(_){}
 
 const labRenderSync22Base_=labRender_;
-labRender_=function(){
-    const r=labRenderSync22Base_.apply(this,arguments);
-    try{labAnexarPVAlvoMestre22_();}catch(e){console.warn('[SYNC22] PV do alvo',e);}
-    return r;
-};
+
 window.labRender_=labRender_;
 
 
@@ -35271,6 +34260,7 @@ window.labEncerrarOportunidade_=function(){
 };
 
 function labRenderPainelPrivadoJogador23_(el){
+    if(labReducing_)return;
     const meu=labTokenPainelJogador21_();
     if(!meu){
         el.style.display='none';
@@ -35384,16 +34374,7 @@ function labAjustarRotulosTokens23_(){
 }
 
 const labRenderSync23Base_=labRender_;
-labRender_=function(){
-    const r=labRenderSync23Base_.apply(this,arguments);
-    try{
-        labRenderPainelPersistente21_();
-        labAjustarRotulosTokens23_();
-    }catch(e){
-        console.warn('[SYNC23] UI privada/alvo',e);
-    }
-    return r;
-};
+
 window.labRender_=labRender_;
 
 
@@ -35459,7 +34440,7 @@ function labAtorControlavelD1_(){
 // Reservas de defesa.
 // ------------------------------------------------------------
 function labGarantirDefesasD1_(t){
-    if(!t)return;
+    if(!t||labDrawing_)return;
     const mx=Math.max(0,Number(t.acoesMaxLab||0));
     if(!Number.isFinite(Number(t.defesasMaxLab)))t.defesasMaxLab=mx;
     if(!Number.isFinite(Number(t.defesasAtuaisLab)))t.defesasAtuaisLab=Number(t.defesasMaxLab||mx);
@@ -35694,26 +34675,7 @@ function labVirarParaPontoD1_(clientX,clientY){
 // Comandos remotos adicionais.
 // ------------------------------------------------------------
 const labProcessarComandoJogadorD1Base_=labProcessarComandoJogador_;
-labProcessarComandoJogador_=async function(personagemId,acao){
-    const tipo=String(acao?.tipo||'');
-    if(!['ataque_direcional_d1','defesa_ativa_d1'].includes(tipo))return labProcessarComandoJogadorD1Base_.apply(this,arguments);
-    const chave=`d1:${tipo}:${personagemId}:${acao?.nonce||''}`;
-    if(labMapaComandosEmProcessamento_.has(chave))return;
-    labMapaComandosEmProcessamento_.add(chave);
-    try{
-        if(!batalhaEhMestre_())return;
-        const t=labTokenPorId_(personagemId);if(!t||!labUidPertenceToken18_(t,acao?.donoUid))return;
-        if(tipo==='defesa_ativa_d1'){
-            t.defesaAtivaD1=String(acao?.payload?.defesaAtivaD1||'');labGarantirDefesasD1_(t);labSalvarLocal_();labAgendarSyncRemoto_();labRender_();return;
-        }
-        if(labEstado_.fase!=='combate'||String(labTokenAtual_()?.id||'')!==String(t.id))return;
-        labExecutarAtaqueDirecionalMestreD1_(t,String(acao?.payload?.alvoId||''));
-        labAgendarSyncRemoto_();
-    }catch(e){console.error('[DIRECIONAL1] comando',e);}finally{
-        try{await deleteDoc(doc(db,'combatesAtivos','mapaMesaExperimental','acoes',String(personagemId)));}catch(_){ }
-        labMapaComandosEmProcessamento_.delete(chave);
-    }
-};
+
 
 // ------------------------------------------------------------
 // UI: Defesa ativa e remoção dos botões Atacar.
@@ -35781,12 +34743,7 @@ if(!window.__labTeclasD1){
 }
 
 const labRenderD1Base_=labRender_;
-labRender_=function(){
-    for(const t of (labEstado_.tokens||[]))labGarantirDefesasD1_(t);
-    const r=labRenderD1Base_.apply(this,arguments);
-    try{labAnexarDefesaAtivaD1_();labRemoverBotoesAtacarD1_();labInstalarControlesD1_();}catch(e){console.warn('[DIRECIONAL1] UI',e);}
-    return r;
-};
+
 window.labRender_=labRender_;
 
 
@@ -35840,76 +34797,9 @@ function labAtualizarTokenDomD2_(t){
     if(face)face.style.transform=`rotate(${Number(t.angulo||0)}deg)`;
 }
 
-function labSincronizarMovimentoD2_(t,forcar=false){
-    if(!t)return;
-    const agora=performance.now();
-    if(!forcar && agora-labMouseD2_.ultimoSync<LAB_SYNC_MOVIMENTO_D2_MS_)return;
-    labMouseD2_.ultimoSync=agora;
 
-    if(batalhaEhMestre_()){
-        try{labSalvarLocal_();}catch(_){}
-        try{labAgendarSyncRemoto_();}catch(_){}
-    }else{
-        try{
-            labEnviarComandoJogador_('movimento',{
-                x:Number(t.x||0),
-                y:Number(t.y||0),
-                angulo:Number(t.angulo||0)
-            },t);
-        }catch(_){}
-    }
-}
 
-function labAplicarMovimentoEstadoD2_(t,dx,dy,dist){
-    if(!t)return false;
-    const n=Math.hypot(dx,dy);
-    if(n<.0001)return false;
-    dx/=n;dy/=n;
 
-    let passo=Math.max(.01,Number(dist||0));
-    t.angulo=labAnguloDeVetorD1_(dx,dy);
-
-    // Exploração: sem custo de AÇ, somente limite físico do mapa.
-    if(labEstado_.fase!=='combate'){
-        t.x=Math.max(0,Math.min(labEstado_.larguraM,Number(t.x||0)+dx*passo));
-        t.y=Math.max(0,Math.min(labEstado_.alturaM,Number(t.y||0)+dy*passo));
-        return true;
-    }
-
-    // Preserva exatamente a contabilidade de movimento do DIRECIONAL-1,
-    // mas sem renderizar o mapa inteiro a cada pequeno passo.
-    if(Number(t.acoesAtuaisLab||0)<=0 && t.movimentoGratisDisponivel===false)return false;
-
-    const porAcao=Math.max(.1,labMovimentoPorAcao_(t));
-    if(porAcao<=0)return false;
-
-    const usado=Math.max(0,Number(t.movimentoUsadoDirecionalD1||0));
-    const gratis=t.movimentoGratisDisponivel!==false?1:0;
-    const custoAntes=Math.max(0,Math.ceil((Math.max(0,usado-gratis)-.0001)/porAcao));
-
-    // Não atravessa uma fronteira de custo se não houver AÇ para pagá-la.
-    let novoUsado=usado+passo;
-    let custoDepois=Math.max(0,Math.ceil((Math.max(0,novoUsado-gratis)-.0001)/porAcao));
-    let extra=Math.max(0,custoDepois-custoAntes);
-
-    if(extra>Number(t.acoesAtuaisLab||0)){
-        // Move somente até o limite ainda pago/disponível.
-        const maxPago=gratis+(custoAntes+Number(t.acoesAtuaisLab||0))*porAcao;
-        passo=Math.max(0,maxPago-usado);
-        if(passo<=.001)return false;
-        novoUsado=usado+passo;
-        custoDepois=Math.max(0,Math.ceil((Math.max(0,novoUsado-gratis)-.0001)/porAcao));
-        extra=Math.max(0,custoDepois-custoAntes);
-    }
-
-    t.acoesAtuaisLab=Math.max(0,Number(t.acoesAtuaisLab||0)-extra);
-    if(novoUsado>=1-.001)t.movimentoGratisDisponivel=false;
-    t.movimentoUsadoDirecionalD1=novoUsado;
-
-    t.x=Math.max(0,Math.min(labEstado_.larguraM,Number(t.x||0)+dx*passo));
-    t.y=Math.max(0,Math.min(labEstado_.alturaM,Number(t.y||0)+dy*passo));
-    return true;
-}
 
 function labMoverPassoD2_(dx,dy,dist=.5,{renderizar=true,sincronizar=true}={}){
     const t=labAtorControlavelD1_();
@@ -35917,7 +34807,7 @@ function labMoverPassoD2_(dx,dy,dist=.5,{renderizar=true,sincronizar=true}={}){
     const ok=labAplicarMovimentoEstadoD2_(t,dx,dy,dist);
     if(!ok)return false;
 
-    labAtualizarTokenDomD2_(t);
+    labAtualizarTokenDomD2_({...t,...labVisualMovement_.get(String(t.id))});
     if(sincronizar)labSincronizarMovimentoD2_(t,renderizar);
 
     if(renderizar){
@@ -35990,7 +34880,8 @@ function labLoopMouseD2_(ts){
     const rect=map.getBoundingClientRect(),ppm=Number(labEstado_.pxPorMetro||48);
     const alvoX=(labMouseD2_.x-rect.left)/ppm;
     const alvoY=(labMouseD2_.y-rect.top)/ppm;
-    const dx=alvoX-Number(t.x||0),dy=alvoY-Number(t.y||0);
+    const pose=labVisualMovement_.get(String(t.id))||t;
+    const dx=alvoX-Number(pose.x||0),dy=alvoY-Number(pose.y||0);
     const restante=Math.hypot(dx,dy);
 
     if(restante>.06){
@@ -36075,11 +34966,7 @@ if(!window.__labGlobaisD2){
 }
 
 const labRenderD2Base_=labRender_;
-labRender_=function(){
-    const r=labRenderD2Base_.apply(this,arguments);
-    try{labInstalarControlesD2_();}catch(e){console.warn('[DIRECIONAL2] controles',e);}
-    return r;
-};
+
 window.labRender_=labRender_;
 
 // Garante que a primeira árvore DOM aberta depois do carregamento já use D2.
@@ -36149,20 +35036,7 @@ if(!window.__labBloqueioMovTecladoD3){
 // O personagem pode percorrer movimento/AÇ × AÇ máximas em cada gesto.
 // ------------------------------------------------------------
 const labAplicarMovimentoEstadoD3Base_=labAplicarMovimentoEstadoD2_;
-labAplicarMovimentoEstadoD2_=function(t,dx,dy,dist){
-    const ox=Number(t?.x||0),oy=Number(t?.y||0);
-    const ok=labAplicarMovimentoEstadoD3Base_.apply(this,arguments);
-    if(!ok||!t||labEstado_.fase==='combate'||!labMouseD2_.segurando)return ok;
-    if(!Number.isFinite(Number(labMouseD2_.origemX))||!Number.isFinite(Number(labMouseD2_.origemY)))return ok;
-    const maxM=Math.max(0,labMovimentoExploracaoMaxE6_(t));
-    const alvo=labClampMovimentoE6_({x:Number(labMouseD2_.origemX),y:Number(labMouseD2_.origemY)},Number(t.x),Number(t.y),maxM);
-    t.x=alvo.x;t.y=alvo.y;
-    // Se chegou ao limite, encerra o gesto em vez de continuar gerando frames.
-    if(Math.hypot(t.x-Number(labMouseD2_.origemX),t.y-Number(labMouseD2_.origemY))>=maxM-.01){
-        requestAnimationFrame(()=>labPararMouseD2_(true));
-    }
-    return true;
-};
+
 
 const labComecarMouseD3Anterior_=labComecarMouseD2_;
 try{document.getElementById('labMetricMap')?.removeEventListener('pointerdown',labComecarMouseD3Anterior_);}catch(_){}
@@ -36193,6 +35067,7 @@ try{
 // ------------------------------------------------------------
 let labRenderMovimentoRemotoD3Timer_=null;
 function labAgendarRenderMovimentoRemotoD3_(){
+    if(labReducing_)return;
     clearTimeout(labRenderMovimentoRemotoD3Timer_);
     labRenderMovimentoRemotoD3Timer_=setTimeout(()=>{
         try{labRender_();}catch(e){console.warn('[DIRECIONAL3] render pós-movimento',e);}
@@ -36200,47 +35075,7 @@ function labAgendarRenderMovimentoRemotoD3_(){
 }
 
 const labProcessarComandoJogadorD3Base_=labProcessarComandoJogador_;
-labProcessarComandoJogador_=async function(personagemId,acao){
-    if(acao?.tipo!=='movimento'||!batalhaEhMestre_())return labProcessarComandoJogadorD3Base_.apply(this,arguments);
-    const chave=`moveD3:${personagemId}:${acao?.nonce||''}`;
-    if(labMapaComandosEmProcessamento_.has(chave))return;
-    labMapaComandosEmProcessamento_.add(chave);
-    try{
-        const t=labTokenPorId_(personagemId);
-        if(!t||!labUidPertenceToken18_(t,acao?.donoUid))return;
-        if(labEstado_.fase==='combate'&&String(labTokenAtual_()?.id||'')!==String(t.id))return;
-        if(labEstado_.fase==='combate'&&t.primeirosSocorrosLab)return;
 
-        const nx=Number(acao?.payload?.x),ny=Number(acao?.payload?.y),na=Number(acao?.payload?.angulo);
-        if(!Number.isFinite(nx)||!Number.isFinite(ny))return;
-        const dx=nx-Number(t.x||0),dy=ny-Number(t.y||0),dist=Math.hypot(dx,dy);
-
-        if(dist>.001){
-            if(labEstado_.fase!=='combate'){
-                // O cliente já limita cada gesto; o mestre ainda aplica um teto defensivo.
-                const maxM=Math.max(.1,labMovimentoExploracaoMaxE6_(t));
-                const alvo=labClampMovimentoE6_({x:Number(t.x||0),y:Number(t.y||0)},nx,ny,maxM);
-                t.x=alvo.x;t.y=alvo.y;
-                if(Number.isFinite(na))t.angulo=na;
-                else{let a=Math.atan2(dx,-dy)*180/Math.PI;if(a<0)a+=360;t.angulo=Math.round(a);}
-            }else{
-                labAplicarMovimentoEstadoD2_(t,dx,dy,dist);
-                if(Number.isFinite(na))t.angulo=na;
-            }
-        }else if(Number.isFinite(na)){
-            t.angulo=na;
-        }
-
-        labAtualizarTokenDomD2_(t);
-        labAgendarSyncRemoto_();
-        labAgendarRenderMovimentoRemotoD3_();
-    }catch(e){
-        console.error('[DIRECIONAL3] movimento remoto',e);
-    }finally{
-        try{await deleteDoc(doc(db,'combatesAtivos','mapaMesaExperimental','acoes',String(personagemId)));}catch(_){}
-        labMapaComandosEmProcessamento_.delete(chave);
-    }
-};
 
 // ------------------------------------------------------------
 // 5) Firestore passa a ser a fonte compartilhada também para sessões do mestre.
@@ -36251,10 +35086,7 @@ let labD3EstadoInicializado_=false;
 let labD3CenaInicializada_=false;
 
 const labAgendarSyncRemotoD3Base_=labAgendarSyncRemoto_;
-labAgendarSyncRemoto_=function(){
-    if(batalhaEhMestre_()&&!labD3EstadoInicializado_)return;
-    return labAgendarSyncRemotoD3Base_.apply(this,arguments);
-};
+
 
 const labSync13AgendarCenaD3Base_=labSync13AgendarCena_;
 labSync13AgendarCena_=function(){
@@ -36262,26 +35094,7 @@ labSync13AgendarCena_=function(){
     return labSync13AgendarCenaD3Base_.apply(this,arguments);
 };
 
-function labAplicarEstadoRemotoD3_(remoto){
-    if(!remoto||typeof remoto!=='object')return false;
-    const cenaAtual=labEstado_.oficina2State;
-    labAplicandoRemoto_=true;
-    try{
-        const zoom=batalhaEhMestre_()?Math.max(12,Number(remoto.pxPorMetro||labEstado_.pxPorMetro||48)):48;
-        labEstado_={
-            ...labEstado_,
-            ...remoto,
-            pxPorMetro:zoom,
-            tokens:Array.isArray(remoto.tokens)?remoto.tokens:[],
-            objetosLab:Array.isArray(remoto.objetosLab)?remoto.objetosLab:[]
-        };
-        labEstado_.oficina2State=cenaAtual;
-        labSync13PurgarEstadoLocal_();
-    }finally{labAplicandoRemoto_=false;}
-    try{labCarregarModelosObjetosFaltantes_(labEstado_.objetosLab);}catch(_){}
-    if(document.getElementById('laboratorio-combate')?.classList.contains('active'))labRender_();
-    return true;
-}
+
 
 async function labReceberCenaD3_(header){
     if(!header||header.canal!==LAB_SYNC13_CANAL_)return false;
@@ -36340,44 +35153,7 @@ function labEscutarCenaD3_(){
     );
 }
 
-window.iniciarMapaMesaCompartilhado_=function(){
-    if(labMapaMesaUnsub_){try{labMapaMesaUnsub_();}catch(_){}labMapaMesaUnsub_=null;}
-    if(labMapaAcoesUnsub_){try{labMapaAcoesUnsub_();}catch(_){}labMapaAcoesUnsub_=null;}
-    if(!currentUserUid)return;
 
-    labD3EstadoInicializado_=!batalhaEhMestre_();
-    labD3CenaInicializada_=!batalhaEhMestre_();
-    labIniciarEscutaComandosJogadores_();
-    labEscutarCenaD3_();
-
-    labMapaMesaUnsub_=onSnapshot(
-        LAB_MAPA_MESA_REF_(),
-        snap=>{
-            if(!snap.exists()){
-                if(batalhaEhMestre_()){
-                    labD3EstadoInicializado_=true;
-                    labAgendarSyncRemotoD3Base_();
-                }
-                return;
-            }
-            const pacote=snap.data()||{};
-            if(pacote.canal!==LAB_SYNC13_CANAL_){
-                if(batalhaEhMestre_()){
-                    labD3EstadoInicializado_=true;
-                    labAgendarSyncRemotoD3Base_();
-                }
-                return;
-            }
-            const remoto=pacote.estado;
-            if(remoto&&typeof remoto==='object'){
-                labAplicarEstadoRemotoD3_(remoto);
-                labD3EstadoInicializado_=true;
-                console.info('[DIRECIONAL3] estado compartilhado recebido');
-            }
-        },
-        e=>{console.error('[DIRECIONAL3] listener estado',e);labD3EstadoInicializado_=true;}
-    );
-};
 
 // Se a autenticação já ocorreu, troca imediatamente para o listener D3.
 setTimeout(()=>{
@@ -36449,155 +35225,19 @@ function labAgendarPublicacaoMovimentoD4_(imediato=false){
 // Substitui a sincronização D2.
 // Durante o movimento do mestre: não escreve o estado inteiro a cada pacote.
 // Durante o movimento do jogador: envia posição leve com sequência.
-labSincronizarMovimentoD2_=function(t,forcar=false){
-    if(!t)return;
 
-    if(batalhaEhMestre_()){
-        if(forcar)labAgendarPublicacaoMovimentoD4_(true);
-        else labAgendarPublicacaoMovimentoD4_(false);
-        return;
-    }
-
-    const agora=performance.now();
-    if(!forcar && agora-labMouseD2_.ultimoSync<500)return;
-    labMouseD2_.ultimoSync=agora;
-
-    const seq=++labMovSeqD4_;
-    t.movSeqD4=seq;
-    labMovProtegidoAteD4_=performance.now()+(forcar?1800:1100);
-
-    try{
-        labEnviarComandoJogador_('movimento',{
-            x:Number(t.x||0),
-            y:Number(t.y||0),
-            angulo:Number(t.angulo||0),
-            movSeqD4:seq,
-            movFinalD4:!!forcar
-        },t);
-    }catch(_){}
-};
 
 // Movimento remoto recebido pelo mestre:
 // - ignora sequência antiga;
 // - atualiza DOM sem render completo;
 // - publica o estado compartilhado no fim do gesto ou após pausa.
 const labProcessarComandoJogadorD4Base_=labProcessarComandoJogador_;
-labProcessarComandoJogador_=async function(personagemId,acao){
-    if(acao?.tipo!=='movimento'||!batalhaEhMestre_()){
-        return labProcessarComandoJogadorD4Base_.apply(this,arguments);
-    }
 
-    const chave=`moveD4:${personagemId}:${acao?.nonce||''}`;
-    if(labMapaComandosEmProcessamento_.has(chave))return;
-    labMapaComandosEmProcessamento_.add(chave);
-
-    try{
-        const t=labTokenPorId_(personagemId);
-        if(!t||!labUidPertenceToken18_(t,acao?.donoUid))return;
-        if(labEstado_.fase==='combate'&&String(labTokenAtual_()?.id||'')!==String(t.id))return;
-        if(labEstado_.fase==='combate'&&t.primeirosSocorrosLab)return;
-
-        const pl=acao?.payload||{};
-        const seq=Math.max(0,Number(pl.movSeqD4||0));
-        if(seq && seq<=Math.max(0,Number(t.movSeqD4||0)))return;
-
-        const nx=Number(pl.x),ny=Number(pl.y),na=Number(pl.angulo);
-        if(!Number.isFinite(nx)||!Number.isFinite(ny))return;
-
-        const ox=Number(t.x||0),oy=Number(t.y||0);
-        const dx=nx-ox,dy=ny-oy,dist=Math.hypot(dx,dy);
-
-        if(dist>.001){
-            if(labEstado_.fase!=='combate'){
-                // Cliente já limita o gesto; o mestre aplica apenas o limite do mapa.
-                t.x=Math.max(0,Math.min(labEstado_.larguraM,nx));
-                t.y=Math.max(0,Math.min(labEstado_.alturaM,ny));
-            }else{
-                labAplicarMovimentoEstadoD2_(t,dx,dy,dist);
-            }
-        }
-
-        if(Number.isFinite(na))t.angulo=na;
-        if(seq)t.movSeqD4=seq;
-
-        labAtualizarTokenDomD2_(t);
-
-        if(pl.movFinalD4){
-            labAgendarPublicacaoMovimentoD4_(true);
-            clearTimeout(labRenderMovimentoRemotoD3Timer_);
-            labRenderMovimentoRemotoD3Timer_=setTimeout(()=>{
-                try{labRender_();}catch(e){console.warn('[DIRECIONAL4] render final remoto',e);}
-            },80);
-        }else{
-            labAgendarPublicacaoMovimentoD4_(false);
-        }
-    }catch(e){
-        console.error('[DIRECIONAL4] movimento remoto',e);
-    }finally{
-        try{
-            await deleteDoc(doc(db,'combatesAtivos','mapaMesaExperimental','acoes',String(personagemId)));
-        }catch(_){}
-        labMapaComandosEmProcessamento_.delete(chave);
-    }
-};
 
 // Evita que um snapshot compartilhado atrasado faça a miniatura do próprio
 // jogador "voltar" depois que ele já avançou.
 const labAplicarEstadoRemotoD4Base_=labAplicarEstadoRemotoD3_;
-labAplicarEstadoRemotoD3_=function(remoto){
-    if(!remoto||typeof remoto!=='object')return false;
 
-    if(!batalhaEhMestre_()){
-        const localTokens=Array.isArray(labEstado_.tokens)?labEstado_.tokens:[];
-        const agora=performance.now();
-
-        remoto=JSON.parse(JSON.stringify(remoto));
-        remoto.tokens=Array.isArray(remoto.tokens)?remoto.tokens:[];
-
-        for(let i=0;i<remoto.tokens.length;i++){
-            const rt=remoto.tokens[i];
-            const lt=localTokens.find(x=>String(x.id)===String(rt.id));
-            if(!lt||!labTokenDoUsuarioAtualD4_(lt))continue;
-
-            const lseq=Math.max(0,Number(lt.movSeqD4||0));
-            const rseq=Math.max(0,Number(rt.movSeqD4||0));
-            const protegendo=labMouseD2_.ativo||labMouseD2_.segurando||agora<labMovProtegidoAteD4_;
-
-            if(protegendo || (lseq && rseq<lseq)){
-                rt.x=Number(lt.x||0);
-                rt.y=Number(lt.y||0);
-                rt.angulo=Number(lt.angulo||0);
-                rt.movSeqD4=lseq;
-                rt.movimentoUsadoDirecionalD1=Number(lt.movimentoUsadoDirecionalD1||0);
-                rt.movimentoGratisDisponivel=lt.movimentoGratisDisponivel;
-                // AÇ vêm exclusivamente do estado confirmado pelo mestre.
-            }
-        }
-
-        // Enquanto o próprio usuário está caminhando, não reconstruir a Mesa inteira.
-        if(labMouseD2_.ativo||labMouseD2_.segurando){
-            labEstadoRemotoPendenteD4_=remoto;
-
-            const cenaAtual=labEstado_.oficina2State;
-            labAplicandoRemoto_=true;
-            try{
-                labEstado_={
-                    ...labEstado_,
-                    ...remoto,
-                    pxPorMetro:48,
-                    tokens:remoto.tokens,
-                    objetosLab:Array.isArray(remoto.objetosLab)?remoto.objetosLab:[]
-                };
-                labEstado_.oficina2State=cenaAtual;
-            }finally{
-                labAplicandoRemoto_=false;
-            }
-            return true;
-        }
-    }
-
-    return labAplicarEstadoRemotoD4Base_(remoto);
-};
 
 // Ao terminar o movimento local, aplica qualquer estado remoto que ficou pendente,
 // mas preserva a posição local até o mestre confirmar a mesma sequência.
@@ -36618,15 +35258,7 @@ labPararMouseD2_=function(){
 // O listener D3 continua sendo a fonte do estado, mas agora a função acima
 // protege a posição local e evita renders durante o gesto.
 const labRenderD4Base_=labRender_;
-labRender_=function(){
-    const r=labRenderD4Base_.apply(this,arguments);
-    try{
-        // Garante que o cartão grande/compacto extra permaneça oculto.
-        const h=document.getElementById('labHoverCard');
-        if(h)h.style.display='none';
-    }catch(_){}
-    return r;
-};
+
 window.labRender_=labRender_;
 
 
@@ -36670,58 +35302,11 @@ let labSyncD5Timer_=null;
 // de publicar. Isso reduzia desempenho e podia invalidar timeouts por recriar
 // danoPendenteLab no meio da resolução.
 const labAplicarEstadoRemotoD5Base_=labAplicarEstadoRemotoD3_;
-labAplicarEstadoRemotoD3_=function(remoto){
-    if(
-        batalhaEhMestre_() &&
-        labD3EstadoInicializado_ &&
-        String(remoto?.origemSessaoD5||'')===LAB_SESSAO_D5_
-    ){
-        return true;
-    }
 
-    const r=labAplicarEstadoRemotoD5Base_.apply(this,arguments);
-
-    // Confirma uma ação local do PJ quando o mestre devolve a mesma sequência.
-    if(!batalhaEhMestre_()){
-        try{
-            for(const t of labTokensDoJogador21_()){
-                const seq=String(t?.ultimoAtaqueSeqD5||'');
-                if(seq&&window.__LAB_ATK_PEND_D5__===seq){
-                    window.__LAB_ATK_PEND_D5__='';
-                }
-            }
-        }catch(_){}
-    }
-
-    try{labRenderEventosVisuaisD5_();}catch(_){}
-    return r;
-};
 
 // Debounce curto para combate. Movimento contínuo continua sendo amortecido
 // pela DIRECIONAL4 antes de chegar aqui.
-labAgendarSyncRemoto_=function(){
-    if(!batalhaEhMestre_()||labAplicandoRemoto_||!labD3EstadoInicializado_)return;
-    clearTimeout(labSyncD5Timer_);
-    labSyncD5Timer_=setTimeout(async()=>{
-        try{
-            labSync13PurgarEstadoLocal_();
-            const estado=labSync13EstadoPublico_();
-            estado.origemSessaoD5=LAB_SESSAO_D5_;
-            await setDoc(
-                LAB_MAPA_MESA_REF_(),
-                {
-                    estado,
-                    atualizadoEm:new Date().toISOString(),
-                    canal:LAB_SYNC13_CANAL_,
-                    origemSessaoD5:LAB_SESSAO_D5_
-                },
-                {merge:false}
-            );
-        }catch(e){
-            console.error('[DIRECIONAL5] sincronização',e);
-        }
-    },55);
-};
+
 
 // ------------------------------------------------------------
 // Fila curta de FX: evita perder o tiro quando outro estado é publicado
@@ -36741,6 +35326,7 @@ function labPushFxD5_(fx){
 }
 
 function labRenderUmFxD5_(fx){
+    if(labReducing_)return;
     if(!fx?.id||labFxVistosD5_.has(String(fx.id)))return false;
     if(Date.now()-Number(fx.ts||0)>6500){
         labFxVistosD5_.add(String(fx.id));
@@ -36762,11 +35348,14 @@ function labRenderUmFxD5_(fx){
         }
     }catch(_){}
 
-    if(ok)labFxVistosD5_.add(String(fx.id));
+    if(ok){labFxVistosD5_.add(String(fx.id));
+        const item=encontrarItemCombatePorId_(fx.itemId);if(item)labSomAtaque_(item,fx.grau||'');
+    }
     return ok;
 }
 
 function labRenderEventosVisuaisD5_(){
+    if(labReducing_)return;
     for(const fx of (labEstado_.efeitosVisuaisD5||[])){
         if(labFxVistosD5_.has(String(fx?.id||'')))continue;
         if(!labRenderUmFxD5_(fx)){
@@ -36819,10 +35408,7 @@ labAutoResolverDefesaD1_=function(){
         if(Number(dp.efeitosRestantes||0)<=0&&!dp.escolhendoLocalizacao){
             dp.danoAutomatico=true;
             const id=String(dp.id||'');
-            setTimeout(()=>{
-                const atual=labEstado_.danoPendenteLab;
-                if(atual&&String(atual.id||'')===id)window.labRolarDano_();
-            },55);
+            0;
         }
     }
 
@@ -36940,53 +35526,13 @@ window.labAtacarDirecaoD1_=async function(){
 
 // Mestre intercepta o comando direcional antes da camada DIRECIONAL1.
 const labProcessarComandoJogadorD5Base_=labProcessarComandoJogador_;
-labProcessarComandoJogador_=async function(personagemId,acao){
-    if(String(acao?.tipo||'')!=='ataque_direcional_d1'){
-        return labProcessarComandoJogadorD5Base_.apply(this,arguments);
-    }
 
-    if(!batalhaEhMestre_())return;
-    const t=labTokenPorId_(personagemId),pl=acao?.payload||{};
-    if(!t||!labUidPertenceToken18_(t,acao?.donoUid))return;
-    const seq=String(pl.ataqueSeqD5||acao?.nonce||'');
-    if(!seq||t.ultimoAtaqueSeqD5===seq||(t.ataquesProcessadosD8||[]).includes(seq))return;
-    t.ataquesProcessadosD8=[...(t.ataquesProcessadosD8||[]),seq].slice(-64);
-    // Store the acknowledgement before synchronous resolution, including rejection.
-    t.ultimoAtaqueSeqD5=seq;
-    try{
-        const criado=Date.parse(String(acao?.criadoEm||''));
-        if(!Number.isFinite(criado)||Date.now()-criado>15000)return;
-        if(labEstado_.fase!=='combate'||String(labTokenAtual_()?.id||'')!==String(t.id))return;
-        if(pl.oportunidadeD8!==labChaveOportunidadeD8_())return;
-        if(labEstado_.pendenciaLab||labEstado_.danoPendenteLab||Number(t.acoesAtuaisLab||0)<=0)return;
-        if(pl.periciaLab)t.periciaLab=String(pl.periciaLab);
-        if(pl.equipamentoLab)t.equipamentoLab=String(pl.equipamentoLab);
-        const rr=Number(pl.rolagemD5);
-        labRollForcadoD5_=Number.isFinite(rr)&&rr>=1&&rr<=100?rr:null;
-        labFxIdForcadoD5_=String(pl.fxIdD5||'');
-        labGarantirDefesasD1_(t);
-        const alvo=labAlvoAtaquePorId_(String(pl.alvoId||''));
-        if(alvo&&!labEhAlvoObjeto_(alvo))labGarantirDefesasD1_(alvo);
-        labExecutarAtaqueDirecionalMestreD1_(t,String(pl.alvoId||''));
-    }catch(e){
-        console.error('[DIRECIONAL8] ataque remoto',e);
-    }finally{
-        labRollForcadoD5_=null;
-        labFxIdForcadoD5_='';
-        labSalvarLocal_();
-        labAgendarSyncRemoto_();
-    }
-};
 
 // ------------------------------------------------------------
 // Render final: FX pendentes e balões acima do token.
 // ------------------------------------------------------------
 const labRenderD5Base_=labRender_;
-labRender_=function(){
-    const r=labRenderD5Base_.apply(this,arguments);
-    try{labRenderEventosVisuaisD5_();}catch(_){}
-    return r;
-};
+
 window.labRender_=labRender_;
 
 
@@ -37042,175 +35588,19 @@ function labMovConfirmarD6_(id,seq){
 // Substitui apenas a sincronização do movimento contínuo.
 // Movimento do mestre continua publicando o estado compartilhado.
 // Movimento do jogador usa a fila, mas com sequência persistente.
-labSincronizarMovimentoD2_=function(t,forcar=false){
-    if(!t)return;
 
-    if(batalhaEhMestre_()){
-        if(forcar)labAgendarPublicacaoMovimentoD4_(true);
-        else labAgendarPublicacaoMovimentoD4_(false);
-        return;
-    }
-
-    const agora=performance.now();
-    if(!forcar && agora-labMouseD2_.ultimoSync<350)return;
-    labMouseD2_.ultimoSync=agora;
-
-    const seq=labNovaSeqMovD6_();
-    t.movSeqD6=seq;
-
-    // Mantém também a proteção da camada D4 enquanto o mestre confirma.
-    labMovProtegidoAteD4_=performance.now()+(forcar?5000:2500);
-    labMovPendD6_(t,seq,forcar);
-
-    const payload={
-        x:Number(t.x||0),
-        y:Number(t.y||0),
-        angulo:Number(t.angulo||0),
-        movSeqD6:seq,
-        movFinalD6:!!forcar,
-        acoesClienteD6:Number(t.acoesAtuaisLab||0),
-        movimentoUsadoClienteD6:Number(t.movimentoUsadoDirecionalD1||0),
-        movimentoGratisClienteD6:t.movimentoGratisDisponivel
-    };
-
-    labEnviarComandoJogador_('movimento',payload,t).then(ok=>{
-        if(!ok){
-            const p=labMovPendentesD6_.get(String(t.id));
-            if(p&&Number(p.seq||0)===seq)labMovPendentesD6_.delete(String(t.id));
-        }
-    });
-};
 
 // A camada D6 intercepta movimento antes das camadas antigas.
 // Importante: não apaga o documento de movimento. O próximo setDoc o modifica,
 // e o onSnapshot recebe a nova sequência sem risco de um delete atrasado.
 const labProcessarComandoJogadorD6Base_=labProcessarComandoJogador_;
-labProcessarComandoJogador_=async function(personagemId,acao){
-    if(String(acao?.tipo||'')!=='movimento'){
-        return labProcessarComandoJogadorD6Base_.apply(this,arguments);
-    }
 
-    if(!batalhaEhMestre_())return;
-
-    try{
-        const criado=Date.parse(String(acao?.criadoEm||''));
-        if(Number.isFinite(criado)&&Date.now()-criado>15000)return;
-
-        const t=labTokenPorId_(personagemId);
-        if(!t||!labUidPertenceToken18_(t,acao?.donoUid))return;
-
-        const combate=labEstado_.fase==='combate';
-        if(combate&&String(labTokenAtual_()?.id||'')!==String(t.id))return;
-        if(combate&&t.primeirosSocorrosLab)return;
-
-        const pl=acao?.payload||{};
-        const seq=Math.max(0,Number(pl.movSeqD6||0));
-        if(!seq)return;
-        if(seq<=Math.max(0,Number(t.movSeqD6||0)))return;
-
-        const nx=Number(pl.x),ny=Number(pl.y),na=Number(pl.angulo);
-        if(!Number.isFinite(nx)||!Number.isFinite(ny))return;
-
-        const ox=Number(t.x||0),oy=Number(t.y||0);
-        const dx=nx-ox,dy=ny-oy,dist=Math.hypot(dx,dy);
-
-        if(dist>.001){
-            if(!combate){
-                t.x=Math.max(0,Math.min(labEstado_.larguraM,nx));
-                t.y=Math.max(0,Math.min(labEstado_.alturaM,ny));
-            }else{
-                labAplicarMovimentoEstadoD2_(t,dx,dy,dist);
-            }
-        }
-
-        if(Number.isFinite(na))t.angulo=na;
-        t.movSeqD6=seq;
-        labEstado_.selecionadoId=String(t.id);
-
-        // O mestre já vê o deslocamento sem reconstruir o mapa inteiro.
-        labAtualizarTokenDomD2_(t);
-
-        // Publica cada amostra recebida. O jogador envia no máximo ~3/s.
-        // Assim as demais telas acompanham sem esperar o fim do gesto.
-        try{labSalvarLocal_();}catch(_){}
-        try{labAgendarSyncRemoto_();}catch(_){}
-
-        if(pl.movFinalD6){
-            // Render final atualiza painel de AÇ/posição do mestre.
-            labRender_();
-
-            // A autoridade do turno é o mestre.
-            // Se o deslocamento consumiu as AÇ restantes, encerra agora.
-            if(
-                combate &&
-                String(labTokenAtual_()?.id||'')===String(t.id) &&
-                Number(t.acoesAtuaisLab||0)<=0 &&
-                !labEstado_.pendenciaLab &&
-                !labEstado_.danoPendenteLab
-            ){
-                window.labEncerrarOportunidade_();
-                try{labAgendarSyncRemoto_();}catch(_){}
-            }
-        }else{
-            try{labAtualizarInfo_();}catch(_){}
-        }
-    }catch(e){
-        console.error('[DIRECIONAL6] movimento remoto',e);
-    }
-};
 
 // Protege a posição local até o snapshot do mestre confirmar a mesma seq.
 // Isso impede que outro write do mestre carregando a posição antiga faça o PJ
 // "teletransportar" para trás enquanto o movimento ainda está sendo confirmado.
 const labAplicarEstadoRemotoD6Base_=labAplicarEstadoRemotoD3_;
-labAplicarEstadoRemotoD3_=function(remoto){
-    if(!remoto||typeof remoto!=='object'||batalhaEhMestre_()){
-        return labAplicarEstadoRemotoD6Base_.apply(this,arguments);
-    }
 
-    let copia=remoto;
-    const locais=Array.isArray(labEstado_.tokens)?labEstado_.tokens:[];
-
-    if(labMovPendentesD6_.size){
-        copia=JSON.parse(JSON.stringify(remoto));
-        copia.tokens=Array.isArray(copia.tokens)?copia.tokens:[];
-
-        for(const rt of copia.tokens){
-            const id=String(rt?.id||'');
-            const pend=labMovPendentesD6_.get(id);
-            if(!pend)continue;
-
-            const lt=locais.find(x=>String(x.id)===id);
-            if(!lt)continue;
-
-            const rseq=Math.max(0,Number(rt.movSeqD6||0));
-            if(rseq>=Number(pend.seq||0)){
-                labMovConfirmarD6_(id,rseq);
-                continue;
-            }
-
-            // Se a confirmação ainda não chegou, o estado local mais novo vence.
-            if(performance.now()<=Number(pend.ate||0)){
-                rt.x=Number(lt.x||pend.x||0);
-                rt.y=Number(lt.y||pend.y||0);
-                rt.angulo=Number(lt.angulo||pend.angulo||0);
-                rt.movSeqD6=Number(pend.seq||0);
-                // Proteção de posição não protege AÇ locais.
-                rt.movimentoUsadoDirecionalD1=Number(
-                    lt.movimentoUsadoDirecionalD1??pend.movimentoUsadoDirecionalD1??0
-                );
-                rt.movimentoGratisDisponivel=
-                    lt.movimentoGratisDisponivel!==undefined
-                        ?lt.movimentoGratisDisponivel
-                        :pend.movimentoGratisDisponivel;
-            }else{
-                labMovPendentesD6_.delete(id);
-            }
-        }
-    }
-
-    return labAplicarEstadoRemotoD6Base_.call(this,copia);
-};
 
 // Garante confirmação final mesmo se o pointerup ocorrer logo após a última
 // amostra intermediária.
@@ -37383,39 +35773,7 @@ function labAplicarPrefsD7_(rt,p){
 }
 
 const labAplicarEstadoRemotoD7Base_=labAplicarEstadoRemotoD3_;
-labAplicarEstadoRemotoD3_=function(remoto){
-    if(remoto&&typeof remoto==='object'){
-        const ids=new Set();
 
-        if(!batalhaEhMestre_()){
-            const uid=String(currentUserUid||currentUser?.uid||'');
-            for(const t of (labEstado_.tokens||[])){
-                if(uid&&String(labOwnerUid20_(t)||t.donoUid||'')===uid){
-                    ids.add(String(t.id));
-                    if(!labPrefsLocaisD7_.has(String(t.id)))labGuardarPrefsD7_(t);
-                }
-            }
-        }else if(labMestreEspelhoPJD7_()){
-            const t=labMestrePJSelecionadoD7_();
-            if(t){
-                ids.add(String(t.id));
-                if(!labPrefsLocaisD7_.has(String(t.id)))labGuardarPrefsD7_(t);
-            }
-        }
-
-        if(ids.size){
-            remoto=JSON.parse(JSON.stringify(remoto));
-            remoto.tokens=Array.isArray(remoto.tokens)?remoto.tokens:[];
-            for(const rt of remoto.tokens){
-                const id=String(rt?.id||'');
-                if(!ids.has(id))continue;
-                const p=labPrefsLocaisD7_.get(id);
-                if(p)labAplicarPrefsD7_(rt,p);
-            }
-        }
-    }
-    return labAplicarEstadoRemotoD7Base_.call(this,remoto);
-};
 
 function labTokenEscolhaPainelD7_(){
     return labTokenPainel21_()||labTokenAtual_();
@@ -37589,13 +35947,7 @@ function labAgendarDanoSemEfeitoD7_(){
     dp.danoAutomatico=true;
     try{labSalvarLocal_();labAgendarSyncRemoto_();}catch(_){}
 
-    setTimeout(()=>{
-        labAutoSemEfeitoD7_.delete(id);
-        const atual=labEstado_.danoPendenteLab;
-        if(atual&&String(atual.id||`${atual.atacanteId}:${atual.defensorId}`)===id){
-            window.labRolarDano_();
-        }
-    },45);
+    0;
 }
 
 const labRenderResolucaoPJD7Base_=labRenderResolucaoPJ19_;
@@ -37768,27 +36120,12 @@ window.labAtacarDirecaoD1_=async function(){
 // Pós-render D7.
 // ------------------------------------------------------------
 const labRenderD7Base_=labRender_;
-labRender_=function(){
-    const r=labRenderD7Base_.apply(this,arguments);
-    try{
-        labAtualizarAtuarComoE6_();
-        labRenderPainelPersistente21_();
-        labAtualizarDefesaUID7_();
-        labGarantirBotaoTestarD7_();
-        labGarantirLevantarD7_();
-        if(batalhaEhMestre_())setTimeout(labAgendarDanoSemEfeitoD7_,0);
-    }catch(e){
-        console.warn('[DIRECIONAL7] pós-render',e);
-    }
-    return r;
-};
+
 window.labRender_=labRender_;
 
 
-// EXP-DIRECIONAL-8: identidade da oportunidade e autoridade do avanço.
-function labChaveOportunidadeD8_(){
-    return `${labEstado_.combateIdD8||''}:${labEstado_.rodada}:${labEstado_.turnoIndex}:${labTokenAtual_()?.id||''}`;
-}
+// EXP-SYNC-CONSISTENTE-1: identidade da oportunidade e autoridade do avanço.
+
 const labIniciarCombateD8Base_=window.labIniciarCombate_;
 window.labIniciarCombate_=function(){
     if(!batalhaEhMestre_())return;
@@ -37814,16 +36151,273 @@ for(const [nome,tipo] of [['labPassarAcao_','passar_d8'],['labLevantar_','levant
     };
 }
 const labProcessarSimplesD8Base_=labProcessarComandoJogador_;
-labProcessarComandoJogador_=async function(personagemId,acao){
-    const executar=labAcoesSimplesD8_[acao?.tipo];
-    if(!executar)return labProcessarSimplesD8Base_.apply(this,arguments);
-    if(!batalhaEhMestre_())return;
-    const t=labTokenPorId_(personagemId);
-    if(!t||!labUidPertenceToken18_(t,acao?.donoUid)||!acao?.nonce)return;
-    if(t.ultimoComandoSimplesD8===acao.nonce)return;
-    t.ultimoComandoSimplesD8=acao.nonce;
-    if(acao.payload?.oportunidadeD8!==labChaveOportunidadeD8_()||String(labTokenAtual_()?.id)!==String(t.id))return;
-    if(labEstado_.pendenciaLab||labEstado_.danoPendenteLab)return;
-    executar();
-    labSalvarLocal_();labAgendarSyncRemoto_();
-};
+
+
+function labComContextoLocal_(state, drawing, action){
+    const previous=labEstado_,wasDrawing=labDrawing_,wasReducing=labReducing_;
+    labEstado_=state;labDrawing_=drawing;labReducing_=!drawing;
+    // Regras antigas agendavam a continuação por timer. Agora as continuações
+    // de combate pertencem ao redutor, não ao tempo de vida de uma tela.
+    const timer=window.setTimeout;
+    if(!drawing)window.setTimeout=()=>0;
+    try{return action();}
+    finally{window.setTimeout=timer;labEstado_=previous;labDrawing_=wasDrawing;labReducing_=wasReducing;}
+}
+
+function labErroSync_(error){
+    console.error('[Mesa Sync]',error);
+    notificar_('Sincronização não confirmada. A ação não foi aplicada no estado compartilhado.','erro',6000);
+}
+
+function labAvancarConfirmado_(state,expected,options={}){
+    const t=labTokenAtual_();
+    if(!mesaAdvance(state,expected,options))return false;
+    if(t){
+        const st=t.combateLab;
+        if(st?.ataquesBloqueadosTurnos>0)st.ataquesBloqueadosTurnos--;
+        if(st?.atordoadoAteOportunidade){st.atordoado=false;st.atordoadoAteOportunidade=false;}
+        labPsiPassarDuracoesDoAtor_(t);
+        t.alvoLab='';t._alvoManualFixadoLab='';t._alvoSelecionadoMapa763=false;
+    }
+    labEstado_.selecionadoId=String(labTokenAtual_()?.id||'');
+    return true;
+}
+
+function labReceberConfirmado_(packet){
+    // Estados criados pela versão anterior não tinham metadados do protocolo.
+    // Tratamos o snapshot legado como a revisão inicial para que a primeira
+    // confirmação não seja descartada e o cliente não volte à posição antiga.
+    if(packet?.estado && packet.protocol!==1){
+        packet={...packet,protocol:1,revision:Number.isSafeInteger(packet.revision)?packet.revision:0};
+    }
+    if(!mesaAcceptSnapshot(labConfirmedPacket_,packet))return;
+    labConfirmedPacket_=packet;
+    const previous=labEstado_,localTokens=previous.tokens||[];
+    labEstado_=mesaCopy(packet.estado);
+    labEstado_.oficina2State=previous.oficina2State;
+    labEstado_.selecionadoId=previous.selecionadoId;
+    labEstado_.objetoSelecionadoId=previous.objetoSelecionadoId;
+    labEstado_.pxPorMetro=batalhaEhMestre_()?previous.pxPorMetro:48;
+    for(const t of labEstado_.tokens||[]){
+        const local=localTokens.find(x=>String(x.id)===String(t.id));
+        if(local?.charLab)t.charLab=local.charLab;
+        const pref=labPrefsLocaisD7_.get(String(t.id));
+        if(pref)labAplicarPrefsD7_(t,pref);
+        const visual=labVisualMovement_.get(String(t.id));
+        if(visual&&(visual.opportunity!==mesaOpportunity(packet.estado)||
+            (visual.final&&t.movementConfirmed?.gesture===visual.gesture&&t.movementConfirmed.sequence>=visual.lastSequence))){
+            labVisualMovement_.delete(String(t.id));
+        }
+    }
+    window.__LAB_ATK_PEND_D5__='';
+    labDraftGeneration_++;
+    labRender_();
+}
+
+function labResultadoAutomatico_(){
+    labSanearPendenciasMortos490_();
+    if(labEstado_.pendenciaLab)labAutoResolverDefesaD1_();
+    const dp=labEstado_.danoPendenteLab;
+    if(dp&&!dp.escolhendoLocalizacao){
+        if(!(labEfeitosDisponiveis_(dp)||[]).length)dp.efeitosRestantes=0;
+        if(Number(dp.efeitosRestantes||0)<=0)labRolarDanoSync19Base_();
+    }
+    const t=labTokenAtual_();
+    if(t&&Number(t.acoesAtuaisLab||0)<=0&&!labEstado_.pendenciaLab&&!labEstado_.danoPendenteLab){
+        labAvancarConfirmado_(labEstado_,mesaOpportunity(labEstado_));
+    }
+}
+
+function labReduzirComando_(state,c){
+    if(Date.now()-Number(c.createdAt)>60000)return false;
+    return labComContextoLocal_(state,false,()=>{
+        const t=labTokenPorId_(c.actor),p=c.payload||{};
+        const own=c.uid===String(currentUserUid)&&batalhaEhMestre_();
+        if(!t&&c.type!=='host:labIniciarCombate_')return false;
+        if(t&&!own&&!labUidPertenceToken18_(t,c.uid))return false;
+        if(state.fase==='combate'&&c.opportunity!==mesaOpportunity(state))return false;
+        // Dados da ficha são locais, mas os recursos de combate vêm do estado.
+        for(const token of state.tokens||[]){labGarantirSnapshotCombate_(token);labGarantirDefesasD1_(token);}
+        if(c.type==='movement'){
+            const ok=mesaMove(state,c,labMovimentoPorAcao_(t));
+            if(ok){labFogoContatoImediato530_();labResultadoAutomatico_();}return ok;
+        }
+        if(c.type.startsWith('host:')){
+            if(!own)return false;
+            const name=c.type.slice(5),fn=labRuleHandlers_.get(name);
+            if(!fn)return false;
+            if(p.preferences&&t)Object.assign(t,p.preferences);
+            const before=mesaOpportunity(state);
+            fn(...(p.args||[]));
+            if(/^labPS(Iniciar|Continuar|Concluir)_$/.test(name))labAvancarConfirmado_(state,before);
+            labResultadoAutomatico_();return true;
+        }
+        const resolution=['efeito_especial19','efeito_localizacao19','efeito_pular19','dano19','defesa','defesa_ativa_d1'];
+        if(state.fase==='combate'&&!resolution.includes(c.type)&&String(labTokenAtual_()?.id)!==String(t.id))return false;
+        if(c.type==='ataque_direcional_d1'||c.type==='ataque'){
+            if(state.fase!=='combate'||state.pendenciaLab||state.danoPendenteLab||Number(t.acoesAtuaisLab)<=0)return false;
+            t.periciaLab=String(p.periciaLab||t.periciaLab||'');t.equipamentoLab=String(p.equipamentoLab||t.equipamentoLab||'');
+            labRollForcadoD5_=Number(p.rolagemD5)||null;labFxIdForcadoD5_=String(p.fxIdD5||'');
+            try{labExecutarAtaqueDirecionalMestreD1_(t,String(p.alvoId||''));}
+            finally{labRollForcadoD5_=null;labFxIdForcadoD5_='';}
+        }else if(c.type==='passar_d8')labAvancarConfirmado_(state,mesaOpportunity(state),{pass:true});
+        else if(c.type==='levantar_d8')labRuleHandlers_.get('labLevantar_')();
+        else if(c.type==='defesa_ativa_d1')t.defesaAtivaD1=String(p.defesaAtivaD1||'');
+        else if(c.type==='ps_iniciar22'){t.acaoAuxLab={tipo:'primeiros_socorros',alvoId:p.alvoId,local:p.local};labPSIniciarSync22Base_();labAvancarConfirmado_(state,mesaOpportunity(state));}
+        else if(c.type==='ps_continuar22'){labPSContinuarSync22Base_();labAvancarConfirmado_(state,mesaOpportunity(state));}
+        else if(c.type==='ps_concluir22'){labPSConcluirSync22Base_();labAvancarConfirmado_(state,mesaOpportunity(state));}
+        else if(c.type==='explorar_auto18'&&state.fase!=='combate')labExplorarResolver18_(t,p);
+        else if(c.type==='acao_objeto'||c.type==='acao_objeto_auto17')labObjetoAcaoExecutar_(t,labObjetoPorId_(p.objetoId),p.tipo);
+        else if(c.type==='teste_pericia'){t.acaoAuxLab={tipo:'teste_pericia',periciaToken:p.periciaToken};labExecutarTeste_();}
+        else if(c.type==='psiquismo'){t.acaoAuxLab={tipo:'psiquismo',poderId:p.poderId,alvoId:p.alvoId,custo:p.custo,local:p.local};labUsarPsiExecutar_();}
+        else if(resolution.includes(c.type)){
+            const dp=state.danoPendenteLab;
+            if(c.type==='defesa'){
+                if(String(state.pendenciaLab?.defensorId)!==String(t.id))return false;
+                labAutoResolverDefesaD1_();
+            }else{
+                if(!dp||String(dp.atacanteId)!==String(t.id)||String(dp.id)!==String(p.danoPendenteId))return false;
+                if(c.type==='efeito_especial19'){
+                    if(!(labEfeitosDisponiveis_(dp)||[]).some(e=>e.id===p.efeito))return false;
+                    labEscolherEfeitoSync19Base_(p.efeito);
+                }else if(c.type==='efeito_localizacao19'){
+                    if(!dp.escolhendoLocalizacao||!Object.hasOwn(labGarantirSnapshotCombate_(labTokenPorId_(dp.defensorId)).hitMax,p.local))return false;
+                    labConfirmarLocalizacaoSync19Base_(p.local);
+                }else if(c.type==='efeito_pular19')labPularEfeitosSync19Base_();
+                else if(c.type==='dano19'){if(dp.efeitosRestantes>0||dp.escolhendoLocalizacao)return false;labRolarDanoSync19Base_();}
+            }
+        }else return false;
+        labResultadoAutomatico_();return true;
+    });
+}
+
+function labIniciarTransporte_(){
+    labTransport_?.close();clearInterval(labLeaseTimer_);
+    labMapaMesaUnsub_?.();labMapaAcoesUnsub_?.();
+    labMapaMesaUnsub_=null;labMapaAcoesUnsub_=null;
+    if(!currentUserUid)return;
+    labConfirmedPacket_=null;
+    const reference=path=>doc(db,...path.split('/'));
+    labTransport_=createMesaTransport({session:LAB_SESSION_SYNC_,uid:()=>currentUserUid,isMaster:batalhaEhMestre_,
+        statePath:LAB_SYNC_STATE_PATH_,commandPath:LAB_SYNC_COMMAND_PATH_,movementPath:LAB_SYNC_MOVEMENT_PATH_,
+        transact:fn=>runTransaction(db,async native=>fn({
+            get:async path=>{const s=await native.get(reference(path));return s.exists()?s.data():null;},
+            set:(path,value)=>native.set(reference(path),value)
+        })),
+        read:async path=>(await getDocs(query(collection(db,...path.split('/')),where('status','==','new')))).docs.map(d=>({path:d.ref.path,data:d.data()})),
+        write:(path,value)=>setDoc(reference(path),value),
+        remove:path=>deleteDoc(reference(path)),
+        subscribe:(path,receive,many)=>many?
+            onSnapshot(query(collection(db,...path.split('/')),where('status','==','new')),snap=>snap.docChanges().filter(c=>c.type!=='removed').forEach(c=>receive({path:c.doc.ref.path,data:c.doc.data()})),labErroSync_):
+            onSnapshot(reference(path),snap=>{if(snap.exists())receive(snap.data());},labErroSync_),
+        reduce:labReduzirComando_,onState:labReceberConfirmado_,onError:labErroSync_
+    });
+    labTransport_.start();
+    const renew=()=>labTransport_?.renew().catch(labErroSync_);
+    renew();labLeaseTimer_=setInterval(renew,4000);
+    labEscutarCenaD3_();
+}
+
+async function labEnviarComandoJogador_(type,payload={},actor=null){
+    if(labDrawing_||labReducing_)return false;
+    const t=actor||labAtorControlavelD1_();if(!t||!labTransport_||!labConfirmedPacket_)return false;
+    if(type==='movimento')return labEnviarMovimentoConfirmado_(t,payload,true);
+    try{await labTransport_.send(type,String(t.id),mesaCopy(payload),mesaOpportunity(labConfirmedPacket_.estado));return true;}
+    catch(e){labErroSync_(e);return false;}
+}
+
+function labSalvarLocal_(){
+    if(labDrawing_||labReducing_)return;
+    // Cache de recuperação somente. Não publica nem resolve consequências.
+    if(labConfirmedPacket_)localStorage.setItem('mesaEstelarLabCombate',JSON.stringify(labConfirmedPacket_.estado));
+}
+function labAgendarSyncRemoto_(){
+    // As alterações de jogo são publicadas somente por comandos/transações.
+    // Chamadas de compatibilidade não têm efeitos de rede.
+}
+function labProcessarComandoJogador_(){/* processamento pertence ao transporte */}
+function labAplicarEstadoRemotoD3_(){/* snapshots passam por labReceberConfirmado_ */}
+function labAutoAvancarSeSemAcoes_(){return false;/* redutor conclui a ação */}
+function labChaveOportunidadeD8_(){return mesaOpportunity(labEstado_);}
+
+function labEnviarMovimentoConfirmado_(t,payload,final){
+    if(!labConfirmedPacket_||!labTransport_)return false;
+    let v=labVisualMovement_.get(String(t.id));
+    const opportunity=mesaOpportunity(labConfirmedPacket_.estado);
+    if(!v||v.opportunity!==opportunity){
+        const confirmed=labConfirmedPacket_.estado.tokens.find(x=>String(x.id)===String(t.id));
+        if(!confirmed)return false;
+        v={x:confirmed.x,y:confirmed.y,distance:0,gesture:crypto.randomUUID(),opportunity,lastSent:0};
+        labVisualMovement_.set(String(t.id),v);
+    }
+    if(payload){v.distance+=Math.hypot(payload.x-v.x,payload.y-v.y);v.x=payload.x;v.y=payload.y;v.angle=payload.angulo??t.angulo;}
+    v.final=!!final;
+    if(!final&&performance.now()-v.lastSent<200)return true;
+    v.lastSent=performance.now();
+    return labTransport_.send('movement',String(t.id),{x:v.x,y:v.y,distance:v.distance,angle:Number(v.angle||0),gesture:v.gesture,final},opportunity)
+        .then(id=>{
+            v.lastSequence=Number(id.slice(id.lastIndexOf('_')+1));
+            if(final&&labConfirmedPacket_?.lastCommand?.id===id){labVisualMovement_.delete(String(t.id));labRender_();}
+            return true;
+        }).catch(e=>{labVisualMovement_.delete(String(t.id));labRender_();labErroSync_(e);return false;});
+}
+function labSincronizarMovimentoD2_(t,final=false){return labEnviarMovimentoConfirmado_(t,null,final);}
+
+function labAplicarMovimentoEstadoD2_(t,dx,dy,dist){
+    if(!t||!labConfirmedPacket_||labDrawing_||labReducing_)return false;
+    const length=Math.hypot(dx,dy);if(length<.0001)return false;
+    let visual=labVisualMovement_.get(String(t.id));
+    if(!visual){
+        visual={x:t.x,y:t.y,distance:0,gesture:crypto.randomUUID(),opportunity:mesaOpportunity(labConfirmedPacket_.estado),lastSent:0};
+        labVisualMovement_.set(String(t.id),visual);
+    }
+    const candidate={...visual,x:visual.x+dx/length*dist,y:visual.y+dy/length*dist,distance:visual.distance+dist,
+        angle:labAnguloDeVetorD1_(dx,dy)};
+    const preview=mesaCopy(labConfirmedPacket_.estado);
+    const command={actor:String(t.id),stream:LAB_SESSION_SYNC_,sequence:Number.MAX_SAFE_INTEGER,opportunity:visual.opportunity,payload:candidate};
+    if(!mesaMove(preview,command,labMovimentoPorAcao_(t)))return false;
+    const result=preview.tokens.find(x=>String(x.id)===String(t.id));
+    if(Math.hypot(result.x-visual.x,result.y-visual.y)<.00001)return false;
+    visual.distance+=Math.hypot(result.x-visual.x,result.y-visual.y);
+    visual.x=result.x;visual.y=result.y;visual.angle=candidate.angle;
+    return true;
+}
+
+function labRender_(){
+    if(labDrawing_||labReducing_)return;
+    const view=mesaCopy(labEstado_);
+    for(const t of view.tokens||[]){const v=labVisualMovement_.get(String(t.id));if(v){t.x=v.x;t.y=v.y;t.angulo=v.angle;}}
+    labComContextoLocal_(view,true,()=>{
+        labDesenharBase_();
+        const visuals=[window.labViewNativeInstall_,labRenderPainelPersistente21_,labEntradaLivreAtualizar530_,labAtualizarControlePJ760_,labQuickToolsUpdate760_,labAtualizarAtuarComoE6_,labAtualizarInfo_,
+            labAtualizarDefesaUID7_,labGarantirBotaoTestarD7_,labGarantirLevantarD7_,labAjustarRotulosTokens23_,
+            labRenderEventosVisuaisD5_,labRenderFogoObjetos481_,labRenderFormasMapa490_,labEstadosVisuais763_,
+            labAplicarOcultacaoAnoitecerV46470_,labRenderPsiVisuais_,labPsiRenderModalMestre_,labPsiRenderModalJogador_,
+            labRenderPsiInboxMestre_,labInstalarControlesD2_,labAnexarPVAlvoMestre22_,labCameraAtualizarE6_,labAtualizarZoomE6_];
+        for(const visual of visuals){if(typeof visual!=='function')continue;try{visual();}catch(e){console.warn('[Mesa visual]',visual.name,e);}}
+    });
+}
+
+function labInstalarAcoesConfirmadas_(){
+    const names=['labIniciarCombate_','labVoltarPreparacao_','labLevantar_','labPassarAcao_','labEncerrarOportunidade_',
+        'labAtacarDirecaoD1_','labRolarAtaque_','labEscolherEfeito_','labConfirmarLocalizacao_','labPularEfeitos_','labRolarDano_',
+        'labPSIniciar_','labPSContinuar_','labPSConcluir_','labResetarAcoes_'];
+    for(const name of names){
+        const old=window[name];if(typeof old!=='function')continue;labRuleHandlers_.set(name,old);
+        window[name]=function(...args){
+            if(labDrawing_)return;
+            if(labReducing_)return labRuleHandlers_.get(name)(...args);
+            if(!batalhaEhMestre_())return old(...args);
+            if(!labTransport_?.isLeader()||!labConfirmedPacket_){notificar_('Esta aba está observando. Aguarde a sessão do mestre confirmar a liderança.','aviso');return;}
+            const t=labAtorControlavelD1_()||labTokenAtual_();
+            const preferences=t?Object.fromEntries(['periciaLab','equipamentoLab','alvoLab','acaoAuxLab','defesaAtivaD1','sortePreparadaLab'].map(k=>[k,t[k]??null])):null;
+            return labTransport_.send('host:'+name,String(t?.id||''),{args,preferences},mesaOpportunity(labConfirmedPacket_.estado)).catch(labErroSync_);
+        };
+    }
+    // Turno e Passar têm uma só implementação e preservam a regra aprovada.
+    labRuleHandlers_.set('labPassarAcao_',()=>labAvancarConfirmado_(labEstado_,mesaOpportunity(labEstado_),{pass:true}));
+    labRuleHandlers_.set('labEncerrarOportunidade_',()=>labAvancarConfirmado_(labEstado_,mesaOpportunity(labEstado_)));
+    window.iniciarMapaMesaCompartilhado_=labIniciarTransporte_;
+    window.labRender_=labRender_;
+}
+labInstalarAcoesConfirmadas_();
