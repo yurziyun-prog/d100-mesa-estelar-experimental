@@ -839,7 +839,7 @@
                     <p style="color:#aaa;margin:0 0 16px;">Área experimental isolada. Ela começa apenas com posições compartilhadas entre os navegadores.</p>
                     <div id="novaSyncStatus" style="padding:10px;border-radius:8px;background:rgba(0,0,0,.2);margin-bottom:12px;">Aguardando conexão.</div>
                     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;">
-                        <button class="btn-small btn-select" onclick="novaSyncInicializar_()">Inicializar com os personagens atuais</button>
+                        <button class="btn-small btn-select" id="novaSyncInit" onclick="novaSyncInicializar_()">Inicializar com os personagens atuais</button>
                         <select id="novaSyncPersonagem" class="lab-control"><option value="">Escolha um personagem</option></select>
                         <button class="btn-small" onclick="novaSyncMover_(-1,0)">◀</button><button class="btn-small" onclick="novaSyncMover_(1,0)">▶</button>
                         <button class="btn-small" onclick="novaSyncMover_(0,-1)">▲</button><button class="btn-small" onclick="novaSyncMover_(0,1)">▼</button>
@@ -2151,7 +2151,7 @@
         });
     </script>
 
-<script type="module" src="js/app.js?v=46.83.2-exp-sync-consistente-1-20260909"></script>
+<script type="module" src="js/app.js?v=46.83.2-exp-sync-nova-2-20260909"></script>
 <!-- Mesa Estelar v46.38.0: segurança de objetos, XP contextual, tutorial reforçado, PM/PJ, imagem pós-conclusão e sincronização de magia -->
 
 <div id="battleTokenPreview" class="battle-token-preview" aria-hidden="true"></div>
