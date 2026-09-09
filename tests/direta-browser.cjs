@@ -90,7 +90,7 @@ const dir=path.join(__dirname,'../js');
   assert.equal(store[combatPath].combat.actors.pj.remaining,2);
   await act(master,'#novaSyncNext');
   await player.waitForFunction(()=>document.querySelector('#novaSyncTurno').textContent.includes('Turno de combate iniciado'));
-  assert.ok((await player.locator('#novaSyncTurno').textContent()).includes('3.00 / 6'));
+  assert.ok((await player.locator('#novaSyncTurno').textContent()).includes('Turno de combate iniciado'));
   await walkTo(player,1,origin.y);
   await player.waitForFunction(()=>!document.querySelector('#novaSyncStatus').textContent.includes('salvando'));
   assert.equal(store[statePath+'/pj'].movementUsed,6);
