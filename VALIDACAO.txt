@@ -1,0 +1,18 @@
+Sintaxe: app.js, oficina2.js e 3 scripts inline aprovados.
+Oficina 2: SHA-256 preservado.
+
+PASS falha consome 1 AÇ e produz som/visual
+PASS crítico consome exatamente 1 AÇ
+PASS comando duplicado não consome outra AÇ
+PASS fiasco consome exatamente 1 AÇ
+PASS quarto ataque rejeitado sem som/visual extra
+PASS fim de AÇ avança Valery para Darek
+PASS repetição antiga não volta turno nem consome AÇ
+PASS cliente não agenda avanço automático
+PASS timer de oportunidade antiga não avança
+PASS resolução pendente impede avanço
+PASS proteção de movimento não sobrescreve AÇ confirmadas
+PASS botão Atacar redundante removido
+PASS Primeiros Socorros registra rolagem no histórico próprio
+PASS Resistência registra rolagem no histórico próprio
+14 verificações passaram. Testes isolados com serviços/DOM simulados; não equivalem a teste integrado Firebase.

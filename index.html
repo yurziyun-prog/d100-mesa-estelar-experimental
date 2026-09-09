@@ -1,0 +1,2263 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<!-- Mesa Estelar v46.83.2: Oficina 2 continua a ser extraída para js/oficina2.js. O módulo principal foi movido, sem reescrita, para js/app.js. -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D100 - Mesa Estelar RPG</title>
+    <!-- Mesa Estelar v29.3: correção da iniciativa inicial -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        /* ============================================
+           ESTILOS GLOBAIS
+           ============================================ */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            color: #e0e0e0; 
+            min-height: 100vh; 
+            padding: 20px; 
+            background: #000;
+            overflow-x: hidden; 
+            position: relative; 
+        }
+        
+        .galaxy-bg {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0;
+            background: 
+                radial-gradient(ellipse at 20% 30%, rgba(120, 50, 180, 0.5) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 70%, rgba(50, 100, 200, 0.5) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 50%, rgba(200, 50, 100, 0.4) 0%, transparent 60%),
+                linear-gradient(135deg, #0a0a1a 0%, #1a0a2e 25%, #0a1a3e 50%, #1a0a2e 75%, #0a0a1a 100%);
+        }
+        
+        .stars-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+        .star { position: absolute; background: white; border-radius: 50%; animation: twinkle var(--duration) infinite; animation-delay: var(--delay); }
+        @keyframes twinkle { 0%, 100% { opacity: 0.3; transform: scale(1); } 50% { opacity: 1; transform: scale(1.3); } }
+        
+        .container { max-width: 1400px; margin: 0 auto; position: relative; z-index: 2; }
+        h1 { text-align: center; color: #fff; margin-bottom: 10px; font-size: 2.2em; }
+        
+        .lang-selector { display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; }
+        .lang-btn { padding: 8px 16px; background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.3); color: #fff; border-radius: 20px; cursor: pointer; }
+        .lang-btn.active { background: rgba(255,255,255,0.4); border-color: #fff; font-weight: bold; }
+        
+        .login-screen { display: flex; justify-content: center; align-items: center; min-height: 80vh; }
+        .login-box { background: rgba(255,255,255,0.08); padding: 40px; border-radius: 20px; border: 2px solid rgba(255,255,255,0.2); text-align: center; max-width: 450px; width: 100%; }
+        .login-box h2 { color: #fff; margin-bottom: 10px; font-size: 1.8em; }
+        .login-box input { width: 100%; padding: 15px; margin-bottom: 15px; background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.3); border-radius: 10px; color: #fff; }
+        .btn-login, .btn-register { width: 100%; padding: 15px; background: linear-gradient(135deg, #00d4ff, #0099cc); color: #fff; border: none; border-radius: 10px; font-size: 1.1em; cursor: pointer; margin-bottom: 10px; font-weight: bold; }
+        .btn-secondary { background: linear-gradient(135deg, #6c757d, #495057); }
+
+        /* MERCADO */
+        .market-toolbar { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:20px; padding:15px; background:rgba(0,212,255,0.06); border:1px solid rgba(0,212,255,0.18); border-radius:12px; }
+        .market-toolbar input, .market-toolbar select { width:auto; min-width:180px; margin:0; }
+        .market-balance { margin-left:auto; padding:10px 15px; border-radius:10px; background:rgba(40,167,69,0.15); border:1px solid rgba(40,167,69,0.35); font-weight:bold; }
+        .market-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:16px; }
+        .market-card { display:grid; grid-template-columns:96px 1fr; gap:14px; padding:15px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.12); border-radius:12px; }
+        .market-card:hover { border-color:rgba(0,212,255,0.5); background:rgba(0,212,255,0.06); }
+        .market-card img { width:96px; height:96px; object-fit:contain; background:rgba(0,0,0,0.25); border-radius:10px; }
+        .market-card-placeholder { width:96px; height:96px; display:flex; align-items:center; justify-content:center; font-size:2.7em; background:rgba(0,0,0,0.25); border-radius:10px; }
+        .market-card h4 { margin:0 0 6px; color:#fff; }
+        .market-meta { color:#aaa; font-size:.9em; line-height:1.5; }
+        .market-desc { color:#ccc; margin:8px 0; font-size:.92em; }
+        .market-buy { margin-top:10px; padding:9px 14px; border:0; border-radius:8px; background:#28a745; color:white; font-weight:bold; cursor:pointer; }
+        .market-buy:hover { filter:brightness(1.08); }
+
+        .hidden { display: none !important; }
+        
+        .user-header { display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.08); padding: 15px 25px; border-radius: 10px; margin-bottom: 30px; flex-wrap: wrap; gap: 15px; }
+        .user-info { color: #fff; font-size: 1.1em; }
+        .btn-logout { background: #dc3545; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; }
+        
+        .tabs { display: flex; justify-content: center; gap: 10px; margin-bottom: 30px; flex-wrap: wrap; }
+        .tab-btn { padding: 12px 20px; background: rgba(255,255,255,0.08); border: 2px solid rgba(255,255,255,0.2); color: #fff; border-radius: 10px; cursor: pointer; font-size: 1em; }
+        .tab-btn.active { background: rgba(255,255,255,0.25); border-color: #00d4ff; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        .char-manager { background: rgba(255,255,255,0.06); border-radius: 15px; padding: 20px; margin-bottom: 30px; border: 2px solid rgba(255,255,255,0.1); }
+        .char-manager h3 { color: #fff; margin-bottom: 15px; }
+        .char-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .char-item { background: rgba(255,255,255,0.08); border-radius: 10px; padding: 15px; text-align: center; border: 2px solid rgba(255,255,255,0.1); cursor: pointer; }
+        .char-item:hover { transform: translateY(-3px); border-color: #00d4ff; }
+        .char-item.active { border-color: #28a745; box-shadow: 0 0 15px rgba(40,167,69,0.5); }
+        .char-item-avatar { width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, #00d4ff, #0099cc); margin: 0 auto 10px; display: flex; align-items: center; justify-content: center; font-size: 2em; overflow: hidden; }
+        .char-item-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .char-item-name { color: #fff; font-weight: bold; margin-bottom: 5px; }
+        .char-item-actions { display: flex; gap: 5px; margin-top: 10px; justify-content: center; }
+        .btn-small { padding: 5px 10px; border: none; border-radius: 5px; cursor: pointer; font-size: 0.85em; }
+
+        /* v46.35.0 — padronização visual do painel Mapa da Mesa */
+        #laboratorio-combate #labMasterGameControls > button,
+        #laboratorio-combate #labMasterMapLoader > button,
+        #laboratorio-combate #labMapCreationControls > button {
+            min-height: 40px; height: 40px; padding: 0 14px; border-radius: 8px;
+            display: inline-flex; align-items: center; justify-content: center; line-height: 1.1;
+        }
+        #laboratorio-combate #labMasterGameControls > label,
+        #laboratorio-combate #labMasterMapLoader > label,
+        #laboratorio-combate #labMapCreationControls > label,
+        #laboratorio-combate #labEditMapToggleWrap {
+            min-height: 40px; box-sizing: border-box;
+        }
+        #laboratorio-combate #labMasterGameControls select,
+        #laboratorio-combate #labMasterMapLoader select,
+        #laboratorio-combate #labMapCreationControls select,
+        #laboratorio-combate #labZoom {
+            height: 40px; min-height: 40px; box-sizing: border-box; border-radius: 8px;
+        }
+        #laboratorio-combate #labMapCreationControls input[type="text"],
+        #laboratorio-combate #labMapCreationControls input[type="number"] {
+            height: 40px; min-height: 40px; box-sizing: border-box;
+        }
+        #laboratorio-combate #labMapCreationControls input[type="color"] {
+            width: 40px !important; height: 40px !important; min-height: 40px; box-sizing: border-box;
+        }
+        .btn-select { background: #28a745; color: #fff; }
+        .btn-delete { background: #dc3545; color: #fff; }
+        .btn-new { width: 100%; padding: 15px; background: linear-gradient(135deg, #00d4ff, #0099cc); color: #fff; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; }
+        
+        .character-card { background: rgba(255,255,255,0.06); border-radius: 20px; padding: 30px; margin-bottom: 30px; border: 2px solid rgba(255,255,255,0.1); }
+        .character-header { display: flex; align-items: center; gap: 20px; margin-bottom: 30px; flex-wrap: wrap; }
+        .avatar { width: 100px; height: 100px; border-radius: 50%; border: 3px solid #00d4ff; background: linear-gradient(135deg, #00d4ff, #0099cc); display: flex; align-items: center; justify-content: center; font-size: 3em; box-shadow: 0 0 20px rgba(0,212,255,0.5); overflow: hidden; }
+        .avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .char-info h2 { color: #fff; font-size: 2em; margin-bottom: 5px; }
+        .char-info p { color: #aaa; font-size: 1em; }
+        
+        .attributes-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; margin-bottom: 25px; }
+        .attr-card { background: rgba(255,255,255,0.08); border-radius: 15px; padding: 20px; text-align: center; border: 2px solid rgba(255,255,255,0.1); }
+        .attr-label { color: #aaa; font-size: 0.9em; margin-bottom: 10px; font-weight: bold; }
+        .attr-value { color: #00d4ff; font-size: 2.5em; font-weight: bold; }
+        .attr-bonus input { width: 60px; text-align: center; background: rgba(0,212,255,0.2); border: 1px solid #00d4ff; border-radius: 5px; color: #fff; font-size: 1em; margin-top: 5px; }
+        
+        .derived-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; background: rgba(255,255,255,0.05); padding: 20px; border-radius: 15px; text-align: center; }
+        .stat-box { background: rgba(0,212,255,0.1); padding: 15px; border-radius: 10px; border: 1px solid rgba(0,212,255,0.3); }
+        .stat-label { color: #aaa; font-size: 0.9em; margin-bottom: 5px; }
+        .stat-value { color: #00d4ff; font-size: 1.8em; font-weight: bold; }
+        .stat-value input { width: 80%; text-align: center; background: rgba(0,212,255,0.2); border: 1px solid #00d4ff; border-radius: 5px; color: #00d4ff; font-size: 1.2em; font-weight: bold; }
+        
+        .form-section { background: rgba(255,255,255,0.06); border-radius: 15px; padding: 25px; margin-bottom: 25px; border: 1px solid rgba(255,255,255,0.1); }
+        .form-section h3 { color: #fff; margin-bottom: 20px; font-size: 1.5em; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; color: #fff; font-weight: 600; }
+        input[type="text"], input[type="number"], input[type="url"], input[type="file"], select, textarea { width: 100%; padding: 12px; background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2); border-radius: 8px; color: #fff; font-size: 1em; }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: #00d4ff; }
+        select option { background: #1a1a2e; color: #fff; }
+        
+        .btn-save { width: 100%; padding: 15px; background: linear-gradient(135deg, #28a745, #218838); color: #fff; border: none; border-radius: 10px; font-size: 1.1em; cursor: pointer; font-weight: bold; }
+        .btn-import { background: linear-gradient(135deg, #9b59b6, #8e44ad); color: #fff; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; margin-right: 10px; }
+        .btn-template { background: rgba(255,255,255,0.2); color: #fff; border: 2px solid rgba(255,255,255,0.3); padding: 12px 20px; border-radius: 8px; cursor: pointer; }
+        
+        .total-points { text-align: center; padding: 20px; background: rgba(0,212,255,0.1); border-radius: 10px; margin-bottom: 20px; }
+        .total-points .value { color: #00d4ff; font-size: 2.5em; font-weight: bold; }
+        .total-points .value.exceeded { color: #ff6b6b; }
+        .total-points .limit { color: #aaa; font-size: 0.9em; }
+        
+        .char-tabs { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; border-bottom: 2px solid rgba(255,255,255,0.1); padding-bottom: 10px; }
+        .char-tab-btn { padding: 10px 18px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); color: #aaa; border-radius: 8px; cursor: pointer; }
+        .char-tab-btn.active { background: rgba(0,212,255,0.2); border-color: #00d4ff; color: #fff; }
+        .char-tab-content { display: none; }
+        .char-tab-content.active { display: block; }
+        
+        /* INVENTÁRIO */
+        .inventory-container { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-top: 20px; }
+        .inventory-compartment { background: rgba(255,255,255,0.05); border-radius: 12px; padding: 20px; border: 2px solid rgba(255,255,255,0.1); }
+        .inventory-compartment h4 { color: #00d4ff; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; }
+        .inventory-compartment .capacity { color: #aaa; font-size: 0.85em; margin-bottom: 15px; }
+        .inventory-slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 10px; }
+        .inventory-slot { aspect-ratio: 1; background: rgba(0,0,0,0.3); border: 2px dashed rgba(255,255,255,0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 2em; transition: all 0.2s; position: relative; }
+        .inventory-slot:hover { border-color: #00d4ff; background: rgba(0,212,255,0.1); }
+        .inventory-slot.filled { border-style: solid; border-color: #28a745; background: rgba(40,167,69,0.1); }
+        .inventory-slot.drag-over { border-color: #ffd700; background: rgba(255,215,0,0.2); }
+        .inventory-slot img { width: 100%; height: 100%; object-fit: cover; border-radius: 6px; }
+        .inventory-slot.full-width { grid-column: span 2; aspect-ratio: 3/1; }
+        .inventory-slot[draggable="true"] { cursor: grab; }
+        .inventory-slot[draggable="true"]:active { cursor: grabbing; }
+        .inventory-slot.drag-source { opacity: 0.5; }
+        .inventory-help { color:#aaa; font-size:0.9em; margin:0 0 15px; }
+        .db-table-wrap { width:100%; overflow-x:auto; border:1px solid rgba(255,255,255,0.12); border-radius:10px; }
+        .db-table { width:100%; min-width:1250px; border-collapse:collapse; background:rgba(0,0,0,0.12); }
+        .db-table th, .db-table td { padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.10); vertical-align:middle; text-align:left; }
+        .db-table th { color:#00d4ff; background:rgba(0,212,255,0.10); position:sticky; top:0; z-index:1; }
+        .db-table td { color:#ddd; }
+        .db-table .name-pt { color:#fff; font-weight:bold; }
+        .db-table .actions { white-space:nowrap; }
+        .db-item-thumb { width:76px; height:76px; border-radius:10px; object-fit:cover; display:block; border:1px solid rgba(0,212,255,0.35); background:rgba(0,0,0,0.25); }
+        .db-item-thumb.placeholder { display:flex; align-items:center; justify-content:center; font-size:2em; color:#777; }
+        .db-item-main-row td { border-bottom:none; padding-bottom:5px; }
+        .db-item-meta-row td { padding-top:5px; color:#bdbdbd; background:rgba(255,255,255,0.018); }
+        .db-item-description { min-width:320px; max-width:520px; white-space:normal; line-height:1.4; }
+        .db-name-table { width:100%; min-width:1050px; border-collapse:collapse; background:rgba(0,0,0,0.12); }
+        .db-name-table th, .db-name-table td { padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.10); vertical-align:top; text-align:left; }
+        .db-name-table th { color:#00d4ff; background:rgba(0,212,255,0.10); }
+        .db-name-table td:first-child { color:#fff; font-weight:bold; }
+        .db-name-table .actions { white-space:nowrap; }
+        
+        .item-tooltip { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.95); border: 2px solid #00d4ff; border-radius: 8px; padding: 10px; min-width: 200px; max-width: 300px; z-index: 100; display: none; font-size: 0.9em; pointer-events: none; }
+        .inventory-slot:hover .item-tooltip { display: block; }
+        .item-tooltip h5 { color: #00d4ff; margin-bottom: 5px; }
+        .item-tooltip p { color: #aaa; font-size: 0.85em; margin: 3px 0; }
+        
+        /* MODAL */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; display: none; align-items: center; justify-content: center; }
+        .modal-overlay.active { display: flex; }
+        .modal-content { background: #1a1a2e; padding: 30px; border-radius: 15px; border: 2px solid #00d4ff; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto; }
+        .modal-content h3 { color: #00d4ff; margin-bottom: 20px; }
+        .modal-buttons { display: flex; gap: 10px; margin-top: 20px; }
+        .btn-confirm { background: #28a745; color: #fff; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; }
+        .btn-cancel { background: #dc3545; color: #fff; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; }
+        
+        /* COMBATE */
+        .combat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
+        .combat-section { background: rgba(255,255,255,0.05); border-radius: 12px; padding: 20px; border: 2px solid rgba(255,255,255,0.1); }
+        .combat-section h4 { color: #00d4ff; margin-bottom: 15px; font-size: 1.2em; }
+        .combat-title-row { display:grid; grid-template-columns: 1fr 80px 80px; gap:10px; align-items:end; margin-bottom:15px; min-height:29px; }
+        .combat-title-row h4 { margin:0; }
+        .combat-title-col { color:#00d4ff; font-weight:bold; text-align:center; font-size:.92em; line-height:1.15; }
+        .inventory-title-row { display:flex; justify-content:space-between; align-items:center; gap:20px; flex-wrap:wrap; margin-bottom:8px; }
+        .inventory-title-row h3 { margin:0; }
+        .inventory-resources-box { display:flex; align-items:center; gap:10px; margin-left:auto; padding:8px 12px; border:1px solid rgba(0,212,255,.35); background:rgba(0,212,255,.08); border-radius:10px; }
+        .inventory-resources-box label { color:#00d4ff; font-weight:bold; white-space:nowrap; }
+        .inventory-resources-box input { width:150px; padding:8px 10px; text-align:right; font-weight:bold; }
+        .hit-location { display: grid; grid-template-columns: 1fr 80px 80px; gap: 10px; align-items: center; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 6px; margin-bottom: 8px; }
+        .hit-location-name { color: #fff; font-weight: bold; }
+        .hit-location input { width: 100%; padding: 5px; text-align: center; background: rgba(0,212,255,0.2); border: 1px solid #00d4ff; border-radius: 5px; color: #fff; }
+        .hit-location input[readonly] { background: rgba(255,255,255,0.1); color: #aaa; border-color: rgba(255,255,255,0.3); }
+        .hit-location input.damage { background: rgba(231,76,60,0.2); border-color: #e74c3c; }
+        .hit-location input.damage:focus { outline: none; background: rgba(231,76,60,0.3); }
+        
+        /* ROLAGEM */
+        .dice-roller { background: rgba(255,255,255,0.05); border-radius: 15px; padding: 25px; text-align: center; }
+        .dice-display { font-size: 5em; margin: 20px 0; color: #00d4ff; }
+        .dice-buttons { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 20px; }
+        .dice-btn { padding: 15px 25px; background: linear-gradient(135deg, #9b59b6, #8e44ad); color: #fff; border: none; border-radius: 10px; cursor: pointer; font-size: 1.1em; font-weight: bold; }
+        .roll-result { margin-top: 20px; padding: 20px; background: rgba(0,212,255,0.1); border-radius: 10px; border: 2px solid rgba(0,212,255,0.3); }
+        .skill-test-section, .attack-section { background: rgba(255,255,255,0.05); border-radius: 12px; padding: 20px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.1); }
+        .skill-test-section h4, .attack-section h4 { color: #00d4ff; margin-bottom: 15px; }
+        
+        /* BANCO DE DADOS */
+        .db-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; background: rgba(255,255,255,0.05); border-radius: 8px; margin-bottom: 8px; border: 1px solid rgba(255,255,255,0.1); transition: all 0.2s; }
+        .db-item:hover { background: rgba(255,255,255,0.08); border-color: rgba(0,212,255,0.3); }
+        .db-item-info { flex: 1; display: flex; align-items: center; gap: 15px; }
+        .db-item-name { font-weight: bold; color: #fff; min-width: 180px; font-size: 1.05em; }
+        .db-item-details { color: #aaa; font-size: 0.9em; flex: 1; }
+        .db-item-actions { display: flex; gap: 5px; flex-shrink: 0; }
+        .import-section { margin-bottom: 20px; padding: 15px; background: rgba(0,212,255,0.05); border-radius: 10px; border: 1px solid rgba(0,212,255,0.2); }
+        
+        /* TABELAS */
+        .skills-table { width: 100%; border-collapse: collapse; margin-top: 15px; table-layout: fixed; }
+        .skills-table th, .skills-table td { padding: 10px 12px; border: 1px solid rgba(255,255,255,0.1); text-align: left; vertical-align: middle; }
+        .skills-table th { background: rgba(0,212,255,0.2); color: #fff; font-weight: bold; }
+        .skills-table td { background: rgba(255,255,255,0.03); }
+        .skills-table th:nth-child(1), .skills-table td:nth-child(1) { width: 35%; }
+        .skills-table th:nth-child(2), .skills-table td:nth-child(2) { width: 20%; }
+        .skills-table th:nth-child(3), .skills-table td:nth-child(3) { width: 10%; text-align: center; }
+        .skills-table th:nth-child(4), .skills-table td:nth-child(4) { width: 15%; text-align: center; }
+        .skills-table th:nth-child(5), .skills-table td:nth-child(5) { width: 20%; text-align: center; }
+        .skills-table input[type="number"] { width: 60px; padding: 6px; text-align: center; background: rgba(0,212,255,0.15); border: 1px solid rgba(0,212,255,0.3); border-radius: 5px; color: #fff; }
+        .skills-table input[type="number"]:focus { outline: none; border-color: #00d4ff; background: rgba(0,212,255,0.25); }
+        .skill-total { color: #00d4ff; font-weight: bold; font-size: 1.1em; }
+        .skill-invested { background: rgba(40,167,69,0.15) !important; }
+        
+        /* REGRAS */
+        .regras-view { background: rgba(0,0,0,0.3); padding: 20px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.2); line-height: 1.8; white-space: pre-wrap; font-family: 'Courier New', monospace; color: #e0e0e0; }
+        .regras-view h1, .regras-view h2, .regras-view h3 { color: #00d4ff; margin: 15px 0 10px; }
+        .regras-view strong { color: #fff; }
+        
+        .etapa-indicator { background: rgba(0,212,255,0.15); padding: 15px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #00d4ff; }
+        .etapa-indicator h4 { color: #00d4ff; margin-bottom: 5px; }
+        .pontos-restantes { background: rgba(40,167,69,0.2); padding: 10px 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #28a745; }
+        .pontos-restantes span { color: #6bff8e; font-weight: bold; font-size: 1.2em; }
+        .pontos-restantes.over { background: rgba(220,53,69,0.2); border-color: #dc3545; }
+        .pontos-restantes.over span { color: #ff6b6b; }
+        
+        .message { padding: 15px; border-radius: 10px; margin-bottom: 15px; text-align: center; }
+        .message.error { background: rgba(220,53,69,0.2); color: #ff6b6b; border: 1px solid #dc3545; }
+        .message.success { background: rgba(40,167,69,0.2); color: #6bff8e; border: 1px solid #28a745; }
+        
+        @media (max-width: 768px) {
+            .attributes-grid { grid-template-columns: repeat(2, 1fr); }
+            .character-header { justify-content: center; text-align: center; }
+            .inventory-container { grid-template-columns: 1fr; }
+            .hit-location { grid-template-columns: 1fr 60px 60px; }
+        }
+    
+        /* Painel compartilhado V29 */
+        #batalha select { min-height: 42px; }
+        #batalha button:disabled { opacity:.45; cursor:not-allowed; }
+        @media (max-width: 1180px) {
+            #battleParticipantCards > div > div:first-child {
+                grid-template-columns:64px minmax(140px,1fr) repeat(4,70px) repeat(2,minmax(120px,1fr)) !important;
+            }
+        }
+        /* v46.1 — grid tático compartilhado */
+        .battle-grid-wrap{overflow:auto;padding:10px;border-radius:12px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.10)}
+        .battle-grid{--cell:54px;display:grid;grid-template-columns:repeat(24,var(--cell));grid-template-rows:repeat(12,var(--cell));width:max-content;background:#f8f8f8;border-left:1px solid #c8c8c8;border-top:1px solid #c8c8c8}
+        .battle-grid-cell{width:var(--cell);height:var(--cell);box-sizing:border-box;border-right:1px solid #c8c8c8;border-bottom:1px solid #c8c8c8;position:relative;display:flex;align-items:center;justify-content:center}
+        .battle-token{width:44px;height:44px;border-radius:9px;background:#27304f;border:2px solid #6578b9;color:white;display:flex;align-items:center;justify-content:center;cursor:grab;box-shadow:0 2px 6px rgba(0,0,0,.35);overflow:hidden;user-select:none}
+        .battle-token:active{cursor:grabbing}.battle-token img{width:100%;height:100%;object-fit:cover}.battle-token span{font-size:11px;font-weight:800;text-align:center;line-height:1.05;padding:2px}
+        .battle-token.current{outline:3px solid #ffd54a;outline-offset:1px}
+        .battle-grid-cell.drag-over{box-shadow:inset 0 0 0 3px #00cfff}
+        .battle-unplaced{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0 10px}
+        .battle-unplaced .battle-token{width:auto;min-width:44px;padding:0 7px;gap:5px}
+
+
+        /* v46.6.1 — visualização ampliada dos tokens do mapa */
+        .battle-token{position:relative}
+        .battle-token-preview{
+            position:fixed;
+            z-index:9998;
+            width:220px;
+            padding:8px;
+            border-radius:12px;
+            background:rgba(20,18,34,.97);
+            border:1px solid rgba(255,255,255,.18);
+            box-shadow:0 12px 34px rgba(0,0,0,.45);
+            pointer-events:none;
+            display:none;
+        }
+        .battle-token-preview.visible{display:block}
+        .battle-token-preview img{
+            width:100%;
+            height:220px;
+            object-fit:contain;
+            background:rgba(0,0,0,.28);
+            border-radius:9px;
+            display:block;
+        }
+        .battle-token-preview-name{
+            margin-top:7px;
+            font-weight:800;
+            text-align:center;
+            color:#fff;
+            line-height:1.2;
+        }
+        .battle-token-preview-type{
+            margin-top:2px;
+            font-size:.78em;
+            color:#aaa;
+            text-align:center;
+        }
+        .battle-token-modal{
+            position:fixed;
+            inset:0;
+            z-index:10050;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            padding:22px;
+            background:rgba(0,0,0,.76);
+        }
+        .battle-token-modal-card{
+            width:min(560px,94vw);
+            max-height:90vh;
+            overflow:auto;
+            border-radius:16px;
+            padding:14px;
+            background:#181629;
+            border:1px solid rgba(255,255,255,.18);
+        }
+        .battle-token-modal-card img{
+            width:100%;
+            max-height:68vh;
+            object-fit:contain;
+            display:block;
+            background:rgba(0,0,0,.3);
+            border-radius:12px;
+        }
+        .battle-token-modal-fallback{
+            min-height:280px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-size:4em;
+            background:rgba(255,255,255,.05);
+            border-radius:12px;
+        }
+
+.skill-help{position:relative;cursor:help;}.skill-help::after{content:attr(data-skill-tip);position:absolute;left:10px;top:calc(100% + 7px);width:min(380px,72vw);padding:10px 12px;border-radius:9px;background:rgba(8,12,28,.98);border:1px solid rgba(0,212,255,.62);color:#eefaff;font-size:.82rem;line-height:1.35;white-space:normal;box-shadow:0 10px 30px rgba(0,0,0,.38);z-index:9999;opacity:0;visibility:hidden;transform:translateY(-3px);transition:opacity .12s ease,transform .12s ease;pointer-events:none}.skill-help:hover::after{opacity:1;visibility:visible;transform:translateY(0)}.db-campaign-off{opacity:.58}.db-availability{min-width:116px}
+
+@keyframes labLaserPulse{0%{opacity:0;filter:brightness(2.6)}10%{opacity:1}72%{opacity:.98}100%{opacity:0}}
+@keyframes labLaserImpact{0%{transform:translate(-50%,-50%) scale(.22);opacity:1}100%{transform:translate(-50%,-50%) scale(2.5);opacity:0}}
+.lab-laser-beam{position:absolute;height:4px;transform-origin:0 50%;border-radius:999px;pointer-events:none;z-index:155;animation:labLaserPulse .34s ease-out forwards;box-shadow:0 0 5px currentColor,0 0 13px currentColor,0 0 25px currentColor}
+.lab-laser-core{position:absolute;left:0;right:0;top:1px;height:2px;background:#fff;border-radius:999px;opacity:.96}
+.lab-laser-impact{position:absolute;width:18px;height:18px;border:2px solid currentColor;border-radius:50%;pointer-events:none;z-index:156;animation:labLaserImpact .38s ease-out forwards;box-shadow:0 0 10px currentColor,0 0 22px currentColor}
+
+
+@keyframes labLaserBodyBeamV3{
+  0%{opacity:0;filter:brightness(3)}
+  8%{opacity:1}
+  68%{opacity:1}
+  100%{opacity:0}
+}
+@keyframes labLaserBodyImpactV3{
+  0%{transform:translate(-50%,-50%) scale(.2);opacity:1}
+  100%{transform:translate(-50%,-50%) scale(2.8);opacity:0}
+}
+.lab-laser-body-v3{
+  position:fixed; height:5px; transform-origin:0 50%; border-radius:999px;
+  pointer-events:none; z-index:2147483000;
+  animation:labLaserBodyBeamV3 .48s ease-out forwards;
+}
+.lab-laser-body-v3::after{
+  content:""; position:absolute; left:0; right:0; top:1px; height:3px;
+  background:#fff; border-radius:999px; opacity:.95;
+}
+.lab-laser-impact-body-v3{
+  position:fixed; width:22px; height:22px; border:3px solid currentColor;
+  border-radius:50%; pointer-events:none; z-index:2147483001;
+  animation:labLaserBodyImpactV3 .52s ease-out forwards;
+}
+
+
+@keyframes labEnergySlashIn{0%{opacity:0;stroke-dashoffset:180}18%{opacity:1}75%{opacity:1}100%{opacity:0;stroke-dashoffset:0}}
+@keyframes labFireFlicker{0%,100%{transform:translateY(0) scale(1);opacity:.88}50%{transform:translateY(-4px) scale(1.12);opacity:1}}
+@keyframes labExplosionV2{0%{transform:translate(-50%,-50%) scale(.15);opacity:1}65%{opacity:.9}100%{transform:translate(-50%,-50%) scale(3.8);opacity:0}}
+.lab-object-fire-v2{position:absolute;left:50%;bottom:5%;transform:translateX(-50%);display:flex;gap:1px;z-index:45;pointer-events:none;filter:drop-shadow(0 0 5px #ff8a00)}
+.lab-object-fire-v2 span{display:block;font-size:18px;animation:labFireFlicker .42s ease-in-out infinite alternate}
+.lab-object-fire-v2 span:nth-child(2){font-size:23px;animation-delay:.11s}.lab-object-fire-v2 span:nth-child(3){animation-delay:.22s}
+.lab-object-crack-v2{position:absolute;inset:7%;pointer-events:none;z-index:42;opacity:.72;background:
+ linear-gradient(32deg,transparent 47%,rgba(255,255,255,.78) 48% 50%,transparent 51%),
+ linear-gradient(118deg,transparent 47%,rgba(255,255,255,.58) 48% 49%,transparent 50%),
+ linear-gradient(72deg,transparent 49%,rgba(20,20,20,.68) 50% 51%,transparent 52%)}
+.lab-object-explosion-v2{position:fixed;width:38px;height:38px;border-radius:50%;pointer-events:none;z-index:2147483200;
+ background:radial-gradient(circle,#fff 0 12%,#ffe16b 13% 30%,#ff7a22 31% 58%,rgba(255,30,0,.25) 59% 75%,transparent 76%);
+ box-shadow:0 0 20px #ffcf4d,0 0 48px #ff5a22;animation:labExplosionV2 .62s ease-out forwards}
+
+
+@keyframes labFirePulse481{0%,100%{transform:translate(-50%,0) scale(.92);opacity:.78}50%{transform:translate(-50%,-5px) scale(1.12);opacity:1}}
+.lab-fire-overlay-481{position:absolute;left:50%;bottom:2%;transform:translateX(-50%);z-index:80;pointer-events:none;font-size:26px;filter:drop-shadow(0 0 6px #ff7a00);animation:labFirePulse481 .38s ease-in-out infinite}
+
+
+/* ===== V46.51.0 ===== */
+@keyframes labFire490{0%,100%{transform:translate(-50%,0) scale(.92);opacity:.78}50%{transform:translate(-50%,-6px) scale(1.13);opacity:1}}
+.lab-fire-490{position:absolute;left:50%;bottom:0;transform:translateX(-50%);font-size:27px;z-index:90;pointer-events:none;filter:drop-shadow(0 0 8px #ff7400);animation:labFire490 .36s ease-in-out infinite}
+.gm-vector-selected{filter:drop-shadow(0 0 5px #ffd54a)}
+#gmVet490Inspector{display:flex;gap:7px;flex-wrap:wrap;align-items:end;padding:8px;border-radius:8px;background:rgba(255,255,255,.045);margin-top:7px}
+#gmVet490Inspector input[type="number"]{width:74px;margin:0;padding:6px}
+#gmVet490Inspector input[type="color"]{width:48px;height:34px;margin:0;padding:2px}
+#labAudioMesaFloat{position:fixed;left:12px;bottom:12px;z-index:2147482500;max-width:390px;padding:9px 11px;border-radius:10px;background:rgba(16,12,35,.95);border:1px solid rgba(0,212,255,.45);box-shadow:0 4px 20px rgba(0,0,0,.4);color:#eee;font-size:13px}
+#labAudioMesaFloat button{margin:0;padding:7px 10px}
+
+
+/* ===== V46.51.0 ===== */
+#gmResizeModal500{position:fixed;inset:0;z-index:2147483400;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:20px}
+#gmResizeModal500 .card{width:min(620px,94vw);background:#211638;border:1px solid rgba(126,231,255,.35);border-radius:14px;padding:18px;box-shadow:0 16px 50px rgba(0,0,0,.55)}
+#gmResizeModal500 .opts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+#gmResizeModal500 button{min-height:44px}
+#labAudioMesaFloat.audio-mini-500{width:44px;height:44px;padding:0;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:19px}
+#labAudioMesaFloat.audio-open-500{min-width:270px;max-width:390px}
+#labAudioMesaFloat input[type="range"]{width:110px;margin:0 4px}
+#labAudioStatus500{font-size:11px;color:#9fc6d8;margin-top:4px}
+
+
+/* ===== V46.51.0 ===== */
+#gmVetSelectToggle501{display:inline-flex;align-items:center;gap:6px;margin:0;padding:7px 10px;border-radius:7px;background:rgba(255,255,255,.08);cursor:pointer}
+#gmVetSelectToggle501 input{width:18px;height:18px;margin:0}
+.gm-fixed-badge-501{position:absolute;right:-7px;bottom:-7px;z-index:95;font-size:16px;filter:drop-shadow(0 1px 3px #000);pointer-events:none}
+
+
+/* ===== V46.51.0 ===== */
+.lab-fire-490,.lab-object-fire-v2{display:none!important}
+.lab-fire-real-510{position:absolute;left:50%;bottom:2%;width:58%;height:52%;transform:translateX(-50%);z-index:96;pointer-events:none;filter:drop-shadow(0 0 6px rgba(255,96,0,.85))}
+.lab-fire-real-510 .fl{position:absolute;bottom:0;border-radius:55% 45% 60% 40%;transform-origin:50% 100%;background:radial-gradient(ellipse at 50% 82%,#fff8b2 0 13%,#ffd52e 14% 34%,#ff7425 35% 67%,rgba(210,25,0,.25) 68% 80%,transparent 81%);clip-path:polygon(50% 0,72% 34%,96% 72%,72% 100%,27% 100%,4% 70%,27% 35%);animation:labFlame510 .46s ease-in-out infinite alternate}
+.lab-fire-real-510 .f1{left:7%;width:42%;height:76%;animation-delay:.04s}.lab-fire-real-510 .f2{left:31%;width:46%;height:100%;animation-delay:.17s}.lab-fire-real-510 .f3{right:3%;width:39%;height:69%;animation-delay:.28s}
+.lab-fire-real-510 .sm{position:absolute;left:44%;bottom:74%;width:16px;height:16px;border-radius:50%;background:rgba(55,55,55,.38);box-shadow:11px -14px 0 4px rgba(65,65,65,.27),-8px -27px 0 7px rgba(72,72,72,.18);animation:labSmoke510 1.35s linear infinite}
+@keyframes labFlame510{0%{transform:scaleX(.86) scaleY(.92) rotate(-3deg);opacity:.78}100%{transform:scaleX(1.12) scaleY(1.08) rotate(4deg);opacity:1}}
+@keyframes labSmoke510{0%{transform:translateY(0) scale(.7);opacity:.45}100%{transform:translateY(-35px) translateX(9px) scale(1.7);opacity:0}}
+.db-nav-510{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin:6px 0 12px;padding:7px 9px;border:1px solid rgba(126,231,255,.2);border-radius:8px;background:rgba(0,0,0,.13)}
+.db-nav-510 .pos{color:#9fc6d8;font-size:12px;margin-left:auto}
+#banco-musicas .music-grid-510{display:grid;grid-template-columns:1.2fr 1fr 2fr 90px auto;gap:8px;align-items:end;margin-bottom:12px}
+#banco-musicas table{min-width:1000px}
+#gmMusica510 select{min-width:230px}
+
+
+/* ===== V46.77.0 ===== */
+#labFreeEntryWrap530{
+    display:flex;align-items:center;gap:7px;padding:6px 9px;
+    border:1px solid rgba(86,240,138,.35);border-radius:8px;
+    background:rgba(86,240,138,.07);min-height:40px;box-sizing:border-box;
+}
+#labPlayerJoin530{
+    display:none;gap:8px;flex-wrap:wrap;align-items:center;
+    margin:8px 0;padding:9px 10px;border-radius:9px;
+    border:1px solid rgba(86,240,138,.28);background:rgba(86,240,138,.055)
+}
+#labPlayerJoin530 select{min-width:230px;min-height:38px}
+#gmVet490Inspector .opacity-group-530{
+    display:flex;gap:6px;align-items:end;flex-wrap:wrap;
+    padding:5px 7px;border-radius:7px;background:rgba(255,255,255,.035)
+}
+#gmMusicaStatus530{
+    display:inline-flex;align-items:center;gap:6px;color:#9fc6d8;
+    min-height:38px;padding:0 8px
+}
+#gmMusicaToggle530.playing{color:#8ff0a8;border-color:rgba(86,240,138,.45)}
+
+
+/* ===== V46.77.0 ===== */
+#labPlayerJoin530.joining-540{opacity:.72;pointer-events:none}
+.lab-burn-hint-540{font-weight:800}
+
+</style>
+
+<style id="lab-ui-polish-v46360">
+/* Mapa da Mesa v46.36.0 — controles alinhados e selects legíveis */
+#laboratorio-combate .lab-toolbar-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+#laboratorio-combate .lab-control{display:inline-flex;align-items:center;gap:6px;margin:0;min-height:40px;white-space:nowrap;}
+#laboratorio-combate .lab-control select,
+#laboratorio-combate .lab-control input[type="text"],
+#laboratorio-combate .lab-control input[type="number"]{height:40px;box-sizing:border-box;margin:0;}
+#laboratorio-combate .btn-small{min-height:40px;box-sizing:border-box;}
+#labParticipanteSelect{width:360px !important;min-width:360px;font-size:.86em;}
+#labMapaSalvoSelect{width:300px !important;min-width:300px;font-size:.88em;}
+#labZoom{width:165px !important;min-width:165px;font-size:.88em;}
+#labMasterMapLoader{display:flex!important;gap:8px!important;align-items:center!important;flex-wrap:wrap!important;}
+#labPlayerPrivateResult{margin-top:8px;padding:9px 12px;border-radius:9px;background:rgba(0,212,255,.07);border:1px solid rgba(0,212,255,.23);color:#d8f7ff;font-size:.9em;}
+#labParticipanteSelect option,#labMapaSalvoSelect option,#labZoom option{font-size:1em;}
+#labDrawTool{width:145px !important;min-width:145px;}
+#labTexture{width:185px !important;min-width:185px;}
+#labDrawBrush{width:155px !important;min-width:155px;}
+#labDrawStrokeTexture{width:180px !important;min-width:180px;}
+#labObjetoModeloSelect{width:210px !important;min-width:210px;}
+#labMapSize{width:155px !important;min-width:155px;}
+#labMasterMapLoader{align-items:center !important;}
+#labMasterMapLoader .btn-small{height:40px;}
+@media (max-width:900px){#labParticipanteSelect,#labMapaSalvoSelect{width:min(76vw,340px)!important;min-width:210px;}#labZoom{width:150px!important;min-width:150px;}}
+</style>
+
+<style id="mesaProgressaoV4637">
+.creation-locked input[data-creation-field],.creation-locked select[data-creation-field]{opacity:.72;cursor:not-allowed}
+.creation-guide-highlight{outline:3px solid #ffd166!important;outline-offset:4px;position:relative;z-index:12002!important}
+#creationGuideBubble{position:fixed;z-index:12003;max-width:390px;padding:14px 16px;border-radius:12px;background:#151525;border:1px solid #ffd166;color:#f4f4f6;box-shadow:0 12px 38px rgba(0,0,0,.48);line-height:1.45}
+#creationGuideBubble .guide-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+#gmXpPermitidos{min-height:132px}
+#objMapaLoteStatus{color:#9fdfff;font-size:.86em}
+#laboratorio-combate .lab-repeat-btn{border-color:rgba(181,108,255,.48);color:#ead8ff;}
+.xp-grant-card{padding:12px;border-radius:10px;background:rgba(155,89,182,.10);border:1px solid rgba(155,89,182,.28);margin-top:10px}
+</style>
+
+<style id="lab-ui-fix-v46430">
+/* v46.45.0 — selects sem recorte e contraste de ações Psi */
+#laboratorio-combate #labParticipanteSelect,
+#laboratorio-combate #labMapaSalvoSelect,
+#laboratorio-combate #labZoom,
+#laboratorio-combate #labMapCreationControls select{
+  height:42px !important;
+  min-height:42px !important;
+  padding:0 34px 0 12px !important;
+  line-height:40px !important;
+  font-size:.84em !important;
+  box-sizing:border-box !important;
+  vertical-align:middle !important;
+}
+#laboratorio-combate #labParticipanteSelect{width:390px !important;min-width:390px !important;}
+#laboratorio-combate #labMapaSalvoSelect{width:315px !important;min-width:315px !important;}
+#laboratorio-combate #labZoom{width:175px !important;min-width:175px !important;}
+#laboratorio-combate .lab-psi-action{color:#4b176b !important;font-weight:800 !important;}
+@media (max-width:900px){
+ #laboratorio-combate #labParticipanteSelect,#laboratorio-combate #labMapaSalvoSelect{width:min(78vw,360px)!important;min-width:220px!important;}
+}
+</style>
+
+
+<style id="v46740-retire-old-map-editor">
+#laboratorio-combate #labMapCreationControls,
+#laboratorio-combate #labEditMapToggleWrap{display:none !important;}
+</style>
+
+<style id="v46760-css">
+#labMetricMap{
+  overflow:hidden !important;
+}
+#labMetricMap .lab-range-overlay-760{
+  z-index:8 !important;
+  pointer-events:none !important;
+}
+#labActionPanel{
+  padding:8px 10px !important;
+}
+#labActionPanel select{
+  min-height:38px !important;
+  height:38px !important;
+  padding-top:4px !important;
+  padding-bottom:4px !important;
+}
+#labActionPanel .btn-small{
+  min-height:36px;
+}
+#labActionPanel > div{
+  row-gap:5px;
+}
+#labActionPanel small{
+  margin-bottom:2px !important;
+}
+#labQuickTools760{
+  display:none;
+  align-items:center;
+  gap:5px;
+  margin:0;
+}
+#labQuickTools760 button{
+  height:36px;
+  min-width:38px;
+  padding:4px 9px;
+}
+#labQuickTools760 button.active{
+  outline:2px solid #67e8f9;
+  background:#233e50;
+  color:#fff;
+}
+#labMasterPJWrap760{
+  display:none;
+  align-items:center;
+  gap:6px;
+  margin:0;
+  min-height:36px;
+  box-sizing:border-box;
+}
+#labQuickOverlay760{
+  position:absolute;
+  inset:0;
+  z-index:18;
+  pointer-events:none;
+  overflow:hidden;
+}
+.lab-point-arrow760{
+  position:absolute;
+  width:44px;
+  height:58px;
+  transform:translate(-50%,-100%);
+  transform-origin:50% 100%;
+  animation:labPointFade760 6s linear forwards;
+  filter:drop-shadow(0 2px 3px rgba(0,0,0,.7));
+}
+.lab-point-arrow760 svg{width:100%;height:100%;display:block}
+@keyframes labPointFade760{
+  0%,65%{opacity:1}
+  100%{opacity:0}
+}
+#labQuickLinePreview760{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  pointer-events:none;
+}
+</style>
+
+<style id="v46770-live-object-bank-css">
+#labLiveObjectList770 label{margin:0;display:flex;align-items:center;gap:7px;padding:5px 7px;border-radius:7px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.08);min-width:0}
+#labLiveObjectList770 img{width:38px;height:38px;object-fit:contain;flex:0 0 auto;background:rgba(255,255,255,.04);border-radius:6px}
+#labLiveObjectList770 .lab-live-obj-meta770{min-width:0;line-height:1.15}
+#labLiveObjectList770 .lab-live-obj-name770{font-weight:750;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#labLiveObjectList770 small{color:#9fb8c9;font-size:.75em}
+</style>
+
+<style id="labCompactUiExploracao4">
+/* EXP-EXPLORACAO-4: painel de combate mais compacto e faixas secundárias estáveis */
+#labActionPanel{font-size:.78rem!important;padding:5px 7px!important;margin-bottom:5px!important;}
+#labActionPanel select,#labActionPanel input{font-size:.80rem!important;min-height:34px!important;height:34px!important;padding:3px 7px!important;}
+#labActionPanel .btn-small{font-size:.78rem!important;min-height:34px!important;height:34px!important;padding:3px 9px!important;}
+#labActionPanel small{font-size:.72rem!important;}
+#labActionPanel .lab-action-description-inline{flex:1 1 320px;min-height:34px;display:flex;align-items:center;padding:4px 7px;border-radius:7px;background:rgba(255,255,255,.045);color:#cfe7ff;font-size:.74rem;line-height:1.25;}
+#labActionPanel .lab-pv-title{margin-top:5px!important;font-size:.70rem!important;}
+#labActionPanel .lab-pv-grid{gap:3px!important;margin-top:3px!important;}
+#labActionPanel .lab-pv-cell{padding:2px 4px!important;border-radius:5px!important;line-height:1.05;}
+#labActionPanel .lab-pv-cell small{font-size:.65rem!important;line-height:1.05!important;}
+#labActionPanel .lab-pv-cell b{font-size:.76rem!important;line-height:1.05!important;}
+.lab-secondary-strip{display:flex!important;align-items:center;gap:7px;flex-wrap:nowrap!important;box-sizing:border-box;height:36px;min-height:36px;max-height:36px;padding:4px 7px;margin-bottom:5px;border-radius:7px;font-size:.72rem;line-height:1.05;white-space:nowrap;overflow-x:auto;overflow-y:hidden;}
+.lab-info-strip{background:rgba(0,212,255,.07);border:1px solid rgba(0,212,255,.20);color:#cdefff;}
+.lab-object-strip{background:rgba(86,240,138,.07);border:1px solid rgba(86,240,138,.28);color:#d8ffe5;}
+#labInfo select{font-size:.70rem!important;min-height:25px!important;height:25px!important;padding:1px 5px!important;min-width:110px!important;}
+#labObjetoPainel .btn-small{font-size:.68rem!important;min-height:25px!important;height:25px!important;padding:2px 7px!important;}
+#labObjetoPainel input{font-size:.68rem!important;height:25px!important;padding:1px 4px!important;width:52px!important;}
+#labCombatStatus{font-size:.78rem!important;padding:5px 8px!important;margin-bottom:5px!important;}
+
+/* EXP-ATUAR-CAMERA-6 */
+#labActAsWrapE6{
+  display:flex;align-items:center;gap:6px;padding:5px 8px;
+  border:1px solid rgba(126,231,255,.34);border-radius:8px;
+  background:rgba(126,231,255,.055);font-size:.82rem;
+}
+#labActAsE6{margin:0;min-width:210px;max-width:330px;height:31px;min-height:31px;font-size:.80rem;padding:2px 7px;}
+#labActAsWrapE6.is-auto{border-color:rgba(255,213,74,.38);background:rgba(255,213,74,.055);}
+#labMapViewport{position:relative;scrollbar-gutter:stable both-edges;}
+#labZoom:disabled{opacity:.72;cursor:not-allowed;}
+
+</style>
+</head>
+<body>
+    <div class="galaxy-bg"></div>
+    <div class="stars-container" id="starsContainer"></div>
+    
+    <div class="container">
+        <!-- LOGIN -->
+        <div id="loginScreen" class="login-screen">
+            <div class="login-box">
+                <div class="lang-selector">
+                    <button class="lang-btn active" onclick="mudarIdioma('pt')">PT</button>
+                    <button class="lang-btn" onclick="mudarIdioma('en')">EN</button>
+                    <button class="lang-btn" onclick="mudarIdioma('zh')">中文</button>
+                </div>
+                <h2 data-i18n="title">D100 - Mesa Estelar RPG</h2>
+                <p data-i18n="subtitle">Sistema de RPG Sci-Fi d100</p>
+                <div id="loginMessage"></div>
+                <input type="email" id="loginEmail" data-i18n-placeholder="emailPlaceholder" placeholder="Email">
+                <input type="password" id="loginPassword" data-i18n-placeholder="passwordPlaceholder" placeholder="Senha (mínimo 6 caracteres)">
+                <button class="btn-login" onclick="fazerLogin()" data-i18n="loginBtn">Entrar</button>
+                <button class="btn-login btn-secondary" onclick="fazerRegistro()" data-i18n="registerBtn">Criar Conta</button>
+            </div>
+        </div>
+
+        <!-- APP -->
+        <div id="appScreen" class="hidden">
+            <div class="user-header">
+                <div class="user-info">
+                    <span id="userRole"></span> 👤 <strong id="currentUser"></strong>
+                </div>
+                <div class="lang-selector">
+                    <button class="lang-btn" onclick="mudarIdioma('pt')">PT</button>
+                    <button class="lang-btn" onclick="mudarIdioma('en')">EN</button>
+                    <button class="lang-btn" onclick="mudarIdioma('zh')">中文</button>
+                </div>
+                <button class="btn-logout" onclick="fazerLogout()" data-i18n="logoutBtn">Sair</button>
+            </div>
+
+            <h1 data-i18n="appTitle">D100 - Mesa Estelar RPG</h1>
+
+            <!-- ABAS GLOBAIS -->
+            <div class="tabs">
+                <button class="tab-btn active" onclick="mostrarAba('ficha', this)" data-i18n="tabFicha">📋 Ficha</button>
+                <button class="tab-btn" id="cenarioAtualTabBtn" onclick="mostrarAba('cenario-publico', this)">🪐 Cenário Atual</button>
+                <button class="tab-btn" id="mercadoTabBtn" onclick="mostrarAba('mercado', this)" data-i18n="tabMercado">🛒 Mercado</button>
+                <button class="tab-btn hidden" id="batalhaTabBtn" onclick="mostrarAba('batalha', this)">⚔️ Combate antigo</button>
+                <button class="tab-btn" id="regrasTabBtn" onclick="mostrarAba('regras', this)" data-i18n="tabRegras">📖 Regras</button>
+                <button class="tab-btn" id="laboratorioTabBtn" onclick="mostrarAba('laboratorio-combate', this)">🗺️ Mapa da Mesa</button>
+                <button class="tab-btn hidden" id="escudoTabBtn" onclick="mostrarAba('escudo', this)" data-i18n="tabGM">🛡️ Escudo do Mestre</button>
+            </div>
+
+            <div id="cenario-publico" class="tab-content">
+                <div class="form-section">
+                    <h2 style="margin:0 0 6px;">🪐 Cenário Atual</h2>
+                    <p style="color:#aaa;margin:0 0 16px;">Informações públicas do local e das condições atuais da campanha.</p>
+                    <div id="globalCurrentScenarioPublic"><div style="color:#888;">Nenhum cenário público carregado.</div></div>
+                </div>
+            </div>
+
+            <div id="laboratorio-combate" class="tab-content">
+                <div class="form-section">
+                    <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start;">
+                        <div><h2 style="margin:0 0 5px;">🗺️ Mapa da Mesa</h2>
+                        </div>
+                        <span id="labLiveBadge" style="display:none"></span>
+                    </div>
+                    <div class="lab-toolbar-row" style="margin:14px 0 10px;">
+                        <div id="labMasterGameControls" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                            <label class="lab-control">Adicionar
+                              <select id="labParticipanteSelect"><option value="">— personagem / NPC / criatura —</option></select>
+                            </label>
+                            <button class="btn-small btn-select" onclick="labAdicionarParticipanteSelecionado_()">➕ Colocar na mesa</button>
+                            <button class="btn-small" onclick="labRetirarParticipanteSelecionado_()" title="Retira da grid apenas o participante atualmente selecionado; não apaga a ficha">➖ Retirar selecionado</button>
+                            <button class="btn-small" onclick="labAdicionarBoneco_()">🎯 Boneco de treino</button>
+                            <button class="btn-small" onclick="labPosicoesAleatorias_()">🎲 Posições aleatórias</button>
+                            <button class="btn-small" id="labStartBtn" onclick="labAlternarCombate_()">⚡ Iniciar combate</button>
+                            <button class="btn-small hidden" id="labNextBtn" onclick="labEncerrarOportunidade_()">⏭ Encerrar oportunidade</button>
+                            <button class="btn-small" onclick="labRestaurarParticipantes_()" title="Restaura PV, PP, Sorte, AÇ, fadiga, estados e munição dos participantes atuais">♻️ Restaurar participantes</button>
+                            <button class="btn-small" onclick="labLimpar_()">🧹 Limpar mesa</button>
+                        </div>
+                        <div id="labMasterMapLoader" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                            <label class="lab-control">Mapas salvos
+                              <select id="labMapaSalvoSelect" onchange="labSelecionarMapaSalvo_(this.value)"><option value="">— nenhum —</option></select>
+                            </label>
+                            <button class="btn-small" onclick="labCarregarMapaBanco_()" title="Carrega o mapa selecionado sem alterar os participantes">📂 Carregar</button>
+                        </div>
+                        <label class="lab-control">Escala <select id="labZoom" onchange="labMudarZoom_(this.value)"><option value="36">36 px/m</option><option value="48" selected>48 px/m</option><option value="60">60 px/m</option><option value="72">72 px/m</option></select></label>
+                        <label id="labEditMapToggleWrap" style="display:flex;align-items:center;gap:7px;padding:6px 9px;border:1px solid rgba(86,240,138,.35);border-radius:8px;background:rgba(86,240,138,.07);" title="Mostra ou esconde as ferramentas de criação do mapa"><input id="labModoCriarMapa" type="checkbox" onchange="labAlternarModoCriacaoMapa_(this.checked)"> 🛠️ Editar mapa</label>
+                        <div id="labMapCreationControls" style="display:none;flex-basis:100%;gap:8px;flex-wrap:wrap;align-items:center;padding:9px 10px;border:1px solid rgba(86,240,138,.22);border-radius:10px;background:rgba(86,240,138,.035);">
+                            <label style="display:flex;align-items:center;gap:6px;">Fundo <input id="labBgColor" type="color" value="#d7d7d7" onchange="labMudarFundo_(this.value)"></label>
+                            <label style="display:flex;align-items:center;gap:6px;">Linhas <input id="labGridColor" type="color" value="#777777" onchange="labMudarCorGrade_(this.value)"></label>
+                            <label style="display:flex;align-items:center;gap:6px;"><input id="labGridVisible" type="checkbox" checked onchange="labAlternarGrade_(this.checked)"> Mostrar grade</label>
+                            <label class="lab-control">Textura
+                                <select id="labTexture" onchange="labMudarTextura_(this.value)">
+                                    <option value="nenhuma">Nenhuma</option><option value="concreto">Concreto</option><option value="areia">Areia</option><option value="terra">Terra</option><option value="grama">Grama</option><option value="floresta">Floresta</option><option value="rochas">Rochas</option><option value="neve">Neve</option><option value="agua">Água</option><option value="vulcanico">Vulcânico</option><option value="metal">Metal / nave</option><option value="ruinas">Ruínas</option><option value="alien">Biomassa alienígena</option><option value="nevoa">Névoa</option>
+                                </select>
+                            </label>
+                            <span style="height:28px;border-left:1px solid rgba(255,255,255,.18);"></span>
+                            <button class="btn-small" id="labDrawToggle" onclick="labDesenhoAlternar_()" title="Ativa/desativa desenho sobre o mapa">✏️ Desenhar</button>
+                            <button class="btn-small" id="labEraserBtn" onclick="labDesenhoBorracha_()" title="Apaga apenas onde você passar">🧽 Borracha</button>
+                            <button class="btn-small" id="labUndoBtn" onclick="labDesenhoDesfazer_()">↶</button>
+                            <button class="btn-small" id="labRedoBtn" onclick="labDesenhoRefazer_()">↷</button>
+                            <label class="lab-control">Ferramenta <select id="labDrawTool" onchange="labDesenhoFerramenta_(this.value)"><option value="traco">Traço</option><option value="textura">Textura</option><option value="borracha">Borracha</option></select></label>
+                            <label style="display:flex;align-items:center;gap:5px;">Cor <input id="labDrawColor" type="color" value="#ffcf4d" onchange="labDesenhoCor_(this.value)" style="width:32px;height:27px;padding:1px;"></label>
+                            <label style="display:flex;align-items:center;gap:5px;" title="Digite RGB como 93/93/93, 93,93,93 ou 93 93 93">RGB <input id="labDrawRgb" type="text" inputmode="numeric" value="255/207/77" placeholder="93/93/93" oninput="labDesenhoCorRGB_(this.value)" style="width:92px;margin:0;padding:6px 8px;font-size:.88em;"></label>
+                            <span style="display:flex;gap:3px;align-items:center;" title="Cores rápidas"><button onclick="labDesenhoCor_('#ffffff')" style="width:20px;height:20px;min-width:20px;padding:0;border-radius:50%;background:#ffffff"></button><button onclick="labDesenhoCor_('#111111')" style="width:20px;height:20px;min-width:20px;padding:0;border-radius:50%;background:#111111"></button><button onclick="labDesenhoCor_('#ff5252')" style="width:20px;height:20px;min-width:20px;padding:0;border-radius:50%;background:#ff5252"></button><button onclick="labDesenhoCor_('#ffcf4d')" style="width:20px;height:20px;min-width:20px;padding:0;border-radius:50%;background:#ffcf4d"></button><button onclick="labDesenhoCor_('#56f08a')" style="width:20px;height:20px;min-width:20px;padding:0;border-radius:50%;background:#56f08a"></button><button onclick="labDesenhoCor_('#45b7ff')" style="width:20px;height:20px;min-width:20px;padding:0;border-radius:50%;background:#45b7ff"></button><button onclick="labDesenhoCor_('#b56cff')" style="width:20px;height:20px;min-width:20px;padding:0;border-radius:50%;background:#b56cff"></button></span>
+                            <label style="display:flex;align-items:center;gap:5px;">Tamanho <input id="labDrawSize" type="range" min="2" max="48" value="7" onchange="labDesenhoTamanho_(this.value)" style="width:82px;"></label>
+                            <label style="display:flex;align-items:center;gap:5px;">Opacidade <input id="labDrawOpacity" type="range" min="5" max="100" step="5" value="100" oninput="labDesenhoOpacidade_(this.value)" style="width:82px;"><span id="labDrawOpacityValue" style="min-width:34px;color:#bbb;font-size:.82em;">100%</span></label>
+                            <label class="lab-control">Pincel <select id="labDrawBrush" onchange="labDesenhoPincel_(this.value)"><option value="redondo">Redondo</option><option value="quadrado">Quadrado</option><option value="spray">Spray</option><option value="irregular">Irregular</option><option value="caligrafico">Caligráfico</option></select></label>
+                            <label class="lab-control">Textura do traço <select id="labDrawStrokeTexture" onchange="labDesenhoTexturaTraco_(this.value)"><option value="solida">Sólida</option><option value="pontilhada">Pontilhada</option><option value="giz">Giz</option><option value="ranhura">Ranhura</option><option value="areia">Areia</option><option value="cascalho">Cascalho</option><option value="grama">Grama</option><option value="folhas">Folhas</option><option value="neve">Neve</option><option value="fumaca">Fumaça</option></select></label>
+                            <button class="btn-small" onclick="labDesenhoLimpar_()" title="Apaga todos os desenhos. Pode ser desfeito com ↶.">🗑️ Limpar pintura</button>
+                            <span style="height:28px;border-left:1px solid rgba(255,255,255,.18);"></span>
+                            <label style="display:flex;align-items:center;gap:5px;">Objeto <select id="labObjetoModeloSelect" style="width:165px;margin:0;"><option value="">— objeto —</option></select></label>
+                            <button class="btn-small btn-select" onclick="labAdicionarObjetoSelecionado_()">➕ Colocar objeto</button>
+                            <button class="btn-small lab-repeat-btn" onclick="labRepetirAoLado_()" title="Repete a última colocação de objeto ou o último traço, deslocado 1 m para o lado">⧉ Repetir ao lado</button>
+                            <span style="height:28px;border-left:1px solid rgba(255,255,255,.18);"></span>
+                            <button class="btn-small" onclick="labSalvarMapaBanco_()">💾 Salvar alterações</button>
+                            <button class="btn-small btn-select" onclick="labSalvarMapaComoNovo_()">➕ Salvar como novo</button>
+                            <button class="btn-small" onclick="labExcluirMapaBanco_()">🗑️ Excluir mapa</button>
+                            <label class="lab-control">Tamanho do mapa <select id="labMapSize" onchange="labMudarTamanhoMapa_(this.value)"><option value="24x14">24 × 14 m</option><option value="28x14" selected>28 × 14 m</option><option value="32x16">32 × 16 m</option><option value="36x18">36 × 18 m</option></select></label>
+                        </div>
+                    </div>
+                    <div id="labCombatStatus" style="padding:9px 11px;margin-bottom:8px;border-radius:8px;background:rgba(255,193,7,.08);border:1px solid rgba(255,193,7,.30);color:#ffe29a;"></div>
+                    <div id="labActionPanel" style="display:none;margin-bottom:7px;padding:7px 9px;border-radius:9px;font-size:.88em;background:rgba(22,18,48,.88);border:1px solid rgba(0,212,255,.28);"></div>
+                    <div id="labInfo" class="lab-secondary-strip lab-info-strip">Clique num token para selecioná-lo.</div>
+                    <div id="labObjetoPainel" class="lab-secondary-strip lab-object-strip"></div>
+                    <div id="labMapViewport" style="overflow:auto;padding:10px;border-radius:12px;background:rgba(0,0,0,.18);border:1px solid rgba(255,255,255,.12);">
+                        <div id="labHoverCard" style="display:none;position:fixed;z-index:99999;pointer-events:none;width:300px;max-height:520px;overflow:hidden;border:1px solid rgba(0,212,255,.55);border-radius:12px;background:rgba(12,14,33,.97);box-shadow:0 12px 34px rgba(0,0,0,.55);padding:10px;"></div>
+                    <div id="labPlayerPrivateResult" style="display:none"></div>
+                    <div id="labMetricMap" onclick="labCliqueFundoMapa_(event)" oncontextmenu="return false;" style="position:relative;width:1152px;height:672px;background-color:#d7d7d7;background-image:linear-gradient(to right,rgba(0,0,0,.15) 1px,transparent 1px),linear-gradient(to bottom,rgba(0,0,0,.15) 1px,transparent 1px);background-size:48px 48px;user-select:none;touch-action:none;"></div>
+                    </div>
+                    <details id="labLiveObjectBank770" style="display:block;margin-top:8px;padding:7px 9px;border-radius:9px;background:rgba(9,15,38,.66);border:1px solid rgba(86,240,138,.25);">
+                      <summary style="cursor:pointer;font-weight:800;color:#d8ffe5;user-select:none;">🧱 Objetos do banco <span style="font-size:.72em;color:#7fdfff">v46.81.3</span></summary>
+                      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0 6px;">
+                        <label style="margin:0;display:flex;align-items:center;gap:5px;"><input id="labLiveObjAll770" type="checkbox"> Selecionar todos</label>
+                        <button class="btn-small btn-select" onclick="labLiveAdicionarObjetos770_()">➕ Adicionar marcados</button>
+                        <small style="color:#9fb8c9">Os objetos entram no centro do mapa com PV, dureza, fogo e demais propriedades do banco.</small>
+                      </div>
+                      <div id="labLiveObjectList770" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:6px;"></div>
+                    </details>
+                    <div id="labHistoricoMesa" style="display:none;margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(8,12,29,.68);border:1px solid rgba(0,212,255,.22);max-height:210px;overflow:auto;"></div>
+                    <div style="margin-top:8px;color:#888;font-size:.88em;">Área padrão: 28 m × 14 m. As linhas de 1 m servem apenas como régua visual. O token pode parar em qualquer ponto.</div>
+                </div>
+            </div>
+
+            <!-- ABA BATALHA COMPARTILHADA V29 -->
+            <div id="batalha" class="tab-content">
+                <div class="form-section">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;">
+                        <div>
+                            <h2 style="margin:0 0 4px;">⚔️ Painel de Combate</h2>
+                            <p style="color:#aaa;margin:0;">Um único combate compartilhado para mestre e jogadores.</p>
+                        </div>
+                        <div id="battleRoundBadge" style="font-size:1.15em;font-weight:800;color:#ffd166;">Fora de combate</div>
+                    </div>
+
+                    <div id="battleMasterSetup" style="display:none;margin-top:16px;padding:14px;border-radius:12px;background:rgba(0,0,0,.16);border:1px solid rgba(255,255,255,.10);">
+                        <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
+                            <h3 style="margin:0;color:#ff9c90;">🎛️ Controle do Mestre</h3>
+                            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                                <button class="btn-small btn-select" onclick="batalhaAdicionarSelecionados_()">➕ Adicionar selecionados</button>
+                                <button class="btn-small" onclick="batalhaOrdenarIniciativa_()">↕️ Ordenar iniciativa</button>
+                                <button class="btn-small" onclick="batalhaNovaRodada_(true)">🔄 Nova rodada</button>
+                                <button class="btn-small btn-delete" onclick="batalhaEncerrar_()">⏹ Encerrar batalha</button>
+                            </div>
+                        </div>
+                        <div id="battleMasterCandidates" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px;margin-top:12px;max-height:240px;overflow:auto;"></div>
+                    </div>
+
+                    <div id="battlePendingGlobal" style="margin-top:14px;"></div>
+
+                    <div style="display:grid;grid-template-columns:minmax(0,1fr);gap:12px;margin-top:16px;">
+                        <div id="battleParticipantCards" style="display:flex;flex-direction:column;gap:12px;"></div>
+                    </div>
+
+                    <div id="battlePositionPanel" style="margin-top:18px;"></div>
+
+                    <div style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,.10);">
+                        <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;">
+                            <h3 style="margin:0;color:#00d4ff;">📜 Histórico da batalha</h3>
+                            <small style="color:#888;">Jogadores veem detalhes apenas das próprias rolagens; o mestre vê tudo.</small>
+                        </div>
+                        <div id="battlePublicLog" style="display:flex;flex-direction:column;gap:7px;margin-top:10px;max-height:280px;overflow:auto;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ABA MERCADO -->
+            <div id="mercado" class="tab-content">
+                <div class="form-section">
+                    <h2 data-i18n="marketTitle">🛒 Mercado</h2>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 15px;">
+                        <button id="marketSubtabComprar" class="btn-small btn-select" onclick="mostrarSubAbaMercado_('comprar')">🛒 Comprar</button>
+                        <button id="marketSubtabVender" class="btn-small" onclick="mostrarSubAbaMercado_('vender')">💰 Vender</button>
+                        <button id="marketSubtabLocal" class="btn-small" onclick="mostrarSubAbaMercado_('local')">🏪 Mercado local</button>
+                    </div>
+
+                    <div id="marketPaneComprar">
+                        <p data-i18n="marketIntro">Compre itens do banco de dados para o personagem atualmente selecionado. Itens aparecem por nível de acesso: Livre → Restrito → Militar.</p>
+                        <div class="market-toolbar">
+                            <input type="text" id="marketSearch" data-i18n-placeholder="marketSearchPlaceholder" placeholder="Buscar item..." oninput="renderizarMercado()">
+                            <select id="marketCategory" onchange="renderizarMercado()"><option value="" data-i18n="allCategories">Todas as categorias</option></select>
+                            <select id="marketDestination">
+                                <option value="mochila" data-i18n="backpack">Mochila</option>
+                                <option value="bolso" data-i18n="pocket">Bolso</option>
+                                <option value="veiculo" data-i18n="vehicleShip">Veículo/Nave</option>
+                                <option value="casa" data-i18n="homeBase">Casa/Base</option>
+                            </select>
+                            <div class="market-balance"><span data-i18n="resourcesLabel">Recursos</span>: <span id="marketBalance">0</span></div>
+                        </div>
+                        <div id="marketNotice" style="color:#aaa;margin-bottom:14px;"></div>
+                        <div id="marketGrid" class="market-grid"></div>
+                    </div>
+
+                    <div id="marketPaneVender" class="hidden">
+                        <p style="color:#aaa;">Itens do personagem atual. Venda normal: 80% do preço pago, multiplicado pela condição atual do item. Um item com 0 PV vale 0 e pode ser descartado. Itens danificados podem ser enviados para reparo.</p>
+                        <div class="market-toolbar">
+                            <input id="marketSellSearch" placeholder="Buscar no inventário..." oninput="renderizarVendaMercado_()">
+                            <select id="marketSellCategory" onchange="renderizarVendaMercado_()"><option value="">Todas as categorias</option></select>
+                            <div class="market-balance">Recursos: <span id="marketSellBalance">0</span></div>
+                        </div>
+                        <div id="marketSellNotice" style="color:#aaa;margin-bottom:14px;"></div>
+                        <div id="marketSellGrid" class="market-grid"></div>
+                    </div>
+
+                    <div id="marketPaneLocal" class="hidden">
+                        <div id="marketLocalHeader" style="margin-bottom:12px;color:#aaa;"></div>
+                        <div id="marketLocalNegotiation" style="padding:12px;border-radius:10px;background:rgba(0,212,255,.05);border:1px solid rgba(0,212,255,.18);margin-bottom:14px;"></div>
+                        <div id="marketLocalMasterControls" class="hidden" style="padding:14px;border-radius:10px;background:rgba(255,193,7,.06);border:1px solid rgba(255,193,7,.28);margin-bottom:14px;"></div>
+                        <div id="marketLocalGrid" class="market-grid"></div>
+                        <div id="marketLocalServices" style="margin-top:24px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ABA FICHA -->
+            <div id="ficha" class="tab-content active">
+                <div class="char-manager">
+                    <h3 data-i18n="myCharacters">Meus Personagens</h3>
+                    <div id="masterCharacterFilterBar" class="hidden" style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:0 0 12px;">
+                        <label style="display:flex;align-items:center;gap:7px;margin:0;font-weight:700;">Mostrar
+                            <select id="masterCharacterFilter" onchange="mudarFiltroPersonagensMestre_(this.value)" style="width:180px;margin:0;">
+                                <option value="pm">PM — meus personagens</option>
+                                <option value="pj">PJ — jogadores</option>
+                                <option value="todos">Todos</option>
+                            </select>
+                        </label>
+                    </div>
+                    <div class="char-list" id="charList"></div>
+                    <button class="btn-new" onclick="novoPersonagem()" data-i18n="newChar">➕ Novo Personagem</button>
+                </div>
+
+                <div id="characterSection" class="hidden">
+                    <div id="masterCharacterControlBanner" class="hidden" style="margin:0 0 14px;padding:12px 16px;border-radius:10px;background:rgba(255,193,7,.10);border:1px solid rgba(255,193,7,.35);color:#ffd166;font-weight:600;"></div>
+                    <div id="charProgressionBanner" class="hidden" style="margin:0 0 14px;padding:12px 16px;border-radius:10px;background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.28);color:#c8f7ff;"></div>
+                    <div id="charCreationGuideBar" class="hidden" style="margin:0 0 12px;display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 12px;border-radius:10px;background:rgba(155,89,182,.10);border:1px solid rgba(155,89,182,.28);">
+                        <span>🧭 <b>Criação de personagem</b> · guia passo a passo</span>
+                        <button class="btn-small" type="button" onclick="iniciarTutorialCriacao_()">▶ Mostrar guia</button>
+                    </div>
+                    <div class="char-tabs">
+                        <button class="char-tab-btn active" onclick="mostrarCharAba('personagem', this)" data-i18n="charTabCharacter">📄 Personagem</button>
+                        <button class="char-tab-btn" id="charSkillsTabBtn" onclick="mostrarCharAba('pericias', this)" data-i18n="charTabSkills">📚 Perícias</button>
+                        <button class="char-tab-btn" onclick="mostrarCharAba('inventario', this)" data-i18n="charTabInventory">🎒 Inventário</button>
+                        <button class="char-tab-btn" id="charOtherTraitsTabBtn" onclick="mostrarCharAba('combate', this)">🧩 Outras Características</button>
+                        <button class="char-tab-btn" onclick="mostrarCharAba('anotacoes', this)" data-i18n="charTabNotes">📔 Anotações</button>
+                        <button class="char-tab-btn" onclick="mostrarCharAba('rolagem', this)" data-i18n="charTabRolls">🎲 Rolagem</button>
+                    </div>
+
+                    <!-- PERSONAGEM -->
+                    <div id="char-personagem" class="char-tab-content active">
+                        <div class="character-card">
+                            <div class="character-header">
+                                <div class="avatar" id="charAvatar"><span>👤</span></div>
+                                <div class="char-info">
+                                    <h2 id="charName">-</h2>
+                                    <p><span id="charRace">-</span> | <span id="charOrigin">-</span> | <span id="charCareer">-</span></p>
+                                </div>
+                            </div>
+
+                            <div class="attributes-grid">
+                                <div class="attr-card"><div class="attr-label" data-i18n="FOR">FOR</div><div class="attr-value" id="valFOR">10</div><div class="attr-bonus"><input type="number" id="bonusFOR" value="0" onchange="calcularDerivados()"></div></div>
+                                <div class="attr-card"><div class="attr-label" data-i18n="CON">CON</div><div class="attr-value" id="valCON">10</div><div class="attr-bonus"><input type="number" id="bonusCON" value="0" onchange="calcularDerivados()"></div></div>
+                                <div class="attr-card"><div class="attr-label" data-i18n="TAM">TAM</div><div class="attr-value" id="valTAM">10</div><div class="attr-bonus"><input type="number" id="bonusTAM" value="0" onchange="calcularDerivados()"></div></div>
+                                <div class="attr-card"><div class="attr-label" data-i18n="DES">DES</div><div class="attr-value" id="valDES">10</div><div class="attr-bonus"><input type="number" id="bonusDES" value="0" onchange="calcularDerivados()"></div></div>
+                                <div class="attr-card"><div class="attr-label" data-i18n="INT">INT</div><div class="attr-value" id="valINT">10</div><div class="attr-bonus"><input type="number" id="bonusINT" value="0" onchange="calcularDerivados()"></div></div>
+                                <div class="attr-card"><div class="attr-label" data-i18n="POD">POD</div><div class="attr-value" id="valPOD">10</div><div class="attr-bonus"><input type="number" id="bonusPOD" value="0" onchange="calcularDerivados()"></div></div>
+                                <div class="attr-card"><div class="attr-label" data-i18n="CAR">CAR</div><div class="attr-value" id="valCAR">10</div><div class="attr-bonus"><input type="number" id="bonusCAR" value="0" onchange="calcularDerivados()"></div></div>
+                            </div>
+
+                            <div class="derived-stats">
+                                <div class="stat-box"><div class="stat-label" data-i18n="pa">Ações</div><div class="stat-value" id="statPA">1</div></div>
+                                <div class="stat-box"><div class="stat-label" data-i18n="iniciativa">Iniciativa</div><div class="stat-value" id="statIniciativa">20</div></div>
+                                <div class="stat-box"><div class="stat-label" data-i18n="modDano">Mod. Dano</div><div class="stat-value" id="statModDano">-1d2</div></div>
+                                <div class="stat-box"><div class="stat-label" data-i18n="modExp">Mod. Experiência</div><div class="stat-value" id="statModExp">0</div></div>
+                                <div class="stat-box"><div class="stat-label" data-i18n="taxaRecup">Taxa de Recuperação</div><div class="stat-value" id="statTaxaRecup">2</div></div>
+                                <div class="stat-box"><div class="stat-label" data-i18n="movement">Movimento</div><div class="stat-value" id="statMovimento">6</div></div>
+                                <div class="stat-box"><div class="stat-label" data-i18n="pontosSorte">Pontos de Sorte</div><div class="stat-value"><input type="number" id="editPontosSorte" min="0" step="1" value="1" onchange="salvarPontosSorte()" style="width:100%;text-align:center;"></div></div>
+                                <div class="stat-box hidden" id="statMagiaBox"><div class="stat-label" data-i18n="magicPoints">Pontos de Magia</div><div class="stat-value" id="statPontosMagia">—</div></div>
+                                <div class="stat-box"><div class="stat-label" data-i18n="altura">Altura</div><div class="stat-value"><input type="number" id="editAltura" min="0.30" max="20" step="0.01" inputmode="decimal" onchange="salvarAlturaPeso()"></div></div>
+                                <div class="stat-box"><div class="stat-label" data-i18n="peso">Peso</div><div class="stat-value"><input type="number" id="editPeso" onchange="salvarAlturaPeso()"></div></div>
+                                <div class="stat-box" style="min-width:190px;">
+                                    <div class="stat-label" data-i18n="socialClass">Classe Social</div>
+                                    <div class="stat-value"><input type="text" id="editClasseSocialFrente" onchange="salvarClasseSocial()" style="font-size:.72em;width:100%;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-section">
+                            <h3 data-i18n="editChar2">Editar Personagem</h3>
+                            <div class="form-group" id="creationNameGroup"><label data-i18n="nameLabel">Nome:</label><input type="text" id="editName"></div>
+                            <div class="form-group"><label data-i18n="race">Raça:</label><input type="text" id="editRace" value="Humano"></div>
+                            <div class="form-group"><label data-i18n="genderLabel">Gênero:</label><select id="editSex"><option value="Masculino">Masculino</option><option value="Feminino">Feminino</option><option value="Hermafrodita">Hermafrodita</option><option value="Andrógeno">Andrógeno</option><option value="Neutro">Neutro</option></select></div>
+                            <div class="form-group"><label data-i18n="charImageUrl">Imagem do Personagem (URL):</label><input type="url" id="editCharImage" placeholder="https://..." oninput="previewImagemPersonagem()" onchange="salvarImagemPersonagemAtual_()"></div>
+                            <div class="form-group"><label data-i18n="orUpload">Ou fazer upload:</label><input type="file" id="editCharImageFile" accept="image/*" onchange="handleCharacterImageUpload(event)"><small id="charImageUploadStatus" style="display:block; opacity:.75; margin-top:6px;"></small></div>
+                            <div class="form-group"><div class="avatar" id="editCharImagePreview" style="width:120px;height:120px;"><span>👤</span></div></div>
+                            <div class="form-group" id="creationOriginGroup"><label data-i18n="origin">Origem:</label><select id="editOrigin"></select></div>
+                            <div class="form-group" id="creationCareerGroup"><label data-i18n="career">Carreira:</label><select id="editCareer"></select></div>
+                            <div class="form-group"><label data-i18n="bodyType">Tipo Corporal:</label><select id="editBodyType" onchange="calcularAlturaPesoDoFormulario()"><option value="Leve">Leve</option><option value="Médio" selected>Médio</option><option value="Pesado">Pesado</option></select></div>
+                            
+                            <div class="total-points"><div class="value" id="totalPoints">70</div><div class="limit">/ 80 pontos</div></div>
+                            
+                            <div id="creationAttributesGrid" style="display:grid; grid-template-columns: repeat(7, 1fr); gap:10px; margin:20px 0;">
+                                <div><label data-i18n="FOR">FOR</label><input type="number" id="editFOR" min="3" max="18" value="10" oninput="validarAtributos()"></div>
+                                <div><label data-i18n="CON">CON</label><input type="number" id="editCON" min="3" max="18" value="10" oninput="validarAtributos()"></div>
+                                <div><label data-i18n="TAM">TAM</label><input type="number" id="editTAM" min="6" max="18" value="10" oninput="validarAtributos(); calcularAlturaPesoDoFormulario()"></div>
+                                <div><label data-i18n="DES">DES</label><input type="number" id="editDES" min="3" max="18" value="10" oninput="validarAtributos()"></div>
+                                <div><label data-i18n="INT">INT</label><input type="number" id="editINT" min="6" max="18" value="10" oninput="validarAtributos()"></div>
+                                <div><label data-i18n="POD">POD</label><input type="number" id="editPOD" min="3" max="18" value="10" oninput="validarAtributos()"></div>
+                                <div><label data-i18n="CAR">CAR</label><input type="number" id="editCAR" min="3" max="18" value="10" oninput="validarAtributos()"></div>
+                            </div>
+                            
+                            <button class="btn-save" id="saveCharacterBtn" onclick="salvarPersonagem()" data-i18n="saveSimple">💾 Salvar</button>
+                        </div>
+                    </div>
+
+                    <!-- PERÍCIAS -->
+                    <div id="char-pericias" class="char-tab-content">
+                        <div class="form-section">
+                            <h3 data-i18n="skillsTitle">📚 Perícias</h3>
+                            <div class="etapa-indicator">
+                                <h4><span data-i18n="investmentLabel">Investimento:</span> <span id="periciasEtapaLabel">Origem</span></h4>
+                                <div class="pontos-restantes" id="pontosRestantesBox">
+                                    <span data-i18n="availablePoints">Pontos disponíveis:</span> <span id="periciasPontosRestantes">100</span> / <span id="periciasPontosTotal">100</span>
+                                    <br><small><span data-i18n="investedCategory">Total investido nesta categoria:</span> <span id="periciasTotalInvestido">0</span></small>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label data-i18n="viewSkillsFrom">Ver perícias de:</label>
+                                <select id="periciasEtapa" onchange="mudarEtapaPericias()">
+                                    <option value="origem" data-i18n="originOption">Origem</option>
+                                    <option value="carreira" data-i18n="careerOption">Carreira</option>
+                                    <option value="hobbie" data-i18n="hobbyOption">Hobbie</option>
+                                    <option value="todas" data-i18n="allOption">Todas</option>
+                                </select>
+                                <small style="display:block;color:#aaa;margin-top:8px;">O limite de treino vale por categoria de investimento. Uma mesma perícia pode receber pontos em Origem, Carreira e Hobbie.</small>
+                            </div>
+
+                            <h4 style="color: #fff; margin: 20px 0 10px 0;"> <span data-i18n="investedSkills">Perícias com Investimento</span></h4>
+                            <table class="skills-table">
+                                <thead><tr><th data-i18n="skillCol">Perícia</th><th data-i18n="formulaCol">Fórmula</th><th data-i18n="baseCol">Base</th><th data-i18n="trainingCol">Treino</th><th data-i18n="totalCol">Total</th></tr></thead>
+                                <tbody id="corpoPericiasInvestidas"></tbody>
+                            </table>
+
+                            <h4 style="color: #fff; margin: 20px 0 10px 0;"> <span data-i18n="basicSkillsAvailable">Perícias Básicas Disponíveis</span></h4>
+                            <table class="skills-table">
+                                <thead><tr><th data-i18n="skillCol">Perícia</th><th data-i18n="formulaCol">Fórmula</th><th data-i18n="baseCol">Base</th><th data-i18n="trainingCol">Treino</th><th data-i18n="totalCol">Total</th></tr></thead>
+                                <tbody id="corpoPericiasBasicas"></tbody>
+                            </table>
+
+                            <h4 style="color: #fff; margin: 20px 0 10px 0;"> <span data-i18n="professionalSkillsAvailable">Perícias Profissionais Disponíveis</span></h4>
+                            <table class="skills-table">
+                                <thead><tr><th data-i18n="skillCol">Perícia</th><th data-i18n="formulaCol">Fórmula</th><th data-i18n="baseCol">Base</th><th data-i18n="trainingCol">Treino</th><th data-i18n="totalCol">Total</th></tr></thead>
+                                <tbody id="corpoPericiasProfissionais"></tbody>
+                            </table>
+
+                            <h4 style="color: #fff; margin: 20px 0 10px 0;"> <span data-i18n="specializations">Especializações</span></h4>
+                            <table class="skills-table">
+                                <thead><tr><th data-i18n="specializationCol">Especialização</th><th data-i18n="typeFormulaCol">Tipo / Fórmula</th><th data-i18n="baseCol">Base</th><th data-i18n="trainingCol">Treino</th><th data-i18n="totalCol">Total</th></tr></thead>
+                                <tbody id="corpoEspecializacoes"></tbody>
+                            </table>
+
+
+                            <div id="xpPendingPanel" class="hidden" style="margin-top:20px;"></div>
+                            <div id="psiPanel" class="hidden" style="margin-top:28px;padding:20px;border:1px solid rgba(166,91,255,.35);border-radius:14px;background:rgba(96,45,150,.16);">
+                                <div style="display:flex;justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap;margin-bottom:14px;">
+                                    <h3 style="margin:0;color:#d8b4ff;" data-i18n="psychismTitle">🔮 Psiquismo</h3>
+                                    <div id="psiPointsSummary" style="font-weight:bold;color:#fff;"></div>
+                                </div>
+                                <p style="color:#aaa;margin:0 0 16px;" data-i18n="psiTrainingHelp">Os poderes disponíveis dependem do treino na esfera: 1–14 = Arco 1, 15–29 = Arco 2, 30+ = Arco 3. O gasto é descontado dos Pontos de Magia.</p>
+                                <div id="psiPowersContainer"></div>
+                            </div>
+
+                            <button class="btn-save" id="saveSkillsBtn" onclick="salvarPericias()" style="margin-top: 20px;" data-i18n="saveSkills">💾 Salvar Perícias</button>
+                        </div>
+                    </div>
+
+                    <!-- INVENTÁRIO -->
+                    <div id="char-inventario" class="char-tab-content">
+                        <div class="form-section">
+                            <div class="inventory-title-row">
+                                <h3 data-i18n="inventoryTitle">🎒 Inventário</h3>
+                                <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
+                                    <div class="inventory-resources-box" style="min-width:130px;">
+                                        <label>📅 Dia de campanha</label>
+                                        <div id="charCampaignDay" style="font-size:1.35em;font-weight:800;color:#ffd166;line-height:38px;">1</div>
+                                    </div>
+                                    <div class="inventory-resources-box">
+                                        <label for="editRecursos" data-i18n="resourcesLabel">Recursos</label>
+                                        <input type="number" id="editRecursos" min="0" step="1" onchange="salvarRecursos()" title="Somente o mestre pode alterar diretamente os recursos">
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="inventory-help">Arraste os itens entre os compartimentos para movê-los. Soltar sobre um item ocupado troca as posições.</p>
+                            <div class="inventory-container">
+                                <div class="inventory-compartment" style="grid-column: span 2;">
+                                    <h4>🧍 Equipado</h4>
+                                    <div class="capacity" id="capacity-equipado">Carga equipada</div>
+                                    <div class="inventory-slots" id="inv-equipado"></div>
+                                </div>
+                                <div class="inventory-compartment">
+                                    <h4>👛 Bolso</h4>
+                                    <div class="capacity" id="capacity-bolso">2 kg | 2 itens</div>
+                                    <div class="inventory-slots" id="inv-bolso"></div>
+                                </div>
+                                <div class="inventory-compartment">
+                                    <h4>🎒 Mochila</h4>
+                                    <div class="capacity" id="capacity-mochila">Mochila</div>
+                                    <div class="inventory-slots" id="inv-mochila"></div>
+                                </div>
+                                <div class="inventory-compartment" style="grid-column: span 2;">
+                                    <h4>🚗 Veículo/Nave</h4>
+                                    <div class="capacity" id="capacity-veiculo">50 itens | peso sem limite</div>
+                                    <div class="inventory-slots" id="inv-veiculo"></div>
+                                </div>
+                                <div class="inventory-compartment" style="grid-column: span 2;">
+                                    <h4>🏠 Casa/Base</h4>
+                                    <div class="capacity" id="capacity-casa">100 itens | peso sem limite</div>
+                                    <div class="inventory-slots" id="inv-casa"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- COMBATE -->
+                    <div id="char-combate" class="char-tab-content">
+                        <div class="form-section">
+                            <h3>🧩 Outras Características</h3>
+                            <div class="combat-grid">
+                                <div class="combat-section">
+                                    <div class="combat-title-row">
+                                        <h4 data-i18n="hpTitle">Pontos de Vida</h4>
+                                        <span class="combat-title-col" data-i18n="maxHp">PV Máx</span>
+                                        <span class="combat-title-col" data-i18n="currentHp">PV Atual</span>
+                                    </div>
+                                    <div id="hitLocations"></div>
+                                    <div id="combatWoundInfo"></div>
+                                </div>
+                                <div class="combat-section">
+                                    <div class="combat-title-row">
+                                        <h4 data-i18n="armorTitle">Armadura (PA)</h4>
+                                        <span></span>
+                                        <span></span>
+                                    </div>
+                                    <div id="armorLocations"></div>
+                                </div>
+                                <div class="combat-section">
+                                    <h4 data-i18n="fatigueTitle">Fadiga</h4>
+                                    <select id="fadigaLevel" onchange="salvarFadiga()">
+                                        <option value="Fresh" data-i18n="fatFresh">Descansado (Fresh)</option>
+                                        <option value="Winded" data-i18n="fatWinded">Ofegante (Winded)</option>
+                                        <option value="Tired" data-i18n="fatTired">Cansado (Tired)</option>
+                                        <option value="Wearied" data-i18n="fatWearied">Fatigado (Wearied)</option>
+                                        <option value="Exhausted" data-i18n="fatExhausted">Exausto (Exhausted)</option>
+                                        <option value="Debilitated" data-i18n="fatDebilitated">Debilitado (Debilitated)</option>
+                                        <option value="Incapacitated" data-i18n="fatIncapacitated">Incapacitado (Incapacitated)</option>
+                                        <option value="Semi-Conscious" data-i18n="fatSemiConscious">Semiconsciente (Semi-Conscious)</option>
+                                        <option value="Comatose" data-i18n="fatComatose">Comatoso (Comatose)</option>
+                                        <option value="Dead" data-i18n="fatDead">Morto (Dead)</option>
+                                    </select>
+                                    <div id="fadigaDescricao" style="margin-top:14px;padding:12px 14px;background:rgba(0,0,0,0.20);border:1px solid rgba(255,255,255,0.10);border-radius:9px;color:#ddd;line-height:1.55;"></div>
+                                </div>
+                            </div>
+
+                                                    </div>
+                    </div>
+
+                    <!-- ANOTAÇÕES -->
+                    <div id="char-anotacoes" class="char-tab-content">
+                        <div class="form-section">
+                            <h3 data-i18n="notesTitle">📔 Anotações</h3>
+                            <textarea id="charAnotacoes" rows="10" placeholder="Suas anotações..."></textarea>
+                            <h3 style="margin-top:20px; color:#ffd700;" data-i18n="specialEventsTitle">⭐ Eventos Especiais</h3>
+                            <textarea id="charEventos" rows="6" placeholder="Eventos especiais..."></textarea>
+                            <button class="btn-save" onclick="salvarAnotacoes()" style="margin-top:15px;">💾 Salvar</button>
+                        </div>
+                    </div>
+
+                    <!-- ROLAGEM -->
+                    <div id="char-rolagem" class="char-tab-content">
+                        <div class="form-section">
+                            <h3 data-i18n="diceRollTitle">🎲 Rolagem de Dados</h3>
+                            
+                            <div class="skill-test-section">
+                                <h4 data-i18n="skillTestTitle">📊 Teste de Perícia</h4>
+                                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;">
+                                    <div class="form-group">
+                                        <label data-i18n="skillLabel">Perícia:</label>
+                                        <select id="skillSelect" onchange="mostrarValorPericia()"></select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label data-i18n="circDifficulty">Dificuldade circunstancial:</label>
+                                        <select id="skillDifficultySelect">
+                                            <option value="muito_facil" data-i18n="diffVeryEasy">Muito Fácil</option>
+                                            <option value="facil" data-i18n="diffEasy">Fácil</option>
+                                            <option value="padrao" selected data-i18n="diffStandard">Padrão</option>
+                                            <option value="dificil" data-i18n="diffHard">Difícil</option>
+                                            <option value="formidavel" data-i18n="diffFormidable">Formidável</option>
+                                            <option value="herculeo" data-i18n="diffHerculean">Hercúleo</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div style="margin:15px 0;color:#00d4ff;font-size:1.2em;">
+                                    Valor da Perícia: <strong id="skillValue">—</strong>
+                                </div>
+                                <div style="display:grid;grid-template-columns:minmax(220px,1.8fr) minmax(170px,.7fr);gap:14px;align-items:center;">
+                                    <button class="dice-btn" onclick="rolarPericia()" style="width:100%;min-height:58px;" data-i18n="rollSkillBtn">🎲 Rolar Perícia</button>
+                                    <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap;">
+                                        <span style="color:#ffd166;font-size:1em;"><span data-i18n="luckLabel">Sorte:</span> <strong id="rollLuckPoints">—</strong></span>
+                                        <button onclick="gastarPontoSorte()" style="border:none;border-radius:10px;padding:12px 18px;background:linear-gradient(135deg,#f1c40f,#d68910);color:#fff;font-weight:700;cursor:pointer;font-size:1em;min-width:118px;">⭐ Gastar</button>
+                                    </div>
+                                </div>
+                                <small style="display:block;color:#aaa;margin-top:10px;">Todas as perícias básicas são permitidas. Profissionais e especializações aparecem quando o personagem possui investimento. O gasto de Sorte é registrado no histórico; o efeito narrativo/mecânico pode ser definido conforme a situação.</small>
+                            </div>
+                            
+                            <div class="dice-roller" style="margin-top:30px;">
+                                <div class="dice-display" id="diceDisplay">🎲</div>
+                                <div id="rollResult" style="font-size:1.5em; margin-bottom:20px;" data-i18n="clickToRoll">Clique para rolar</div>
+                                <div class="form-group" style="max-width:400px; margin:0 auto 20px;">
+                                    <label data-i18n="formulaLabel">Fórmula:</label>
+                                    <input type="text" id="damageFormula" value="1d100">
+                                </div>
+                                <div class="dice-buttons">
+                                    <button class="dice-btn" onclick="rolarDado('d100')">D100</button>
+                                    <button class="dice-btn" onclick="rolarDado('d20')">D20</button>
+                                    <button class="dice-btn" onclick="rolarDado('d12')">D12</button>
+                                    <button class="dice-btn" onclick="rolarDado('d10')">D10</button>
+                                    <button class="dice-btn" onclick="rolarDado('d8')">D8</button>
+                                    <button class="dice-btn" onclick="rolarDado('d6')">D6</button>
+                                    <button class="dice-btn" onclick="rolarDado('d4')">D4</button>
+                                    <button class="dice-btn" onclick="rolarFormula()" data-i18n="rollFormulaBtn">🎲 Rolar Fórmula</button>
+                                </div>
+                                <div class="roll-result hidden" id="rollResultBox">
+                                    <div id="rollResultText"></div>
+                                </div>
+                            </div>
+
+                            <div id="psiRollPanel" class="hidden" style="margin-top:22px;padding:18px;background:rgba(139,92,246,0.10);border:1px solid rgba(139,92,246,0.35);border-radius:12px;">
+                                <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+                                    <h4 style="margin:0;color:#d8b4ff;font-size:1.2em;" data-i18n="psiPowerTitle">🔮 Poder Psiônico</h4>
+                                    <strong id="psiRollPoints" style="color:#fff;">PP: —</strong>
+                                </div>
+                                <div style="display:grid;grid-template-columns:minmax(170px,.7fr) minmax(230px,1.3fr) minmax(110px,.45fr);gap:12px;align-items:end;">
+                                    <div class="form-group" style="margin:0;">
+                                        <label data-i18n="sphereLabel">Esfera:</label>
+                                        <select id="psiRollSphere" onchange="atualizarPoderesPsiRolagem()"></select>
+                                    </div>
+                                    <div class="form-group" style="margin:0;">
+                                        <label data-i18n="powerLabel">Poder:</label>
+                                        <select id="psiRollPower" onchange="atualizarDetalhePsiRolagem()"></select>
+                                    </div>
+                                    <div class="form-group" style="margin:0;">
+                                        <label data-i18n="ppSpendLabel">PP a gastar:</label>
+                                        <input type="number" id="psiRollCost" min="0" step="1" value="0" style="text-align:center;">
+                                    </div>
+                                </div>
+                                <div id="psiRollDetail" style="margin:12px 0;padding:12px 14px;border-radius:9px;background:rgba(0,0,0,.18);color:#d9ccff;min-height:46px;"></div>
+                                <div style="display:flex;justify-content:flex-end;">
+                                    <button onclick="usarPoderPsiRolagem()" style="border:none;border-radius:10px;padding:12px 22px;background:linear-gradient(135deg,#7c3aed,#a855f7);color:white;font-weight:700;cursor:pointer;font-size:1em;" data-i18n="usePowerBtn">✨ Usar Poder</button>
+                                </div>
+                                <small style="display:block;color:#9f91c7;margin-top:10px;" data-i18n="psiUsageHelp">O custo e o uso são registrados automaticamente. Até a automação individual de cada poder, o efeito específico é aplicado narrativamente pelo jogador/mestre.</small>
+                            </div>
+
+                            <div style="margin-top:20px;padding:16px;background:rgba(0,0,0,0.18);border:1px solid rgba(255,255,255,0.10);border-radius:10px;">
+                                <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;">
+                                    <strong style="color:#00d4ff;font-size:1.05em;" data-i18n="generalHistoryTitle">🧾 Histórico de testes e dados</strong>
+                                    <small style="color:#888;" data-i18n="last50">últimas 50</small>
+                                </div>
+                                <div id="generalRollHistory" style="display:flex;flex-direction:column;gap:7px;max-height:300px;overflow-y:auto;">
+                                    <div style="color:#888;">Nenhuma rolagem registrada.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CONFIG -->
+            <div id="config" class="tab-content">
+                <div class="form-section">
+                    <h3 data-i18n="configTitle">⚙️ Configurações do Sistema (Mestre)</h3>
+                    <div class="form-group"><label>Etapa 1 - Características:</label><input type="number" id="configEtapa1" value="80"></div>
+                    <div class="form-group"><label>Origem:</label><input type="number" id="configEtapa2" value="100"></div>
+                    <div class="form-group"><label>Carreira:</label><input type="number" id="configEtapa3" value="100"></div>
+                    <div class="form-group"><label>Hobbie:</label><input type="number" id="configEtapa4" value="150"></div>
+                    <div class="form-group"><label>Limite Mínimo Atributos (geral):</label><input type="number" id="configMinAttr" value="3"></div>
+                    <div class="form-group"><label>Limite Mínimo INT/TAM:</label><input type="number" id="configMinAttrINT" value="6"></div>
+                    <div class="form-group"><label>Limite Máximo Atributos:</label><input type="number" id="configMaxAttr" value="18"></div>
+                    <div class="form-group"><label>Máximo de Treino por Perícia/Categoria:</label><input type="number" id="configMaxTreino" value="30"></div>
+                    <div class="form-group">
+                        <label data-i18n="initialResourcesConfig">Recursos iniciais para novos personagens:</label>
+                        <input type="number" id="configRecursosIniciais" value="1000" min="0" step="1">
+                        <small data-i18n="initialResourcesHelp" style="display:block;color:#aaa;margin-top:7px;">Aplicado apenas quando uma nova ficha é criada. Alterações posteriores são individuais.</small>
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="combatModeConfig">Modo de combate:</label>
+                        <select id="configModoCombate">
+                            <option value="tatico" data-i18n="combatModeTactical">Tático — PV e PA por partes do corpo</option>
+                            <option value="simplificado" data-i18n="combatModeSimple">Simplificado — PV e PA gerais</option>
+                        </select>
+                        <small data-i18n="combatModeHelp" style="display:block;color:#aaa;margin-top:7px;">A mudança vale para fichas de jogadores e NPCs. Os valores do outro modo são preservados ao alternar.</small>
+                    </div>
+                    <button class="btn-save" onclick="salvarConfiguracoes()" data-i18n="saveConfig">💾 Salvar Configurações</button>
+                </div>
+            </div>
+
+            <!-- BANCO DE DADOS -->
+            <div id="banco" class="tab-content">
+                <div class="form-section">
+                    <h3>📚 Banco de Dados do Sistema</h3>
+                    <p style="color:#aaa; margin-bottom:20px;">Fonte administrativa do sistema. Alterações feitas aqui são gravadas no Firestore e alimentam as fichas.</p>
+                    
+                    <div class="tabs" style="margin-bottom:20px;">
+                        <button class="tab-btn active" onclick="mostrarBancoAba('pericias', this)">Perícias</button>
+                        <button class="tab-btn" onclick="mostrarBancoAba('origens', this)">Origens</button>
+                        <button class="tab-btn" onclick="mostrarBancoAba('carreiras', this)">Carreiras</button>
+                        <button class="tab-btn" onclick="mostrarBancoAba('especializacoes', this)">Especializações</button>
+                        <button class="tab-btn" onclick="mostrarBancoAba('poderesPsi', this)">Poderes Psi</button>
+                        <button class="tab-btn" onclick="mostrarBancoAba('itens', this)">Itens</button>
+                        <button class="tab-btn" onclick="mostrarBancoAba('cenarios', this)">Cenários</button><button class="tab-btn" onclick="mostrarBancoAba('npcs', this)">NPCs</button><button class="tab-btn" onclick="mostrarBancoAba('criaturas', this)">Criaturas</button><button class="tab-btn" onclick="mostrarBancoAba('objetosMapa', this)">Objetos de Mapa</button><button class="tab-btn" onclick="mostrarBancoAba('mapas', this)">Mapas</button><button class="tab-btn" onclick="mostrarBancoAba('musicas', this)">Músicas</button>
+                    </div>
+
+                    <div id="banco-pericias" class="tab-content active">
+                        <h4 style="color:#fff; margin-bottom:15px;">Perícias do Sistema</h4>
+                        <div class="import-section">
+                            <input type="file" id="importSkillsFile" accept=".csv" style="display:none" onchange="importarPlanilha('pericias', this, this.dataset.modo === 'substituir')">
+                            <button class="btn-import" onclick="selecionarImportacaoBanco_('importSkillsFile', false)">📥 Importar/Atualizar CSV</button>
+                            <button class="btn-template" onclick="selecionarImportacaoBanco_('importSkillsFile', true)" style="border-color:#e67e22;color:#ffd3a6;">♻️ Substituir pelo CSV</button>
+                            <button class="btn-template" onclick="baixarTemplate('pericias')">📄 Baixar Template</button>
+                            <button class="btn-template" onclick="exportarBancoCSV('pericias')">📤 Exportar CSV</button>
+                        </div>
+                        <div id="listaBancoPericias"></div>
+                        <button class="btn-save" onclick="adicionarPericia()" style="margin-top:15px;">➕ Adicionar Perícia</button>
+                    </div>
+
+                    <div id="banco-origens" class="tab-content">
+                        <h4 style="color:#fff; margin-bottom:15px;">Origens do Sistema</h4>
+                        <div class="import-section">
+                            <input type="file" id="importOriginsFile" accept=".csv" style="display:none" onchange="importarPlanilha('origens', this, this.dataset.modo === 'substituir')">
+                            <button class="btn-import" onclick="selecionarImportacaoBanco_('importOriginsFile', false)">📥 Importar/Atualizar CSV</button>
+                            <button class="btn-template" onclick="selecionarImportacaoBanco_('importOriginsFile', true)" style="border-color:#e67e22;color:#ffd3a6;">♻️ Substituir pelo CSV</button>
+                            <button class="btn-template" onclick="baixarTemplate('origens')">📄 Baixar Template</button>
+                            <button class="btn-template" onclick="exportarBancoCSV('origens')">📤 Exportar CSV</button>
+                        </div>
+                        <div id="listaBancoOrigens"></div>
+                        <button class="btn-save" onclick="adicionarOrigem()" style="margin-top:15px;">➕ Adicionar Origem</button>
+                    </div>
+
+                    <div id="banco-carreiras" class="tab-content">
+                        <h4 style="color:#fff; margin-bottom:15px;">Carreiras do Sistema</h4>
+                        <div class="import-section">
+                            <input type="file" id="importCareersFile" accept=".csv" style="display:none" onchange="importarPlanilha('carreiras', this, this.dataset.modo === 'substituir')">
+                            <button class="btn-import" onclick="selecionarImportacaoBanco_('importCareersFile', false)">📥 Importar/Atualizar CSV</button>
+                            <button class="btn-template" onclick="selecionarImportacaoBanco_('importCareersFile', true)" style="border-color:#e67e22;color:#ffd3a6;">♻️ Substituir pelo CSV</button>
+                            <button class="btn-template" onclick="baixarTemplate('carreiras')">📄 Baixar Template</button>
+                            <button class="btn-template" onclick="exportarBancoCSV('carreiras')">📤 Exportar CSV</button>
+                        </div>
+                        <div id="listaBancoCarreiras"></div>
+                        <button class="btn-save" onclick="adicionarCarreira()" style="margin-top:15px;">➕ Adicionar Carreira</button>
+                    </div>
+
+                    <div id="banco-especializacoes" class="tab-content">
+                        <h4 style="color:#fff; margin-bottom:15px;">Especializações do Sistema</h4>
+                        <div class="import-section">
+                            <input type="file" id="importSpecsFile" accept=".csv" style="display:none" onchange="importarPlanilha('especializacoes', this, this.dataset.modo === 'substituir')">
+                            <button class="btn-import" onclick="selecionarImportacaoBanco_('importSpecsFile', false)">📥 Importar/Atualizar CSV</button>
+                            <button class="btn-template" onclick="selecionarImportacaoBanco_('importSpecsFile', true)" style="border-color:#e67e22;color:#ffd3a6;">♻️ Substituir pelo CSV</button>
+                            <button class="btn-template" onclick="baixarTemplate('especializacoes')">📄 Baixar Template</button>
+                            <button class="btn-template" onclick="exportarBancoCSV('especializacoes')">📤 Exportar CSV</button>
+                        </div>
+                        <div id="listaBancoEspecializacoes"></div>
+                        <button class="btn-save" onclick="adicionarEspecializacao()" style="margin-top:15px;">➕ Adicionar Especialização</button>
+                    </div>
+
+                    <div id="banco-poderesPsi" class="tab-content">
+                        <h4 style="color:#fff; margin-bottom:15px;">Poderes Psiônicos</h4>
+                        <div class="import-section">
+                            <input type="file" id="importPsiPowersFile" accept=".csv" style="display:none" onchange="importarPlanilha('poderesPsi', this, this.dataset.modo === 'substituir')">
+                            <button class="btn-import" onclick="selecionarImportacaoBanco_('importPsiPowersFile', false)">📥 Importar/Atualizar CSV</button>
+                            <button class="btn-template" onclick="selecionarImportacaoBanco_('importPsiPowersFile', true)" style="border-color:#e67e22;color:#ffd3a6;">♻️ Substituir pelo CSV</button>
+                            <button class="btn-template" onclick="baixarTemplate('poderesPsi')">📄 Baixar Template</button>
+                            <button class="btn-template" onclick="exportarBancoCSV('poderesPsi')">📤 Exportar CSV</button>
+                        </div>
+                        <div id="listaBancoPoderesPsi"></div>
+                        <button class="btn-save" onclick="adicionarPoderPsi()" style="margin-top:15px;">➕ Adicionar Poder Psi</button>
+                    </div>
+
+                    <div id="banco-itens" class="tab-content">
+                        <h4 style="color:#fff; margin-bottom:15px;">Itens do Sistema</h4>
+                        <div class="import-section">
+                            <input type="file" id="importItemsFile" accept=".csv" style="display:none" onchange="importarPlanilha('itens', this, this.dataset.modo === 'substituir')">
+                            <button class="btn-import" onclick="selecionarImportacaoBanco_('importItemsFile', false)">📥 Importar/Atualizar CSV</button>
+                            <button class="btn-template" onclick="selecionarImportacaoBanco_('importItemsFile', true)" style="border-color:#e67e22;color:#ffd3a6;">♻️ Substituir pelo CSV</button>
+                            <button class="btn-template" onclick="baixarTemplate('itens')">📄 Baixar Template</button>
+                            <button class="btn-template" onclick="exportarBancoCSV('itens')">📤 Exportar CSV</button>
+                            <input id="importItensImagensLote" type="file" accept="image/*" multiple style="display:none" onchange="importarBancoImagensLote_('itens',event)">
+                            <button class="btn-template" onclick="document.getElementById('importItensImagensLote').click()">🖼️ Importar várias imagens</button>
+                            <span id="importItensImagensStatus" style="color:#9ee7ff"></span>
+                        </div>
+                        <div id="listaBancoItens"></div>
+                        <button class="btn-save" onclick="adicionarItemBanco()" style="margin-top:15px;">➕ Adicionar Item</button>
+                    </div>
+
+                    <div id="banco-cenarios" class="tab-content">
+                        <h4 style="color:#fff; margin-bottom:15px;">Cenários da Campanha</h4>
+                        <p style="color:#aaa; margin-bottom:15px;">Banco privado do mestre. Campos EN/ZH já ficam reservados para tradução futura.</p>
+                        <div class="import-section">
+                            <input type="file" id="importScenariosFile" accept=".csv" style="display:none" onchange="importarPlanilha('cenarios', this, this.dataset.modo === 'substituir')">
+                            <button class="btn-import" onclick="selecionarImportacaoBanco_('importScenariosFile', false)">📥 Importar/Atualizar CSV</button>
+                            <button class="btn-template" onclick="selecionarImportacaoBanco_('importScenariosFile', true)" style="border-color:#e67e22;color:#ffd3a6;">♻️ Substituir pelo CSV</button>
+                            <button class="btn-template" onclick="baixarTemplate('cenarios')">📄 Baixar Template</button>
+                            <button class="btn-template" onclick="exportarBancoCSV('cenarios')">📤 Exportar CSV</button>
+                        </div>
+                        <div id="listaBancoCenarios"></div>
+                        <button class="btn-save" onclick="adicionarCenarioBanco()" style="margin-top:15px;">➕ Adicionar Cenário</button>
+                    </div>
+
+                    <div id="banco-npcs" class="tab-content">
+                        <h4 style="color:#fff; margin-bottom:15px;">NPCs reutilizáveis</h4>
+                        <p style="color:#aaa; margin-bottom:15px;">Modelos privados do mestre para cenas, serviços e combate.</p>
+                        <div class="import-section">
+                            <input type="file" id="importNPCsFile" accept=".csv" style="display:none" onchange="importarPlanilha('npcs',this,this.dataset.modo==='substituir')">
+                            <button class="btn-import" onclick="selecionarImportacaoBanco_('importNPCsFile',false)">📥 Importar/Atualizar CSV</button>
+                            <button class="btn-template" onclick="selecionarImportacaoBanco_('importNPCsFile',true)" style="border-color:#e67e22;color:#ffd3a6;">♻️ Substituir pelo CSV</button>
+                            <button class="btn-template" onclick="baixarTemplate('npcs')">📄 Baixar Template</button>
+                            <button class="btn-template" onclick="exportarBancoCSV('npcs')">📤 Exportar CSV</button>
+                            <input id="importNpcsImagensLote" type="file" accept="image/*" multiple style="display:none" onchange="importarBancoImagensLote_('npcs',event)">
+                            <button class="btn-template" onclick="document.getElementById('importNpcsImagensLote').click()">🖼️ Importar várias imagens</button>
+                            <span id="importNpcsImagensStatus" style="color:#9ee7ff"></span>
+                        </div>
+                        <div id="listaBancoNPCs"></div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:15px;">
+  <button class="btn-save" onclick="adicionarNPCBanco_()" style="margin:0;width:auto;">➕ Adicionar NPC</button>
+  <button class="btn-small" onclick="restaurarTodosNPCsBanco_()" style="padding:12px 18px;">❤️ Restaurar PV de todos os NPCs</button>
+</div>
+                    </div>
+                    <div id="banco-criaturas" class="tab-content">
+                      <h4 style="color:#fff">Criaturas reutilizáveis</h4>
+                      <p style="color:#aaa">Banco privado do mestre. Criaturas marcadas como selecionáveis aparecem no Painel de Batalha.</p>
+                      <div class="import-section">
+                        <input type="file" id="importCriaturasFile" accept=".csv" style="display:none" onchange="importarPlanilha('criaturas',this,this.dataset.modo==='substituir')">
+                        <button class="btn-import" onclick="selecionarImportacaoBanco_('importCriaturasFile',false)">📥 Importar/Atualizar CSV</button>
+                        <button class="btn-template" onclick="selecionarImportacaoBanco_('importCriaturasFile',true)" style="border-color:#e67e22;color:#ffd3a6;">♻️ Substituir pelo CSV</button>
+                        <button class="btn-template" onclick="baixarTemplate('criaturas')">📄 Baixar Template</button>
+                        <button class="btn-template" onclick="exportarBancoCSV('criaturas')">📤 Exportar CSV</button>
+                        <input id="importCriaturasImagensLote" type="file" accept="image/*" multiple style="display:none" onchange="importarBancoImagensLote_('criaturas',event)">
+                        <button class="btn-template" onclick="document.getElementById('importCriaturasImagensLote').click()">🖼️ Importar várias imagens</button>
+                        <span id="importCriaturasImagensStatus" style="color:#9ee7ff"></span>
+                        <small style="display:block;margin-top:7px;color:#8ea7c8;">CSV de criaturas aceita fórmulas por atributo (FOR_formula, CON_formula...), alcances, habilidades e propriedades de ataque.</small>
+                      </div>
+                      <div id="listaBancoCriaturas"></div>
+                      <button class="btn-save" onclick="adicionarCriaturaBanco_()" style="margin-top:15px">➕ Adicionar Criatura</button>
+                    </div>
+
+                    <div id="banco-objetosMapa" class="tab-content">
+                        <h4 style="color:#fff;margin-bottom:8px;">🌳 Objetos de Mapa</h4>
+                        <p style="color:#aaa;margin-bottom:14px;">Modelos reutilizáveis de cenário. Eles podem ser colocados na mesa, movidos, girados, sofrer dano e são salvos junto com cada mapa.</p>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center;">
+                            <button class="btn-small btn-select" onclick="novoObjetoMapaBanco_()">➕ Novo objeto</button>
+                            <input id="objMapaLoteFiles" type="file" accept="image/*" multiple style="display:none" onchange="importarObjetosMapaImagensLote_(event)">
+                            <button class="btn-small" onclick="document.getElementById('objMapaLoteFiles').click()">🖼️ Importar várias imagens</button>
+                            <button class="btn-small" onclick="restaurarObjetosMapaPadrao_()">🌱 Restaurar modelos básicos</button>
+                            <span id="objMapaLoteStatus"></span>
+                        </div>
+                        <div id="editorObjetoMapaBanco" style="display:none;margin:0 0 16px;padding:14px;border:1px solid rgba(0,212,255,.25);border-radius:10px;background:rgba(0,212,255,.04);">
+                          <h4 id="editorObjetoMapaTitulo" style="margin:0 0 12px;color:#9ee7ff;">Novo objeto</h4>
+                          <input type="hidden" id="objMapaEditId">
+                          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;align-items:end;">
+                            <label>Nome<input id="objMapaNome" type="text" placeholder="Ex.: Pinheiro grande"></label>
+                            <label>Largura (m)<input id="objMapaLargura" type="number" min="0.1" step="0.1" value="1"></label>
+                            <label>Altura (m)<input id="objMapaAltura" type="number" min="0.1" step="0.1" value="1"></label>
+                            <label>PV<input id="objMapaPV" type="number" min="0" step="1" value="10"></label>
+                            <label>Dureza<input id="objMapaDureza" type="number" min="0" step="1" value="2"></label>
+                            <label>Peso (kg)<input id="objMapaPesoKg" type="number" min="0.1" step="0.1" value="10"></label>
+                            <label>Material
+                              <div style="display:flex;gap:6px;align-items:center;">
+                                <select id="objMapaMaterial" style="flex:1;min-width:0;"><option value="">— Não classificado —</option></select>
+                                <button type="button" class="btn-small" onclick="objMapaEditarMateriais800_()" title="Editar a lista de materiais" style="width:auto;white-space:nowrap;padding:9px 10px;">⚙️</button>
+                              </div>
+                            </label>
+<label>Inflamabilidade (0–5)<input id="objMapaInflamabilidade" type="number" min="0" max="5" step="1" value="0" title="0 = não inflamável; 5 = pega fogo com extrema facilidade"></label>
+                          </div>
+                          <div style="display:flex;gap:14px;flex-wrap:wrap;margin:10px 0;">
+                            <label style="display:flex;align-items:center;gap:6px;"><input id="objMapaDestrutivel" type="checkbox" checked> Destrutível</label>
+                            <label style="display:flex;align-items:center;gap:6px;"><input id="objMapaInflamavel" type="checkbox"> Inflamável</label>
+                            <label style="display:flex;align-items:center;gap:6px;"><input id="objMapaBloqueiaMov" type="checkbox" checked> Bloqueia movimento</label>
+                            <label style="display:flex;align-items:center;gap:6px;"><input id="objMapaBloqueiaVisao" type="checkbox"> Bloqueia visão</label>
+<label style="display:flex;align-items:center;gap:6px;"><input id="objMapaFixo" type="checkbox"> Fixo ao mapa</label>
+                          </div>
+                          <div style="display:grid;grid-template-columns:minmax(220px,1fr) minmax(220px,1fr) 120px;gap:10px;align-items:end;">
+                            <label>Imagem por URL<input id="objMapaImagemUrl" type="url" placeholder="https://..." oninput="objMapaPreviewUrl_(this.value)"></label>
+                            <label>Ou enviar PNG/WebP/JPG<input id="objMapaImagemFile" type="file" accept="image/*" onchange="objMapaLerImagem_(event)"></label>
+                            <div style="text-align:center"><img id="objMapaImagemPreview" alt="Prévia" style="width:96px;height:96px;object-fit:contain;border-radius:8px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12)"></div>
+                          </div>
+                          <small style="display:block;color:#8ea7c8;margin-top:7px;">PNG/WebP com transparência e vista de cima costuma dar o melhor resultado. A imagem enviada é reduzida automaticamente antes de ser salva.</small>
+                          <div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:9px;padding:9px 10px;border-radius:9px;background:rgba(0,0,0,.12);">
+                            <button class="btn-small" type="button" onclick="objMapaRemoverFundoSimples_()">✂️ Remover fundo simples</button>
+                            <label style="display:flex;align-items:center;gap:7px;margin:0;">Tolerância <input id="objMapaBgTol" type="range" min="8" max="90" value="38" style="width:130px;margin:0;"></label>
+                            <small style="color:#8ea7c8;">Opcional e local: remove fundos parecidos com as bordas da imagem; não usa IA.</small>
+                          </div>
+                          <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;"><button class="btn-save" onclick="salvarObjetoMapaEditor_()">💾 Salvar objeto</button><button class="btn-small" onclick="fecharEditorObjetoMapa_()">Cancelar</button></div>
+                        </div>
+                        <div id="listaBancoObjetosMapa"></div>
+                    </div>
+
+                    <div id="banco-mapas" class="tab-content">
+                      <h4 style="color:#fff; margin-bottom:8px;">🗺️ Mapas salvos</h4>
+                      <p style="color:#aaa; margin-bottom:15px;">Biblioteca privada do mestre. Aqui ficam registrados os mapas salvos no Firestore. A edição do terreno continua sendo feita diretamente no Mapa da Mesa.</p>
+                      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:15px;">
+                        <button class="btn-small btn-select" onclick="abrirMapaDaMesa_()">🗺️ Ir para o Mapa da Mesa</button>
+                        <button class="btn-small" onclick="recarregarBancoMapas_()">🔄 Atualizar lista</button>
+                      </div>
+                      <div id="listaBancoMapas"></div>
+                    </div>
+                </div>
+            </div>
+            <!-- REGRAS -->
+            <div id="regras" class="tab-content">
+                <div class="form-section">
+                    <h3>📖 Regras do Sistema</h3>
+                    <div id="regrasViewMode" class="regras-view"></div>
+                    <div id="physicalEffortRules" style="margin-top:22px;"></div>
+                    <div id="combatCompatibilityRules" style="margin-top:22px;"></div><div id="fatigueRulesFull" style="margin-top:22px;"></div><div id="woundRulesFull" style="margin-top:22px;"></div>
+                    <div id="regrasEditMode" class="hidden">
+                        <textarea id="regrasTexto" rows="20" style="width:100%; background:rgba(0,0,0,0.3); color:#fff; padding:15px; border-radius:10px; border:1px solid rgba(255,255,255,0.2);"></textarea>
+                    </div>
+                    <div style="margin-top:15px; display:flex; gap:10px;">
+                        <button class="btn-save" onclick="editarRegras()" id="btnEditarRegras" data-i18n="editRulesBtn">✏️ Editar Regras</button>
+                        <button class="btn-save hidden" onclick="salvarRegras()" id="btnSalvarRegras" style="background:linear-gradient(135deg, #00d4ff, #0099cc);" data-i18n="saveRulesBtn">💾 Salvar Regras</button>
+                        <button class="btn-save hidden" onclick="cancelarEdicaoRegras()" id="btnCancelarRegras" style="background:linear-gradient(135deg, #6c757d, #495057);" data-i18n="cancelBtn">❌ Cancelar</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ESCUDO DO MESTRE -->
+            <div id="escudo" class="tab-content">
+                <div class="form-section">
+                    <h3>🛡️ Escudo do Mestre</h3>
+                    <p style="color:#aaa;margin-bottom:16px;">Área privada do mestre. Esta interface não é exibida para jogadores.</p>
+
+                    <div class="gm-subtabs" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;border-bottom:1px solid rgba(255,255,255,.12);padding-bottom:12px;">
+                        <button class="btn-small btn-select gm-subtab-btn active" onclick="mostrarSubAbaMestre('campanha',this)">🌌 Campanha</button>
+                        <button class="btn-small gm-subtab-btn" onclick="mostrarSubAbaMestre('entidades',this)">👾 NPCs & Criaturas</button>
+                        <button class="btn-small gm-subtab-btn" onclick="mostrarSubAbaMestre('historico',this)">📡 Histórico</button>
+                        <button class="btn-small gm-subtab-btn" onclick="mostrarSubAbaMestre('cenario',this)">🪐 Cenário</button>
+                        <button class="btn-small gm-subtab-btn" onclick="mostrarSubAbaMestre('anotacoes',this)">📝 Anotações</button>
+                        <button class="btn-small gm-subtab-btn" onclick="mostrarSubAbaMestre('rolagem',this)">🎲 Rolagem do Mestre</button>
+                        <button class="btn-small gm-subtab-btn" onclick="mostrarSubAbaMestre('oficina-mapas',this);setTimeout(gmOficinaRender_,0)">🗺️ Oficina de Mapas</button>
+                        <button class="btn-small gm-subtab-btn" onclick="abrirAdminNoEscudo_('banco',this)">📚 Banco de Dados</button>
+                        <button class="btn-small gm-subtab-btn" onclick="abrirAdminNoEscudo_('config',this)">⚙️ Configurações</button>
+                        <button class="btn-small gm-subtab-btn" onclick="mostrarAba('batalha',document.getElementById('batalhaTabBtn'))" title="Painel antigo mantido temporariamente como referência">⚔️ Combate antigo (reserva)</button>
+                    </div>
+
+
+                    <div id="gm-sub-oficina-mapas" class="gm-sub-content hidden">
+                        <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:12px;">
+                            <div><h3 style="margin:0 0 5px;color:#8feaff;">🗺️ Oficina de Mapas</h3>
+                            <p style="color:#aaa;margin:0;max-width:900px;">Rascunho privado do mestre. Desenhe terreno e posicione objetos sem alterar a Mesa ao Vivo. Não usa sincronização em tempo real, para continuar leve.</p></div>
+                            <div style="display:flex;gap:7px;flex-wrap:wrap;"><button class="btn-small" onclick="gmOficinaNovo_()">🆕 Novo</button><button class="btn-small btn-select" onclick="gmOficinaSalvarComoMapa_()">💾 Salvar na biblioteca</button><button class="btn-small" onclick="gmOficinaPublicarMesa_()">📡 Publicar na Mesa</button></div>
+                        </div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:10px;padding:10px;border:1px solid rgba(255,255,255,.10);border-radius:10px;background:rgba(0,0,0,.13);">
+                            <label style="margin:0"><small>Tamanho</small><select id="gmOficinaTamanho" onchange="gmOficinaTamanho_(this.value)" style="margin:3px 0 0"><option value="20x12">20 × 12 m</option><option value="28x14" selected>28 × 14 m</option><option value="36x20">36 × 20 m</option><option value="50x30">50 × 30 m</option></select></label>
+                            <label style="margin:0"><small>Fundo</small><input id="gmOficinaFundo" type="color" value="#d7d7d7" onchange="gmOficinaCor_('fundo',this.value)" style="width:64px;height:42px;margin:3px 0 0;padding:3px"></label>
+                            <label style="margin:0"><small>Grade</small><input id="gmOficinaGrade" type="color" value="#777777" onchange="gmOficinaCor_('corGrade',this.value)" style="width:64px;height:42px;margin:3px 0 0;padding:3px"></label>
+                            <button id="gmOficinaDesenharBtn" class="btn-small" onclick="gmOficinaAlternarDesenho_()" style="height:42px">✏️ Desenhar</button>
+                            <button class="btn-small" onclick="gmOficinaFerramenta_('borracha')" style="height:42px">🧽 Borracha</button>
+                            <label style="margin:0"><small>Ferramenta</small><select id="gmOficinaFerramenta" onchange="gmOficinaFerramenta_(this.value)" style="margin:3px 0 0"><option value="traco">Traço</option><option value="textura">Textura</option><option value="borracha">Borracha</option></select></label>
+                            <label style="margin:0"><small>Traço</small><input id="gmOficinaCorTraco" type="color" value="#ffcf4d" onchange="gmOficinaCorTraco_=this.value" style="width:64px;height:42px;margin:3px 0 0;padding:3px"></label>
+                            <label style="margin:0"><small>Espessura</small><input id="gmOficinaEsp" type="range" min="2" max="48" value="7" oninput="gmOficinaEspessura_=Number(this.value)" style="width:120px;margin:10px 0"></label>
+                            <label style="margin:0"><small>Opacidade</small><input id="gmOficinaOpacidade" type="range" min="5" max="100" step="5" value="100" oninput="gmOficinaOpacidade_=Number(this.value)/100" style="width:100px;margin:10px 0"></label>
+                            <label style="margin:0"><small>Pincel</small><select id="gmOficinaPincel" onchange="gmOficinaPincel_=this.value" style="margin:3px 0 0"><option value="redondo">Redondo</option><option value="quadrado">Quadrado</option><option value="spray">Spray</option><option value="irregular">Irregular</option><option value="caligrafico">Caligráfico</option></select></label>
+                            <label style="margin:0"><small>Textura do traço</small><select id="gmOficinaTexturaTraco" onchange="gmOficinaTexturaTraco_=this.value" style="margin:3px 0 0"><option value="solida">Sólida</option><option value="pontilhada">Pontilhada</option><option value="giz">Giz</option><option value="ranhura">Ranhura</option><option value="areia">Areia</option><option value="cascalho">Cascalho</option><option value="grama">Grama</option><option value="folhas">Folhas</option><option value="neve">Neve</option><option value="fumaca">Fumaça</option></select></label>
+                            <select id="gmOficinaObjetoSelect" style="min-width:230px;margin:0"></select><button class="btn-small" onclick="gmOficinaAdicionarObjeto_()" style="height:42px">➕ Objeto</button>
+                            <button class="btn-small" onclick="gmOficinaDesfazer_()" style="height:42px">↶ Desfazer traço</button>
+                        </div>
+                        <div id="gmOficinaMapa" style="position:relative;overflow:auto;max-width:100%;min-height:480px;padding:10px;border:1px solid rgba(126,231,255,.25);border-radius:12px;background:rgba(0,0,0,.20);"></div>
+                        <div id="gmOficinaStatus" style="margin-top:8px;color:#9fc6d8;font-size:.86em;"></div>
+                    </div>
+
+                    <div id="gm-sub-entidades" class="gm-sub-content hidden">
+                        <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+                            <div><h3 style="margin:0 0 5px;color:#8feaff;">👾 Fichas de NPCs & Criaturas</h3>
+                            <p style="color:#aaa;margin:0;max-width:900px;">O banco guarda o <b>modelo</b>. Ao entrar em batalha, criaturas e NPCs genéricos podem gerar um <b>indivíduo</b> com atributos próprios. Dano e inventário do indivíduo não alteram o modelo.</p></div>
+                            <button class="btn-small" onclick="renderizarFichasEntidadesMestre_()">↻ Atualizar</button>
+                        </div>
+                        <div style="display:grid;grid-template-columns:minmax(260px,.72fr) minmax(420px,1.28fr);gap:14px;align-items:start;">
+                            <div style="padding:12px;border-radius:12px;background:rgba(0,0,0,.16);border:1px solid rgba(255,255,255,.10);">
+                                <div style="display:flex;gap:7px;margin-bottom:9px;">
+                                    <button id="gmEntFiltroCriaturas" class="btn-small btn-select" onclick="selecionarFiltroEntidadesMestre_('criatura')">🦖 Criaturas</button>
+                                    <button id="gmEntFiltroNPCs" class="btn-small" onclick="selecionarFiltroEntidadesMestre_('npc')">👤 NPCs</button>
+                                </div>
+                                <input id="gmEntBusca" type="text" placeholder="Buscar modelo..." oninput="renderizarListaModelosEntidades_()" style="width:100%;margin-bottom:9px;">
+                                <div id="gmEntListaModelos" style="max-height:570px;overflow:auto;"></div>
+                            </div>
+                            <div>
+                                <div id="gmEntFichaModelo" style="padding:14px;border-radius:12px;background:rgba(0,0,0,.16);border:1px solid rgba(255,255,255,.10);"><div style="color:#888;">Selecione um modelo à esquerda.</div></div>
+                                <div style="margin-top:14px;padding:14px;border-radius:12px;background:rgba(0,0,0,.16);border:1px solid rgba(255,255,255,.10);">
+                                    <h4 style="margin:0 0 10px;color:#ffd166;">⚔️ Indivíduos atualmente em batalha</h4>
+                                    <div id="gmEntInstanciasAtivas"><div style="color:#888;">Nenhum indivíduo temporário em batalha.</div></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- CAMPANHA -->
+                    <div id="gm-sub-campanha" class="gm-sub-content">
+                        <div id="gmCampaignStats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:20px;"></div>
+
+                        <div style="padding:16px;background:rgba(0,0,0,.16);border:1px solid rgba(255,255,255,.09);border-radius:12px;">
+                            <h4 style="color:#00d4ff;margin:0 0 14px;">🌍 Estado atual da campanha</h4>
+                            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;">
+                                <div class="form-group"><label>Nome da campanha:</label><input id="gmCampanhaNome" type="text"></div>
+                                <div class="form-group"><label>Planeta atual:</label><input id="gmCampanhaPlaneta" type="text"></div>
+                                <div class="form-group"><label>Cidade / região:</label><input id="gmCampanhaCidade" type="text"></div>
+                                <div class="form-group"><label>Condições locais / observações:</label><input id="gmCampanhaClima" type="text" placeholder="Ex.: fumaça densa, baixa visibilidade, gravidade instável..."></div>
+                                <div class="form-group"><label>Cenário ativo:</label><input id="gmCampanhaCenario" type="text"></div>
+                                <div class="form-group"><label>Data / período no jogo:</label><input id="gmCampanhaData" type="text"></div>
+                            </div>
+                            <div style="display:grid;grid-template-columns:minmax(440px,1.7fr) minmax(300px,1fr) minmax(150px,.55fr);gap:16px;align-items:start;margin-top:8px;">
+                                <div class="form-group" style="margin:0;">
+                                    <label>Fadiga dos jogadores:</label>
+                                    <div style="display:grid;grid-template-columns:minmax(145px,.8fr) minmax(210px,1.2fr);gap:8px;margin-bottom:7px;">
+                                        <select id="gmFadigaGeral">
+                                            <option value="Fresh">Descansado</option><option value="Winded">Ofegante</option><option value="Tired">Cansado</option><option value="Wearied">Fatigado</option><option value="Exhausted">Exausto</option><option value="Debilitated">Debilitado</option><option value="Incapacitated">Incapacitado</option>
+                                        </select>
+                                        <select id="gmFadigaAlvo"><option value="">Escolher personagem...</option></select>
+                                    </div>
+                                    <div style="display:flex;gap:7px;flex-wrap:wrap;">
+                                        <button class="btn-small" type="button" onclick="aplicarFadigaSelecionado_()">Aplicar ao selecionado</button>
+                                        <button class="btn-small" type="button" onclick="aplicarFadigaGeral_()">Aplicar a todos</button>
+                                    </div>
+                                </div>
+                                <div class="form-group" style="margin:0;">
+                                    <label>Dia de campanha:</label>
+                                    <div style="display:flex;gap:7px;align-items:center;flex-wrap:nowrap;">
+                                        <input id="gmCampanhaDia" type="number" min="1" step="1" value="1" style="width:100px;min-width:100px;">
+                                        <button class="btn-small" type="button" onclick="avancarDiaCampanha_(1)">+1</button>
+                                        <button class="btn-small" type="button" onclick="avancarDiaCampanha_(7)">+7</button>
+                                    </div>
+                                </div>
+                                <div class="form-group" style="margin:0;">
+                                    <label>Nova sessão:</label>
+                                    <button class="btn-small" style="width:100%;min-height:44px;" type="button" onclick="novaSessaoCampanha_()">🎲 Nova sessão</button>
+                                </div>
+                            </div>
+                            <div style="margin-top:18px;padding:14px;border-radius:12px;background:rgba(0,212,255,.055);border:1px solid rgba(0,212,255,.20);">
+                                <h4 style="margin:0 0 12px;color:#8feaff;">🩺 Ajustes de personagens</h4>
+                                <div style="display:grid;grid-template-columns:minmax(220px,1.25fr) minmax(190px,1fr) minmax(110px,.55fr) minmax(170px,.8fr);gap:10px;align-items:end;">
+                                    <div class="form-group" style="margin:0;"><label>Personagem</label><select id="gmAjusteAlvo"><option value="">Escolher personagem...</option></select></div>
+                                    <div class="form-group" style="margin:0;"><label>Ajuste</label><select id="gmAjusteTipo"><option value="pv">PV (+ cura / − dano)</option><option value="pv_total">Restaurar todos os PV</option><option value="magia">Pontos de Magia (+/−)</option><option value="magia_total">Restaurar Magia</option><option value="sorte">Pontos de Sorte (+/−)</option><option value="sorte_total">Restaurar Sorte</option><option value="dificuldade">Mod. dificuldade global</option></select></div>
+                                    <div class="form-group" style="margin:0;"><label>Valor</label><input id="gmAjusteValor" type="number" value="1" step="1"></div>
+                                    <div class="form-group" style="margin:0;"><label>Local de PV</label><select id="gmAjusteLocal"><option value="PV Global">PV Global / geral</option><option>Cabeça</option><option>Peito</option><option>Abdômen</option><option>Braço Direito</option><option>Braço Esquerdo</option><option>Perna Direita</option><option>Perna Esquerda</option></select></div>
+                                </div>
+                                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;"><button class="btn-small" onclick="aplicarAjusteCampanha_(false)">Aplicar ao selecionado</button><button class="btn-small" onclick="aplicarAjusteCampanha_(true)">Aplicar a todos</button></div>
+                                <small style="display:block;color:#9db7c0;margin-top:8px;">Dificuldade: valor positivo torna os testes mais difíceis; negativo facilita. O modificador fica no personagem até o mestre alterá-lo novamente.</small>
+                            </div>
+                            <div style="margin-top:14px;padding:14px;border-radius:12px;background:rgba(155,89,182,.075);border:1px solid rgba(155,89,182,.25);">
+                                <h4 style="margin:0 0 12px;color:#d8b4ff;">⭐ Conceder XP direcionado</h4>
+                                <div style="display:grid;grid-template-columns:minmax(220px,1fr) 120px minmax(330px,1.8fr);gap:10px;align-items:end;">
+                                    <div class="form-group" style="margin:0;"><label>Personagem</label><select id="gmXpAlvo" onchange="popularXpPermitidosMestre_()"><option value="">Escolher personagem...</option></select></div>
+                                    <div class="form-group" style="margin:0;"><label>Pontos de XP</label><input id="gmXpPontos" type="number" min="1" step="1" value="1"></div>
+                                    <div class="form-group" style="margin:0;"><label>Perícias/especializações permitidas</label><div id="gmXpPermitidos" style="max-height:220px;overflow:auto;padding:8px;border:1px solid rgba(255,255,255,.16);border-radius:8px;background:rgba(0,0,0,.14);"></div><label style="display:flex;align-items:center;gap:7px;margin:7px 0 0;font-weight:500;"><input id="gmXpMostrarTodas" type="checkbox" onchange="popularXpPermitidosMestre_()"> Mostrar todas (permitir aprender algo novo)</label></div>
+                                </div>
+                                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px;"><button class="btn-small" onclick="concederXpDirecionado_()">⭐ Conceder XP</button><small style="color:#bcaad0;">Por padrão aparecem as perícias básicas e as já treinadas. Se você autorizar várias opções, o jogador escolhe onde distribuir a quantidade concedida.</small></div>
+                            </div>
+
+                            <div class="form-group"><label>Resumo atual:</label><textarea id="gmCampanhaResumo" rows="4" placeholder="Situação geral, missão em andamento, acontecimentos importantes..."></textarea></div>
+                            <button class="btn-save" onclick="salvarEstadoCampanha()" style="width:auto;">💾 Salvar estado da campanha</button>
+                        </div>
+                    </div>
+
+                    <!-- HISTÓRICO -->
+                    <div id="gm-sub-historico" class="gm-sub-content hidden">
+                        <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-bottom:14px;">
+                            <div class="form-group" style="margin:0;min-width:220px;">
+                                <label>Personagem:</label>
+                                <select id="gmLogFiltroPersonagem" onchange="renderizarHistoricoMestre_()"><option value="">Todos</option></select>
+                            </div>
+                            <div class="form-group" style="margin:0;min-width:190px;">
+                                <label>Tipo:</label>
+                                <select id="gmLogFiltroTipo" onchange="renderizarHistoricoMestre_()">
+                                    <option value="">Todos</option>
+                                    <option value="rolagem">Rolagens / testes</option>
+                                    <option value="inventario">Inventário</option>
+                                    <option value="mercado">Mercado</option>
+                                    <option value="personagem">Ficha</option>
+                                </select>
+                            </div>
+                            <button class="btn-small btn-select" onclick="atualizarHistoricoMestre()">🔄 Atualizar</button>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;gap:12px;margin-bottom:8px;">
+                            <strong style="color:#00d4ff;">Registro privado da campanha</strong>
+                            <small style="color:#888;">até 800 eventos exibidos</small>
+                        </div>
+                        <div id="gmHistoricoCentral" style="display:flex;flex-direction:column;gap:7px;max-height:650px;overflow:auto;padding-right:4px;"></div>
+                    </div>
+
+                    <!-- CENÁRIO -->
+                    <div id="gm-sub-cenario" class="gm-sub-content hidden">
+                        <div style="display:grid;grid-template-columns:minmax(260px,360px) 1fr;gap:16px;align-items:start;">
+                            <div style="padding:15px;border-radius:12px;background:rgba(0,0,0,.16);border:1px solid rgba(255,255,255,.09);position:sticky;top:10px;">
+                                <h4 style="color:#00d4ff;margin:0 0 12px;">🪐 Selecionar cenário</h4>
+                                <div class="form-group">
+                                    <label>Cenário:</label>
+                                    <select id="gmScenarioSelect" onchange="selecionarCenarioMestre(this.value)"></select>
+                                </div>
+                                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                                    <button class="btn-small btn-select" onclick="ativarCenarioMestre()">📍 Definir como ativo</button>
+                                    <button class="btn-small" onclick="editarCenarioAtivoNoBanco()">✏️ Editar no banco</button>
+                                </div>
+
+                                <div style="margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,.09);">
+                                    <strong style="color:#ffd166;">Cenário ativo da campanha</strong>
+                                    <div id="gmScenarioActiveSummary" style="color:#bbb;margin-top:6px;">Nenhum.</div>
+                                </div>
+
+                                <div style="margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,.09);">
+                                    <h4 style="color:#d8b4ff;margin:0 0 10px;">🎲 Roladores do cenário</h4>
+                                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                                        <button class="btn-small btn-select" onclick="rolarEventoCenarioMestre()">🎲 Evento</button>
+                                        <button class="btn-small btn-select" onclick="rolarEncontroCenarioMestre()">👥 Encontro</button>
+                                    </div>
+                                    <div id="gmScenarioRollResult" style="margin-top:10px;padding:10px;border-radius:8px;background:rgba(255,255,255,.04);color:#ddd;min-height:42px;">—</div>
+                                </div>
+                            </div>
+
+                            <div id="gmScenarioDetail">
+                                <div style="padding:22px;border-radius:12px;background:rgba(0,0,0,.15);border:1px dashed rgba(0,212,255,.35);color:#aaa;">
+                                    Selecione um cenário.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- COMBATE -->
+                    
+
+                    <!-- ANOTAÇÕES: ESCUDO ATUAL -->
+                    <div id="gm-sub-anotacoes" class="gm-sub-content hidden">
+                        <h4 style="color:#ffd166;">📝 Anotações privadas do mestre</h4>
+                        <div id="escudoViewMode" class="regras-view"></div>
+                        <div id="escudoEditMode" class="hidden">
+                            <textarea id="escudoTexto" rows="20" style="width:100%; background:rgba(0,0,0,0.3); color:#ffd700; padding:15px; border-radius:10px; border:1px solid rgba(255,215,0,0.3);"></textarea>
+                        </div>
+                        <div style="margin-top:15px; display:flex; gap:10px;">
+                            <button class="btn-save" onclick="editarEscudo()" id="btnEditarEscudo" style="background:linear-gradient(135deg, #ffd700, #ffaa00); color:#000;">✏️ Editar Anotações</button>
+                            <button class="btn-save hidden" onclick="salvarEscudo()" id="btnSalvarEscudo" style="background:linear-gradient(135deg, #28a745, #218838);">💾 Salvar</button>
+                            <button class="btn-save hidden" onclick="cancelarEdicaoEscudo()" id="btnCancelarEscudo" style="background:linear-gradient(135deg, #6c757d, #495057);">❌ Cancelar</button>
+                        </div>
+                    </div>
+
+                    <!-- ROLAGEM DO MESTRE -->
+                    <div id="gm-sub-rolagem" class="gm-sub-content hidden">
+                        <div style="padding:22px;border-radius:12px;background:rgba(0,0,0,.15);border:1px dashed rgba(155,89,182,.40);">
+                            <h4 style="color:#d8b4ff;margin-top:0;">🎲 Rolagem do Mestre</h4>
+                            <p style="color:#bbb;">Ferramentas privadas do mestre. Nesta etapa, as rolagens de mundo de Calico foram reintroduzidas isoladamente.</p>
+                            <div id="calicoWorldRolls"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- MODAL DO BANCO DE CENÁRIOS -->
+    <div class="modal-overlay" id="dbScenarioModal">
+        <div class="modal-content" style="max-width:1050px;max-height:92vh;overflow:auto;">
+            <h3 id="dbScenarioModalTitulo">Cenário</h3>
+            <input type="hidden" id="dbScenarioIdOriginal">
+
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
+                <div class="form-group"><label>Nome (PT):</label><input id="dbScenarioNome"></div>
+                <div class="form-group"><label>Name (EN):</label><input id="dbScenarioNomeEn"></div>
+                <div class="form-group"><label>名称 (中文):</label><input id="dbScenarioNomeZh"></div>
+                <div class="form-group"><label>Local (PT):</label><input id="dbScenarioLocal"></div>
+                <div class="form-group"><label>Location (EN):</label><input id="dbScenarioLocalEn"></div>
+                <div class="form-group"><label>地点 (中文):</label><input id="dbScenarioLocalZh"></div>
+                <div class="form-group"><label>Tipo (PT):</label><input id="dbScenarioTipo"></div>
+                <div class="form-group"><label>Type (EN):</label><input id="dbScenarioTipoEn"></div>
+                <div class="form-group"><label>类型 (中文):</label><input id="dbScenarioTipoZh"></div>
+            </div>
+
+            <div class="form-group"><label>Descrição para jogadores (PT):</label><textarea id="dbScenarioDescJog" rows="5"></textarea></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div class="form-group"><label>Player description (EN):</label><textarea id="dbScenarioDescJogEn" rows="4"></textarea></div>
+                <div class="form-group"><label>玩家描述 (中文):</label><textarea id="dbScenarioDescJogZh" rows="4"></textarea></div>
+            </div>
+
+            <div class="form-group"><label>Descrição do Mestre (PT):</label><textarea id="dbScenarioDescGM" rows="5"></textarea></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div class="form-group"><label>GM description (EN):</label><textarea id="dbScenarioDescGMEn" rows="4"></textarea></div>
+                <div class="form-group"><label>主持人描述 (中文):</label><textarea id="dbScenarioDescGMZh" rows="4"></textarea></div>
+            </div>
+
+            <div class="form-group"><label>Objetivo (PT):</label><textarea id="dbScenarioObjetivo" rows="3"></textarea></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div class="form-group"><label>Objective (EN):</label><textarea id="dbScenarioObjetivoEn" rows="3"></textarea></div>
+                <div class="form-group"><label>目标 (中文):</label><textarea id="dbScenarioObjetivoZh" rows="3"></textarea></div>
+            </div>
+
+            <div class="form-group"><label>Segredos (PT):</label><textarea id="dbScenarioSegredos" rows="4"></textarea></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div class="form-group"><label>Secrets (EN):</label><textarea id="dbScenarioSegredosEn" rows="3"></textarea></div>
+                <div class="form-group"><label>秘密 (中文):</label><textarea id="dbScenarioSegredosZh" rows="3"></textarea></div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
+                <div class="form-group"><label>Testes sugeridos:</label><input id="dbScenarioTestes"></div>
+                <div class="form-group"><label>Estado inicial:</label><input id="dbScenarioEstado"></div>
+                <div class="form-group"><label>NPCs da cena:</label><input id="dbScenarioNPCs"></div>
+            </div>
+
+            <div style="margin:14px 0;padding:14px;border-radius:10px;background:rgba(155,89,182,.08);border:1px solid rgba(155,89,182,.25);">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
+                    <div>
+                        <strong style="color:#d8b4ff;">👥 Personagens vinculados à cena</strong>
+                        <div style="color:#999;font-size:.82em;margin-top:3px;">Vincule PCs ou PMs já existentes. “Visível” define quem poderá aparecer futuramente para os jogadores.</div>
+                    </div>
+                    <button type="button" class="btn-small btn-select" onclick="vincularNomesCenarioAutomaticamente()">🔗 Vincular nomes automaticamente</button>
+                </div>
+                <div id="dbScenarioPersonagensVinculados" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:8px;"></div>
+            </div>
+
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div class="form-group">
+                    <label>Eventos aleatórios (um por linha):</label>
+                    <textarea id="dbScenarioEventos" rows="5" placeholder="Uma patrulha atravessa a área&#10;Uma discussão começa nas proximidades"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Encontros possíveis (um por linha):</label>
+                    <textarea id="dbScenarioEncontros" rows="5" placeholder="2 guardas municipais&#10;Mercador itinerante&#10;Criatura local"></textarea>
+                </div>
+            </div>
+
+            <div class="form-group"><label>Observações (PT):</label><textarea id="dbScenarioObs" rows="3"></textarea></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div class="form-group"><label>Notes (EN):</label><textarea id="dbScenarioObsEn" rows="3"></textarea></div>
+                <div class="form-group"><label>备注 (中文):</label><textarea id="dbScenarioObsZh" rows="3"></textarea></div>
+            </div>
+
+            <h4 style="color:#00d4ff;">Conexões</h4>
+            <div style="display:grid;grid-template-columns:1fr 2fr;gap:10px;">
+                <input id="dbScenarioDestino1" placeholder="Destino 1"><input id="dbScenarioCondicao1" placeholder="Condição 1">
+                <input id="dbScenarioDestino2" placeholder="Destino 2"><input id="dbScenarioCondicao2" placeholder="Condição 2">
+                <input id="dbScenarioDestino3" placeholder="Destino 3"><input id="dbScenarioCondicao3" placeholder="Condição 3">
+            </div>
+
+            <h4 style="color:#00d4ff;margin-top:18px;">Imagem</h4>
+            <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end;">
+                <div class="form-group" style="margin:0;"><label>URL da imagem:</label><input id="dbScenarioImagem" type="url" oninput="atualizarPreviewCenarioBanco()"></div>
+                <label class="btn-template" style="cursor:pointer;margin:0;">📤 Fazer upload
+                    <input type="file" id="dbScenarioImagemArquivo" accept="image/*" style="display:none" onchange="handleDbScenarioImageUpload(event)">
+                </label>
+            </div>
+            <div id="dbScenarioImagemPreview" style="height:240px;margin-top:12px;border:1px solid rgba(255,255,255,.12);border-radius:10px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:rgba(0,0,0,.18);font-size:3em;">🪐</div>
+
+            <div style="display:flex;gap:10px;margin-top:18px;">
+                <button class="btn-save" onclick="salvarCenarioBancoModal()">💾 Salvar Cenário</button>
+                <button class="btn-save" onclick="fecharCenarioBancoModal()" style="background:linear-gradient(135deg,#6c757d,#495057);">❌ Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+
+
+    <div class="modal-overlay" id="dbCriaturaModal"><div class="modal-content" style="max-width:950px;max-height:92vh;overflow:auto">
+      <h3>Criatura</h3><input type="hidden" id="crOrig">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px">
+       <label>Nome<input id="crNome"></label><label>ID<input id="crId"></label><label>Tipo<input id="crTipo"></label><label>Espécie<input id="crEspecie"></label>
+       <label>Habitat<input id="crHabitat"></label><label>Comportamento<input id="crComportamento"></label><label>Altura<input id="crAltura"></label><label>Tamanho<input id="crTamanho"></label><label>Peso<input id="crPeso"></label>
+      </div><h4>Atributos</h4><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px">
+       <label>FOR<input id="crFOR" type="number"></label><label>CON<input id="crCON" type="number"></label><label>TAM<input id="crTAM" type="number"></label><label>DES<input id="crDES" type="number"></label><label>INT<input id="crINT" type="number"></label><label>POD<input id="crPOD" type="number"></label><label>CAR<input id="crCAR" type="number"></label>
+      </div>
+      <div style="margin:10px 0;padding:10px;border-radius:9px;background:rgba(0,212,255,.05);border:1px solid rgba(0,212,255,.18);">
+        <label style="display:flex;align-items:center;gap:8px;"><input id="crAtributosRolados" type="checkbox" style="width:auto;"> Gerar atributos por indivíduo</label>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:10px;margin-top:10px;">
+          <label style="display:flex;flex-direction:column;gap:4px;"><span>FOR fórmula</span><input id="crFormulaFOR" placeholder="3d6+8"></label><label style="display:flex;flex-direction:column;gap:4px;"><span>CON fórmula</span><input id="crFormulaCON" placeholder="3d6+4"></label>
+          <label style="display:flex;flex-direction:column;gap:4px;"><span>TAM fórmula</span><input id="crFormulaTAM" placeholder="2d6+6"></label><label style="display:flex;flex-direction:column;gap:4px;"><span>DES fórmula</span><input id="crFormulaDES" placeholder="3d6+6"></label>
+          <label style="display:flex;flex-direction:column;gap:4px;"><span>INT fórmula</span><input id="crFormulaINT" placeholder="2d6"></label><label style="display:flex;flex-direction:column;gap:4px;"><span>POD fórmula</span><input id="crFormulaPOD" placeholder="3d6"></label>
+          <label style="display:flex;flex-direction:column;gap:4px;"><span>CAR fórmula</span><input id="crFormulaCAR" placeholder="2d6"></label>
+        </div>
+      </div>
+      <label>Perícias (investimento)<textarea id="crPericias" rows="3"></textarea></label>
+      <label>Especializações (investimento)<textarea id="crEspec" rows="2"></textarea></label>
+      <label>Ataques naturais<input id="crArmas" placeholder="Mordida:1d8+MD|Garras:1d6+MD"></label>
+      <label>Alcances dos ataques (m)<input id="crAlcances" placeholder="Mordida:1.5|Garras:1"></label>
+      <label>Habilidades especiais<textarea id="crHabilidades" rows="2" placeholder="Engolfar|Atropelar"></textarea></label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <label>Armadura natural (PA)<input id="crArmaduraNatural" type="number" min="0" value="0"></label>
+        <label>AÇ máxima especial<input id="crAcoesMaxEspecial" type="number" min="0" value="0"></label>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(120px,1fr));gap:10px;">
+        <label>Mov. terrestre (m/AÇ)<input id="crMovTerra" type="number" min="0" step="0.5" value="3"></label>
+        <label>Voo (m/AÇ)<input id="crMovVoo" type="number" min="0" step="0.5" value="0"></label>
+        <label>Natação (m/AÇ)<input id="crMovNatacao" type="number" min="0" step="0.5" value="0"></label>
+      </div>
+      <label>Vínculo perícia → ataques<input id="crVinculos" placeholder="Combate Desarmado:Mordida,Garras|Bote/Salto:Bote e Constrição"></label>
+      <label>Equipamento-base<textarea id="crEquipBase" rows="2" placeholder="Coleira de controle|Armadura"></textarea></label>
+      <label>Propriedades dos ataques<input id="crProps" placeholder="Mordida:infeccioso|Garras:infeccioso"></label>
+      <div class="form-group">
+        <label>Imagem URL</label>
+        <input id="crImagem" oninput="atualizarPreviewCriaturaBanco_()">
+        <div style="display:flex;gap:10px;align-items:center;margin-top:8px;">
+          <div id="crImagemPreview" style="width:82px;height:82px;border-radius:10px;background:rgba(0,0,0,.22);display:flex;align-items:center;justify-content:center;overflow:hidden;font-size:2em;">🦖</div>
+          <label class="btn-template" style="cursor:pointer;margin:0;">📤 Fazer upload
+            <input id="crImagemArquivo" type="file" accept="image/*" style="display:none" onchange="handleDbCreatureImageUpload_(event)">
+          </label>
+          <button class="btn-small" type="button" onclick="removerFundoBancoImagem_('criatura')">✂️ Remover fundo</button>
+          <label style="display:flex;align-items:center;gap:6px;margin:0;">Tolerância <input id="crBgTol" type="range" min="8" max="90" value="38" style="width:110px;margin:0"></label>
+        </div>
+      </div>
+      <label>Descrição<textarea id="crDescricao" rows="3"></textarea></label>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:10px;">
+        <input id="crSelecionavel" type="checkbox" checked style="width:auto;">
+        Selecionável para combate
+      </label>
+      <div class="modal-buttons"><button class="btn-confirm" onclick="salvarCriaturaBanco_()">💾 Salvar</button><button class="btn-cancel" onclick="fecharCriaturaBanco_()">Cancelar</button><button class="btn-delete" id="crDelete" onclick="removerCriaturaBanco_()">🗑️ Remover</button></div>
+    </div></div>
+
+    <!-- MODAL DO BANCO DE NPCs -->
+    <div class="modal-overlay" id="dbNPCModal">
+      <div class="modal-content" style="max-width:980px;max-height:92vh;overflow:auto;">
+        <h3 id="dbNPCModalTitulo">NPC</h3><input type="hidden" id="dbNPCIdOriginal">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(205px,1fr));gap:9px;">
+          <label>Nome<input id="dbNPCNome"></label><label>ID<input id="dbNPCId"></label><label>Tipo/função<input id="dbNPCTipo"></label>
+          <label>Raça/espécie<input id="dbNPCRaca"></label><label>Sexo<input id="dbNPCSexo"></label><label>Idade<input id="dbNPCIdade"></label>
+          <label>Origem<input id="dbNPCOrigem"></label><label>Carreira<input id="dbNPCCarreira"></label><label>Conceito<input id="dbNPCConceito"></label>
+          <label>Sociedade<input id="dbNPCSociedade"></label><label>Classe social<input id="dbNPCClasse"></label><label>Recursos<input id="dbNPCRecursos"></label>
+          <label>Altura<input id="dbNPCAltura"></label><label>Tamanho corporal<input id="dbNPCTamanho"></label><label>Peso corporal<input id="dbNPCPesoCorporal"></label>
+        </div>
+        <h4>Atributos</h4>
+        <div style="display:grid;grid-template-columns:repeat(7,minmax(82px,1fr));gap:7px;">
+          <label>FOR<input id="dbNPCFOR" type="number" min="1"></label>
+          <label>CON<input id="dbNPCCON" type="number" min="1"></label>
+          <label>TAM<input id="dbNPCTAM" type="number" min="1"></label>
+          <label>DES<input id="dbNPCDES" type="number" min="1"></label>
+          <label>INT<input id="dbNPCINT" type="number" min="1"></label>
+          <label>POD<input id="dbNPCPOD" type="number" min="1"></label>
+          <label>CAR<input id="dbNPCCAR" type="number" min="1"></label>
+        </div>
+        <div style="margin:10px 0;padding:10px;border-radius:9px;background:rgba(0,212,255,.05);border:1px solid rgba(0,212,255,.18);">
+          <label style="display:flex;align-items:center;gap:8px;"><input id="dbNPCAtributosRolados" type="checkbox" style="width:auto;"> NPC genérico: gerar atributos por indivíduo</label>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:10px;margin-top:10px;">
+            <label style="display:flex;flex-direction:column;gap:4px;"><span>FOR fórmula</span><input id="dbNPCFormulaFOR" placeholder="3d6+8"></label><label style="display:flex;flex-direction:column;gap:4px;"><span>CON fórmula</span><input id="dbNPCFormulaCON" placeholder="3d6+4"></label>
+            <label style="display:flex;flex-direction:column;gap:4px;"><span>TAM fórmula</span><input id="dbNPCFormulaTAM" placeholder="3d6"></label><label style="display:flex;flex-direction:column;gap:4px;"><span>DES fórmula</span><input id="dbNPCFormulaDES" placeholder="3d6+2"></label>
+            <label style="display:flex;flex-direction:column;gap:4px;"><span>INT fórmula</span><input id="dbNPCFormulaINT" placeholder="3d6"></label><label style="display:flex;flex-direction:column;gap:4px;"><span>POD fórmula</span><input id="dbNPCFormulaPOD" placeholder="3d6"></label>
+            <label style="display:flex;flex-direction:column;gap:4px;"><span>CAR fórmula</span><input id="dbNPCFormulaCAR" placeholder="3d6"></label>
+          </div>
+        </div>
+        <label>Perícias — pontos investidos<textarea id="dbNPCPericias" rows="3"></textarea></label>
+        <label>Especializações — pontos investidos<textarea id="dbNPCEspecializacoes" rows="3"></textarea></label>
+        <label>Armas/ataques próprios<input id="dbNPCArmas" placeholder="Combate Desarmado"></label>
+        <label>Alcances dos ataques (m)<input id="dbNPCAlcances" placeholder="Punhos:1|Tentáculo:2"></label>
+        <label>Habilidades especiais<textarea id="dbNPCHabilidades" rows="2"></textarea></label>
+        <label>Equipamento-base<textarea id="dbNPCEquipBase" rows="2" placeholder="Lança de Choque|Pistola 9 mm|Colete"></textarea></label>
+        <label>Inventário narrativo<input id="dbNPCInventario"></label>
+        <label>Motivação<input id="dbNPCMotivacao"></label><label>Valor da motivação<input id="dbNPCValorMotivacao" type="number"></label>
+        <div class="form-group">
+          <label>Imagem URL</label>
+          <input id="dbNPCImagem" oninput="atualizarPreviewNPCBanco_()">
+          <div style="display:flex;gap:10px;align-items:center;margin-top:8px;">
+            <div id="dbNPCImagemPreview" style="width:82px;height:82px;border-radius:10px;background:rgba(0,0,0,.22);display:flex;align-items:center;justify-content:center;overflow:hidden;font-size:2em;">🎭</div>
+            <label class="btn-template" style="cursor:pointer;margin:0;">📤 Fazer upload
+              <input id="dbNPCImagemArquivo" type="file" accept="image/*" style="display:none" onchange="handleDbNPCImageUpload_(event)">
+            </label>
+            <button class="btn-small" type="button" onclick="removerFundoBancoImagem_('npc')">✂️ Remover fundo</button>
+            <label style="display:flex;align-items:center;gap:6px;margin:0;">Tolerância <input id="dbNPCBgTol" type="range" min="8" max="90" value="38" style="width:110px;margin:0"></label>
+          </div>
+        </div>
+        <label>Descrição<textarea id="dbNPCDescricao" rows="4"></textarea></label>
+        <label><input id="dbNPCSelecionavel" type="checkbox"> Selecionável para combate</label>
+        <div class="modal-buttons"><button class="btn-confirm" onclick="salvarNPCBanco_()">💾 Salvar</button>
+        <button class="btn-cancel" onclick="fecharNPCBancoModal_()">❌ Cancelar</button>
+        <button class="btn-delete" id="dbNPCRemoverBtn" onclick="removerNPCBancoEditado_()" style="margin-left:auto;">🗑️ Remover</button></div>
+      </div>
+    </div>
+
+    <!-- MODAL DO BANCO DE ITENS -->
+    <div class="modal-overlay" id="dbSkillModal">
+        <div class="modal-content" style="max-width:980px;max-height:92vh;overflow:auto;">
+            <span class="close-modal" onclick="fecharSkillBancoModal_()">&times;</span>
+            <h3 id="dbSkillModalTitulo">Editar Perícia</h3>
+            <input type="hidden" id="dbSkillOrigId"><input type="hidden" id="dbSkillKind" value="pericias">
+            <div class="form-row">
+                <div class="form-group"><label>Nome (PT):</label><input id="dbSkillNome" type="text"></div>
+                <div class="form-group"><label>Name (EN):</label><input id="dbSkillNomeEn" type="text"></div>
+                <div class="form-group"><label>名称 (中文):</label><input id="dbSkillNomeZh" type="text"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>Categoria / Família principal:</label><input id="dbSkillCategoria" type="text"></div>
+                <div class="form-group"><label>Tipo:</label><input id="dbSkillTipo" type="text"></div>
+                <div class="form-group"><label>Fórmula:</label><input id="dbSkillFormula" type="text"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group" id="dbSkillUsoBox"><label>Uso:</label><input id="dbSkillUso" type="text"></div>
+                <div class="form-group" id="dbSkillPenBox"><label>Penalidade de Armadura:</label><input id="dbSkillPen" type="number" step="0.5"></div>
+                <div class="form-group"><label>Disponibilidade na campanha:</label><label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-weight:600;"><input id="dbSkillDisponivel" type="checkbox"> Disponível para jogadores</label></div>
+            </div>
+            <div id="dbSkillPericiaExtra">
+                <div class="form-row">
+                    <div class="form-group"><label style="display:flex;align-items:center;gap:8px;"><input id="dbSkillExigeEscola" type="checkbox"> Exige escola / especialização</label></div>
+                    <div class="form-group" style="flex:2;"><label>Escolas permitidas (uma por linha ou separadas por |):</label><textarea id="dbSkillEscolas" rows="3"></textarea></div>
+                </div>
+                <div class="form-group"><label>Famílias relacionadas (uma por linha ou separadas por |):</label><textarea id="dbSkillFamilias" rows="2"></textarea></div>
+            </div>
+            <h4 style="margin-top:18px;color:#00d4ff;">Descrição mostrada ao jogador</h4>
+            <div class="form-group"><label>Descrição (PT):</label><textarea id="dbSkillDescricao" rows="5"></textarea></div>
+            <div class="form-group"><label>Description (EN):</label><textarea id="dbSkillDescricaoEn" rows="5"></textarea></div>
+            <div class="form-group"><label>说明 (中文):</label><textarea id="dbSkillDescricaoZh" rows="5"></textarea></div>
+            <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:16px;"><button class="btn-small" onclick="fecharSkillBancoModal_()">Cancelar</button><button class="btn-save" onclick="salvarSkillBancoModal_()" style="width:auto;">💾 Salvar</button></div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="dbItemModal">
+        <div class="modal-content" style="max-width:900px;">
+            <h3 id="dbItemModalTitulo">Item do Sistema</h3>
+            <input type="hidden" id="dbItemIdOriginal">
+
+            <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px;">
+                <div class="form-group"><label>Nome (PT):</label><input type="text" id="dbItemNome"></div>
+                <div class="form-group"><label>Nome (EN):</label><input type="text" id="dbItemNomeEn"></div>
+                <div class="form-group"><label>Nome (中文):</label><input type="text" id="dbItemNomeZh"></div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:10px;">
+                <div class="form-group"><label>Categoria:</label><input type="text" id="dbItemCategoria" placeholder="Armas, Armaduras, Ferramentas..."></div>
+                <div class="form-group"><label>Peso (kg):</label><input type="number" id="dbItemPeso" step="0.1" min="-100"></div>
+                <div class="form-group"><label>Preço:</label><input type="number" id="dbItemPreco" step="1" min="0"></div>
+                <div class="form-group"><label>Nível de acesso:</label><input type="text" id="dbItemAcesso" placeholder="Livre, Licença, Restrito..."></div>
+                <div class="form-group"><label style="display:flex;align-items:center;gap:8px;"><input id="dbItemDisponivel" type="checkbox" checked> Disponível nesta campanha</label></div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:10px;">
+                <div class="form-group"><label>PA (dureza):</label><input type="number" id="dbItemPA" step="1" min="0"></div>
+                <div class="form-group"><label>PV (integridade):</label><input type="number" id="dbItemPV" step="1" min="0"></div>
+                <div class="form-group"><label>Alcance:</label><input type="text" id="dbItemAlcance" placeholder="Corpo a corpo, 60 m..."></div>
+                <div class="form-group"><label>Dano:</label><input type="text" id="dbItemDano" placeholder="2d6, 1d8+Atordoar..."></div>
+                <div class="form-group"><label>Penetração:</label><input type="number" id="dbItemPenetracao" step="1" min="0" placeholder="0"></div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:repeat(5,1fr); gap:10px;">
+                <div class="form-group"><label>Munição / recurso:</label><input type="text" id="dbItemMunicao" placeholder="Bateria, Célula, Cartuchos, ∞..."></div>
+                <div class="form-group"><label>Uso / carga:</label><input type="text" id="dbItemUso" placeholder="100, 20, Descartável..."></div>
+                <div class="form-group"><label>Qualidade padrão:</label><select id="dbItemQualidade"><option value="Básica">Básica</option><option value="Média">Média</option><option value="Superior">Superior</option></select></div>
+                <div class="form-group"><label>Material:</label><input type="text" id="dbItemMaterial"></div>
+                <div class="form-group"><label>Unidade:</label><input type="text" id="dbItemUnidade" placeholder="Peça, pacote, kg..."></div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <div class="form-group"><label>Destino / Local padrão:</label><input type="text" id="dbItemDestino" placeholder="Arco, Armas laser, inventário..."></div>
+                <div class="form-group"><label>Localizações protegidas (armadura):</label><input type="text" id="dbItemLocaisProtegidos" placeholder="Peito, Abdômen | Cabeça | Todas"></div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:150px 1fr; gap:18px; align-items:start; margin-bottom:15px;">
+                <div>
+                    <label style="display:block; margin-bottom:7px; color:#aaa;">Imagem</label>
+                    <div id="dbItemImagemPreview" style="width:140px;height:140px;border:2px dashed rgba(255,255,255,0.25);border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:rgba(0,0,0,0.25);font-size:3em;">📦</div>
+                </div>
+                <div>
+                    <div class="form-group"><label>Imagem (URL, opcional):</label><input type="text" id="dbItemImagem" oninput="atualizarPreviewItemBanco()"></div>
+                    <div class="form-group"><label data-i18n="orUpload">Ou fazer upload:</label><input type="file" id="dbItemImagemArquivo" accept="image/*" onchange="handleDbItemImageUpload(event)"></div>
+                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:7px 0;"><button class="btn-small" type="button" onclick="removerFundoBancoImagem_('item')">✂️ Remover fundo</button><label style="display:flex;align-items:center;gap:6px;margin:0;">Tolerância <input id="dbItemBgTol" type="range" min="8" max="90" value="38" style="width:110px;margin:0"></label></div>
+                    <small style="color:#aaa;">A imagem ficará vinculada ao item e poderá ser usada automaticamente no inventário e no futuro Mercado.</small>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px;">
+                <div class="form-group"><label>Descrição / observações (PT):</label><textarea id="dbItemDescricao" rows="4"></textarea></div>
+                <div class="form-group"><label>Description (EN):</label><textarea id="dbItemDescricaoEn" rows="4"></textarea></div>
+                <div class="form-group"><label>说明 (中文):</label><textarea id="dbItemDescricaoZh" rows="4"></textarea></div>
+            </div>
+
+            <div class="modal-buttons">
+                <button class="btn-confirm" onclick="salvarItemBancoModal()">💾 Salvar</button>
+                <button class="btn-cancel" onclick="fecharItemBancoModal()" data-i18n="cancelBtn">❌ Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE ITEM -->
+    <div class="modal-overlay" id="itemModal">
+        <div class="modal-content">
+            <h3>Editar Item</h3>
+            <div class="form-group"><label>Nome:</label><input type="text" id="modalItemNome"></div>
+            <div class="form-group"><label>Imagem (URL):</label><input type="text" id="modalItemImg"></div>
+            <div class="form-group"><label>Ou Upload de Imagem:</label><input type="file" id="modalItemFile" accept="image/*" onchange="handleItemImageUpload(event)"></div>
+            <div class="form-group"><label>Descrição:</label><textarea id="modalItemDesc" rows="3"></textarea></div>
+            <div class="form-group" id="modalItemProtegeBox" style="display:none;">
+                <label>🛡️ Partes do corpo protegidas:</label>
+                <div id="modalItemProtege" style="padding:10px 12px;border-radius:8px;background:rgba(0,212,255,.06);border:1px solid rgba(0,212,255,.20);color:#bdefff;"></div>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <div class="form-group"><label>Peso (kg):</label><input type="number" id="modalItemPeso" step="0.1"></div>
+                <div class="form-group"><label>PA:</label><input type="number" id="modalItemPA"></div>
+                <div class="form-group"><label>PV:</label><input type="number" id="modalItemPV"></div>
+                <div class="form-group"><label>Dano:</label><input type="text" id="modalItemDano"></div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-small btn-select" id="modalItemConsumirBtn" onclick="consumirItemModalAtual_()" style="display:none;">🥤 Consumir / usar</button>
+                <button class="btn-confirm" onclick="salvarItem()">💾 Salvar</button>
+                <button class="btn-cancel" onclick="fecharModal()" data-i18n="cancelBtn">❌ Cancelar</button>
+                <button class="btn-delete" onclick="removerItemAtual()" style="margin-left:auto;">🗑️ Remover</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Script inline para gerar os slots do inventário (evita HTML gigante)
+        document.addEventListener('DOMContentLoaded', () => {
+            const fillSlots = (id, count, isWide, compartment) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                for(let i = 0; i < count; i++) {
+                    el.innerHTML += `<div class="inventory-slot ${isWide ? 'full-width' : ''}" draggable="true" ondragstart="drag(event)" ondragover="allowDrop(event)" ondrop="drop(event)" onclick="editarItem('${compartment}', ${i})">
+                        <div class="item-tooltip"><h5>Vazio</h5><p>Clique para adicionar</p></div>
+                    </div>`;
+                }
+            };
+            fillSlots('inv-equipado', 12, false, 'equipado');
+            fillSlots('inv-bolso', 2, false, 'bolso');
+            fillSlots('inv-mochila', 20, false, 'mochila');
+            fillSlots('inv-veiculo', 50, false, 'veiculo');
+            fillSlots('inv-casa', 100, false, 'casa');
+        });
+    </script>
+
+<script type="module" src="js/app.js?v=46.83.2-exp-direcional-8-20260909"></script>
+<!-- Mesa Estelar v46.38.0: segurança de objetos, XP contextual, tutorial reforçado, PM/PJ, imagem pós-conclusão e sincronização de magia -->
+
+<div id="battleTokenPreview" class="battle-token-preview" aria-hidden="true"></div>
+<!-- Mesa Estelar v46.30.0: entrada RGB direta para pintura e tokens sempre acima do desenho -->
+
+
+<!-- Mesa Estelar v46.34.1: Mapa da Mesa oficial, modo de edição recolhível, participantes diretos, objetos personalizados e sincronização pública de visualização -->
+<!-- Mesa Estelar v46.34.2: salvamento incremental de objetos de mapa -->
+<!-- Mesa Estelar v46.35.1: drag rápido sem rerender por frame, texturas corrigidas, seleção de objetos discreta e controles padronizados -->
+<!-- Mesa Estelar v46.39.0: correções de PJ/PM, XP explícito, Psi na mesa, resultados privados e UX -->
+<!-- Mesa Estelar v46.40.0: lote de objetos, peso/kg, repetir ao lado, Psi/Intuição e resultados privados -->
+<!-- Mesa Estelar v46.41.0: sync leve de objetos, alvos destrutíveis, restauração total, lote visual itens/NPCs/criaturas e remoção de fundo -->
+<!-- Mesa Estelar v46.41.1: hotfix de autenticação; login não é mais bloqueado por falhas de inicialização secundária -->
+<!-- Mesa Estelar v46.41.2: hotfix de inicialização, login resiliente e idioma de fallback -->
+<!-- Mesa Estelar v46.51.0: restaura autenticação estável da v46.40 mantendo recursos v46.41 -->
+<!-- Mesa Estelar v46.80.3: recorte de objetos, modos exclusivos e fogo ambiental -->
+
+<script>
+// ============================================================
+// V46.78.0 — hidratação funcional definitiva dos objetos de mapa
+// Oficina 2 -> mapa salvo -> Mesa: PV, dureza e propriedades físicas
+// passam a viajar com a instância, sem depender do timing do Banco.
+// ============================================================
+(function(){
+function lab780NormNome_(v){
+ return String(v||'').trim().toLocaleLowerCase('pt-BR').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ');
+}
+function lab780ModeloPara_(o){
+ const db=(typeof objetosMapaDB!=='undefined'&&Array.isArray(objetosMapaDB))?objetosMapaDB:[];
+ const ids=[o?.modeloId,o?.objetoBancoId,o?.dadosBanco?.id].filter(Boolean).map(String);
+ let m=db.find(x=>ids.includes(String(x?.id)));
+ if(m)return m;
+ const nomes=[o?.nome,o?.name,o?.dadosBanco?.nome,o?.dadosBanco?.name].filter(Boolean).map(lab780NormNome_);
+ return nomes.length?db.find(x=>nomes.includes(lab780NormNome_(x?.nome||x?.name||x?.id))):null;
+}
+function lab780Numero_(...vals){
+ for(const v of vals){const n=Number(v);if(Number.isFinite(n))return n;}
+ return 0;
+}
+function lab780HidratarObjeto_(o){
+ if(!o||typeof o!=='object')return o;
+ const snap=(o.dadosBanco&&typeof o.dadosBanco==='object')?JSON.parse(JSON.stringify(o.dadosBanco)):null;
+ const mod=lab780ModeloPara_(o);
+ // A instância continua soberana para estado dinâmico; snapshot e Banco
+ // servem para recuperar propriedades funcionais perdidas no transporte.
+ const fonte={...(snap||{}),...(mod||{})};
+ const idModelo=o.modeloId||o.objetoBancoId||snap?.id||mod?.id||'';
+ if(idModelo){o.modeloId=String(idModelo);o.objetoBancoId=String(idModelo);}
+ if(!o.nome)o.nome=fonte.nome||fonte.name||idModelo||'Objeto';
+ if(!o.name)o.name=o.nome;
+ if(!o.imagem)o.imagem=fonte.imagem||fonte.image||'';
+ if(!o.dadosBanco && (snap||mod))o.dadosBanco=JSON.parse(JSON.stringify(snap||mod));
+
+ const maxAtual=Number(o.pvMax), maxFonte=lab780Numero_(fonte.pvMax,fonte.pv,fonte.vidaMax,fonte.vida);
+ if(!Number.isFinite(maxAtual)||(maxAtual<=0&&maxFonte>0))o.pvMax=Math.max(0,maxFonte);
+ else o.pvMax=Math.max(0,maxAtual);
+ const dAtual=Number(o.dureza), dFonte=lab780Numero_(fonte.dureza,fonte.hardness);
+ if(!Number.isFinite(dAtual)||(dAtual===0&&dFonte>0))o.dureza=Math.max(0,dFonte); else o.dureza=Math.max(0,dAtual);
+ const pAtual=Number(o.pesoKg), pFonte=lab780Numero_(fonte.pesoKg,fonte.peso,fonte.weightKg);
+ if(!Number.isFinite(pAtual)||(pAtual===0&&pFonte>0))o.pesoKg=Math.max(0,pFonte); else o.pesoKg=Math.max(0,pAtual);
+
+ if(o.destrutivel===undefined)o.destrutivel=fonte.destrutivel!==false;
+ if(o.inflamavel===undefined)o.inflamavel=!!fonte.inflamavel;
+ const infAtual=Number(o.inflamabilidade), infFonte=lab780Numero_(fonte.inflamabilidade,fonte.inflamabilidadeLab);
+ if(!Number.isFinite(infAtual)||(infAtual===0&&infFonte>0))o.inflamabilidade=Math.max(0,Math.min(5,infFonte));
+ else o.inflamabilidade=Math.max(0,Math.min(5,infAtual));
+ if(o.inflamavel && o.inflamabilidade<=0){
+   const fallback=lab780Numero_(fonte.inflamabilidade,fonte.inflamabilidadeLab);
+   o.inflamabilidade=fallback>0?Math.min(5,fallback):3;
+ }
+ if(o.bloqueiaMovimento===undefined)o.bloqueiaMovimento=fonte.bloqueiaMovimento!==false;
+ if(o.bloqueiaVisao===undefined)o.bloqueiaVisao=!!fonte.bloqueiaVisao;
+ if(o.fixoAoMapa===undefined&&fonte.fixoAoMapa!==undefined)o.fixoAoMapa=!!fonte.fixoAoMapa;
+
+ const pv=Number(o.pvAtual);
+ if(!Number.isFinite(pv)||(pv<=0&&Number(o.pvMax)>0&&!o.destruido))o.pvAtual=Number(o.pvMax)||0;
+ else o.pvAtual=Math.max(0,pv);
+ if(o.destruido===undefined)o.destruido=false;
+ if(o.pegandoFogoLab===undefined)o.pegandoFogoLab=false;
+ if(o.fogoUltimaRodadaLab===undefined)o.fogoUltimaRodadaLab=-1;
+ return o;
+}
+function lab780HidratarMesa_(){
+ if(typeof labEstado_==='undefined'||!labEstado_)return;
+ labEstado_.objetosLab=Array.isArray(labEstado_.objetosLab)?labEstado_.objetosLab:[];
+ labEstado_.objetosLab.forEach(lab780HidratarObjeto_);
+}
+// Substitui o reparo da v46.77 por uma versão que funciona inclusive quando
+// o Banco ainda não terminou de carregar, graças ao snapshot da própria instância.
+window.labRepararObjetosBanco770_=function(){lab780HidratarMesa_();};
+try{labRepararObjetosBanco770_=window.labRepararObjetosBanco770_;}catch(_){}
+
+// Garante hidratação também imediatamente após carregar um mapa salvo.
+const loadBase=window.labCarregarMapaBanco_;
+if(loadBase&&!loadBase.__v46780){
+ const wrapped=async function(){
+   const r=await loadBase.apply(this,arguments);
+   lab780HidratarMesa_();
+   try{labSalvarLocal_();}catch(_){}
+   try{labRender_();}catch(_){}
+   return r;
+ };
+ wrapped.__v46780=true;window.labCarregarMapaBanco_=wrapped;
+}
+// Exposto apenas para os demais caminhos internos de criação/publicação.
+window.labHidratarObjetoFuncional780_=lab780HidratarObjeto_;
+window.labHidratarObjetosMesa780_=lab780HidratarMesa_;
+setTimeout(()=>{try{lab780HidratarMesa_();labRender_();}catch(_){}},1200);
+})();
+</script>
+<!-- Mesa Estelar v46.78.0: objetos da Oficina 2 preservam PV, dureza, inflamabilidade e propriedades funcionais na Mesa -->
+
+<script>
+// ============================================================
+// V46.79.0 — rotação real de imagens/objetos na Oficina 2
+// + ações contextuais sobem quando o alvo está na borda inferior.
+// ============================================================
+</script>
+<!-- Mesa Estelar v46.79.0: rotação de objetos/imagens na Oficina 2 e microações adaptativas na borda inferior -->
+
+
+<!-- Material dos objetos é gerenciado pelo módulo js/app.js a partir da versão EXP-EXPLORACAO-4. -->
+
+</body>
+</html>
