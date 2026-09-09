@@ -11,9 +11,11 @@ export function mountDirectPositionLab({user,characters,mapas=()=>[],database,ro
   const list=mapas()||[],old=select.value;
   select.replaceChildren(...list.map(m=>{const o=root.createElement('option');o.value=m.id;o.textContent=m.nome||m.id;return o;}));
   select.value=mapPacket?.mapId||old||'';
-  if(mapPacket?.fundo)board.style.backgroundImage=`url("${String(mapPacket.fundo).replaceAll('"','%22')}")`;
-  else board.style.backgroundImage='linear-gradient(135deg,#20314c,#18233a)';
+  const fundo=String(mapPacket?.fundo||'');
+  board.style.backgroundImage=/^(#|rgb|hsl|linear-gradient)/i.test(fundo)?'none':(fundo?`url("${fundo.replaceAll('"','%22')}")`:'linear-gradient(135deg,#20314c,#18233a)');
+  board.style.backgroundColor=/^(#|rgb|hsl)/i.test(fundo)?fundo:'#20314c';
   board.style.backgroundSize='cover';board.style.backgroundPosition='center';
+  if(mapPacket?.larguraM&&mapPacket?.alturaM){board.dataset.mapWidth=mapPacket.larguraM;board.dataset.mapHeight=mapPacket.alturaM;}
  }
  function draw(){
   const board=el('novaSyncBoard'),select=el('novaSyncPersonagem'),old=select.value;
