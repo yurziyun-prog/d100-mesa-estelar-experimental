@@ -36430,7 +36430,7 @@ function novaSyncRender_(){
     const board=document.getElementById('novaSyncBoard'),sel=document.getElementById('novaSyncPersonagem');
     if(!board||!novaSyncState_)return;
     const tokens=novaSyncState_.tokens||[],mine=batalhaEhMestre_()?tokens:tokens.filter(t=>String(t.donoUid||'')===String(currentUserUid||''));
-    if(sel){const old=sel.value;sel.innerHTML='<option value="">Escolha um personagem</option>'+mine.map(t=>`<option value="${escaparHtmlInventario_(t.id)}">${escaparHtmlInventario_(t.nome||t.id)}</option>`).join('');if(mine.some(t=>String(t.id)===old))sel.value=old;}
+    if(sel){const old=sel.value;sel.innerHTML='<option value="">Escolha um personagem</option>'+mine.map(t=>`<option value="${escaparHtmlInventario_(t.id)}">${escaparHtmlInventario_(t.nome||t.id)}</option>`).join('');sel.value=mine.some(t=>String(t.id)===old)?old:String(mine[0]?.id||'');}
     board.innerHTML=tokens.map(t=>{const x=Math.max(1,Math.min(98,Number(t.x||0)/28*100)),y=Math.max(1,Math.min(94,Number(t.y||0)/14*100));return `<div title="${escaparHtmlInventario_(t.nome||t.id)}" style="position:absolute;left:${x}%;top:${y}%;transform:translate(-50%,-50%);width:42px;height:42px;border-radius:50%;border:3px solid #00d4ff;background:#263d62;color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;">${t.imagem?`<img src="${escaparHtmlInventario_(t.imagem)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:'👤'}</div>`;}).join('');
     novaSyncStatus_(`Conectado · revisão ${Number(novaSyncState_.revision||0)} · ${tokens.length} personagem(ns)`);
 }
@@ -36448,5 +36448,9 @@ async function novaSyncAbrir_(){
 }
 function novaSyncErro_(e){console.error('[Sync nova]',e);novaSyncStatus_('Erro de conexão na aba experimental.');}
 window.novaSyncAbrir_=novaSyncAbrir_;
-window.novaSyncInicializar_=async()=>{await novaSyncAbrir_();if(!batalhaEhMestre_())return;novaSyncStatus_('Estado inicializado; abra a outra conta e teste o movimento.');};
+window.novaSyncInicializar_=async()=>{await novaSyncAbrir_();if(!batalhaEhMestre_())return;
+    const atuais=(labEstado_?.tokens||[]).filter(t=>t.id).map(t=>({id:String(t.id),nome:t.nome||'Personagem',imagem:t.imagem||'',donoUid:String(t.donoUid||t.dono||''),x:Number(t.x||0),y:Number(t.y||0)}));
+    await runTransaction(db,async native=>{const ref=doc(db,'combatesAtivos','mapaMesaSyncNova'),snap=await native.get(ref);const atual=snap.exists()?snap.data():null;if(!atual?.estado?.tokens?.length)native.set(ref,{protocol:1,revision:Number(atual?.revision||0),estado:{tokens:atuais},authority:atual?.authority||null});});
+    novaSyncStatus_(`Estado inicializado com ${atuais.length} personagem(ns); abra a outra conta e teste o movimento.`);
+};
 window.novaSyncMover_=async(dx,dy)=>{await novaSyncAbrir_();const id=document.getElementById('novaSyncPersonagem')?.value,t=(novaSyncState_?.tokens||[]).find(x=>String(x.id)===String(id));if(!t)return novaSyncStatus_('Escolha um personagem.');if(!batalhaEhMestre_()&&String(t.donoUid)!==String(currentUserUid))return novaSyncStatus_('Esse personagem pertence a outra conta.');try{if(batalhaEhMestre_())await novaSyncTransport_.renew();await novaSyncTransport_.send('nova_move',id,{dx,dy},'nova:0');novaSyncStatus_('Movimento enviado; aguardando confirmação…');}catch(e){novaSyncErro_(e);}};
