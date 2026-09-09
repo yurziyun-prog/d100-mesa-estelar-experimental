@@ -60,8 +60,7 @@ service cloud.firestore {
         allow create: if ehMestre() || (
           autenticado() &&
           request.resource.data.donoUid == request.auth.uid &&
-          request.resource.data.personagemId is string &&
-          get(/databases/$(database)/documents/personagens/$(request.resource.data.personagemId)).data.dono == request.auth.uid
+          request.resource.data.personagemId is string
         );
         allow update: if ehMestre();
         allow delete: if ehMestre();
