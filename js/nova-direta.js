@@ -19,6 +19,7 @@ export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=asy
   const board=el('novaSyncBoard'),select=el('novaSyncMapa'); if(!board||!select)return;
   const list=mapas()||[],old=select.value;
   select.replaceChildren(...list.map(m=>{const o=root.createElement('option');o.value=m.id;o.textContent=m.nome||m.id;return o;}));
+  if(mapPacket?.mapId&&!list.some(m=>String(m.id)===String(mapPacket.mapId))){const o=root.createElement('option');o.value=mapPacket.mapId;o.textContent=mapPacket.nome||mapPacket.mapId;select.append(o);}
   select.value=mapPacket?.mapId||old||'';
   const fundo=String(mapPacket?.fundo||mapData?.fundo||mapData?.oficina2State?.bg||'');
   board.style.backgroundImage=/^(#|rgb|hsl|linear-gradient)/i.test(fundo)?'none':(fundo?`url("${fundo.replaceAll('"','%22')}")`:'linear-gradient(135deg,#20314c,#18233a)');
