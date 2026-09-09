@@ -6,20 +6,26 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
  const el=id=>root.getElementById(id), tokens=new Map(), previews=new Map(), queues=new Map();
  let stop=null,stopMap=null,account='',error='',generation=0,mapPacket=null,mapData=null,renderedMap=null,mapRequest=0;
  let changingTurn=false,lastSelectedTurn='';
- let held=null,frame=0,placing=false;
+ let held=null,frame=0,placing=false,placementChoice='';
  function drawCatalog(){
   const select=el('novaSyncMestrePersonagem');if(!select)return;
   const old=select.value;
   const placeholder=root.createElement('option');placeholder.value='';placeholder.textContent='Escolher personagem para colocar no mapa';
-  select.replaceChildren(placeholder,...(user()?.master?catalog():[]).map(t=>{const o=root.createElement('option');o.value=t.id;o.textContent=t.nome;o.disabled=tokens.has(encodeURIComponent(t.id));return o;}));
+  const type=el('novaSyncMestreTipo')?.value;
+  select.replaceChildren(placeholder,...(user()?.master?catalog():[]).filter(t=>!type||t.catalogType===type).map(t=>{const o=root.createElement('option');o.value=t.id;o.textContent=t.nome;o.disabled=tokens.has(encodeURIComponent(t.id));if(o.disabled)o.textContent+=' (já está no mapa)';return o;}));
   select.value=old;select.disabled=!user()?.master||!!mapPacket?.combat?.active||placing;
+  if(el('novaSyncMestreTipo'))el('novaSyncMestreTipo').disabled=select.disabled;
+  if(select.disabled)placementChoice='';
+  const button=el('novaSyncAdicionar');
+  if(button){button.disabled=select.disabled||!select.value||tokens.has(encodeURIComponent(select.value));button.textContent=placementChoice?'Cancelar colocação':'Adicionar ao mapa';}
+  const hint=el('novaSyncAdicionarHint');if(hint)hint.textContent=!user()?.master?'O mestre adiciona personagens ao mapa.':placing?'Adicionando personagem…':placementChoice?'Clique no mapa para escolher a posição.':mapPacket?.combat?.active?'Adicione personagens fora de combate.':'Escolha o tipo e o personagem, depois clique em Adicionar ao mapa.';
  }
  const canView=t=>!!t&&!!user()&&(user().master||user().uid===t.donoUid);
  const controlled=t=>!!t&&!!user()&&(user().uid===t.donoUid||(user().master&&!t.donoUid));
  function status(){
-  el('novaSyncStatus').textContent=(queues.size?'Sincronização direta 23 · salvando posição…':error)||`Sincronização direta 23 · ${tokens.size} personagem(ns) · mantenha o mouse pressionado para caminhar`;
+  el('novaSyncStatus').textContent=(queues.size?'Sincronização direta 24 · salvando posição…':error)||`Sincronização direta 24 · ${tokens.size} personagem(ns) · mantenha o mouse pressionado para caminhar`;
   if(held)el('novaSyncStatus').textContent='Solte o botão do mouse para parar · 3 m/s';
-  else if(el('novaSyncMestrePersonagem')?.value)el('novaSyncStatus').textContent='Clique no mapa para colocar o personagem escolhido.';
+  else if(placementChoice)el('novaSyncStatus').textContent='Clique no mapa para colocar o personagem escolhido.';
   const masterPanel=el('novaSyncMasterPanel'),playerInfo=el('novaSyncPlayerInfo');
   if(masterPanel)masterPanel.hidden=false;
   const masterTitle=el('novaSyncMasterTitle');if(masterTitle)masterTitle.textContent=user()?.master?'Painel do mestre · combate':'Sessão de combate · somente leitura';
@@ -197,7 +203,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
  root.addEventListener('visibilitychange',()=>{if(root.hidden)release();});
  board.addEventListener('pointerdown',e=>{
   if(e.button!==0)return;
-  const chosen=el('novaSyncMestrePersonagem')?.value;
+  const chosen=placementChoice;
   if(chosen&&user()?.master&&!mapPacket?.combat?.active){place(chosen,point(e));return;}
   const clicked=e.target.closest('[data-token]')?.dataset.token;
   if(clicked){
@@ -225,10 +231,15 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
     if(existing)throw new Error('Este personagem já está no mapa.');
     tx.set(POSITION_PATH+'/'+id,{nome:String(t.nome||'Personagem'),imagem:String(t.imagem||''),donoUid:String(t.donoUid||t.dono||''),...p,revision:0});
    });
-   el('novaSyncMestrePersonagem').value='';error='';
+   el('novaSyncMestrePersonagem').value='';placementChoice='';error='';
   }catch(e){fail(e);}finally{placing=false;draw();}
  }
- el('novaSyncMestrePersonagem')?.addEventListener('change',()=>{release();status();});
+ el('novaSyncMestrePersonagem')?.addEventListener('change',()=>{release();placementChoice='';drawCatalog();status();});
+ el('novaSyncMestreTipo')?.addEventListener('change',()=>{placementChoice='';el('novaSyncMestrePersonagem').value='';drawCatalog();status();});
+ el('novaSyncAdicionar')?.addEventListener('click',()=>{
+  if(!user()?.master||mapPacket?.combat?.active||placing)return;
+  release();placementChoice=placementChoice?'':el('novaSyncMestrePersonagem').value;drawCatalog();status();
+ });
  el('novaSyncPersonagem').addEventListener('change',()=>{
   if(mapPacket?.combat?.active&&mapPacket.combat.schema===2){draw();return;}
   draw();

@@ -843,7 +843,10 @@
                         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
                             <button class="btn-small btn-select" id="novaSyncInit" onclick="novaSyncInicializar_()">Preparar personagens</button>
                             <select id="novaSyncMapa" class="lab-control"><option value="">Mapa padrão</option></select>
-                            <select id="novaSyncMestrePersonagem" class="lab-control"><option value="">Escolher personagem para colocar no mapa</option></select>
+                            <select id="novaSyncMestreTipo" class="lab-control" aria-label="Tipo de personagem"><option value="">Todos os tipos</option><option value="pj">PJ · Personagem de jogador</option><option value="pm">PM · Personagem do mestre</option><option value="npc">NPC</option><option value="monstro">Monstro</option></select>
+                            <select id="novaSyncMestrePersonagem" class="lab-control" aria-label="Personagem para adicionar"><option value="">Escolher personagem para colocar no mapa</option></select>
+                            <button id="novaSyncAdicionar" class="btn-small btn-select" disabled>Adicionar ao mapa</button>
+                            <span id="novaSyncAdicionarHint" role="status" style="flex-basis:100%">Escolha o tipo e o personagem, depois clique em Adicionar ao mapa.</span>
                             <button id="novaSyncStart" class="btn-small btn-select" disabled>▶ Iniciar combate</button>
                             <button id="novaSyncEnd" class="btn-small" disabled>■ Encerrar combate</button>
                         </div>
@@ -2174,7 +2177,7 @@
         });
     </script>
 
-<script type="module" src="js/app.js?v=46.83.2-exp-sync-direta-23-20260910"></script>
+<script type="module" src="js/app.js?v=46.83.2-exp-sync-direta-24-20260910"></script>
 <!-- Mesa Estelar v46.38.0: segurança de objetos, XP contextual, tutorial reforçado, PM/PJ, imagem pós-conclusão e sincronização de magia -->
 
 <div id="battleTokenPreview" class="battle-token-preview" aria-hidden="true"></div>

@@ -36444,14 +36444,14 @@ function labInstalarAcoesConfirmadas_(){
 labInstalarAcoesConfirmadas_();
 
 // Aba paralela: controlador independente e adaptador Firestore.
-import {mountDirectPositionLab} from './nova-direta.js?v=23';
+import {mountDirectPositionLab} from './nova-direta.js?v=24';
 const novaSyncController_=mountDirectPositionLab({
  user:()=>currentUserUid?{uid:String(currentUserUid),master:batalhaEhMestre_()}:null,
  characters:()=>labEstado_?.tokens?.length?labEstado_.tokens:(userCharacters||[]),
  catalog:()=>[
-  ...(userCharacters||[]),
-  ...(npcsDB||[]).filter(t=>t.selecionavelCombate!==false).map(t=>({...t,id:'syncnpc:'+t.id,donoUid:'',dono:'',nome:'NPC · '+t.nome})),
-  ...(criaturasDB||[]).filter(t=>t.selecionavelCombate!==false).map(t=>({...t,id:'synccriatura:'+t.id,donoUid:'',dono:'',nome:'Criatura · '+t.nome}))
+  ...(userCharacters||[]).map(t=>({...t,catalogType:(t.donoUid||t.dono)===currentUserUid?'pm':'pj'})),
+  ...(npcsDB||[]).filter(t=>t.selecionavelCombate!==false).map(t=>({...t,id:'syncnpc:'+t.id,catalogType:'npc',donoUid:'',dono:'',nome:'NPC · '+t.nome})),
+  ...(criaturasDB||[]).filter(t=>t.selecionavelCombate!==false).map(t=>({...t,id:'synccriatura:'+t.id,catalogType:'monstro',donoUid:'',dono:'',nome:'Monstro · '+t.nome}))
  ],
  mapas:()=>mapasDB||[],
  loadCombatants:async tokens=>Promise.all(tokens.map(async t=>{

@@ -42,7 +42,8 @@ const dir=path.join(__dirname,'../js');
    };
    const {mountDirectPositionLab}=await import('/nova-direta.js');
    const picker=document.createElement('select');picker.id='novaSyncMestrePersonagem';document.body.prepend(picker);
-   window.lab=mountDirectPositionLab({database:db,user:()=>({uid,master}),characters:()=>[],catalog:()=>[{id:'npc:guarda',nome:'Guarda',donoUid:''}],loadCombatants:async rows=>rows.map(t=>({...t,initiative:t.id==='pj'?20:0,actions:t.id==='pj'?2:3}))});
+   document.body.insertAdjacentHTML('afterbegin','<select id="novaSyncMestreTipo"><option value="">Todos</option><option>pj</option><option>pm</option><option>npc</option><option>monstro</option></select><button id="novaSyncAdicionar">Adicionar ao mapa</button><span id="novaSyncAdicionarHint"></span>');
+   window.lab=mountDirectPositionLab({database:db,user:()=>({uid,master}),characters:()=>[],catalog:()=>[{id:'npc:guarda',nome:'Guarda',donoUid:'',catalogType:'npc'},...['pj','pm','monstro'].map(type=>({id:type+'extra',nome:type,catalogType:type}))],loadCombatants:async rows=>rows.map(t=>({...t,initiative:t.id==='pj'?20:0,actions:t.id==='pj'?2:3}))});
 
    await lab.open();
   },{uid,master});
@@ -120,7 +121,17 @@ const dir=path.join(__dirname,'../js');
   assert.deepEqual(errors,[]);
   console.log('PASS iniciativa, ações do dono, duas passagens, avanço automático e saldo de movimento por turno');
   assert.equal(await player.locator('#novaSyncMestrePersonagem').isDisabled(),true);
+  for(const type of ['pj','pm','monstro','npc']){
+   await master.locator('#novaSyncMestreTipo').selectOption(type);
+   assert.equal(await master.locator('#novaSyncMestrePersonagem option').count(),2,'filtro mostra somente o tipo escolhido');
+  }
   await master.locator('#novaSyncMestrePersonagem').selectOption('npc:guarda');
+  assert.equal(store[statePath+'/npc%3Aguarda'],undefined,'selecionar não adiciona');
+  await master.locator('#novaSyncAdicionar').click();
+  assert.equal(await master.locator('#novaSyncAdicionar').textContent(),'Cancelar colocação');
+  await master.locator('#novaSyncAdicionar').click();
+  assert.equal(await master.locator('#novaSyncAdicionar').textContent(),'Adicionar ao mapa');
+  await master.locator('#novaSyncAdicionar').click();
   const mb=await master.locator('#novaSyncBoard').boundingBox();await master.mouse.click(mb.x+60,mb.y+60);
   await player.waitForFunction(()=>document.querySelectorAll('[data-token]').length===3);
   assert.equal(store[statePath+'/npc%3Aguarda'].nome,'Guarda');
