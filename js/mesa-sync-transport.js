@@ -9,7 +9,9 @@ export function createTransport({ transact, read, write, subscribe, statePath, c
         if(closed||!isMaster()){lease=null;return false;}
         const next=await transact(async tx=>{
             const p=await tx.get(statePath);
-            if(!p?.estado)throw new Error('shared-state-missing');
+            // Login can happen before the user opens the Mesa. There is no
+            // shared combat document yet, so remain an observer silently.
+            if(!p?.estado)return null;
             const a=claimAuthority(p||{},session,now());
             if(!a)return null;
             tx.set(statePath,{...p,protocol:PROTOCOL,revision:p.revision||0,authority:a});
