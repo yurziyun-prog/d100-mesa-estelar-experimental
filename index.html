@@ -838,16 +838,21 @@
                     <h2 style="margin:0 0 6px;">🔗 Sincronização nova</h2>
                     <p style="color:#aaa;margin:0 0 16px;">Área experimental isolada. Ela começa apenas com posições compartilhadas entre os navegadores.</p>
                     <div id="novaSyncStatus" style="padding:10px;border-radius:8px;background:rgba(0,0,0,.2);margin-bottom:12px;">Aguardando conexão.</div>
-                    <div style="padding:14px;margin-bottom:12px;border:1px solid #49668a;border-radius:10px;background:rgba(0,0,0,.25);">
+                    <div id="novaSyncMasterPanel" style="padding:14px;margin-bottom:12px;border:1px solid #49668a;border-radius:10px;background:rgba(0,0,0,.25);">
                         <strong>Painel do mestre · combate</strong>
                         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
                             <button class="btn-small btn-select" id="novaSyncInit" onclick="novaSyncInicializar_()">Preparar personagens</button>
                             <select id="novaSyncMapa" class="lab-control"><option value="">Mapa padrão</option></select>
+                            <select id="novaSyncMestrePersonagem" class="lab-control"><option value="">Escolher personagem para colocar no mapa</option></select>
                             <button id="novaSyncStart" class="btn-small btn-select" disabled>▶ Iniciar combate</button>
                             <button id="novaSyncEnd" class="btn-small" disabled>■ Encerrar combate</button>
                         </div>
                         <div id="novaSyncErro" role="alert" hidden style="margin:10px 0;padding:12px;border:1px solid #ff7474;background:#48242b;color:white;border-radius:8px;"></div>
                         <div id="novaSyncTurno" role="status" style="margin:8px 0;">Fora de combate · movimento livre.</div>
+                    </div>
+                    <div id="novaSyncPlayerInfo" hidden style="padding:14px;margin-bottom:12px;border:1px solid #49668a;border-radius:10px;background:rgba(0,0,0,.18);">
+                        <strong>Área do jogador</strong>
+                        <div id="novaSyncPlayerInfoText" style="margin-top:8px;">Modo explorador · movimento livre.</div>
                     </div>
                     <div style="padding:14px;margin-bottom:12px;border:1px solid #49668a;border-radius:10px;background:rgba(0,0,0,.18);">
                         <strong>Painel do personagem</strong>
@@ -2168,7 +2173,7 @@
         });
     </script>
 
-<script type="module" src="js/app.js?v=46.83.2-exp-sync-direta-18-20260910"></script>
+<script type="module" src="js/app.js?v=46.83.2-exp-sync-direta-19-20260910"></script>
 <!-- Mesa Estelar v46.38.0: segurança de objetos, XP contextual, tutorial reforçado, PM/PJ, imagem pós-conclusão e sincronização de magia -->
 
 <div id="battleTokenPreview" class="battle-token-preview" aria-hidden="true"></div>

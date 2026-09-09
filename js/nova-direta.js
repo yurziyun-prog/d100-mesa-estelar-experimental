@@ -9,7 +9,10 @@ export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=asy
  const canView=t=>!!t&&!!user()&&(user().master||user().uid===t.donoUid);
  const controlled=t=>!!t&&!!user()&&(user().uid===t.donoUid||(user().master&&!t.donoUid));
  function status(){
-  el('novaSyncStatus').textContent=(queues.size?'Sincronização direta 18 · salvando posição…':error)||`Sincronização direta 18 · ${tokens.size} personagem(ns) · clique no destino para caminhar`;
+  el('novaSyncStatus').textContent=(queues.size?'Sincronização direta 19 · salvando posição…':error)||`Sincronização direta 19 · ${tokens.size} personagem(ns) · clique no destino para caminhar`;
+  const masterPanel=el('novaSyncMasterPanel'),playerInfo=el('novaSyncPlayerInfo');
+  if(masterPanel)masterPanel.hidden=!user()?.master;
+  if(playerInfo){playerInfo.hidden=!!user()?.master;const c=mapPacket?.combat;el('novaSyncPlayerInfoText').textContent=c?.active?`Turno de combate iniciado · turno ${c.round} · ${mapPacket?.nome||mapPacket?.mapId||'mapa atual'}. Aguarde sua vez para agir.`:`Modo explorador · movimento livre · ${mapPacket?.nome||mapPacket?.mapId||'mapa atual'}.`;}
   const alert=el('novaSyncErro');
   if(alert){alert.hidden=!error;alert.textContent=error;}
   const c=mapPacket?.combat,t=tokens.get(c?.activeId),panel=el('novaSyncTurno');
@@ -58,6 +61,7 @@ export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=asy
   }
   el('novaSyncInit').style.display=user()?.master?'':'none';
   for(const node of [...board.children])if(node.dataset.token&&!tokens.has(node.dataset.token))node.remove();
+  const oldPositions=new Map([...board.querySelectorAll('[data-token]')].map(n=>[n.dataset.token,{x:Number(n.dataset.x||0),y:Number(n.dataset.y||0)}]));
   for(const t of tokens.values()){
    let node=[...board.children].find(n=>n.dataset.token===t.id);
    if(!node){
@@ -67,7 +71,10 @@ export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=asy
     const label=root.createElement('span');label.textContent=t.nome;label.style.cssText='position:absolute;top:46px;left:50%;transform:translateX(-50%);white-space:nowrap;background:#172337;font-size:12px';node.append(label);board.append(node);
    }
    const p=previews.get(t.id)||t;
+   const before=oldPositions.get(t.id),distance=before?Math.hypot(p.x-before.x,p.y-before.y):0;
+   node.style.transition=`left ${Math.max(.15,distance/3)}s linear,top ${Math.max(.15,distance/3)}s linear`;
    node.style.left=`${p.x/28*100}%`;node.style.top=`${p.y/14*100}%`;
+   node.dataset.x=p.x;node.dataset.y=p.y;
    node.style.cursor=controlled(t)?'grab':'default';node.style.borderColor=t.id===select.value?'#ffd447':'#00d4ff';
   }
   drawMap();status();
