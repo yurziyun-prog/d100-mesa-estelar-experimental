@@ -42,8 +42,13 @@ export function move(state, command, perAction) {
     const sameGesture = previous.stream === command.stream && previous.gesture === p.gesture && previous.opportunity === command.opportunity;
     const traveled = sameGesture ? previous.distance : 0;
     if (p.distance < traveled) return false;
-    const dx=p.x-t.x,dy=p.y-t.y,straight=Math.hypot(dx,dy),delta=p.distance-traveled;
-    if (straight > delta + .03) return false;
+    const dx=p.x-t.x,dy=p.y-t.y,straight=Math.hypot(dx,dy);
+    // O cliente pode ter iniciado o gesto antes de receber a posição mais
+    // recente do mestre. Nesse caso a distância acumulada local é menor que
+    // o deslocamento visto pela autoridade. Reconciliamos pelo maior valor:
+    // curvas mantêm o caminho acumulado, enquanto um ponto final atrasado usa
+    // a distância autoritativa e deixa de ser descartado como teleporte.
+    const delta=Math.max(0,p.distance-traveled,straight);
     const before=Math.max(0,Number(t.movimentoUsadoDirecionalD1||0));
     let allowed=delta;
     if(combat){
