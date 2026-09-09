@@ -1,10 +1,20 @@
 // Movimento livre: uma posição por personagem, sem sessão-mestre ou fila de comandos.
 export const POSITION_PATH='combatesAtivos/mapaMesaSyncDireta/posicoes';
-export function mountDirectPositionLab({user,characters,database,root=document}) {
+export const MAP_PATH='combatesAtivos/mapaMesaSyncDireta';
+export function mountDirectPositionLab({user,characters,mapas=()=>[],database,root=document}) {
  const el=id=>root.getElementById(id), tokens=new Map(), previews=new Map(), queues=new Map();
- let stop=null,account='',error='',generation=0;
+ let stop=null,stopMap=null,account='',error='',generation=0,mapPacket=null;
  const controlled=t=>!!user()&&(user().master||user().uid===t.donoUid);
  function status(){el('novaSyncStatus').textContent=error||`Sincronização direta 6 · ${tokens.size} personagem(ns) · ${queues.size?'salvando posição…':'clique no destino para caminhar'}`;}
+ function drawMap(){
+  const board=el('novaSyncBoard'),select=el('novaSyncMapa'); if(!board||!select)return;
+  const list=mapas()||[],old=select.value;
+  select.replaceChildren(...list.map(m=>{const o=root.createElement('option');o.value=m.id;o.textContent=m.nome||m.id;return o;}));
+  select.value=mapPacket?.mapId||old||'';
+  if(mapPacket?.fundo)board.style.backgroundImage=`url("${String(mapPacket.fundo).replaceAll('"','%22')}")`;
+  else board.style.backgroundImage='linear-gradient(135deg,#20314c,#18233a)';
+  board.style.backgroundSize='cover';board.style.backgroundPosition='center';
+ }
  function draw(){
   const board=el('novaSyncBoard'),select=el('novaSyncPersonagem'),old=select.value;
   const mine=[...tokens.values()].filter(controlled);
@@ -24,10 +34,10 @@ export function mountDirectPositionLab({user,characters,database,root=document})
    node.style.left=`${p.x/28*100}%`;node.style.top=`${p.y/14*100}%`;
    node.style.cursor=controlled(t)?'grab':'default';node.style.borderColor=t.id===select.value?'#ffd447':'#00d4ff';
   }
-  status();
+  drawMap();status();
  }
  function fail(e){error=`Não foi possível salvar/sincronizar: ${e.code||e.message||e}`;status();console.error('[Sync direta]',e);}
- function close(){generation++;stop?.();stop=null;account='';tokens.clear();previews.clear();queues.clear();}
+ function close(){generation++;stop?.();stopMap?.();stop=null;stopMap=null;account='';tokens.clear();previews.clear();queues.clear();mapPacket=null;}
  function open(){
   const u=user();if(!u)return;if(account===u.uid&&stop)return;close();account=u.uid;error='';const g=generation;
   stop=database.subscribe(POSITION_PATH,rows=>{
@@ -38,11 +48,15 @@ export function mountDirectPositionLab({user,characters,database,root=document})
     if(!old||t.revision>=old.revision)tokens.set(row.id,t);
    }
    draw();
-  },fail);draw();
+  },fail);
+  stopMap=database.subscribeDoc(MAP_PATH,p=>{if(g===generation){mapPacket=p||null;draw();}},fail);
+  draw();
  }
  async function initialize(){
   open();if(!user()?.master)return;
-  try{
+ try{
+   const mapaId=el('novaSyncMapa')?.value;
+   if(mapaId){const m=(mapas()||[]).find(x=>String(x.id)===String(mapaId));if(m)await database.writeMap(MAP_PATH,{mapId:String(m.id),nome:String(m.nome||m.id),fundo:String(m.fundo||''),larguraM:Number(m.larguraM)||28,alturaM:Number(m.alturaM)||14});}
    const legacy=await database.get('combatesAtivos/mapaMesaSyncNova');
    const source=legacy?.estado?.tokens?.length?legacy.estado.tokens:characters();
    for(const [i,t] of source.entries()){
@@ -91,5 +105,6 @@ export function mountDirectPositionLab({user,characters,database,root=document})
   const p=point(e);previews.set(id,p);draw();save(id,p);
  });
  el('novaSyncPersonagem').addEventListener('change',draw);
+ el('novaSyncMapa')?.addEventListener('change',()=>{if(user()?.master){const m=(mapas()||[]).find(x=>String(x.id)===String(el('novaSyncMapa').value));if(m)database.writeMap(MAP_PATH,{mapId:String(m.id),nome:String(m.nome||m.id),fundo:String(m.fundo||''),larguraM:Number(m.larguraM)||28,alturaM:Number(m.alturaM)||14}).catch(fail);}});
  return {open,close,initialize};
 }

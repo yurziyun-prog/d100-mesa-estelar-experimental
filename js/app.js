@@ -36433,16 +36433,19 @@ function labInstalarAcoesConfirmadas_(){
 labInstalarAcoesConfirmadas_();
 
 // Aba paralela: controlador independente e adaptador Firestore.
-import {mountDirectPositionLab} from './nova-direta.js?v=6';
+import {mountDirectPositionLab} from './nova-direta.js?v=7';
 const novaSyncController_=mountDirectPositionLab({
  user:()=>currentUserUid?{uid:String(currentUserUid),master:batalhaEhMestre_()}:null,
  characters:()=>labEstado_?.tokens?.length?labEstado_.tokens:(userCharacters||[]),
+ mapas:()=>mapasDB||[],
  database:{
   get:async p=>{const s=await getDoc(doc(db,...p.split('/')));return s.exists()?s.data():null;},
   transact:fn=>runTransaction(db,async native=>fn({
    get:async p=>{const s=await native.get(doc(db,...p.split('/')));return s.exists()?s.data():null;},
    set:(p,v)=>native.set(doc(db,...p.split('/')),v)
   })),
+  writeMap:(p,v)=>setDoc(doc(db,...p.split('/')),v,{merge:true}),
+  subscribeDoc:(p,receive,fail)=>onSnapshot(doc(db,...p.split('/')),{includeMetadataChanges:true},s=>receive(s.exists()?s.data():null),fail),
   subscribe:(p,receive,fail)=>onSnapshot(collection(db,...p.split('/')),{includeMetadataChanges:true},s=>{
    receive(s.docChanges({includeMetadataChanges:true}).filter(c=>!c.doc.metadata.hasPendingWrites).map(c=>({id:c.doc.id,data:c.doc.data(),removed:c.type==='removed'})));
   },fail)

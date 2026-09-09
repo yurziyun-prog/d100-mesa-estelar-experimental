@@ -36,7 +36,9 @@ const dir=path.join(__dirname,'../js');
    const db={
     transact:async fn=>{await dbCall('lock');const writes=[];try{const result=await fn({get:p=>dbCall('get',p),set:(p,v)=>writes.push([p,v])});await dbCall('commit',writes);return result;}catch(e){await dbCall('commit',[]);throw e;}},
     read:p=>dbCall('read',p),write:(path,data)=>dbCall('write',{path,data}),remove:p=>dbCall('remove',p),
-    subscribe:(path,receive)=>{const id=++next;callbacks[id]=receive;dbCall('subscribe',{path,id});return()=>{delete callbacks[id];dbCall('unsubscribe',id);};}
+    subscribe:(path,receive)=>{const id=++next;callbacks[id]=receive;dbCall('subscribe',{path,id});return()=>{delete callbacks[id];dbCall('unsubscribe',id);};},
+    subscribeDoc:(path,receive)=>{const id=++next;callbacks[id]=receive;dbCall('subscribe',{path,id});return()=>{delete callbacks[id];dbCall('unsubscribe',id);};},
+    writeMap:async()=>{}
    };
    const {mountDirectPositionLab}=await import('/nova-direta.js');
    window.lab=mountDirectPositionLab({database:db,user:()=>({uid,master}),characters:()=>[]});
