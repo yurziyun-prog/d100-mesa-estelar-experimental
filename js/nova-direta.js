@@ -9,9 +9,13 @@ export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=asy
  const canView=t=>!!t&&!!user()&&(user().master||user().uid===t.donoUid);
  const controlled=t=>!!t&&!!user()&&(user().uid===t.donoUid||(user().master&&!t.donoUid));
  function status(){
-  el('novaSyncStatus').textContent=(queues.size?'Sincronização direta 19 · salvando posição…':error)||`Sincronização direta 19 · ${tokens.size} personagem(ns) · clique no destino para caminhar`;
+  el('novaSyncStatus').textContent=(queues.size?'Sincronização direta 20 · salvando posição…':error)||`Sincronização direta 20 · ${tokens.size} personagem(ns) · clique no destino para caminhar`;
   const masterPanel=el('novaSyncMasterPanel'),playerInfo=el('novaSyncPlayerInfo');
-  if(masterPanel)masterPanel.hidden=!user()?.master;
+  if(masterPanel)masterPanel.hidden=false;
+  const masterTitle=el('novaSyncMasterTitle');if(masterTitle)masterTitle.textContent=user()?.master?'Painel do mestre · combate':'Sessão de combate · somente leitura';
+  const selected=tokens.get(el('novaSyncPersonagem')?.value),joined=mapPacket?.joined||{};
+  const join=el('novaSyncJoin');
+  if(join){join.hidden=!!user()?.master;join.textContent=joined[selected?.id]===false?'Entrar no combate':'Sair do combate';join.disabled=!!mapPacket?.combat?.active||!selected||selected.donoUid!==user()?.uid;}
   if(playerInfo){playerInfo.hidden=!!user()?.master;const c=mapPacket?.combat;el('novaSyncPlayerInfoText').textContent=c?.active?`Turno de combate iniciado · turno ${c.round} · ${mapPacket?.nome||mapPacket?.mapId||'mapa atual'}. Aguarde sua vez para agir.`:`Modo explorador · movimento livre · ${mapPacket?.nome||mapPacket?.mapId||'mapa atual'}.`;}
   const alert=el('novaSyncErro');
   if(alert){alert.hidden=!error;alert.textContent=error;}
@@ -71,7 +75,7 @@ export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=asy
     const label=root.createElement('span');label.textContent=t.nome;label.style.cssText='position:absolute;top:46px;left:50%;transform:translateX(-50%);white-space:nowrap;background:#172337;font-size:12px';node.append(label);board.append(node);
    }
    const p=previews.get(t.id)||t;
-   const before=oldPositions.get(t.id),distance=before?Math.hypot(p.x-before.x,p.y-before.y):0;
+   const before=oldPositions.get(t.id),mw=Number(mapData?.larguraM||28),mh=Number(mapData?.alturaM||14),distance=before?Math.hypot((p.x-before.x)*mw/28,(p.y-before.y)*mh/14):0;
    node.style.transition=`left ${Math.max(.15,distance/3)}s linear,top ${Math.max(.15,distance/3)}s linear`;
    node.style.left=`${p.x/28*100}%`;node.style.top=`${p.y/14*100}%`;
    node.dataset.x=p.x;node.dataset.y=p.y;
@@ -182,7 +186,8 @@ export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=asy
   const g=generation;
   changingTurn=true;status();
   try{
-   const started=action==='start'?iniciarIniciativa(await loadCombatants([...tokens.values()]),crypto.randomUUID()):null;
+   const joined=mapPacket?.joined||{};
+   const started=action==='start'?iniciarIniciativa(await loadCombatants([...tokens.values()].filter(t=>joined[t.id]!==false)),crypto.randomUUID()):null;
    await database.transact(async tx=>{
     if(g!==generation)throw new Error('A sessão mudou');
     const state=await tx.get(MAP_PATH)||{},c=state.combat;
@@ -203,6 +208,10 @@ export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=asy
   finally{changingTurn=false;status();}
  }
  for(const [id,action]of [['novaSyncStart','start'],['novaSyncNext','pass'],['novaSyncSpend','spend'],['novaSyncEnd','end']])el(id)?.addEventListener('click',()=>changeTurn(action));
+ el('novaSyncJoin')?.addEventListener('click',async()=>{
+  const t=tokens.get(el('novaSyncPersonagem')?.value);if(!t||t.donoUid!==user()?.uid||mapPacket?.combat?.active)return;
+  try{await database.transact(async tx=>{const s=await tx.get(MAP_PATH)||{};tx.set(MAP_PATH,{...s,joined:{...(s.joined||{}),[t.id]:(s.joined||{})[t.id]===false}});});error='';status();}catch(e){fail(e);}
+ });
  status();
  return {open,close,initialize};
 }

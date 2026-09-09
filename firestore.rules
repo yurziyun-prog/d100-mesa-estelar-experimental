@@ -150,6 +150,10 @@ service cloud.firestore {
           fluxoValido(c,n);
       }
       allow update: if acaoValida();
+      // Antes do combate, cada jogador pode marcar o próprio personagem
+      // como participante ou ausente da sessão que o mestre iniciará.
+      allow update: if autenticado() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['joined']);
     }
 
     match /{document=**} { allow read, write: if false; }

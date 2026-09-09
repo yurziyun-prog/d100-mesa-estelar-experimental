@@ -839,7 +839,7 @@
                     <p style="color:#aaa;margin:0 0 16px;">Área experimental isolada. Ela começa apenas com posições compartilhadas entre os navegadores.</p>
                     <div id="novaSyncStatus" style="padding:10px;border-radius:8px;background:rgba(0,0,0,.2);margin-bottom:12px;">Aguardando conexão.</div>
                     <div id="novaSyncMasterPanel" style="padding:14px;margin-bottom:12px;border:1px solid #49668a;border-radius:10px;background:rgba(0,0,0,.25);">
-                        <strong>Painel do mestre · combate</strong>
+                        <strong id="novaSyncMasterTitle">Painel do mestre · combate</strong>
                         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
                             <button class="btn-small btn-select" id="novaSyncInit" onclick="novaSyncInicializar_()">Preparar personagens</button>
                             <select id="novaSyncMapa" class="lab-control"><option value="">Mapa padrão</option></select>
@@ -858,6 +858,7 @@
                         <strong>Painel do personagem</strong>
                         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
                             <select id="novaSyncPersonagem" class="lab-control"><option value="">Escolha um personagem</option></select>
+                            <button id="novaSyncJoin" class="btn-small" disabled>Entrar no combate</button>
                             <button id="novaSyncSpend" class="btn-small" disabled>Registrar 1 Ação</button>
                             <button id="novaSyncNext" class="btn-small" disabled>Passar ação</button>
                         </div>
@@ -2173,7 +2174,7 @@
         });
     </script>
 
-<script type="module" src="js/app.js?v=46.83.2-exp-sync-direta-19-20260910"></script>
+<script type="module" src="js/app.js?v=46.83.2-exp-sync-direta-20-20260910"></script>
 <!-- Mesa Estelar v46.38.0: segurança de objetos, XP contextual, tutorial reforçado, PM/PJ, imagem pós-conclusão e sincronização de magia -->
 
 <div id="battleTokenPreview" class="battle-token-preview" aria-hidden="true"></div>
