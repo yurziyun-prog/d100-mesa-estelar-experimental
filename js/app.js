@@ -8,7 +8,9 @@ const labRuleHandlers_=new Map();
 const LAB_SESSION_SYNC_=crypto.randomUUID();
 const LAB_SYNC_STATE_PATH_='combatesAtivos/mapaMesaExperimental';
 const LAB_SYNC_COMMAND_PATH_=LAB_SYNC_STATE_PATH_+'/acoes';
-const LAB_SYNC_MOVEMENT_PATH_=LAB_SYNC_STATE_PATH_+'/movimentos';
+// Usa a subcoleção já autorizada (/acoes), mantendo IDs e tipos de comando
+// separados sem exigir mudança imediata nas regras do Firebase.
+const LAB_SYNC_MOVEMENT_PATH_=LAB_SYNC_COMMAND_PATH_;
 
 import {copy as mesaCopy, opportunity as mesaOpportunity, move as mesaMove, advance as mesaAdvance, acceptSnapshot as mesaAcceptSnapshot} from './mesa-sync-core.js';
 import {createTransport as createMesaTransport} from './mesa-sync-transport.js';

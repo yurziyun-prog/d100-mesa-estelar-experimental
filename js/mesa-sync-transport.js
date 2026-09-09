@@ -44,7 +44,7 @@ export function createTransport({ transact, read, write, subscribe, statePath, c
     }
     function start(){
         stops.push(subscribe(statePath,p=>{if(p){revision=Math.max(revision,Number(p.revision||0));onState(p);}},false));
-        for(const path of [commandPath,movementPath])stops.push(subscribe(path,doc=>{
+        for(const path of [...new Set([commandPath,movementPath])])stops.push(subscribe(path,doc=>{
             if(doc.data?.status==='new')enqueue(()=>process(doc.path));
         },true));
     }
@@ -52,7 +52,7 @@ export function createTransport({ transact, read, write, subscribe, statePath, c
         const ok=await claim();
         // Depois de assumir liderança, reenvia a lista de comandos pendentes:
         // snapshots anteriores podem ter chegado enquanto éramos observadores.
-        if(ok){for(const path of [commandPath,movementPath])for(const d of await read(path))if(d.data.status==='new')await enqueue(()=>process(d.path));}
+        if(ok){for(const path of [...new Set([commandPath,movementPath])])for(const d of await read(path))if(d.data.status==='new')await enqueue(()=>process(d.path));}
         return ok;
     }
     return {start,send,renew,isLeader:()=>!!lease&&!closed&&lease.until>now(),close(){closed=true;lease=null;stops.splice(0).forEach(f=>f());}};
