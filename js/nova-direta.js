@@ -1,6 +1,15 @@
 // Movimento livre: uma posição por personagem, sem sessão-mestre ou fila de comandos.
 export const POSITION_PATH='combatesAtivos/mapaMesaSyncDireta/posicoes';
 export const MAP_PATH='combatesAtivos/mapaMesaSyncDireta';
+function normalizeMap(raw){
+ if(!raw)return null;
+ let dados=raw.dados;
+ if(typeof dados==='string'){try{dados=JSON.parse(dados);}catch(_){dados=null;}}
+ const state=raw.oficina2State||dados?.oficina2State||dados||raw;
+ const elements=state?.elements||state?.elementos||raw.elements||raw.elementos||[];
+ return {...raw,larguraM:Number(raw.larguraM||state?.w||28),alturaM:Number(raw.alturaM||state?.h||14),
+  fundo:raw.fundo||state?.bg||state?.fundo||'',oficina2State:{...(raw.oficina2State||{}),elements:Array.isArray(elements)?elements:[]}};
+}
 export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=async()=>null,database,root=document}) {
  const el=id=>root.getElementById(id), tokens=new Map(), previews=new Map(), queues=new Map();
  let stop=null,stopMap=null,account='',error='',generation=0,mapPacket=null,mapData=null;
@@ -11,7 +20,7 @@ export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=asy
   const list=mapas()||[],old=select.value;
   select.replaceChildren(...list.map(m=>{const o=root.createElement('option');o.value=m.id;o.textContent=m.nome||m.id;return o;}));
   select.value=mapPacket?.mapId||old||'';
-  const fundo=String(mapPacket?.fundo||mapData?.fundo||'');
+  const fundo=String(mapPacket?.fundo||mapData?.fundo||mapData?.oficina2State?.bg||'');
   board.style.backgroundImage=/^(#|rgb|hsl|linear-gradient)/i.test(fundo)?'none':(fundo?`url("${fundo.replaceAll('"','%22')}")`:'linear-gradient(135deg,#20314c,#18233a)');
   board.style.backgroundColor=/^(#|rgb|hsl)/i.test(fundo)?fundo:'#20314c';
   board.style.backgroundSize='cover';board.style.backgroundPosition='center';
@@ -55,7 +64,7 @@ export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=asy
    }
    draw();
   },fail);
-  stopMap=database.subscribeDoc(MAP_PATH,async p=>{if(g!==generation)return;mapPacket=p||null;mapData=mapPacket?.mapId?await loadMap(mapPacket.mapId).catch(fail):null;draw();},fail);
+  stopMap=database.subscribeDoc(MAP_PATH,async p=>{if(g!==generation)return;mapPacket=p||null;mapData=mapPacket?.mapId?normalizeMap(await loadMap(mapPacket.mapId).catch(fail)):null;draw();},fail);
   draw();
  }
  async function initialize(){
