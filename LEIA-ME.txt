@@ -1,40 +1,35 @@
-Mesa Estelar — EXP-SYNC-CONSISTENTE-1
+Mesa Estelar — EXP-DIRECIONAL-8
 
-Pacote local de teste baseado na DIRECIONAL8. Não foi publicado no GitHub Pages.
+Base: DIRECIONAL7 encontrada na pasta Downloads. Pacote de atualização com os três arquivos completos; depende dos demais recursos do projeto existente.
 
-Arquitetura desta etapa:
-- estado compartilhado com revisão crescente;
-- uma liderança de mestre por sessão, com epoch e expiração;
-- recibo e consequência do comando na mesma transação;
-- movimento e ações em coleções separadas;
-- arraste e movimento contínuo usando o mesmo protocolo;
-- renderização isolada de alterações de jogo;
-- sem interpolação remota nesta primeira etapa.
+Instalação para teste:
+1. Guarde uma cópia da versão atual.
+2. Substitua index.html, js/app.js e js/oficina2.js na versão experimental.
+3. Recarregue as telas de mestre e jogador. Ambas devem mostrar no console: [Mesa Estelar] build EXP-DIRECIONAL-8 carregado.
 
-Arquivos principais:
-- index.html
-- js/app.js
-- js/oficina2.js
-- js/mesa-sync-core.js
-- js/mesa-sync-transport.js
+Alterações:
+- Testar substitui o botão redundante Atacar em combate e utiliza o ataque direcional.
+- Ataques confirmados custam exatamente 1 AÇ, inclusive crítico e fiasco. Regras de outros testes não foram alteradas.
+- AÇ de ataque aguardam confirmação do mestre; comandos repetidos são ignorados e comandos de oportunidade antiga são rejeitados.
+- Somente o mestre avança automaticamente. Timers de uma oportunidade anterior não avançam outra oportunidade.
+- Proteção da posição durante movimento não sobrescreve AÇ confirmadas.
+- Passar e Levantar do jogador são enviados ao mestre.
+- Aparo inválido usa Esquiva; sem Esquiva disponível, não usa aparo indevidamente.
+- Feedback visual para ataques corpo a corpo comuns também ocorre em falha.
+- Mantidas as correções D7 de seleção de perícia/arma, porcentagem de defesa, aviso de aparo, Levantar, efeitos sem escolhas e histórico privado de Resistência/Primeiros Socorros.
 
 Validação realizada:
-- sintaxe dos três módulos JavaScript aprovada;
-- carregamento em navegador simulado aprovado, sem erros de runtime;
-- 14 testes do protocolo aprovados;
-- renderização repetida não alterou o estado de jogo no teste de fumaça;
-- Oficina 2 foi preservada.
+Sintaxe dos dois arquivos JavaScript e dos scripts inline do HTML aprovada.
+14 verificações isoladas aprovadas, incluindo consumo por falha/crítico/fiasco, comando repetido, rejeição do quarto ataque, avanço Valery → Darek e timer antigo.
+Oficina 2 idêntica byte a byte à DIRECIONAL7. Login, mineração/lenhar e recursos externos não foram modificados.
 
-Teste manual recomendado após substituir os arquivos na experimental:
-1. Abrir uma conta de mestre e uma conta de jogador.
-2. Iniciar combate com Valery e Darek.
-3. Testar três ataques de Valery e conferir 3/3 → 2/3 → 1/3 → 0/3.
-4. Confirmar que o quarto ataque é recusado e que a oportunidade passa uma única vez para Darek.
-5. Mover Valery com arraste tradicional e movimento contínuo; conferir posição final nas duas telas.
-6. Repetir o teste com uma segunda aba de mestre aberta; somente uma deve processar comandos.
-7. Conferir seleção de perícia/arma, defesa, Levantar, Resistência, Primeiros Socorros e efeitos de falha.
-8. Verificar login, Oficina 2, mineração e lenhar.
+Teste integrado ainda necessário, com Firebase e duas contas reais:
+- Valery: 3 → 2 → 1 → 0 AÇ, incluindo crítico; após concluir defesa/dano, vez de Darek uma única vez.
+- Testar e tecla A; perícia/arma permanecem selecionadas após snapshots.
+- Movimento pelo mouse nas duas telas, sem retorno da posição.
+- Resistência e Primeiros Socorros no histórico do próprio jogador.
+- Ataque à distância sem opções especiais segue direto ao dano; aparo mostra porcentagem/aviso e usa Esquiva quando inválido.
+- Caído pode Levantar por 1 AÇ. Ataques que falham mantêm som/visual.
+- Login, Oficina 2, mineração e lenhar.
 
-Se a liderança do mestre expirar, a aba que conseguir renovar a sessão passa a processar os próximos comandos. A tela que perdeu a liderança permanece observadora.
-
-Este pacote ainda não foi validado contra o Firebase real nem enviado ao GitHub. Faça backup da DIRECIONAL8 antes de substituir os arquivos.
+Não foi feito teste integrado autenticado nem publicação. As verificações isoladas usam serviços e DOM simulados; não garantem ausência de regressões no ambiente real.

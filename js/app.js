@@ -36184,6 +36184,12 @@ function labAvancarConfirmado_(state,expected,options={}){
 }
 
 function labReceberConfirmado_(packet){
+    // Estados criados pela versão anterior não tinham metadados do protocolo.
+    // Tratamos o snapshot legado como a revisão inicial para que a primeira
+    // confirmação não seja descartada e o cliente não volte à posição antiga.
+    if(packet?.estado && packet.protocol!==1){
+        packet={...packet,protocol:1,revision:Number.isSafeInteger(packet.revision)?packet.revision:0};
+    }
     if(!mesaAcceptSnapshot(labConfirmedPacket_,packet))return;
     labConfirmedPacket_=packet;
     const previous=labEstado_,localTokens=previous.tokens||[];
@@ -36300,6 +36306,7 @@ function labIniciarTransporte_(){
         })),
         read:async path=>(await getDocs(query(collection(db,...path.split('/')),where('status','==','new')))).docs.map(d=>({path:d.ref.path,data:d.data()})),
         write:(path,value)=>setDoc(reference(path),value),
+        remove:path=>deleteDoc(reference(path)),
         subscribe:(path,receive,many)=>many?
             onSnapshot(query(collection(db,...path.split('/')),where('status','==','new')),snap=>snap.docChanges().filter(c=>c.type!=='removed').forEach(c=>receive({path:c.doc.ref.path,data:c.doc.data()})),labErroSync_):
             onSnapshot(reference(path),snap=>{if(snap.exists())receive(snap.data());},labErroSync_),
@@ -36382,7 +36389,7 @@ function labRender_(){
     for(const t of view.tokens||[]){const v=labVisualMovement_.get(String(t.id));if(v){t.x=v.x;t.y=v.y;t.angulo=v.angle;}}
     labComContextoLocal_(view,true,()=>{
         labDesenharBase_();
-        const visuals=[window.labViewNativeInstall_,labRenderPainelPersistente21_,labAtualizarAtuarComoE6_,labAtualizarInfo_,
+        const visuals=[window.labViewNativeInstall_,labRenderPainelPersistente21_,labEntradaLivreAtualizar530_,labAtualizarControlePJ760_,labQuickToolsUpdate760_,labAtualizarAtuarComoE6_,labAtualizarInfo_,
             labAtualizarDefesaUID7_,labGarantirBotaoTestarD7_,labGarantirLevantarD7_,labAjustarRotulosTokens23_,
             labRenderEventosVisuaisD5_,labRenderFogoObjetos481_,labRenderFormasMapa490_,labEstadosVisuais763_,
             labAplicarOcultacaoAnoitecerV46470_,labRenderPsiVisuais_,labPsiRenderModalMestre_,labPsiRenderModalJogador_,

@@ -1,7 +1,7 @@
 import { PROTOCOL, claimAuthority, ownsAuthority, applyCommand } from './mesa-sync-core.js';
 
 // O adaptador Firebase é injetado para testar disputas e retries sem produção.
-export function createTransport({ transact, read, write, subscribe, statePath, commandPath, movementPath,
+export function createTransport({ transact, read, write, remove, subscribe, statePath, commandPath, movementPath,
     session, uid, isMaster, reduce, onState, onError, now = Date.now }) {
     let lease=null,closed=false,busy=Promise.resolve(),stops=[],sequence=0,revision=0;
     const enqueue=job=>{busy=busy.then(job).catch(onError);return busy;};
@@ -21,16 +21,17 @@ export function createTransport({ transact, read, write, subscribe, statePath, c
     }
     async function process(path){
         if(closed||!lease)return;
-        await transact(async tx=>{
+        const changed=await transact(async tx=>{
             const [p,c]=await Promise.all([tx.get(statePath),tx.get(path)]);
-            if(!p||!c||c.status!=='new')return;
-            if(!ownsAuthority(p,lease,now())){lease=null;return;}
+            if(!p||!c||c.status!=='new')return false;
+            if(!ownsAuthority(p,lease,now())){lease=null;return false;}
             const next=applyCommand(p,c,lease,now(),reduce);
             if(next)tx.set(statePath,next);
-            // Movimentos e comandos têm documentos diferentes. Nunca apagamos
-            // o documento de uma amostra mais nova: o read faz parte da transação.
-            tx.set(path,{...c,status:'done',accepted:next?.lastCommand.accepted??false});
+            // A fila antiga permite apagar a mensagem, mas não necessariamente
+            // atualizá-la. O recibo no estado torna o retry idempotente.
+            return !!next;
         });
+        if(changed&&remove)await remove(path);
     }
     async function send(type,actor,payload,opportunity){
         if(closed)throw new Error('transport-closed');
