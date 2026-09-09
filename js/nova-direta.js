@@ -13,6 +13,7 @@ export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=asy
   const masterPanel=el('novaSyncMasterPanel'),playerInfo=el('novaSyncPlayerInfo');
   if(masterPanel)masterPanel.hidden=false;
   const masterTitle=el('novaSyncMasterTitle');if(masterTitle)masterTitle.textContent=user()?.master?'Painel do mestre · combate':'Sessão de combate · somente leitura';
+  if(masterPanel&&!user()?.master)for(const control of masterPanel.querySelectorAll('button,select'))control.disabled=true;
   const selected=tokens.get(el('novaSyncPersonagem')?.value),joined=mapPacket?.joined||{};
   const join=el('novaSyncJoin');
   if(join){join.hidden=!!user()?.master;join.textContent=joined[selected?.id]===false?'Entrar no combate':'Sair do combate';join.disabled=!!mapPacket?.combat?.active||!selected||selected.donoUid!==user()?.uid;}
