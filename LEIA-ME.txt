@@ -1,26 +1,35 @@
-Mesa Estelar v46.83.1
+Mesa Estelar — EXP-DIRECIONAL-8
 
-Segunda etapa da separação estrutural.
+Base: DIRECIONAL7 encontrada na pasta Downloads. Pacote de atualização com os três arquivos completos; depende dos demais recursos do projeto existente.
 
-Arquivos:
-  index.html
-  js/app.js
-  js/oficina2.js
+Instalação para teste:
+1. Guarde uma cópia da versão atual.
+2. Substitua index.html, js/app.js e js/oficina2.js na versão experimental.
+3. Recarregue as telas de mestre e jogador. Ambas devem mostrar no console: [Mesa Estelar] build EXP-DIRECIONAL-8 carregado.
 
-O que saiu de app.js nesta etapa:
-- gmOficinaV2Cfg_ (estado das ferramentas)
-- gm580_ (estado de seleção da interface consolidada)
-- conversões de cor da Oficina
-- utilidades puras de cor/HTML do gm580
-- cálculo de bounding boxes de desenhos/formas/objetos
-- teste geométrico de interseção
+Alterações:
+- Testar substitui o botão redundante Atacar em combate e utiliza o ataque direcional.
+- Ataques confirmados custam exatamente 1 AÇ, inclusive crítico e fiasco. Regras de outros testes não foram alteradas.
+- AÇ de ataque aguardam confirmação do mestre; comandos repetidos são ignorados e comandos de oportunidade antiga são rejeitados.
+- Somente o mestre avança automaticamente. Timers de uma oportunidade anterior não avançam outra oportunidade.
+- Proteção da posição durante movimento não sobrescreve AÇ confirmadas.
+- Passar e Levantar do jogador são enviados ao mestre.
+- Aparo inválido usa Esquiva; sem Esquiva disponível, não usa aparo indevidamente.
+- Feedback visual para ataques corpo a corpo comuns também ocorre em falha.
+- Mantidas as correções D7 de seleção de perícia/arma, porcentagem de defesa, aviso de aparo, Levantar, efeitos sem escolhas e histórico privado de Resistência/Primeiros Socorros.
 
-O que NÃO foi movido ainda:
-- renderização
-- desenho por ponteiro
-- salvar/carregar mapas
-- Firebase
-- Banco de Objetos
-- integrações com Mapa da Mesa
+Validação realizada:
+Sintaxe dos dois arquivos JavaScript e dos scripts inline do HTML aprovada.
+14 verificações isoladas aprovadas, incluindo consumo por falha/crítico/fiasco, comando repetido, rejeição do quarto ataque, avanço Valery → Darek e timer antigo.
+Oficina 2 idêntica byte a byte à DIRECIONAL7. Login, mineração/lenhar e recursos externos não foram modificados.
 
-Esta etapa deve se comportar exatamente como v46.83.0.
+Teste integrado ainda necessário, com Firebase e duas contas reais:
+- Valery: 3 → 2 → 1 → 0 AÇ, incluindo crítico; após concluir defesa/dano, vez de Darek uma única vez.
+- Testar e tecla A; perícia/arma permanecem selecionadas após snapshots.
+- Movimento pelo mouse nas duas telas, sem retorno da posição.
+- Resistência e Primeiros Socorros no histórico do próprio jogador.
+- Ataque à distância sem opções especiais segue direto ao dano; aparo mostra porcentagem/aviso e usa Esquiva quando inválido.
+- Caído pode Levantar por 1 AÇ. Ataques que falham mantêm som/visual.
+- Login, Oficina 2, mineração e lenhar.
+
+Não foi feito teste integrado autenticado nem publicação. As verificações isoladas usam serviços e DOM simulados; não garantem ausência de regressões no ambiente real.

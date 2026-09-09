@@ -56,8 +56,8 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-console.info('[Mesa Estelar] build EXP-DIRECIONAL-7 carregado');
-window.__MESA_BUILD__ = 'EXP-DIRECIONAL-7';
+console.info('[Mesa Estelar] build EXP-DIRECIONAL-8 carregado');
+window.__MESA_BUILD__ = 'EXP-DIRECIONAL-8';
 
 let currentUserUid = null;
 let userData = null;
@@ -5611,13 +5611,14 @@ window.labEncerrarOportunidade_=function(){
 
 let labAutoAvancoArmado_=false;
 function labAutoAvancarSeSemAcoes_(){
-    if(labEstado_.fase!=='combate'||labEstado_.pendenciaLab||labEstado_.danoPendenteLab)return false;
+    if(!batalhaEhMestre_()||labEstado_.fase!=='combate'||labEstado_.pendenciaLab||labEstado_.danoPendenteLab)return false;
     const atual=labTokenAtual_();if(!atual||Number(atual.acoesAtuaisLab||0)>0)return false;
+    const oportunidade=labChaveOportunidadeD8_();
     if(labAutoAvancoArmado_)return true;
     labAutoAvancoArmado_=true;
     setTimeout(()=>{
         labAutoAvancoArmado_=false;
-        if(labEstado_.fase!=='combate'||labEstado_.pendenciaLab||labEstado_.danoPendenteLab)return;
+        if(!batalhaEhMestre_()||oportunidade!==labChaveOportunidadeD8_()||labEstado_.fase!=='combate'||labEstado_.pendenciaLab||labEstado_.danoPendenteLab)return;
         const a=labTokenAtual_();
         if(a&&Number(a.acoesAtuaisLab||0)<=0){window.labEncerrarOportunidade_();setTimeout(()=>labAutoAvancarSeSemAcoes_(),100);}
     },180);
@@ -6778,7 +6779,8 @@ window.labRolarAtaque_=function(){
     labConsumirMunicao_(t,item,1);
     labSomAtaque_(item,r.grau);
     labDispararEfeitoVisualAtaque_(t,alvo,item,r.sucesso,r.grau);
-    t.acoesAtuaisLab=Math.max(0,Number(t.acoesAtuaisLab||0)-1);if(r.grau==='Crítico')t.acoesAtuaisLab=Math.min(Number(t.acoesMaxLab||0)+6,Number(t.acoesAtuaisLab||0)+1);else if(r.grau==='Fiasco'){if(Number(t.acoesAtuaisLab||0)>0)t.acoesAtuaisLab--;else t.penalidadeAcaoProximaLab=Math.max(1,Number(t.penalidadeAcaoProximaLab||0));}
+    // Cada ataque confirmado custa exatamente 1 AÇ, inclusive crítico/fiasco.
+    t.acoesAtuaisLab=Math.max(0,Number(t.acoesAtuaisLab||0)-1);
     const base=`${t.nome} → ${alvo.nome}: ${getNome(per)} ${roll}/${valor} → ${r.grau} · ${dist.toFixed(2)} m · ${getNome(item)}.`;
     labRegistrarResultadoProprio_(t,`Ataque contra ${alvo.nome}: ${getNome(per)} ${roll}/${valor} → ${r.grau}${bonusInt?` · Intuição +${bonusInt}%`:''}.`);
     let danoAutomatico=false;
@@ -6969,7 +6971,7 @@ function labRenderActionPanel_(){
       <div style="display:grid;grid-template-columns:minmax(145px,1.15fr) minmax(160px,1.25fr) minmax(145px,.58fr);gap:8px;align-items:start;">
         <label style="margin:0;"><small style="display:block;margin-bottom:4px;">Perícia</small><select onchange="labMudarAtaquePref_('periciaLab',this.value)" style="width:100%;margin:0;">${skills.map(p=>`<option value="${batalhaTokenPericia_(p)}" ${batalhaTokenPericia_(p)===t.periciaLab?'selected':''}>${escaparHtmlInventario_(getNome(p))} (${labValorPericiaAtaque_(c,p,alvo,item)}%)</option>`).join('')}</select></label>
         <label style="margin:0;"><small style="display:block;margin-bottom:4px;">Arma / ataque</small><select onchange="labMudarAtaquePref_('equipamentoLab',this.value)" style="width:100%;margin:0;">${eq.map(x=>`<option value="${escaparHtmlInventario_(x.valor)}" ${x.valor===t.equipamentoLab?'selected':''}>${escaparHtmlInventario_(x.rotulo)}</option>`).join('')||'<option>—</option>'}</select></label>
-        <label style="margin:0;"><small style="display:block;margin-bottom:4px;visibility:hidden;">Ação</small><button class="btn-small btn-select" onclick="labRolarAtaque_()" ${!per||!item||!alvo||Number(t.acoesAtuaisLab||0)<=0?'disabled':''} style="width:100%;height:48px;min-width:0;padding:0 12px;font-size:1em;margin:0;box-sizing:border-box;white-space:nowrap;">🎲 Atacar (1 AÇ)</button></label>
+        <label style="margin:0;"><small style="display:block;margin-bottom:4px;visibility:hidden;">Ação</small><button class="btn-small btn-select" onclick="labRolarAtaque_()" ${!per||!item||!alvo||Number(t.acoesAtuaisLab||0)<=0?'disabled':''} style="width:100%;height:48px;min-width:0;padding:0 12px;font-size:1em;margin:0;box-sizing:border-box;white-space:nowrap;">🎲 Testar</button></label>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:9px;">
         <button class="btn-small" onclick="labPassarAcao_()" ${Number(t.acoesAtuaisLab||0)<=0?'disabled':''} title="${Number(t.passagensLab||0)===0?'Primeira passagem da rodada: não gasta AÇ.':'Passagens seguintes nesta rodada custam 1 AÇ.'}" style="height:44px;min-width:185px;font-size:.96em;">⏭ ${Number(t.passagensLab||0)===0?'Passar (grátis)':'Passar (1 AÇ)'}</button>
@@ -17930,7 +17932,7 @@ labRenderActionPanel_=function(){
         else distTxt='🎯 Clique no alvo dentro do mapa';
         campoAlvo='';
         campo4=`<button class="btn-small ${t.sortePreparadaLab?'btn-select':''}" onclick="labPrepararSorte_()" ${labSorteAtualToken_(t)<=0||t.sortePreparadaLab?'disabled':''} style="width:100%;height:48px;margin:0;white-space:nowrap;">${t.sortePreparadaLab?'🍀 Preparada':`🍀 Sorte ${labSorteAtualToken_(t)}/${labSorteMaxToken_(t)}`}</button>`;
-        final=`<button class="btn-small btn-select" onclick="labRolarAtaque_()" ${!per||!labItemSelecionado_(t)||!alvo||Number(t.acoesAtuaisLab||0)<=0?'disabled':''} style="width:100%;height:48px;margin:0;">🎲 Atacar (1 AÇ)</button>`;
+        final=`<button class="btn-small btn-select" onclick="labRolarAtaque_()" ${!per||!labItemSelecionado_(t)||!alvo||Number(t.acoesAtuaisLab||0)<=0?'disabled':''} style="width:100%;height:48px;margin:0;">🎲 Testar</button>`;
     }
 
     // Alvos de combate, psiquismo e ações direcionadas são escolhidos no mapa.
@@ -35616,6 +35618,7 @@ const labRolarAtaqueD1Base_=window.labRolarAtaque_;
 function labExecutarAtaqueDirecionalMestreD1_(t,alvoId=''){
     if(!batalhaEhMestre_()||labEstado_.fase!=='combate'||!t)return false;
     if(labEstado_.pendenciaLab||labEstado_.danoPendenteLab)return false;
+    if(String(labTokenAtual_()?.id||'')!==String(t.id)||Number(t.acoesAtuaisLab||0)<=0)return false;
     labGarantirPrefsAtaque_(t);
     const item=labItemSelecionado_(t);if(!item)return false;
     const alvo=alvoId?labAlvoAtaquePorId_(alvoId):null;
@@ -36567,7 +36570,7 @@ labAplicarEstadoRemotoD3_=function(remoto){
                 rt.movSeqD4=lseq;
                 rt.movimentoUsadoDirecionalD1=Number(lt.movimentoUsadoDirecionalD1||0);
                 rt.movimentoGratisDisponivel=lt.movimentoGratisDisponivel;
-                rt.acoesAtuaisLab=lt.acoesAtuaisLab;
+                // AÇ vêm exclusivamente do estado confirmado pelo mestre.
             }
         }
 
@@ -36776,8 +36779,15 @@ function labRenderEventosVisuaisD5_(){
 
 const labDispararEfeitoVisualAtaqueD5Base_=labDispararEfeitoVisualAtaque_;
 labDispararEfeitoVisualAtaque_=function(atacante,alvo,item,acertou,grau){
+    const anterior=labEstado_.efeitoVisualLab?.id;
     const r=labDispararEfeitoVisualAtaqueD5Base_.apply(this,arguments);
     try{
+        if(atacante&&alvo&&!labAtaqueEhDistancia_(item)&&labEstado_.efeitoVisualLab?.id===anterior){
+            labEstado_.efeitoVisualLab={id:`melee8_${Date.now()}_${Math.random()}`,tipo:'energia_melee',
+                atacanteId:String(atacante.id),alvoId:String(alvo.id),itemId:String(item.id||item.idBanco||''),
+                acertou:!!acertou,grau:String(grau||''),ts:Date.now()};
+            labRenderUmFxD5_(labEstado_.efeitoVisualLab);
+        }
         const fx=labEstado_.efeitoVisualLab;
         if(fx?.id){
             if(labFxIdForcadoD5_){
@@ -36826,7 +36836,7 @@ labAutoResolverDefesaD1_=function(){
 // ------------------------------------------------------------
 function labFxPreviewD5_(t,alvo,item,grau,fxId){
     if(!t||!alvo||!item||!fxId)return;
-    const tipo=labEhLaminaEnergia481_(item)?'energia_melee':labTipoVisualArma_(item);
+    const tipo=!labAtaqueEhDistancia_(item)?'energia_melee':labTipoVisualArma_(item);
     if(!tipo)return;
 
     const fx={
@@ -36895,12 +36905,11 @@ window.labAtacarDirecaoD1_=async function(){
         );
     }
 
-    // Feedback local: munição/AÇ mudam na hora. O mestre fará a mesma mutação
-    // na cópia autoritativa e a confirmação substituirá este estado.
+    // Munição tem prévia local; AÇ aguardam a confirmação do mestre.
+    // O comando pendente impede outro ataque até essa confirmação.
     const acoesAntes=Number(t.acoesAtuaisLab||0);
     const munAntes=labEhArmaMuniciada_(item)?labMunicaoAtual_(t,item):Infinity;
     if(labEhArmaMuniciada_(item))labConsumirMunicao_(t,item,1);
-    t.acoesAtuaisLab=Math.max(0,acoesAntes-1);
     window.__LAB_ATK_PEND_D5__=seq;
     labRender_();
 
@@ -36913,13 +36922,13 @@ window.labAtacarDirecaoD1_=async function(){
             rolagemD5:rollLocal,
             valorPreviewD5:valorLocal,
             ataqueSeqD5:seq,
+            oportunidadeD8:labChaveOportunidadeD8_(),
             fxIdD5:fxId
         },
         t
     );
 
     if(!ok){
-        t.acoesAtuaisLab=acoesAntes;
         if(labEhArmaMuniciada_(item)){
             t.municaoLab=t.municaoLab||{};
             t.municaoLab[labChaveArma_(item)]=munAntes;
@@ -36936,46 +36945,36 @@ labProcessarComandoJogador_=async function(personagemId,acao){
         return labProcessarComandoJogadorD5Base_.apply(this,arguments);
     }
 
-    const chave=`d5atk:${personagemId}:${acao?.nonce||''}`;
-    if(labMapaComandosEmProcessamento_.has(chave))return;
-    labMapaComandosEmProcessamento_.add(chave);
-
+    if(!batalhaEhMestre_())return;
+    const t=labTokenPorId_(personagemId),pl=acao?.payload||{};
+    if(!t||!labUidPertenceToken18_(t,acao?.donoUid))return;
+    const seq=String(pl.ataqueSeqD5||acao?.nonce||'');
+    if(!seq||t.ultimoAtaqueSeqD5===seq||(t.ataquesProcessadosD8||[]).includes(seq))return;
+    t.ataquesProcessadosD8=[...(t.ataquesProcessadosD8||[]),seq].slice(-64);
+    // Store the acknowledgement before synchronous resolution, including rejection.
+    t.ultimoAtaqueSeqD5=seq;
     try{
-        if(!batalhaEhMestre_()||labEstado_.fase!=='combate')return;
-        const t=labTokenPorId_(personagemId);
-        if(!t||!labUidPertenceToken18_(t,acao?.donoUid))return;
-        if(String(labTokenAtual_()?.id||'')!==String(t.id))return;
-
-        const pl=acao?.payload||{};
+        const criado=Date.parse(String(acao?.criadoEm||''));
+        if(!Number.isFinite(criado)||Date.now()-criado>15000)return;
+        if(labEstado_.fase!=='combate'||String(labTokenAtual_()?.id||'')!==String(t.id))return;
+        if(pl.oportunidadeD8!==labChaveOportunidadeD8_())return;
+        if(labEstado_.pendenciaLab||labEstado_.danoPendenteLab||Number(t.acoesAtuaisLab||0)<=0)return;
         if(pl.periciaLab)t.periciaLab=String(pl.periciaLab);
         if(pl.equipamentoLab)t.equipamentoLab=String(pl.equipamentoLab);
-
         const rr=Number(pl.rolagemD5);
         labRollForcadoD5_=Number.isFinite(rr)&&rr>=1&&rr<=100?rr:null;
         labFxIdForcadoD5_=String(pl.fxIdD5||'');
-
         labGarantirDefesasD1_(t);
         const alvo=labAlvoAtaquePorId_(String(pl.alvoId||''));
         if(alvo&&!labEhAlvoObjeto_(alvo))labGarantirDefesasD1_(alvo);
-
         labExecutarAtaqueDirecionalMestreD1_(t,String(pl.alvoId||''));
-
-        t.ultimoAtaqueSeqD5=String(pl.ataqueSeqD5||'');
-        labRollForcadoD5_=null;
-        labFxIdForcadoD5_='';
-
-        labAgendarSyncRemoto_();
     }catch(e){
+        console.error('[DIRECIONAL8] ataque remoto',e);
+    }finally{
         labRollForcadoD5_=null;
         labFxIdForcadoD5_='';
-        console.error('[DIRECIONAL5] ataque remoto',e);
-    }finally{
-        try{
-            await deleteDoc(
-                doc(db,'combatesAtivos','mapaMesaExperimental','acoes',String(personagemId))
-            );
-        }catch(_){}
-        labMapaComandosEmProcessamento_.delete(chave);
+        labSalvarLocal_();
+        labAgendarSyncRemoto_();
     }
 };
 
@@ -37196,7 +37195,7 @@ labAplicarEstadoRemotoD3_=function(remoto){
                 rt.y=Number(lt.y||pend.y||0);
                 rt.angulo=Number(lt.angulo||pend.angulo||0);
                 rt.movSeqD6=Number(pend.seq||0);
-                rt.acoesAtuaisLab=Number(lt.acoesAtuaisLab??pend.acoesAtuaisLab??0);
+                // Proteção de posição não protege AÇ locais.
                 rt.movimentoUsadoDirecionalD1=Number(
                     lt.movimentoUsadoDirecionalD1??pend.movimentoUsadoDirecionalD1??0
                 );
@@ -37517,14 +37516,14 @@ labDefesaAtivaD1_=function(t,itemAtaque=null){
     }
 
     if(itemAtaque&&labAtaqueEhDistancia_(itemAtaque)){
-        return esquiva||escolhida;
+        return esquiva;
     }
 
     if(itemAtaque&&escolhida&&!labEhEsquivaD7_(escolhida)){
         const dist=Number(labEstado_.pendenciaLab?.distancia);
         const alcance=labAparoAlcanceD7_(t,escolhida);
         if(Number.isFinite(dist)&&dist>alcance+.05){
-            return esquiva||escolhida;
+            return esquiva;
         }
     }
 
@@ -37695,7 +37694,7 @@ function labGarantirBotaoTestarD7_(){
     const per=labPericiaPorToken_(t,t.periciaLab);
     const item=labItemSelecionado_(t);
     const alvo=labAlvoSelecionadoAtaqueD7_(t);
-    const habilitado=!!per&&!!item&&!!alvo&&Number(t.acoesAtuaisLab||0)>0;
+    const habilitado=!!per&&!!item&&!!alvo&&Number(t.acoesAtuaisLab||0)>0&&!window.__LAB_ATK_PEND_D5__&&!labEstado_.pendenciaLab&&!labEstado_.danoPendenteLab;
 
     let b=[...el.querySelectorAll('button')].find(x=>/^\s*🎲?\s*Testar\s*$/i.test(String(x.textContent||'').trim()));
     if(!b){
@@ -37708,6 +37707,9 @@ function labGarantirBotaoTestarD7_(){
         b.style.cssText='width:100%;height:48px;margin:0;';
         if(slot&&slot.children.length===0)slot.appendChild(b);
         else sorte.parentElement?.after(b);
+    }
+    for(const extra of [...el.querySelectorAll('button')]){
+        if(extra!==b&&/^(?:🎲\s*)?(?:Testar|Atacar(?: \(1 AÇ\))?)$/.test(String(extra.textContent||'').trim()))extra.remove();
     }
     b.onclick=()=>window.labTestarAtaqueD7_();
     b.disabled=!habilitado;
@@ -37755,7 +37757,7 @@ window.labAtacarDirecaoD1_=async function(){
     if(!batalhaEhMestre_()){
         const t=labAtorControlavelD1_();
         const item=t?labItemSelecionado_(t):null;
-        if(t&&item&&!labEstado_.pendenciaLab&&!labEstado_.danoPendenteLab&&Number(t.acoesAtuaisLab||0)>0){
+        if(t&&item&&!window.__LAB_ATK_PEND_D5__&&!labEstado_.pendenciaLab&&!labEstado_.danoPendenteLab&&Number(t.acoesAtuaisLab||0)>0){
             try{labSomAtaque_(item,'');}catch(_){}
         }
     }
@@ -37782,3 +37784,46 @@ labRender_=function(){
 };
 window.labRender_=labRender_;
 
+
+// EXP-DIRECIONAL-8: identidade da oportunidade e autoridade do avanço.
+function labChaveOportunidadeD8_(){
+    return `${labEstado_.combateIdD8||''}:${labEstado_.rodada}:${labEstado_.turnoIndex}:${labTokenAtual_()?.id||''}`;
+}
+const labIniciarCombateD8Base_=window.labIniciarCombate_;
+window.labIniciarCombate_=function(){
+    if(!batalhaEhMestre_())return;
+    labEstado_.combateIdD8=`combate_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    return labIniciarCombateD8Base_.apply(this,arguments);
+};
+const labEncerrarOportunidadeD8Base_=window.labEncerrarOportunidade_;
+window.labEncerrarOportunidade_=function(){
+    if(!batalhaEhMestre_()||labEstado_.fase!=='combate'||labEstado_.pendenciaLab||labEstado_.danoPendenteLab)return;
+    const r=labEncerrarOportunidadeD8Base_.apply(this,arguments);
+    labAgendarSyncRemoto_();
+    return r;
+};
+
+// Passar e Levantar do PJ também são confirmados pelo mestre.
+const labAcoesSimplesD8_={passar_d8:window.labPassarAcao_,levantar_d8:window.labLevantar_};
+for(const [nome,tipo] of [['labPassarAcao_','passar_d8'],['labLevantar_','levantar_d8']]){
+    window[nome]=function(){
+        if(batalhaEhMestre_())return labAcoesSimplesD8_[tipo].apply(this,arguments);
+        const t=labAtorControlavelD1_();
+        if(!t||labEstado_.pendenciaLab||labEstado_.danoPendenteLab||window.__LAB_ATK_PEND_D5__)return;
+        return labEnviarComandoJogador_(tipo,{oportunidadeD8:labChaveOportunidadeD8_()},t);
+    };
+}
+const labProcessarSimplesD8Base_=labProcessarComandoJogador_;
+labProcessarComandoJogador_=async function(personagemId,acao){
+    const executar=labAcoesSimplesD8_[acao?.tipo];
+    if(!executar)return labProcessarSimplesD8Base_.apply(this,arguments);
+    if(!batalhaEhMestre_())return;
+    const t=labTokenPorId_(personagemId);
+    if(!t||!labUidPertenceToken18_(t,acao?.donoUid)||!acao?.nonce)return;
+    if(t.ultimoComandoSimplesD8===acao.nonce)return;
+    t.ultimoComandoSimplesD8=acao.nonce;
+    if(acao.payload?.oportunidadeD8!==labChaveOportunidadeD8_()||String(labTokenAtual_()?.id)!==String(t.id))return;
+    if(labEstado_.pendenciaLab||labEstado_.danoPendenteLab)return;
+    executar();
+    labSalvarLocal_();labAgendarSyncRemoto_();
+};
