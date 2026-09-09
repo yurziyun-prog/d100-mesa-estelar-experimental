@@ -735,6 +735,7 @@
                 <button class="tab-btn hidden" id="batalhaTabBtn" onclick="mostrarAba('batalha', this)">⚔️ Combate antigo</button>
                 <button class="tab-btn" id="regrasTabBtn" onclick="mostrarAba('regras', this)" data-i18n="tabRegras">📖 Regras</button>
                 <button class="tab-btn" id="laboratorioTabBtn" onclick="mostrarAba('laboratorio-combate', this)">🗺️ Mapa da Mesa</button>
+                <button class="tab-btn" id="syncLabTabBtn" onclick="mostrarAba('sincronizacao-nova', this); novaSyncAbrir_()">🔗 Sincronização nova</button>
                 <button class="tab-btn hidden" id="escudoTabBtn" onclick="mostrarAba('escudo', this)" data-i18n="tabGM">🛡️ Escudo do Mestre</button>
             </div>
 
@@ -829,6 +830,21 @@
                     </details>
                     <div id="labHistoricoMesa" style="display:none;margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(8,12,29,.68);border:1px solid rgba(0,212,255,.22);max-height:210px;overflow:auto;"></div>
                     <div style="margin-top:8px;color:#888;font-size:.88em;">Área padrão: 28 m × 14 m. As linhas de 1 m servem apenas como régua visual. O token pode parar em qualquer ponto.</div>
+                </div>
+            </div>
+
+            <div id="sincronizacao-nova" class="tab-content">
+                <div class="form-section">
+                    <h2 style="margin:0 0 6px;">🔗 Sincronização nova</h2>
+                    <p style="color:#aaa;margin:0 0 16px;">Área experimental isolada. Ela começa apenas com posições compartilhadas entre os navegadores.</p>
+                    <div id="novaSyncStatus" style="padding:10px;border-radius:8px;background:rgba(0,0,0,.2);margin-bottom:12px;">Aguardando conexão.</div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;">
+                        <button class="btn-small btn-select" onclick="novaSyncInicializar_()">Inicializar com os personagens atuais</button>
+                        <select id="novaSyncPersonagem" class="lab-control"><option value="">Escolha um personagem</option></select>
+                        <button class="btn-small" onclick="novaSyncMover_(-1,0)">◀</button><button class="btn-small" onclick="novaSyncMover_(1,0)">▶</button>
+                        <button class="btn-small" onclick="novaSyncMover_(0,-1)">▲</button><button class="btn-small" onclick="novaSyncMover_(0,1)">▼</button>
+                    </div>
+                    <div id="novaSyncBoard" style="position:relative;width:min(100%,840px);height:420px;background:linear-gradient(135deg,#20314c,#18233a);border:1px solid #49668a;border-radius:10px;overflow:hidden;"></div>
                 </div>
             </div>
 

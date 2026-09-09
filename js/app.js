@@ -36421,3 +36421,31 @@ function labInstalarAcoesConfirmadas_(){
     window.labRender_=labRender_;
 }
 labInstalarAcoesConfirmadas_();
+
+// Laboratório paralelo: estado mínimo de posições, separado do mapa antigo.
+let novaSyncTransport_=null,novaSyncState_=null,novaSyncUnsub_=null;
+const NOVA_SYNC_PATH_='combatesAtivos/mapaMesaSyncNova';
+function novaSyncStatus_(s){const e=document.getElementById('novaSyncStatus');if(e)e.textContent=s;}
+function novaSyncRender_(){
+    const board=document.getElementById('novaSyncBoard'),sel=document.getElementById('novaSyncPersonagem');
+    if(!board||!novaSyncState_)return;
+    const tokens=novaSyncState_.tokens||[],mine=batalhaEhMestre_()?tokens:tokens.filter(t=>String(t.donoUid||'')===String(currentUserUid||''));
+    if(sel){const old=sel.value;sel.innerHTML='<option value="">Escolha um personagem</option>'+mine.map(t=>`<option value="${escaparHtmlInventario_(t.id)}">${escaparHtmlInventario_(t.nome||t.id)}</option>`).join('');if(mine.some(t=>String(t.id)===old))sel.value=old;}
+    board.innerHTML=tokens.map(t=>{const x=Math.max(1,Math.min(98,Number(t.x||0)/28*100)),y=Math.max(1,Math.min(94,Number(t.y||0)/14*100));return `<div title="${escaparHtmlInventario_(t.nome||t.id)}" style="position:absolute;left:${x}%;top:${y}%;transform:translate(-50%,-50%);width:42px;height:42px;border-radius:50%;border:3px solid #00d4ff;background:#263d62;color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;">${t.imagem?`<img src="${escaparHtmlInventario_(t.imagem)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:'👤'}</div>`;}).join('');
+    novaSyncStatus_(`Conectado · revisão ${Number(novaSyncState_.revision||0)} · ${tokens.length} personagem(ns)`);
+}
+async function novaSyncAbrir_(){
+    if(novaSyncTransport_)return;
+    novaSyncTransport_=createMesaTransport({session:`nova-${crypto.randomUUID()}`,uid:()=>currentUserUid,isMaster:batalhaEhMestre_,statePath:NOVA_SYNC_PATH_,commandPath:`${NOVA_SYNC_PATH_}/acoes`,movementPath:`${NOVA_SYNC_PATH_}/acoes`,
+        transact:fn=>runTransaction(db,async native=>fn({get:async p=>{const s=await native.get(doc(db,...p.split('/')));return s.exists()?s.data():null;},set:(p,v)=>native.set(doc(db,...p.split('/')),v)})),
+        read:async()=>[],write:(p,v)=>setDoc(doc(db,...p.split('/')),v),remove:p=>deleteDoc(doc(db,...p.split('/'))),
+        subscribe:(p,receive,many)=>many?onSnapshot(query(collection(db,...p.split('/')),where('status','==','new')),s=>s.docChanges().forEach(c=>{if(c.type!=='removed')receive({path:c.doc.ref.path,data:c.doc.data()});}),novaSyncErro_):onSnapshot(doc(db,...p.split('/')),s=>{if(s.exists())receive(s.data());},novaSyncErro_),
+        reduce:(state,c)=>{if(c.type!=='nova_move')return false;const t=state.tokens?.find(x=>String(x.id)===String(c.actor));if(!t)return false;const dx=Number(c.payload?.dx||0),dy=Number(c.payload?.dy||0);if(!Number.isFinite(dx)||!Number.isFinite(dy))return false;t.x=Math.max(0,Math.min(28,t.x+dx));t.y=Math.max(0,Math.min(14,t.y+dy));return true;},onState:p=>{novaSyncState_=p?.estado||null;novaSyncRender_();},onError:novaSyncErro_});
+    novaSyncTransport_.start();
+    if(batalhaEhMestre_()){const s=await getDoc(doc(db,'combatesAtivos','mapaMesaSyncNova'));if(!s.exists()){const tokens=(labEstado_?.tokens||[]).filter(t=>t.id).map(t=>({id:String(t.id),nome:t.nome||'Personagem',imagem:t.imagem||'',donoUid:String(t.donoUid||t.dono||''),x:Number(t.x||0),y:Number(t.y||0)}));await setDoc(doc(db,'combatesAtivos','mapaMesaSyncNova'),{protocol:1,revision:0,estado:{tokens}});}}
+    setTimeout(()=>novaSyncTransport_?.renew(),300);
+}
+function novaSyncErro_(e){console.error('[Sync nova]',e);novaSyncStatus_('Erro de conexão na aba experimental.');}
+window.novaSyncAbrir_=novaSyncAbrir_;
+window.novaSyncInicializar_=async()=>{await novaSyncAbrir_();if(!batalhaEhMestre_())return;novaSyncStatus_('Estado inicializado; abra a outra conta e teste o movimento.');};
+window.novaSyncMover_=async(dx,dy)=>{await novaSyncAbrir_();const id=document.getElementById('novaSyncPersonagem')?.value,t=(novaSyncState_?.tokens||[]).find(x=>String(x.id)===String(id));if(!t)return novaSyncStatus_('Escolha um personagem.');if(!batalhaEhMestre_()&&String(t.donoUid)!==String(currentUserUid))return novaSyncStatus_('Esse personagem pertence a outra conta.');try{await novaSyncTransport_.send('nova_move',id,{dx,dy},'nova:0');}catch(e){novaSyncErro_(e);}};
