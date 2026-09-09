@@ -797,6 +797,9 @@ onAuthStateChanged(auth, async (user) => {
         iniciarCampanhaPublica_();
         iniciarBatalhaCompartilhada_();
         window.iniciarMapaMesaCompartilhado_();
+        // A aba paralela precisa escutar o estado desde o login, inclusive
+        // quando o jogador entra direto nela sem clicar novamente no botão.
+        setTimeout(()=>window.novaSyncAbrir_?.(),500);
     } else {
         if(mercadoLocalUnsub_){mercadoLocalUnsub_();mercadoLocalUnsub_=null;}
         if(campanhaPublicaUnsub_){campanhaPublicaUnsub_();campanhaPublicaUnsub_=null;}
