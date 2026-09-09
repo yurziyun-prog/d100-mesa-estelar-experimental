@@ -14,7 +14,7 @@ const LAB_SYNC_COMMAND_PATH_=LAB_SYNC_STATE_PATH_+'/acoes';
 const LAB_SYNC_MOVEMENT_PATH_=LAB_SYNC_COMMAND_PATH_;
 
 import {copy as mesaCopy, opportunity as mesaOpportunity, move as mesaMove, advance as mesaAdvance, acceptSnapshot as mesaAcceptSnapshot} from './mesa-sync-core.js';
-import {createTransport as createMesaTransport} from './mesa-sync-transport.js';
+import {createTransport as createMesaTransport} from './mesa-sync-transport.js?v=4';
 import {
   gmOficinaV2Cfg_,
   gm580_,
@@ -36433,7 +36433,7 @@ function labInstalarAcoesConfirmadas_(){
 labInstalarAcoesConfirmadas_();
 
 // Aba paralela: controlador independente e adaptador Firestore.
-import {mountPositionLab} from './nova-sync.js?v=3';
+import {mountPositionLab,listenConfirmedCommands} from './nova-sync.js?v=4';
 const novaSyncController_=mountPositionLab({
     user:()=>currentUserUid?{uid:String(currentUserUid),master:batalhaEhMestre_()}:null,
     characters:()=>labEstado_?.tokens?.length?labEstado_.tokens:(userCharacters||[]),
@@ -36442,10 +36442,10 @@ const novaSyncController_=mountPositionLab({
             get:async p=>{const s=await native.get(doc(db,...p.split('/')));return s.exists()?s.data():null;},
             set:(p,v)=>native.set(doc(db,...p.split('/')),v)
         })),
-        read:async p=>(await getDocs(query(collection(db,...p.split('/')),where('status','==','new')))).docs.map(d=>({path:d.ref.path,data:d.data()})),
+        read:async p=>(await getDocs(query(collection(db,...p.split('/')),where('status','==','new')))).docs.filter(d=>!d.metadata.hasPendingWrites).map(d=>({path:d.ref.path,data:d.data()})),
         write:(p,v)=>setDoc(doc(db,...p.split('/')),v),remove:p=>deleteDoc(doc(db,...p.split('/'))),
         subscribe:(p,receive,many,fail)=>many?
-            onSnapshot(query(collection(db,...p.split('/')),where('status','==','new')),s=>s.docChanges().forEach(c=>{if(c.type!=='removed')receive({path:c.doc.ref.path,data:c.doc.data()});}),fail):
+            listenConfirmedCommands(onSnapshot,query(collection(db,...p.split('/')),where('status','==','new')),receive,fail):
             onSnapshot(doc(db,...p.split('/')),{includeMetadataChanges:true},s=>{if(s.exists()&&!s.metadata.hasPendingWrites)receive(s.data());},fail)
     }
 });

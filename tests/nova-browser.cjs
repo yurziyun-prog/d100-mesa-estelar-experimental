@@ -64,6 +64,11 @@ const dir=path.join(__dirname,'../js');
   const poses=async p=>p.locator('[data-token]').evaluateAll(nodes=>nodes.map(n=>({id:n.dataset.token,left:n.style.left,top:n.style.top})));
   assert.deepEqual(await poses(master),await poses(player));
   console.log('PASS botões do mestre e arraste do jogador atualizam as mesmas posições nas duas telas');
+  await master.evaluate(()=>{window.savedToken=document.querySelector('[data-token]');});
+  store[statePath].authority.until=Date.now()+12000;
+  await emit(statePath);
+  assert.equal(await master.evaluate(()=>window.savedToken===document.querySelector('[data-token]')),true);
+  console.log('PASS renovação preserva os elementos das miniaturas');
   // Expire lease in persisted state; the periodic renewal must recover queued input.
   store[statePath].authority.until=Date.now()-1;
   await player.click('#right');

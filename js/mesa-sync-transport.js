@@ -4,7 +4,14 @@ import { PROTOCOL, claimAuthority, ownsAuthority, applyCommand } from './mesa-sy
 export function createTransport({ transact, read, write, remove, subscribe, statePath, commandPath, movementPath,
     session, uid, isMaster, reduce, onState, onError, now = Date.now }) {
     let lease=null,closed=false,busy=Promise.resolve(),stops=[],sequence=0,revision=0,renewing=null;
+    const scheduled=new Map();
     const enqueue=job=>{busy=busy.then(job).catch(onError);return busy;};
+    function schedule(path){
+        if(closed)return Promise.resolve();
+        if(scheduled.has(path))return scheduled.get(path);
+        const task=enqueue(()=>process(path)).finally(()=>scheduled.delete(path));
+        scheduled.set(path,task);return task;
+    }
     async function claim(){
         if(closed||!isMaster()){lease=null;return false;}
         const next=await transact(async tx=>{
@@ -53,7 +60,7 @@ export function createTransport({ transact, read, write, remove, subscribe, stat
         // coleção completa fazia a conta receber PERMISSION_DENIED e exibir o
         // falso aviso de sincronização.
         if(isMaster()) for(const path of [...new Set([commandPath,movementPath])])stops.push(subscribe(path,doc=>{
-            if(doc.data?.status==='new')enqueue(()=>process(doc.path));
+            if(doc.data?.status==='new')schedule(doc.path);
         },true));
     }
     function renew(){
@@ -64,7 +71,7 @@ export function createTransport({ transact, read, write, remove, subscribe, stat
         const ok=await enqueue(claim);
         // Depois de assumir liderança, reenvia a lista de comandos pendentes:
         // snapshots anteriores podem ter chegado enquanto éramos observadores.
-        if(ok){for(const path of [...new Set([commandPath,movementPath])])for(const d of await read(path))if(d.data.status==='new')await enqueue(()=>process(d.path));}
+        if(ok){for(const path of [...new Set([commandPath,movementPath])])for(const d of await read(path))if(d.data.status==='new')await schedule(d.path);}
         return ok;
         })().finally(()=>{renewing=null;});
         return renewing;

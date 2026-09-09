@@ -1,4 +1,15 @@
-import {createTransport} from './mesa-sync-transport.js';
+import {createTransport} from './mesa-sync-transport.js?v=4';
+
+// O Firestore emite primeiro a escrita local. Só a confirmação do servidor
+// pode disparar a transação que lê esse documento de comando.
+export function listenConfirmedCommands(onSnapshot, reference, receive, fail) {
+    return onSnapshot(reference,{includeMetadataChanges:true},snapshot=>{
+        for(const change of snapshot.docChanges({includeMetadataChanges:true})) {
+            if(change.type!=='removed' && !change.doc.metadata.hasPendingWrites)
+                receive({path:change.doc.ref.path,data:change.doc.data()});
+        }
+    },fail);
+}
 
 export function reducePosition(state, command, masterUid) {
     if(command.type !== 'nova_move') return false;
@@ -30,7 +41,7 @@ export function mountPositionLab({user, characters, database, root=document}) {
         if(!message && !packet) message='Aguardando o mestre inicializar os personagens.';
         if(!message) {
             const leader=packet.authority?.until>Date.now();
-            message=`Sincronização nova 3 · revisão ${packet.revision} · ${packet.estado.tokens.length} personagem(ns)`;
+            message=`Sincronização nova 4 · revisão ${packet.revision} · ${packet.estado.tokens.length} personagem(ns)`;
             if(pending.size) message+=' · movimento aguardando confirmação';
             if(!leader) message+=' · aguardando sessão do mestre';
         }
@@ -57,6 +68,7 @@ export function mountPositionLab({user, characters, database, root=document}) {
     function receive(p) {
         if(!p?.estado || !Number.isSafeInteger(p.revision)) return;
         if(packet && p.revision<packet.revision) return;
+        const changed=!packet || packet.revision!==p.revision;
         packet=p;
         for(const [id,key] of pending) {
             if(p.lastCommand?.id===id || p.receipts?.[key]) {
@@ -64,7 +76,9 @@ export function mountPositionLab({user, characters, database, root=document}) {
                 if(p.lastCommand?.id===id && !p.lastCommand.accepted) error='O mestre recusou este movimento. Selecione um personagem da sua conta.';
             }
         }
-        render();
+        // Renovar a sessão não muda as posições. Recriar os elementos aqui
+        // interrompia interações e recarregava imagens a cada renovação.
+        if(changed && !drag)render();else status();
     }
     function fail(e) { error=`Falha na sincronização nova: ${e.code||e.message||String(e)}`;status();console.error('[Sync nova]',e); }
     function close() {
