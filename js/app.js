@@ -36444,7 +36444,7 @@ function labInstalarAcoesConfirmadas_(){
 labInstalarAcoesConfirmadas_();
 
 // Aba paralela: controlador independente e adaptador Firestore.
-import {mountDirectPositionLab} from './nova-direta.js?v=20';
+import {mountDirectPositionLab} from './nova-direta.js?v=21';
 const novaSyncController_=mountDirectPositionLab({
  user:()=>currentUserUid?{uid:String(currentUserUid),master:batalhaEhMestre_()}:null,
  characters:()=>labEstado_?.tokens?.length?labEstado_.tokens:(userCharacters||[]),
