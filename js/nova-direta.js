@@ -7,7 +7,9 @@ export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=asy
  let stop=null,stopMap=null,account='',error='',generation=0,mapPacket=null,mapData=null,renderedMap=null,mapRequest=0;
  const controlled=t=>!!user()&&(user().master||user().uid===t.donoUid);
  function status(){
-  el('novaSyncStatus').textContent=error||`Sincronização direta 16 · ${tokens.size} personagem(ns) · ${queues.size?'salvando posição…':'clique no destino para caminhar'}`;
+  el('novaSyncStatus').textContent=(queues.size?'Sincronização direta 17 · salvando posição…':error)||`Sincronização direta 17 · ${tokens.size} personagem(ns) · clique no destino para caminhar`;
+  const alert=el('novaSyncErro');
+  if(alert){alert.hidden=!error;alert.textContent=error;}
   const c=mapPacket?.combat,t=tokens.get(c?.activeId),panel=el('novaSyncTurno');
   if(panel)panel.textContent=c?.active?`Rodada ${c.round} · Turno de ${t?.nome||'personagem'} · Movimento: ${saldoMovimento(previews.get(c.activeId)||t,c).toFixed(2)} / 6 m · Sem gasto de PA. Ordem: ${c.order.map(id=>tokens.get(id)?.nome||id).join(' → ')}`:'Fora de combate · movimento livre. Selecione quem começa antes de iniciar; os demais seguem a ordem da lista.';
   for(const [id,visible]of [['novaSyncStart',!c?.active],['novaSyncNext',c?.active],['novaSyncEnd',c?.active]]){
@@ -58,7 +60,13 @@ export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=asy
   }
   drawMap();status();
  }
- function fail(e){error=`Não foi possível salvar/sincronizar: ${e.code||e.message||e}`;status();console.error('[Sync direta]',e);}
+ function fail(e){
+  const detail=String(e.code||e.message||e);
+  error=detail.includes('permission-denied')?
+   'O Firebase recusou salvar o movimento/turno (permission-denied). A posição voltou ao último ponto salvo. Publique as regras de turnos no Firestore; enviar o código ao GitHub não atualiza essas regras.':
+   `Não foi possível salvar/sincronizar: ${detail}. O movimento não confirmado volta ao último ponto salvo.`;
+  status();console.error('[Sync direta]',e);
+ }
  function close(){generation++;stop?.();stopMap?.();stop=null;stopMap=null;account='';tokens.clear();previews.clear();queues.clear();mapPacket=null;mapData=null;renderedMap=null;mapRequest++;}
  function open(){
   const u=user();if(!u)return;if(account===u.uid&&stop)return;close();account=u.uid;error='';const g=generation;
@@ -78,7 +86,7 @@ export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=asy
     if(p?.mapId===mapPacket?.mapId){mapPacket=p||null;draw();return;}
     const loaded=p?.mapId?await loadMap(p.mapId):null;
     if(g!==generation||request!==mapRequest)return;
-    mapPacket=p||null;mapData=loaded;error='';draw();
+    mapPacket=p||null;mapData=loaded;draw();
    }catch(e){if(g===generation&&request===mapRequest)fail(e);}
   },fail);
   draw();
@@ -107,7 +115,7 @@ export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=asy
   if(!controlled(tokens.get(id)||{}))return;
   const expectedTurn=mapPacket?.combat?.active?mapPacket.combat.turnId:null;
   const existing=queues.get(id);if(existing){if(expectedTurn)existing.points.push(point);else existing.points=[point];return;}
-  const q={points:[point]},g=generation;queues.set(id,q);error='';status();
+  const q={points:[point]},g=generation;queues.set(id,q);status();
   try{
    while(q.points.length&&g===generation){
     const next=q.points.shift();
@@ -120,6 +128,7 @@ export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=asy
      value.revision=t.revision+1;tx.set(path,value);return value;
     });
     if(g!==generation)return;
+    error='';
     if(!tokens.has(id)||saved.revision>=tokens.get(id).revision)tokens.set(id,{...saved,id});
    }
   }catch(e){if(g===generation)fail(e);}
@@ -139,7 +148,7 @@ export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=asy
   e.preventDefault();
   try{
    const p=moverNoTurno(previews.get(id)||t,point(e),mapPacket,mapPacket?.combat?.active?mapPacket.combat.turnId:null);
-   error='';previews.set(id,p);draw();save(id,{x:p.x,y:p.y});
+   previews.set(id,p);draw();save(id,{x:p.x,y:p.y});
   }catch(e){error=e.message;status();}
  });
  el('novaSyncPersonagem').addEventListener('change',draw);
