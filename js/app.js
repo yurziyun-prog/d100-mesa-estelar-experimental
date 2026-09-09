@@ -29017,7 +29017,7 @@ function gm2publish(){
 }
 
 
-function gm2staticMesaSvg_(state,ppm){
+function gm2staticMesaSvg_(state,ppm,includeObjects=false){
  if(!state)return'';
  const prev=gm2.st;
  try{
@@ -29027,11 +29027,13 @@ function gm2staticMesaSvg_(state,ppm){
    const ordered=[...(gm2.st.elements||[])].sort((a,b)=>(a.z||0)-(b.z||0));
    const erasers=ordered.filter(e=>e.type==='eraser');
    // Objetos do banco ficam fora desta camada, pois a Mesa precisa deles como objetos de combate.
-   const terrain=ordered.filter(e=>e.type!=='eraser'&&e.type!=='object')
+   const terrain=ordered.filter(e=>e.type!=='eraser'&&(includeObjects||e.type!=='object'))
      .map(e=>gm2renderWithErasers_(e,erasers,w,h,ppm)).join('');
+   const grid=includeObjects&&gm2.st.showGrid?'<defs><pattern id="novaGrid" width="'+ppm+'" height="'+ppm+'" patternUnits="userSpaceOnUse"><path d="M '+ppm+' 0 L 0 0 0 '+ppm+'" fill="none" stroke="'+gm2esc(gm2.st.grid||'#777777')+'" stroke-width="1"/></pattern></defs><rect width="'+w+'" height="'+h+'" fill="url(#novaGrid)"/>':'';
    return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg" style="display:block">
      <rect x="0" y="0" width="${w}" height="${h}" fill="${gm2.st.bg||'#d7d7d7'}"/>
      ${gm2textureSvg_(ppm,w,h)}
+     ${grid}
      ${terrain}
    </svg>`;
  }finally{gm2.st=prev;}
@@ -29167,6 +29169,15 @@ function map803HidratarElemento_(e){
 function map803HidratarEstado_(st){
   const out=map803Clone_(st||{});out.elements=(out.elements||[]).map(map803HidratarElemento_);return out;
 }
+// Renderização de leitura: usa os mesmos pincéis da Oficina, sem abrir o editor.
+window.novaSyncRenderMap_=function(map){
+  const state=map803HidratarEstado_(map.oficina2State||gm2legacyToState_(map));
+  state.w=Number(state.w||map.larguraM||28);
+  state.h=Number(state.h||map.alturaM||14);
+  state.ppm=Number(state.ppm||map.pxPorMetro||32);
+  if(state.texture==='pedra')state.texture='rocha';
+  return gm2staticMesaSvg_(state,state.ppm,true);
+};
 function map803LegacyRefs_(state){
   const objetos=[];
   for(const e of (state.elements||[])){
@@ -36433,12 +36444,22 @@ function labInstalarAcoesConfirmadas_(){
 labInstalarAcoesConfirmadas_();
 
 // Aba paralela: controlador independente e adaptador Firestore.
-import {mountDirectPositionLab} from './nova-direta.js?v=10';
+import {mountDirectPositionLab} from './nova-direta.js?v=14';
 const novaSyncController_=mountDirectPositionLab({
  user:()=>currentUserUid?{uid:String(currentUserUid),master:batalhaEhMestre_()}:null,
  characters:()=>labEstado_?.tokens?.length?labEstado_.tokens:(userCharacters||[]),
  mapas:()=>mapasDB||[],
- loadMap:async id=>{let base=(mapasDB||[]).find(x=>String(x.id)===String(id));if(!base){const s=await getDoc(doc(db,'mapas',String(id)));base=s.exists()?{id:String(id),...s.data()}:null;}return base&&typeof labMapaHidratar_==='function'?labMapaHidratar_(base):base;},
+ renderMap:map=>window.novaSyncRenderMap_(map),
+ loadMap:async id=>{
+  let base=(mapasDB||[]).find(x=>String(x.id)===String(id));
+  if(!base){const s=await getDoc(doc(db,'mapas',String(id)));base=s.exists()?{id:String(id),...s.data()}:null;}
+  if(!base)throw new Error('Mapa não encontrado');
+  const map=await labMapaHidratar_(base);
+  const refs=[...(map.oficina2State?.elements||[]),...(map.objetos||[])];
+  const ids=[...new Set(refs.map(e=>e.modeloId||e.objetoBancoId).filter(id=>id&&id!=='imagem_importada'))];
+  await Promise.all(ids.map(id=>map806BuscarModelo_(id)));
+  return map;
+ },
  database:{
   get:async p=>{const s=await getDoc(doc(db,...p.split('/')));return s.exists()?s.data():null;},
   transact:fn=>runTransaction(db,async native=>fn({

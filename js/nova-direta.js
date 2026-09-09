@@ -1,20 +1,11 @@
 // Movimento livre: uma posição por personagem, sem sessão-mestre ou fila de comandos.
 export const POSITION_PATH='combatesAtivos/mapaMesaSyncDireta/posicoes';
 export const MAP_PATH='combatesAtivos/mapaMesaSyncDireta';
-function normalizeMap(raw){
- if(!raw)return null;
- let dados=raw.dados;
- if(typeof dados==='string'){try{dados=JSON.parse(dados);}catch(_){dados=null;}}
- const state=raw.oficina2State||dados?.oficina2State||dados||raw;
- const elements=state?.elements||state?.elementos||raw.elements||raw.elementos||[];
- return {...raw,larguraM:Number(raw.larguraM||state?.w||28),alturaM:Number(raw.alturaM||state?.h||14),
-  fundo:raw.fundo||state?.bg||state?.fundo||'',oficina2State:{...(raw.oficina2State||{}),elements:Array.isArray(elements)?elements:[]}};
-}
-export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=async()=>null,database,root=document}) {
+export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=async()=>null,renderMap=()=>'',database,root=document}) {
  const el=id=>root.getElementById(id), tokens=new Map(), previews=new Map(), queues=new Map();
- let stop=null,stopMap=null,account='',error='',generation=0,mapPacket=null,mapData=null;
+ let stop=null,stopMap=null,account='',error='',generation=0,mapPacket=null,mapData=null,renderedMap=null,mapRequest=0;
  const controlled=t=>!!user()&&(user().master||user().uid===t.donoUid);
- function status(){el('novaSyncStatus').textContent=error||`Sincronização direta 6 · ${tokens.size} personagem(ns) · ${queues.size?'salvando posição…':'clique no destino para caminhar'}`;}
+ function status(){el('novaSyncStatus').textContent=error||`Sincronização direta 14 · ${tokens.size} personagem(ns) · ${queues.size?'salvando posição…':'clique no destino para caminhar'}`;}
  function drawMap(){
   const board=el('novaSyncBoard'),select=el('novaSyncMapa'); if(!board||!select)return;
   const list=mapas()||[],old=select.value;
@@ -28,26 +19,11 @@ export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=asy
   if(mapPacket?.larguraM&&mapPacket?.alturaM){board.dataset.mapWidth=mapPacket.larguraM;board.dataset.mapHeight=mapPacket.alturaM;}
   let layer=board.querySelector('[data-map-layer]');
   if(!layer){layer=root.createElement('div');layer.dataset.mapLayer='';layer.style.cssText='position:absolute;inset:0;pointer-events:none;overflow:hidden';board.prepend(layer);}
-  const mw=Number(mapData?.larguraM||mapPacket?.larguraM||28),mh=Number(mapData?.alturaM||mapPacket?.alturaM||14),ppm=Number(mapData?.oficina2State?.ppm||mapData?.pxPorMetro||32),coord=v=>{const n=Number(v||0);return Math.abs(n)>Math.max(mw,mh)*2?n/ppm:n;};
-  const elements=[...(mapData?.oficina2State?.elements||mapData?.elements||mapData?.elementos||[]),...(mapData?.objetos||[]),...(mapData?.desenhos||[])];
-  layer.replaceChildren();
-  const svg=root.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox',`0 0 ${mw} ${mh}`);svg.setAttribute('preserveAspectRatio','none');svg.style.cssText='position:absolute;inset:0;width:100%;height:100%;overflow:visible';layer.append(svg);
-  for(const e of elements){
-   const kind=e.type||e.kind;
-    if(kind==='image'||kind==='object'){
-    const src=e.src||e.imagem||e.image||e.dadosBanco?.imagem||e.dadosBanco?.src;if(!src)continue;
-    const img=root.createElement('img');img.src=src;img.draggable=false;img.style.cssText=`position:absolute;left:${Number(e.x||0)/mw*100}%;top:${Number(e.y||0)/mh*100}%;width:${Number(e.w||e.width||1)/mw*100}%;height:${Number(e.h||e.height||1)/mh*100}%;object-fit:fill;opacity:${Number(e.opacity??1)}`;layer.append(img);continue;
-   }
-   let shape=null;
-   if(kind==='path'||kind==='freehand'){
-    const pts=e.points||e.pts||e.pontos||[];shape=root.createElementNS('http://www.w3.org/2000/svg','polyline');shape.setAttribute('points',pts.map(p=>`${coord(p.x)},${coord(p.y)}`).join(' '));
-   }else if(kind==='line'){
-    shape=root.createElementNS('http://www.w3.org/2000/svg','line');for(const k of ['x','y','x2','y2'])shape.setAttribute(k,coord(e[k]));
-   }else if(kind==='rect'||kind==='rectangle'){
-    shape=root.createElementNS('http://www.w3.org/2000/svg','rect');shape.setAttribute('x',coord(e.x));shape.setAttribute('y',coord(e.y));shape.setAttribute('width',coord(e.w||e.width||1));shape.setAttribute('height',coord(e.h||e.height||1));
-   }
-   if(shape){const width=Number(e.strokeWidthM||e.espM||0)||Number(e.strokeWidth||e.esp||3)/Number(mapData?.oficina2State?.ppm||mapData?.pxPorMetro||32);shape.setAttribute('fill',kind==='rect'||kind==='rectangle'?(e.fill||'none'):'none');shape.setAttribute('stroke',e.stroke||e.cor||'#ffcf4d');shape.setAttribute('stroke-width',Math.max(.01,width));shape.setAttribute('stroke-opacity',Number(e.opacity??e.strokeOpacity??1));shape.setAttribute('stroke-linecap','round');svg.append(shape);}
-  }
+  if(renderedMap===mapData&&layer.firstChild)return;
+  layer.innerHTML=mapData?renderMap(mapData):'';
+  const svg=layer.querySelector('svg');
+  if(svg){svg.style.cssText='display:block;width:100%;height:100%';svg.setAttribute('preserveAspectRatio','none');}
+  renderedMap=mapData;
  }
  function draw(){
   const board=el('novaSyncBoard'),select=el('novaSyncPersonagem'),old=select.value;
@@ -55,7 +31,7 @@ export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=asy
   select.replaceChildren(...mine.map(t=>{const o=root.createElement('option');o.value=t.id;o.textContent=t.nome;return o;}));
   select.value=mine.some(t=>t.id===old)?old:mine[0]?.id||'';
   el('novaSyncInit').style.display=user()?.master?'':'none';
-  for(const node of [...board.children])if(!tokens.has(node.dataset.token))node.remove();
+  for(const node of [...board.children])if(node.dataset.token&&!tokens.has(node.dataset.token))node.remove();
   for(const t of tokens.values()){
    let node=[...board.children].find(n=>n.dataset.token===t.id);
    if(!node){
@@ -71,7 +47,7 @@ export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=asy
   drawMap();status();
  }
  function fail(e){error=`Não foi possível salvar/sincronizar: ${e.code||e.message||e}`;status();console.error('[Sync direta]',e);}
- function close(){generation++;stop?.();stopMap?.();stop=null;stopMap=null;account='';tokens.clear();previews.clear();queues.clear();mapPacket=null;}
+ function close(){generation++;stop?.();stopMap?.();stop=null;stopMap=null;account='';tokens.clear();previews.clear();queues.clear();mapPacket=null;mapData=null;renderedMap=null;mapRequest++;}
  function open(){
   const u=user();if(!u)return;if(account===u.uid&&stop)return;close();account=u.uid;error='';const g=generation;
   stop=database.subscribe(POSITION_PATH,rows=>{
@@ -83,7 +59,15 @@ export function mountDirectPositionLab({user,characters,mapas=()=>[],loadMap=asy
    }
    draw();
   },fail);
-  stopMap=database.subscribeDoc(MAP_PATH,async p=>{if(g!==generation)return;mapPacket=p||null;mapData=mapPacket?.mapId?normalizeMap(await loadMap(mapPacket.mapId).catch(fail)):null;draw();},fail);
+  stopMap=database.subscribeDoc(MAP_PATH,async p=>{
+   if(g!==generation)return;
+   const request=++mapRequest;
+   try{
+    const loaded=p?.mapId?await loadMap(p.mapId):null;
+    if(g!==generation||request!==mapRequest)return;
+    mapPacket=p||null;mapData=loaded;error='';draw();
+   }catch(e){if(g===generation&&request===mapRequest)fail(e);}
+  },fail);
   draw();
  }
  async function initialize(){
