@@ -63,4 +63,8 @@ export function criarPainelAcoes({root,load,spend,roll,attack,unlock=()=>{}}){
    if(!cache.has(token.id)){host.textContent='Carregando ficha…';cache.set(token.id,load(token));}
    const data=await cache.get(token.id);if(id!==request)return;sheet=data;render();
   }catch(e){cache.delete(token.id);if(id===request)host.textContent='Não foi possível carregar a ficha: '+e.message;}
- };`r`n update.setTarget=id=>{const pref=preferences.get(current?.id)||{};pref.target=id;preferences.set(current?.id,pref);shown="";render();};\n update.triggerAttack=()=>host?.querySelector("button")?.click();`r`n return update;`r`n}\n
+ };
+ update.setTarget=id=>{const pref=preferences.get(current?.id)||{};pref.target=id;preferences.set(current?.id,pref);shown='';render();};
+ update.triggerAttack=()=>host?.querySelector('button')?.click();
+ return update;
+}
