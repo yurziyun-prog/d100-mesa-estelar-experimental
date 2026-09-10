@@ -10,7 +10,7 @@ const {chromium}=require('C:/Users/yurzi/.cache/codex-runtimes/codex-primary-run
    let file=path.join(root,u.pathname==='/'?'index.html':u.pathname);
    if(!fs.existsSync(file))return route.fulfill({status:404,body:''});
    let body=fs.readFileSync(file,'utf8');
-   if(file.endsWith('app.js'))body+=`\nwindow.__SYNC_TEST__={ready:true,render:labRender_,state:()=>labEstado_,setState:s=>{labEstado_=s;},packet:p=>labReceberConfirmado_(p),setRole:role=>{userData={role};currentUserUid='test';},reduce:labReduzirComando_,visual:()=>labVisualMovement_,move:labAplicarMovimentoEstadoD2_,handlers:labRuleHandlers_};`;
+   if(file.endsWith('app.js'))body+=`\nwindow.__SYNC_TEST__={ready:true,render:labRender_,state:()=>labEstado_,setState:s=>{labEstado_=s;},packet:p=>labReceberConfirmado_(p),setRole:role=>{userData={role};currentUserUid='test';},reduce:labReduzirComando_,visual:()=>labVisualMovement_,move:labAplicarMovimentoEstadoD2_,handlers:labRuleHandlers_,actions:novaDadosAcoes_,prepare:novaPrepararAtaque_,setNpcs:models=>{npcsDB=models;}};`;
    return route.fulfill({contentType:file.endsWith('.js')?'text/javascript':'text/html',body});
   }
   if(u.hostname==='www.gstatic.com'){
@@ -23,6 +23,21 @@ const {chromium}=require('C:/Users/yurzi/.cache/codex-runtimes/codex-primary-run
  });
  await page.goto('https://mesa.test/');
  await page.waitForFunction(()=>window.__SYNC_TEST__?.ready,{timeout:15000});
+ const combat=await page.evaluate(async()=>{
+  const api=window.__SYNC_TEST__;api.setRole('mestre');
+  api.setNpcs([{id:'vampiro',nome:'Vampiro',FOR:14,CON:14,TAM:14,DES:14,INT:14,POD:14,CAR:14,periciasTexto:'Combate Desarmado:200|Esquiva:30',armasTexto:'Mordida:1d6+MD|Garras:1d8+MD',vinculosAtaquesPericias:'Combate Desarmado:Mordida,Garras'},{id:'alvo',nome:'Alvo',FOR:14,CON:30,TAM:30,DES:14,INT:14,POD:14,CAR:14,periciasTexto:'Combate Desarmado:30',armasTexto:'Punhos:1d3'}]);
+  const a={id:'syncnpc%3Avampiro',nome:'Vampiro',x:5,y:5},b={id:'syncnpc%3Aalvo',nome:'Alvo',x:6.4,y:5};
+  const data=await api.actions(a),skill=data.skills.find(s=>s.weapons.some(w=>w.nome==='Mordida'));
+  if(!skill)throw Error('Mordida do NPC não foi carregada');
+  if(!data.skills.every((s,i)=>!i||data.skills[i-1].valor>=s.valor))throw Error('Perícias fora de ordem');
+  const before=JSON.stringify(api.state());let result;
+  for(let i=0;i<10;i++){const resolve=await api.prepare(a,b,{skillId:skill.id,weaponId:skill.weapons.find(w=>w.nome==='Mordida').id});result=resolve(a,b,{},{});if(JSON.stringify(result)!==JSON.stringify(resolve(a,b,{},{})))throw Error('Tentativa repetida mudou a rolagem');if(result.event.hit)break;}
+  if(!result.event.hit||result.event.damage<=0)throw Error('Ataque não aplicou dano');
+  if(!Object.keys(result.actors[b.id].combateLab.hit).some(loc=>result.actors[b.id].combateLab.hit[loc]<result.actors[b.id].combateLab.hitMax[loc]))throw Error('PV do alvo não mudou');
+  if(JSON.stringify(api.state())!==before)throw Error('Ataque alterou a mesa antiga');
+  return {naturalAttacks:skill.weapons.map(w=>w.nome),damage:result.event.damage,deterministicRetry:true};
+ });
+ console.log(JSON.stringify({combat}));
  const result=await page.evaluate(async()=>{
   if(typeof window.novaSyncRenderMap_!=='function')throw Error('Native renderer unavailable');
   const image='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><circle cx="32" cy="32" r="28" fill="green"/></svg>');

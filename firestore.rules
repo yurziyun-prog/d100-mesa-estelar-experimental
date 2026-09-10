@@ -99,7 +99,9 @@ service cloud.firestore {
       }
       allow read: if autenticado();
       allow create: if ehMestre() && posicaoValida() && request.resource.data.revision == 0;
-      allow update: if ((ehMestre() && resource.data.donoUid == '') || ehDono(resource.data.donoUid)) &&
+      allow update: if ((ehMestre() && (resource.data.donoUid == '' ||
+        !exists(/databases/$(database)/documents/combatesAtivos/mapaMesaSyncDireta) ||
+        !get(/databases/$(database)/documents/combatesAtivos/mapaMesaSyncDireta).data.get('combat', {}).get('active', false))) || ehDono(resource.data.donoUid)) &&
         posicaoValida() &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['x','y','revision','movementTurn','movementUsed']) &&
         request.resource.data.revision == resource.data.revision + 1 &&
@@ -140,7 +142,7 @@ service cloud.firestore {
       function acaoValida() {
         let c = resource.data.combat;
         let n = request.resource.data.combat;
-        return autenticado() && c.schema == 2 && c.active && controlaAtor(c) &&
+        return autenticado() && c.schema == 2 && c.active && (controlaAtor(c) || ehMestre()) &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['combat']) &&
           n.diff(c).affectedKeys().hasOnly(['queue','actors','activeId','round','roundId','sequence','turnId','lastAction']) &&
           n.lastAction in ['pass','spend'] &&

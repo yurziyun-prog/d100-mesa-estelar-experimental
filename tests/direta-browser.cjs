@@ -7,13 +7,13 @@ const dir=path.join(__dirname,'../js');
  const statePath='combatesAtivos/mapaMesaSyncDireta/posicoes';
  store[statePath+'/pm']={nome:'Mestre',donoUid:'master',x:5,y:5,revision:0};
  store[statePath+'/pj']={nome:'Jogador',donoUid:'player',x:10,y:5,revision:0};
- const emit=async p=>{for(const l of [...listeners])if(l.document?p===l.path:p.startsWith(l.path+'/'))await l.page.evaluate(({id,data})=>window.callbacks[id]?.(data),{id:l.id,data:l.document?store[p]:[{id:p.split('/').pop(),data:store[p]}]}).catch(()=>{});};
+ const emit=async p=>{for(const l of [...listeners])if(l.document?p===l.path:p.startsWith(l.path+'/'))await l.page.evaluate(({id,data})=>window.callbacks[id]?.(data),{id:l.id,data:l.document?(store[p]||null):[{id:p.split('/').pop(),data:store[p]||{},removed:!store[p]}]}).catch(()=>{});};
  async function pageFor(uid,master){
   const context=await browser.newContext(),page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
   await page.exposeBinding('dbCall',async(_,op,arg)=>{
    if(op==='lock'){const previous=lock;let ownRelease;lock=new Promise(r=>{ownRelease=r;});await previous;release=ownRelease;return;}
    if(op==='get')return store[arg]||null;
-   if(op==='commit'){await new Promise(r=>setTimeout(r,250));for(const [p,v] of arg)store[p]=v;release();for(const [p]of arg)await emit(p);return;}
+   if(op==='commit'){await new Promise(r=>setTimeout(r,250));for(const [p,v] of arg){if(v===null)delete store[p];else store[p]=v;}release();for(const [p]of arg)await emit(p);return;}
    if(op==='write'){store[arg.path]=arg.data;await emit(arg.path);return;}
    if(op==='remove'){delete store[arg];return;}
    if(op==='read')return Object.entries(store).filter(([p,d])=>p.startsWith(arg+'/')&&d.status==='new').map(([path,data])=>({path,data}));
@@ -37,11 +37,12 @@ const dir=path.join(__dirname,'../js');
   await page.evaluate(async({uid,master})=>{
    window.callbacks={};let next=0;
    const db={
-    transact:async fn=>{await dbCall('lock');const writes=[];try{const result=await fn({get:p=>dbCall('get',p),set:(p,v)=>writes.push([p,v])});await dbCall('commit',writes);return result;}catch(e){await dbCall('commit',[]);throw e;}},
+    get:p=>dbCall('get',p),
+    transact:async fn=>{await dbCall('lock');const writes=[];try{const result=await fn({get:p=>dbCall('get',p),set:(p,v)=>writes.push([p,v]),delete:p=>writes.push([p,null])});await dbCall('commit',writes);return result;}catch(e){await dbCall('commit',[]);throw e;}},
     read:p=>dbCall('read',p),write:(path,data)=>dbCall('write',{path,data}),remove:p=>dbCall('remove',p),
     subscribe:(path,receive)=>{const id=++next;callbacks[id]=receive;dbCall('subscribe',{path,id});return()=>{delete callbacks[id];dbCall('unsubscribe',id);};},
     subscribeDoc:(path,receive)=>{const id=++next;callbacks[id]=receive;dbCall('subscribe',{path,id,document:true});return()=>{delete callbacks[id];dbCall('unsubscribe',id);};},
-    writeMap:async()=>{}
+    writeMap:(path,data)=>dbCall('write',{path,data})
    };
    const {mountDirectPositionLab}=await import('/nova-direta.js');
    window.lab=mountDirectPositionLab({database:db,user:()=>({uid,master}),characters:()=>[],catalog:()=>[{id:'npc:guarda',nome:'Guarda',donoUid:'',catalogType:'npc'},...['pj','pm','monstro','objeto','item'].map(type=>({id:type+'extra',nome:type,catalogType:type,imagem:'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg"/%3E'}))],loadActions:async()=>({skills:[{id:'per',nome:'Percepção',valor:50,weapons:[],descricao:'Observe o ambiente'}],pvHtml:'<span>PV 5/5 · PA 0</span>'}),rollTest:()=>({die:25,grau:'Sucesso'}),loadCombatants:async rows=>rows.map(t=>({...t,initiative:t.id==='pj'?20:0,actions:t.id==='pj'?2:3}))});
@@ -191,6 +192,21 @@ const dir=path.join(__dirname,'../js');
   await master.locator('#novaSyncMasterPanel').scrollIntoViewIfNeeded();
   await master.screenshot({path:path.join(__dirname,'../../../sync25-ui.png'),fullPage:true});
   console.log('PASS busca rápida adiciona diretamente e colisão persiste na outra conta');
+  const scenePath='combatesAtivos/mapaMesaSyncDiretaCena',healthPath='combatesAtivos/mapaMesaSyncSaude';
+  master.on('dialog',d=>d.accept());
+  await master.locator('#novaSyncRandom').click();
+  await master.waitForFunction(()=>!document.querySelector('#novaSyncRandom').disabled);
+  const randomized=Object.entries(store).filter(([p])=>p.startsWith(statePath+'/')).map(([,v])=>v);
+  for(let i=0;i<randomized.length;i++)for(let j=i+1;j<randomized.length;j++)assert.ok(Math.hypot(randomized[i].x-randomized[j].x,randomized[i].y-randomized[j].y)>=1.4);
+  assert.deepEqual(await poses(master),await poses(player));
+  const sceneBefore=JSON.stringify(store[scenePath]);
+  await master.locator('#novaSyncClear').click();
+  await player.waitForFunction(()=>document.querySelectorAll('[data-token]').length===0);
+  assert.equal(JSON.stringify(store[scenePath]),sceneBefore,'limpar preserva objetos e cenário');
+  assert.deepEqual(store[healthPath].actors,{});
+  assert.equal(store[combatPath].combat,undefined);
+  assert.deepEqual(errors,[]);
+  console.log('PASS posições aleatórias sem sobreposição e limpar preservando cenário nas duas contas');
 
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exit(1)});

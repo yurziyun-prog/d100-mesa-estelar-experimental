@@ -36444,18 +36444,78 @@ function labInstalarAcoesConfirmadas_(){
 labInstalarAcoesConfirmadas_();
 
 // Aba paralela: controlador independente e adaptador Firestore.
-import {mountDirectPositionLab} from './nova-direta.js?v=26';
+import {mountDirectPositionLab} from './nova-direta.js?v=27';
 async function novaFicha_(t){
  const legacy=(labEstado_?.tokens||[]).find(x=>String(x.id)===String(t.id));
  let c=batalhaCharLocal_(t.id)||legacy?.charLab;
  const source=decodeURIComponent(t.id);
- if(source.startsWith('syncnpc:'))c=criarNPCCombateDoBanco_(npcBancoPorId_(source.slice(8)));
+ if(source.startsWith('syncnpc:')){
+  const model=npcBancoPorId_(source.slice(8));c=criarNPCCombateDoBanco_(model);
+  if(c&&model){
+   const linked=Object.values(mapaPericiaAtaques_(model)).flat();
+   c.armasNaturais=(criarCriaturaCombateDoBanco_(model)?.armasNaturais||[]).filter(w=>ataqueNaturalPorNome_(w.nome)||linked.includes(normalizarTextoCombate_(w.nome))||/mordida|garras|cauda|pres[a-z]*|tent[a-z]*|coice/i.test(w.nome));
+  }
+ }
  if(source.startsWith('synccriatura:'))c=criarCriaturaCombateDoBanco_(criaturaBancoPorId_(source.slice(13)));
  if(!String(t.id).startsWith('dummy:')&&!c?.__npcTemporario&&!c?.__criaturaTemporaria){
   const snap=await getDoc(doc(db,'personagens',source));if(snap.exists())c={id:t.id,...snap.data()};
  }
  if(!c)throw new Error('Ficha não encontrada para '+t.nome);
  return c;
+}
+function novaEquipamentos_(c,per){
+ let list=batalhaEquipamentos_(c,per);
+ if((c.__npcTemporario||c.__criaturaTemporaria)&&periciaCriaturaPodeAtacar_(c,per)&&c.armasNaturais?.length&&!list.some(w=>w.item?.natural)&&!/tiro|disparo|distancia|laser|rifle/i.test(normalizarTextoCombate_(getNome(per)))){
+  list=ataquesNaturaisChar_(c).map(item=>({valor:'natural:'+item.id,rotulo:item.nome,item,graus:0}));
+ }
+ return list.sort((a,b)=>(a.graus||0)-(b.graus||0)||a.rotulo.localeCompare(b.rotulo,'pt-BR'));
+}
+function novaValorPericia_(c,t,per,penalty=0){
+ const raw=obterValorRegistroPericia_(c,per.id,!!per.__especializacao),arm=valorPericiaComArmadura_(c,per,raw);
+ const extra=Math.max(batalhaPenalidadeFerimento_(c,per),labPenalidadeFerimentoLab22_(t,per))+batalhaPenalidadeCaido_(c)+batalhaPenalidadeInfeccao_(c)+penalty;
+ return Math.max(0,Number(aplicarDificuldadeEFadiga_(c,arm.valor,'padrao',extra).valor||0));
+}
+async function novaPrepararAtaque_(a,b,command){
+ const [ca,cb]=await Promise.all([novaFicha_(a),novaFicha_(b)]);
+ const per=(batalhaListaPericias_(ca)||[]).find(p=>batalhaTokenPericia_(p)===command.skillId);
+ if(!per||!periciaCriaturaPodeAtacar_(ca,per))throw Error('Selecione uma perícia de ataque.');
+ const chosen=novaEquipamentos_(ca,per).find(w=>w.valor===command.weaponId);
+ if(!chosen?.item)throw Error('Arma ou ataque natural indisponível.');
+ const seed=crypto.getRandomValues(new Uint32Array(1))[0];
+ return (a,b,health,map)=>{
+  const actor={...a,...structuredClone(health[a.id]||{}),charLab:structuredClone(ca),diametroM:1.4,acoesAtuaisLab:3};
+  const target={...b,...structuredClone(health[b.id]||{}),charLab:structuredClone(cb),diametroM:1.4,acoesAtuaisLab:3};
+  for(const t of [actor,target]){t.x*=Number(map.larguraM||28)/28;t.y*=Number(map.alturaM||14)/14;}
+  const state={...labEstado_,tokens:[actor,target],objetosLab:[],log:[]};
+  const originalRandom=Math.random;let randomState=seed;
+  Math.random=()=>{randomState=(Math.imul(1664525,randomState)+1013904223)>>>0;return randomState/4294967296;};
+  try{return labComContextoLocal_(state,false,()=>{
+   const healthA=labGarantirSnapshotCombate_(actor),healthB=labGarantirSnapshotCombate_(target),item=structuredClone(chosen.item);
+   if(healthA.morto||healthA.inconsciente||healthA.incapacitado)throw Error('Este personagem não pode atacar neste estado.');
+   if(healthB.morto)throw Error('O alvo já está morto.');
+   const distance=Math.max(0,labDistanciaEntre_(actor,target)-(actor.diametroM+target.diametroM)/2),range=labAlcanceAtaque_(actor,item);
+   if(distance>range+.001)throw Error('Fora de alcance: '+distance.toFixed(1)+' m; alcance '+range.toFixed(1)+' m.');
+   if(labEhArmaMuniciada_(item)&&labMunicaoAtual_(actor,item)<=0)throw Error('Arma sem munição.');
+   const value=novaValorPericia_(ca,actor,per,chosen.graus||0),die=1+Math.floor(Math.random()*100),grade=classificarD100_(value,die);
+   labConsumirMunicao_(actor,item,1);
+   let damage=null;
+   if(grade.sucesso){
+    const expr=labExpressaoDano_(actor,item),rolled=grade.grau==='Crítico'?maximizarExpressaoDanoCombate_(expr):rolarExpressaoDanoCombate_(expr);
+    if(!rolled)throw Error('Dano inválido no cadastro da arma: '+expr);
+    damage=labAplicarDanoLocal_(target,rolled.total,item,{grauAtaque:grade.grau,rolagemAtaque:die});
+   }
+   const message=actor.nome+' → '+target.nome+': '+getNome(item)+' · '+die+'/'+value+' · '+grade.grau+(damage?' · '+damage.local+' · '+damage.final+' de dano'+(damage.ferimento?' · '+damage.ferimento:''):'');
+   return JSON.parse(JSON.stringify({actors:{[a.id]:{combateLab:actor.combateLab,municaoLab:actor.municaoLab||{}},[b.id]:{combateLab:target.combateLab,municaoLab:target.municaoLab||{}}},event:{message,damage:damage?.final||0,grade:grade.grau,hit:grade.sucesso,item:{nome:getNome(item),categoria:item.categoria||'',familia:item.familia||'',tipo:item.tipo||''}}}));
+  });}finally{Math.random=originalRandom;}
+ };
+}
+async function novaDadosAcoes_(t){
+ const c=await novaFicha_(t),snapshot={...t,charLab:structuredClone(c)};
+ const skills=(batalhaListaPericias_(c)||[]).map(per=>({
+  id:batalhaTokenPericia_(per),nome:getNome(per),valor:novaValorPericia_(c,snapshot,per),attack:periciaCriaturaPodeAtacar_(c,per),descricao:getDescricao(per)||'',
+  weapons:novaEquipamentos_(c,per).map(w=>({id:w.valor,nome:w.rotulo,penalty:w.graus||0,valor:novaValorPericia_(c,snapshot,per,w.graus||0),descricao:getDescricao(w.item)||'',dano:w.item?.dano||''}))
+ })).sort((a,b)=>b.valor-a.valor||a.nome.localeCompare(b.nome,'pt-BR'));
+ return {skills,pvHtml:labResumoPVHtml_(snapshot,'SEUS PV'),health:labGarantirSnapshotCombate_(snapshot)};
 }
 const novaSyncController_=mountDirectPositionLab({
  user:()=>currentUserUid?{uid:String(currentUserUid),master:batalhaEhMestre_()}:null,
@@ -36473,14 +36533,11 @@ const novaSyncController_=mountDirectPositionLab({
   if(!model&&o.tipo==='item'){const s=await getDoc(doc(db,'itens',id));if(s.exists())model=s.data();}
   return {imagem:String(model?.imagem||'')};
  },
- loadActions:async t=>{
-  const c=await novaFicha_(t),snapshot={...t,charLab:structuredClone(c)};
-  const skills=(batalhaListaPericias_(c)||[]).map(per=>({
-   id:batalhaTokenPericia_(per),nome:getNome(per),valor:labValorTeste_(snapshot,per),descricao:getDescricao(per)||'',
-   weapons:batalhaEquipamentos_(c,per).map(w=>({id:w.valor,nome:w.rotulo,descricao:getDescricao(w.item)||'',dano:w.item?.dano||''}))
-  }));
-  return {skills,pvHtml:labResumoPVHtml_(snapshot,'SEUS PV')};
- },
+ loadActions:novaDadosAcoes_,
+ prepareAttack:novaPrepararAtaque_,
+ playAttackSound:event=>{labSomAtaque_(event.item,event.grade);if(event.damage>0)labSomDanoAplicado_(event.item);},
+ unlockSound:()=>obterAudioCtx_()?.resume(),
+ restoreHealth:async tokens=>Object.fromEntries(await Promise.all(tokens.map(async t=>{const c=await novaFicha_(t),snapshot={...t,charLab:c};return labComContextoLocal_({...labEstado_,tokens:[snapshot]},false,()=>{labRestaurarTokenCompleto490_(snapshot);return [t.id,JSON.parse(JSON.stringify({combateLab:snapshot.combateLab,municaoLab:{}}))];});}))),
  rollTest:valor=>{const die=1+Math.floor(Math.random()*100);return {die,...classificarD100_(valor,die)};},
  mapas:()=>mapasDB||[],
  loadCombatants:async tokens=>Promise.all(tokens.map(async t=>{
@@ -36504,7 +36561,8 @@ const novaSyncController_=mountDirectPositionLab({
   get:async p=>{const s=await getDoc(doc(db,...p.split('/')));return s.exists()?s.data():null;},
   transact:fn=>runTransaction(db,async native=>fn({
    get:async p=>{const s=await native.get(doc(db,...p.split('/')));return s.exists()?s.data():null;},
-   set:(p,v)=>native.set(doc(db,...p.split('/')),v)
+   set:(p,v)=>native.set(doc(db,...p.split('/')),v),
+   delete:p=>native.delete(doc(db,...p.split('/')))
   })),
   writeMap:(p,v)=>setDoc(doc(db,...p.split('/')),v,{merge:true}),
   subscribeDoc:(p,receive,fail)=>onSnapshot(doc(db,...p.split('/')),{includeMetadataChanges:true},s=>receive(s.exists()?s.data():null),fail),
