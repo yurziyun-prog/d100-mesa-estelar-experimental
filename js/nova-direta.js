@@ -139,6 +139,15 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
    node.style.left=`${p.x/28*100}%`;node.style.top=`${p.y/14*100}%`;
    node.dataset.x=p.x;node.dataset.y=p.y;
    node.style.cursor=controlled(t)?'grab':'default';node.style.borderColor=t.id===select.value?'#ffd447':'#00d4ff';
+   node.querySelectorAll('[data-map-action]').forEach(n=>n.remove());
+   if(select.value&&t.id!==select.value&&controlled(tokens.get(select.value))){
+    const actor=tokens.get(select.value);
+    const action=root.createElement('button');action.type='button';action.dataset.mapAction='attack';action.textContent='⚔';action.title='Atacar '+actor.nome;
+    action.style.cssText='position:absolute;left:50%;transform:translateX(-50%);'+(p.y<2.2?'top:calc(100% + 4px);':'bottom:calc(100% + 4px);')+'z-index:12;padding:2px 5px;font-size:11px;line-height:1;border:1px solid #ffd447;border-radius:5px;background:#18233a;color:#fff;cursor:pointer;';
+    action.addEventListener('pointerdown',e=>e.stopPropagation());
+    action.addEventListener('click',e=>{e.stopPropagation();el('novaSyncPersonagem').value=actor.id;draw();updateActions.setTarget(t.id);updateActions.triggerAttack();});
+    node.append(action);
+   }
   }
   drawMap();drawScene();drawCatalog();status();
  }
