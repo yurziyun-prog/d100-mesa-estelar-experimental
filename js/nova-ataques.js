@@ -1,5 +1,6 @@
 import {acaoIniciativa} from './nova-turnos.js?v=18';
 export const HEALTH_PATH='combatesAtivos/mapaMesaSyncSaude';
+export const HISTORY_PATH='combatesAtivos/mapaMesaSyncHistorico';
 const MAP='combatesAtivos/mapaMesaSyncDireta',POSITIONS=MAP+'/posicoes',COMMANDS=MAP+'/acoes';
 export function conectarAtaques({database,user,tokens,prepare,onHealth,onError}){
  let stopHealth=null,stopCommands=null,closed=false;
@@ -24,8 +25,19 @@ export function conectarAtaques({database,user,tokens,prepare,onHealth,onError})
     let combat=map.combat;
     if(combat?.active){if(combat.activeId!==cmd.personagemId)throw Error('Aguarde sua vez.');combat=acaoIniciativa(combat,'spend',cmd.turnId);}
     const result=resolve({...a,id:cmd.personagemId},{...b,id:cmd.targetId},health.actors||{},map);
-    const event={...result.event,id,ts:Date.now(),source:{id:cmd.personagemId,x:a.x,y:a.y},target:{id:cmd.targetId,x:b.x,y:b.y}};
+    if(combat?.active){
+     const dead=Object.entries(result.actors||{}).filter(([,v])=>v?.combateLab?.morto).map(([id])=>id);
+     if(dead.length){
+      const remainingOrder=combat.order.filter(id=>!dead.includes(id));
+      const remainingQueue=combat.queue.filter(id=>!dead.includes(id));
+      combat={...combat,order:remainingOrder,queue:remainingQueue,initial:Object.fromEntries(Object.entries(combat.initial).filter(([id])=>!dead.includes(id))),actors:Object.fromEntries(Object.entries(combat.actors).filter(([id])=>!dead.includes(id))),rolls:Object.fromEntries(Object.entries(combat.rolls).filter(([id])=>!dead.includes(id)))};
+      if(dead.includes(combat.activeId)){const next=remainingQueue[0]||remainingOrder[0]||null;combat={...combat,activeId:next,active:!!next,turnId:combat.turnId+':dead'};}
+     }
+    }
+    const event={...result.event,id,ts:Date.now(),actorUid:cmd.donoUid,source:{id:cmd.personagemId,x:a.x,y:a.y},target:{id:cmd.targetId,x:b.x,y:b.y}};
     tx.set(HEALTH_PATH,clean({actors:{...(health.actors||{}),...result.actors},revision:(health.revision||0)+1,event}));
+    const history=await tx.get(HISTORY_PATH)||{entries:[]};
+    tx.set(HISTORY_PATH,{entries:[...(history.entries||[]),{...event,actor:actor.nome,target:target.nome,ts:event.ts}].slice(-120),revision:(history.revision||0)+1});
     if(map.combat?.active)tx.set(MAP,{...map,combat});
     tx.set(path,{...cmd,status:'done',message:event.message});
    });

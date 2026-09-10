@@ -881,6 +881,11 @@
                         <div id="novaSyncCatalogGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:6px;max-height:360px;overflow:auto;"></div>
                         <button id="novaSyncCatalogMore" class="btn-small" hidden>Mostrar mais</button>
                     </details>
+                    <section id="novaSyncHistorySection" aria-label="Histórico de ações" style="margin-top:12px;padding:10px;border:1px solid rgba(0,212,255,.28);border-radius:10px;background:rgba(8,12,29,.68);font:14px Arial,sans-serif;color:#fff;">
+                        <strong style="color:#aee8ff;font-size:16px;">📜 <span id="novaSyncHistoryTitle">Seu histórico</span></strong>
+                        <div id="novaSyncHistory" style="margin-top:7px;max-height:180px;overflow:auto;line-height:1.45;color:#ddd;"></div>
+                        <div id="novaSyncGmHealth" hidden style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.16);line-height:1.45;color:#d5e7ff;"></div>
+                    </section>
                     <style>
                         #novaSyncMasterPanel,#novaSyncActionPanel{padding:8px;margin:0 0 8px;border:1px solid rgba(0,212,255,.28);border-radius:10px;background:rgba(8,12,29,.68);font:14px Arial,sans-serif;color:#fff;}
                         #novaSyncMasterPanel select,#novaSyncMasterPanel input:not([type=color]),#novaSyncActionPanel select{box-sizing:border-box;height:42px;padding:8px 10px;border:2px solid rgba(255,255,255,.2);border-radius:10px;background:rgba(255,255,255,.1);font:16px Arial,sans-serif;color:#fff;}
@@ -906,7 +911,7 @@
                         .nova-pv-cell small{display:block;color:#aaa;font-size:12px;}.nova-pv-cell b{display:block;font-size:14px;}.nova-pv-cell .nova-armor{color:#8fc9e8;}
                         .nova-target-hint{font-size:12px;color:#aee8ff;margin-top:5px;}
                         .nova-state-warning{font-size:13px;color:#ffbc96;padding:4px 0;}#novaSyncTurno[data-own-turn=true]{color:#8df2a3;font-weight:bold;}
-                        .nova-board-scroll{width:100%;overflow:auto;max-height:80vh;}
+                        .nova-board-scroll{width:100%;overflow:auto;max-height:90vh;min-height:420px;}
                         #novaSyncBoard{box-sizing:content-box;max-width:none;flex-shrink:0;touch-action:none;}
                         #novaSyncBoard [data-map-action]{height:22px!important;min-width:24px!important;width:auto!important;padding:2px 5px!important;font:12px Arial,sans-serif!important;margin:0!important;}
                         @media(max-width:760px){.nova-action-row{grid-template-columns:1fr 1fr;}.nova-pv-grid{grid-template-columns:repeat(4,minmax(62px,1fr));}}
@@ -916,6 +921,7 @@
                         #novaSyncCatalogGrid button{display:flex;gap:8px;align-items:center;text-align:left;padding:7px;background:#26243e;color:white;border:1px solid #48435e;border-radius:7px;min-width:0;cursor:pointer;}
                         #novaSyncCatalogGrid button[aria-pressed="true"]{border-color:#00d4ff;background:#263d62;}
                         #novaSyncCatalogGrid img{width:44px;height:44px;object-fit:contain;flex-shrink:0;}
+                        #novaSyncHistorySection:empty{display:none;}
                     </style>
                 </div>
             </div>

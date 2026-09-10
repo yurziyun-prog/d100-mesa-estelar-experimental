@@ -2,7 +2,7 @@
 import {saldoMovimento,moverNoTurno,iniciarIniciativa,acaoIniciativa} from './nova-turnos.js?v=18';
 import {destinoSemColisao,TOKEN_DIAMETER} from './nova-colisao.js?v=25';
 import {criarPainelAcoes} from './nova-painel.js?v=35';
-import {conectarAtaques,HEALTH_PATH} from './nova-ataques.js?v=35';
+import {conectarAtaques,HEALTH_PATH,HISTORY_PATH} from './nova-ataques.js?v=35';
 import {mostrarAtaque} from './nova-efeitos.js?v=35';
 import {criarEditorMesa} from './nova-editor.js?v=35';
 export const POSITION_PATH='combatesAtivos/mapaMesaSyncDireta/posicoes';
@@ -10,14 +10,14 @@ export const MAP_PATH='combatesAtivos/mapaMesaSyncDireta';
 export const SCENE_PATH='combatesAtivos/mapaMesaSyncDiretaCena';
 export function mountDirectPositionLab({user,characters,catalog=characters,mapas=()=>[],loadMap=async()=>null,renderMap=()=>'',loadProp=async o=>o,loadActions=async()=>({skills:[]}),prepareAttack=null,restoreHealth=async()=>({}),playAttackSound=()=>{},unlockSound=()=>{},rollTest=()=>({die:0,grau:'Indisponível'}),loadCombatants=async()=>{throw new Error('Não foi possível carregar as fichas');},database,root=document}) {
  const el=id=>root.getElementById(id), displayName=t=>String(t?.nome||'').replace(/^(NPC|Monstro|PJ|PM|Objeto|Item)\s*[·:-]\s*/i,''), tokens=new Map(), previews=new Map(), queues=new Map();
- let stop=null,stopMap=null,account='',error='',generation=0,mapPacket=null,mapData=null,renderedMap=null,mapRequest=0;
+ let stop=null,stopMap=null,stopHistory=null,account='',error='',generation=0,mapPacket=null,mapData=null,renderedMap=null,mapRequest=0;
  let changingTurn=false,lastSelectedTurn='';
  let held=null,frame=0,placing=false,placementChoice='';
  let catalogKey='',catalogLimit=48,sceneRef=null,sceneMapId=null;
  const quickChoices=new Map();
  let stopScene=null,sceneData=null,sceneRequest=0;
  const propCache=new Map();
- let attacks=null,health={actors:{},revision:0},attacking=false,managing=false,lastEffect='',selectedTarget='';
+ let attacks=null,health={actors:{},revision:0},history={entries:[]},attacking=false,managing=false,lastEffect='',selectedTarget='';
  const availableActors=()=>{
   const available=new Map();
   if(user()?.master)for(const entry of catalog())if(!['objeto','item'].includes(entry.catalogType))available.set(encodeURIComponent(entry.id),{...entry,id:encodeURIComponent(entry.id),donoUid:String(entry.donoUid||entry.dono||'')});
@@ -156,7 +156,11 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
     const label=root.createElement('span');label.textContent=displayName(t);label.style.cssText='position:absolute;top:46px;left:50%;transform:translateX(-50%);white-space:nowrap;background:#172337;font-size:12px';node.append(label);board.append(node);
    }
    const p=previews.get(t.id)||t;
-   const tokenDiameterM=/besta\s+ululante/i.test(String(t.nome||''))?2.4:1.4;
+    const tokenDiameterM=/besta\s+ululante/i.test(String(t.nome||''))?2.4:1;
+    const tokenHealth=health.actors?.[t.id]?.combateLab||{};
+    node.style.filter=tokenHealth.morto?'grayscale(1) blur(1.5px)':tokenHealth.incapacitado?'saturate(.55)':'none';
+    node.querySelectorAll('[data-state-symbol]').forEach(n=>n.remove());
+    if(tokenHealth.morto||tokenHealth.inconsciente||tokenHealth.incapacitado){const state=root.createElement('span');state.dataset.stateSymbol='';state.textContent=tokenHealth.morto?'💀':tokenHealth.inconsciente?'💤':'🩸';state.style.cssText='position:absolute;inset:0;display:grid;place-items:center;font-size:22px;text-shadow:0 1px 3px #000;pointer-events:none;z-index:10;';node.append(state);}
    node.style.boxSizing='border-box';
    node.style.width=tokenDiameterM/(Number(mapPacket?.larguraM)||28)*board.clientWidth+'px';
    node.style.height=tokenDiameterM/(Number(mapPacket?.alturaM)||14)*board.clientHeight+'px';
@@ -165,6 +169,11 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
    node.style.left=`${p.x/28*100}%`;node.style.top=`${p.y/14*100}%`;
    node.dataset.x=p.x;node.dataset.y=p.y;
    node.style.cursor=masterMode()?'move':'pointer';node.style.borderColor=t.id===select.value?'#ffd447':t.id===selectedTarget?'#ff7855':'#00d4ff';
+   node.querySelectorAll('[data-turn-arrow]').forEach(n=>n.remove());
+   if(mapPacket?.combat?.active&&mapPacket.combat.activeId===t.id){
+    const arrow=root.createElement('span');arrow.dataset.turnArrow='';arrow.textContent='▼';arrow.title='Turno atual';
+    arrow.style.cssText='position:absolute;left:50%;top:-24px;transform:translateX(-50%);color:#ffd447;font-size:22px;font-weight:bold;line-height:1;text-shadow:0 0 5px #000;pointer-events:none;z-index:11;';node.append(arrow);
+   }
    node.querySelectorAll('[data-map-action]').forEach(n=>n.remove());
    if(mapPacket?.combat?.active&&selectedTarget===t.id&&mapPacket.combat.activeId===select.value&&t.id!==select.value&&controlled(tokens.get(select.value))){
     const actor=tokens.get(select.value);
@@ -176,7 +185,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
     node.append(action);
    }
   }
-  drawMap();drawScene();editor.paint();drawCatalog();status();
+  drawMap();drawScene();editor.paint();drawCatalog();drawHistory();status();
  }
  function drawScene(){
   const board=el('novaSyncBoard'),scene=sceneData;
@@ -199,7 +208,15 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
    `Não foi possível salvar/sincronizar: ${detail}. O movimento não confirmado volta ao último ponto salvo.`;
   status();console.error('[Sync direta]',e);
  }
- function close(){editor.close();attacks?.close();attacks=null;health={actors:{},revision:0};held=null;selectedTarget='';placementChoice='';cancelAnimationFrame(frame);generation++;stop?.();stopMap?.();stopScene?.();stopScene=null;sceneData=null;sceneRequest++;stop=null;stopMap=null;account='';tokens.clear();previews.clear();queues.clear();mapPacket=null;mapData=null;renderedMap=null;mapRequest++;}
+ function drawHistory(){
+  const box=el('novaSyncHistory'),gm=el('novaSyncGmHealth');if(!box)return;
+  const own=user()?.master?null:user()?.uid;
+  const title=el('novaSyncHistoryTitle');if(title)title.textContent=user()?.master?'Histórico completo':'Seu histórico';
+  const entries=(history.entries||[]).filter(e=>!own||e.donoUid===own||e.actorUid===own||e.source?.donoUid===own);
+  box.replaceChildren();for(const e of entries.slice().reverse()){const row=root.createElement('div');row.textContent=`${new Date(e.ts||Date.now()).toLocaleTimeString()}  ${e.message||e.description||'Ação registrada'}`;box.append(row);}
+  if(gm){gm.hidden=!user()?.master;gm.replaceChildren();if(user()?.master&&mapPacket?.combat?.active){for(const id of mapPacket.combat.order||[]){const t=tokens.get(id),h=health.actors?.[id]?.combateLab;if(!t||!h)continue;const row=root.createElement('div');row.textContent=`${displayName(t)} · PV ${Object.values(h.hit||{}).reduce((a,v)=>a+Number(v||0),0)}/${Object.values(h.hitMax||{}).reduce((a,v)=>a+Number(v||0),0)} · Armadura ${Object.values(h.armor||{}).reduce((a,v)=>a+Number(v||0),0)}`;gm.append(row);}}}
+ }
+ function close(){editor.close();attacks?.close();attacks=null;health={actors:{},revision:0};history={entries:[]};held=null;selectedTarget='';placementChoice='';cancelAnimationFrame(frame);generation++;stop?.();stopMap?.();stopScene?.();stopHistory?.();stopScene=null;stopHistory=null;sceneData=null;sceneRequest++;stop=null;stopMap=null;account='';tokens.clear();previews.clear();queues.clear();mapPacket=null;mapData=null;renderedMap=null;mapRequest++;}
  function open(){
   const u=user();if(!u)return;if(account===u.uid&&stop)return;close();account=u.uid;error='';const g=generation;
   stop=database.subscribe(POSITION_PATH,rows=>{
@@ -233,6 +250,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
     sceneData=scene?{...scene,objects}:null;drawScene();editor.paint();
    }catch(e){if(g===generation)fail(e);}
   },fail);
+  stopHistory=database.subscribeDoc(HISTORY_PATH,value=>{if(g!==generation)return;history=value||{entries:[]};drawHistory();},fail);
   if(prepareAttack)attacks=conectarAtaques({database,user,tokens:()=>[...tokens.values()],prepare:prepareAttack,onError:fail,onHealth:value=>{
    if(g!==generation)return;health=value;draw();const event=value.event;
    if(event&&event.id!==lastEffect){lastEffect=event.id;if(Date.now()-event.ts<5000){mostrarAtaque(board,event);try{playAttackSound(event);}catch(_){}}}
@@ -431,6 +449,8 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
      combat=action==='end'?{...c,active:false,turnId:crypto.randomUUID()}:acaoIniciativa(c,action,expected);
     }
     tx.set(MAP_PATH,{...state,combat});
+    if(action==='start')tx.set(HISTORY_PATH,{entries:[...((started.order||[]).map(id=>({ts:Date.now(),message:`Iniciativa: ${tokens.get(id)?.nome||id} · ${started.rolls[id].total}`})))],revision:Date.now()});
+    if(action==='end')tx.set(HISTORY_PATH,{entries:[],revision:Date.now()});
    });
    error='';status();return true;
   }catch(e){fail(e);}
@@ -457,7 +477,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
      }
     }else if(action==='clear'){
      for(const id of ids)tx.delete(POSITION_PATH+'/'+id);
-     const {combat,joined,...kept}=state;tx.set(MAP_PATH,kept);tx.set(HEALTH_PATH,{actors:{},revision:(healthState.revision||0)+1});
+     const {combat,joined,...kept}=state;tx.set(MAP_PATH,kept);tx.set(HEALTH_PATH,{actors:{},revision:(healthState.revision||0)+1});tx.set(HISTORY_PATH,{entries:[],revision:(healthState.revision||0)+1});
     }else{
      tx.set(HEALTH_PATH,{actors:restored,revision:(healthState.revision||0)+1});
      if(scene)tx.set(SCENE_PATH,{...scene,objects:(scene.objects||[]).map(o=>({...o,pvAtual:o.pvMax||0,destruido:false}))});
