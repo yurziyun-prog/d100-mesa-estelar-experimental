@@ -8,7 +8,7 @@ export const POSITION_PATH='combatesAtivos/mapaMesaSyncDireta/posicoes';
 export const MAP_PATH='combatesAtivos/mapaMesaSyncDireta';
 export const SCENE_PATH='combatesAtivos/mapaMesaSyncDiretaCena';
 export function mountDirectPositionLab({user,characters,catalog=characters,mapas=()=>[],loadMap=async()=>null,renderMap=()=>'',loadProp=async o=>o,loadActions=async()=>({skills:[]}),prepareAttack=null,restoreHealth=async()=>({}),playAttackSound=()=>{},unlockSound=()=>{},rollTest=()=>({die:0,grau:'Indisponível'}),loadCombatants=async()=>{throw new Error('Não foi possível carregar as fichas');},database,root=document}) {
- const el=id=>root.getElementById(id), tokens=new Map(), previews=new Map(), queues=new Map();
+ const el=id=>root.getElementById(id), displayName=t=>String(t?.nome||'').replace(/^(NPC|Monstro|PJ|PM|Objeto|Item)\\s*[·:-]\\s*/i,''), tokens=new Map(), previews=new Map(), queues=new Map();
  let stop=null,stopMap=null,account='',error='',generation=0,mapPacket=null,mapData=null,renderedMap=null,mapRequest=0;
  let changingTurn=false,lastSelectedTurn='';
  let held=null,frame=0,placing=false,placementChoice='';
@@ -16,7 +16,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
  const quickChoices=new Map();
  let stopScene=null,sceneData=null,sceneRequest=0;
  const propCache=new Map();
- let attacks=null,health={actors:{},revision:0},attacking=false,managing=false,lastEffect='';
+ let attacks=null,health={actors:{},revision:0},attacking=false,managing=false,lastEffect='',selectedTarget='';
  function drawCatalog(){
   const select=el('novaSyncMestrePersonagem');if(!select)return;
   const details=el('novaSyncCatalog');if(details)details.hidden=!user()?.master;
@@ -26,7 +26,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   if(key===catalogKey)return;catalogKey=key;
   const placeholder=root.createElement('option');placeholder.value='';placeholder.textContent='Escolher personagem para colocar no mapa';
   const list=(user()?.master?catalog():[]).filter(t=>(!type||t.catalogType===type)&&String(t.nome).toLocaleLowerCase('pt-BR').includes(search));
-  select.replaceChildren(placeholder,...list.map(t=>{const o=root.createElement('option');o.value=t.id;o.textContent=t.nome;o.disabled=tokens.has(encodeURIComponent(t.id));if(o.disabled)o.textContent+=' (já está no mapa)';return o;}));
+  select.replaceChildren(placeholder,...list.map(t=>{const o=root.createElement('option');o.value=t.id;o.textContent=displayName(t);o.disabled=tokens.has(encodeURIComponent(t.id));if(o.disabled)o.textContent+=' (já está no mapa)';return o;}));
   select.value=old;select.disabled=!user()?.master||!!mapPacket?.combat?.active||placing;
   if(el('novaSyncMestreTipo'))el('novaSyncMestreTipo').disabled=select.disabled;
   if(select.disabled)placementChoice='';
@@ -77,7 +77,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
    'Combate da versão anterior: encerre e inicie novamente para rolar a iniciativa.'):'Fora de combate · movimento livre. Ao iniciar, a iniciativa será rolada uma vez para cada personagem.';
   if(panel&&!user()?.master)panel.textContent=c?.active?'Turno de combate iniciado · Turno '+c.round+'. Aguarde sua vez para agir.':'Modo explorador · movimento livre. O mestre controla o combate.';
   const list=el('novaSyncOrdem');
-  if(list)list.textContent=c?.active&&c.schema===2?'Iniciativa: '+c.order.map(id=>`${tokens.get(id)?.nome||id}: ${c.rolls[id].die} + ${c.rolls[id].initiative} = ${c.rolls[id].total} (${c.actors[id].remaining} Ações; ${c.actors[id].passes>=2?'encerrou':c.actors[id].passes+' passagem(ns)'})`).join(' → '):'';
+  if(list)list.textContent=user()?.master&&c?.active&&c.schema===2?'Iniciativa: '+c.order.map(id=>`${tokens.get(id)?.nome||id}: ${c.rolls[id].die} + ${c.rolls[id].initiative} = ${c.rolls[id].total} (${c.actors[id].remaining} Ações; ${c.actors[id].passes>=2?'encerrou':c.actors[id].passes+' passagem(ns)'})`).join(' → '):'';
   for(const [id,available]of [['novaSyncStart',user()?.master&&!c?.active],['novaSyncNext',c?.active&&c.schema===2&&controlled(t)],['novaSyncSpend',c?.active&&c.schema===2&&controlled(t)],['novaSyncEnd',user()?.master&&c?.active]]){
    const b=el(id);if(b){b.hidden=id==='novaSyncStart'?!!c?.active:id==='novaSyncEnd'?!c?.active:false;b.disabled=!available||queues.size>0||changingTurn||attacking||managing;}
   }
@@ -113,7 +113,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
  function draw(){
   const board=el('novaSyncBoard'),select=el('novaSyncPersonagem'),old=select.value;
   const mine=[...tokens.values()].filter(canView);
-  select.replaceChildren(...mine.map(t=>{const o=root.createElement('option');o.value=t.id;o.textContent=t.nome;return o;}));
+  select.replaceChildren(...mine.map(t=>{const o=root.createElement('option');o.value=t.id;o.textContent=displayName(t);return o;}));
   select.value=mine.some(t=>t.id===old)?old:mine[0]?.id||'';
   if(mapPacket?.combat?.active&&mapPacket.combat.schema===2&&canView(tokens.get(mapPacket.combat.activeId))){
    // Durante o combate, o painel acompanha quem tem a vez.
@@ -129,7 +129,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
     node=root.createElement('div');node.dataset.token=t.id;
     node.style.cssText='position:absolute;transform:translate(-50%,-50%);width:42px;height:42px;border-radius:50%;border:3px solid #00d4ff;background:#263d62;touch-action:none;user-select:none;transition:left .28s linear,top .28s linear';
     if(t.imagem){const img=root.createElement('img');img.src=t.imagem;img.draggable=false;img.style.cssText='width:100%;height:100%;object-fit:cover;border-radius:50%;pointer-events:none';node.append(img);}
-    const label=root.createElement('span');label.textContent=t.nome;label.style.cssText='position:absolute;top:46px;left:50%;transform:translateX(-50%);white-space:nowrap;background:#172337;font-size:12px';node.append(label);board.append(node);
+    const label=root.createElement('span');label.textContent=displayName(t);label.style.cssText='position:absolute;top:46px;left:50%;transform:translateX(-50%);white-space:nowrap;background:#172337;font-size:12px';node.append(label);board.append(node);
    }
    const p=previews.get(t.id)||t;
    node.style.boxSizing='border-box';
@@ -140,7 +140,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
    node.dataset.x=p.x;node.dataset.y=p.y;
    node.style.cursor=controlled(t)?'grab':'default';node.style.borderColor=t.id===select.value?'#ffd447':'#00d4ff';
    node.querySelectorAll('[data-map-action]').forEach(n=>n.remove());
-   if(select.value&&t.id!==select.value&&controlled(tokens.get(select.value))){
+   if(selectedTarget===t.id&&select.value&&t.id!==select.value&&controlled(tokens.get(select.value))){
     const actor=tokens.get(select.value);
     const action=root.createElement('button');action.type='button';action.dataset.mapAction='attack';action.textContent='⚔';action.title='Atacar '+actor.nome;
     action.style.cssText='position:absolute;left:50%;transform:translateX(-50%);'+(p.y<2.2?'top:calc(100% + 4px);':'bottom:calc(100% + 4px);')+'z-index:12;padding:2px 5px;font-size:11px;line-height:1;border:1px solid #ffd447;border-radius:5px;background:#18233a;color:#fff;cursor:pointer;';
