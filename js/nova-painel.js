@@ -14,7 +14,7 @@ export function criarPainelAcoes({root,load,spend,roll,attack,unlock=()=>{}}){
   }
   for(const s of sheet.skills){const o=node('option',s.nome+' ('+s.valor+'%)');o.value=s.id;skills.append(o);}
   const pref=preferences.get(current.id)||{};if(sheet.skills.some(s=>s.id===pref.skill))skills.value=pref.skill;
-  const targetLabel=node('label');targetLabel.style.cssText='flex:1;min-width:160px;margin:0';targetLabel.append(node('small','Alvo'),targets);line.append(targetLabel);
+  const targetLabel=node('label');targetLabel.style.cssText='display:none';targetLabel.append(node('small','Alvo'),targets);line.append(targetLabel);
   targets.style.cssText='width:100%;margin:4px 0 0';const empty=node('option','Escolha o alvo');empty.value='';targets.append(empty);
   for(const t of view.tokens||[])if(t.id!==current.id){const o=node('option',t.nome);o.value=t.id;targets.append(o);}targets.value=pref.target||'';
   const description=node('div'),pv=node('div'),result=node('div');
@@ -25,7 +25,7 @@ export function criarPainelAcoes({root,load,spend,roll,attack,unlock=()=>{}}){
    for(const loc of Object.keys(health.hitMax||{})){const cell=node('div');cell.style.cssText='flex:1;min-width:85px;text-align:center;padding:5px;background:rgba(255,255,255,.07);border-radius:5px';cell.append(node('small',loc),node('div','PV '+health.hit[loc]+'/'+health.hitMax[loc]),node('small','PA '+(health.armor?.[loc]||0)));grid.append(cell);}pv.append(grid);
   }else pv.innerHTML=sheet.pvHtml||'';
   const refreshButton=()=>{const s=sheet.skills.find(s=>s.id===skills.value);targetLabel.hidden=!s?.attack;button.textContent=s?.attack?(packet?.active?'⚔ Atacar (1 Ação)':'⚔ Atacar'):(packet?.active?'🎲 Testar (1 Ação)':'🎲 Testar');button.disabled=!allowed||!s||busy||!!(s.attack&&(!targets.value||!weapons.value));};
-  const paintDescription=()=>{const s=sheet.skills.find(s=>s.id===skills.value),w=s?.weapons.find(w=>w.id===weapons.value);description.textContent=[s?.descricao,w?.descricao,w?.dano?'Dano: '+w.dano:''].filter(Boolean).join(' · ');};
+  const paintDescription=()=>{const s=sheet.skills.find(s=>s.id===skills.value),w=s?.weapons.find(w=>w.id===weapons.value);const ammo=Object.values(view.health?.municaoLab||{})[0];description.textContent=[s?.descricao,w?.descricao,w?.dano?'Dano: '+w.dano:'',ammo!==undefined?'🔋 Munição: '+ammo:''].filter(Boolean).join(' · ');};
   skills.addEventListener('change',()=>{
    weapons.replaceChildren();const s=sheet.skills.find(s=>s.id===skills.value);
    for(const w of s?.weapons||[]){const o=node('option',w.nome);o.value=w.id;weapons.append(o);}
