@@ -50,7 +50,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   return changeTurn('spend');
  }});
  function status(){
-  el('novaSyncStatus').textContent=(queues.size?'Sincronização direta 25 · salvando posição…':error)||`Sincronização direta 25 · ${tokens.size} personagem(ns) · mantenha o mouse pressionado para caminhar`;
+  el('novaSyncStatus').textContent=(queues.size?'Sincronização direta 26 · salvando posição…':error)||`Sincronização direta 26 · ${tokens.size} personagem(ns) · mantenha o mouse pressionado para caminhar`;
   if(held)el('novaSyncStatus').textContent='Solte o botão do mouse para parar · 3 m/s';
   else if(placementChoice)el('novaSyncStatus').textContent='Clique no mapa para colocar o personagem escolhido.';
   const masterPanel=el('novaSyncMasterPanel'),playerInfo=el('novaSyncPlayerInfo');
@@ -208,29 +208,39 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
    }
   }catch(e){fail(e);}
  }
- // Apenas uma gravação em andamento por personagem. Durante a espera,
- // substitui pontos intermediários pelo destino mais recente, sem perder o final.
- async function save(id,point){
+ // Keep every segment of the preview. One transaction batches the waiting
+ // segments, so latency cannot turn a detour into a chord through a character.
+ async function save(id,points){
   if(!controlled(tokens.get(id)||{}))return;
+  if(!points.length)return;
   const expectedTurn=mapPacket?.combat?.active?mapPacket.combat.turnId:null;
-  const existing=queues.get(id);if(existing){if(expectedTurn)existing.points.push(point);else existing.points=[point];return;}
-  const q={points:[point]},g=generation;queues.set(id,q);status();
+  const existing=queues.get(id);if(existing){existing.points.push(...points);return;}
+  const q={points:[...points]},g=generation;queues.set(id,q);status();
   try{
    while(q.points.length&&g===generation){
-    const next=q.points.shift();
-    const saved=await database.transact(async tx=>{
+    const pathPoints=q.points.splice(0);
+    const result=await database.transact(async tx=>{
      const state=await tx.get(MAP_PATH);
      const path=POSITION_PATH+'/'+id,t=await tx.get(path);
      if(!t)throw new Error('Personagem não encontrado');
      const others=await Promise.all([...tokens.keys()].filter(key=>key!==id).map(async key=>{const value=await tx.get(POSITION_PATH+'/'+key);return value?{...value,id:key}:null;}));
-     const destination=destinoSemColisao({...t,id},next,others.filter(Boolean),state);
-     const moved=moverNoTurno({...t,id},destination,state,expectedTurn);
+     let moved={...t,id},blocked=false;
+     for(const next of pathPoints){
+      const destination=destinoSemColisao(moved,next,others.filter(Boolean),state);
+      moved=moverNoTurno(moved,destination,state,expectedTurn);
+      if(Math.hypot(moved.x-next.x,moved.y-next.y)>.001){blocked=true;break;}
+     }
      const {id:ignored,...value}=moved;
-     value.revision=t.revision+1;tx.set(path,value);return value;
+     value.revision=t.revision+1;tx.set(path,value);return {value,blocked};
     });
     if(g!==generation)return;
+    const saved=result.value;
     error='';
     if(!tokens.has(id)||saved.revision>=tokens.get(id).revision)tokens.set(id,{...saved,id});
+    if(result.blocked){
+     q.points.length=0;if(held?.id===id){held=null;cancelAnimationFrame(frame);}
+     error='Movimento interrompido: o caminho foi ocupado ou o movimento disponível terminou.';
+    }
    }
   }catch(e){if(g===generation){held=null;cancelAnimationFrame(frame);fail(e);}}
   finally{if(g===generation){queues.delete(id);if(held?.id!==id)previews.delete(id);draw();}}
@@ -239,7 +249,9 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
  function point(e){const r=board.getBoundingClientRect();return {x:Math.max(.7,Math.min(27.3,(e.clientX-r.left)/r.width*28)),y:Math.max(.8,Math.min(13.2,(e.clientY-r.top)/r.height*14))};}
  function release(){
   const h=held;if(!h)return;held=null;cancelAnimationFrame(frame);
-  const p=previews.get(h.id);if(p)save(h.id,{x:p.x,y:p.y});status();
+  if(h.trail.length)save(h.id,h.trail.splice(0));
+  else if(!queues.has(h.id)){previews.delete(h.id);draw();}
+  status();
  }
  function step(now){
   const h=held;if(!h)return;
@@ -254,7 +266,8 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
     const p=moverNoTurno(t,dest,mapPacket,h.turn);
     if(p.x!==t.x||p.y!==t.y){
      previews.set(h.id,p);draw();
-     if(now-h.sent>=200){h.sent=now;save(h.id,{x:p.x,y:p.y});}
+     h.trail.push({x:p.x,y:p.y});
+     if(now-h.sent>=200){h.sent=now;save(h.id,h.trail.splice(0));}
     }
    }
   }catch(e){release();error=e.message;status();return;}
@@ -279,7 +292,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   try{
    const turn=mapPacket?.combat?.active?mapPacket.combat.turnId:null;
    moverNoTurno(previews.get(id)||t,{x:t.x,y:t.y},mapPacket,turn);
-   release();held={id,target:point(e),turn,pointer:e.pointerId,time:performance.now(),sent:performance.now()};
+   release();held={id,target:point(e),turn,pointer:e.pointerId,time:performance.now(),sent:performance.now(),trail:[]};
    board.setPointerCapture(e.pointerId);frame=requestAnimationFrame(step);
   }catch(e){error=e.message;status();}
  });
