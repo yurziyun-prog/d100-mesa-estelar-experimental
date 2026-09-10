@@ -132,9 +132,9 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
     const label=root.createElement('span');label.textContent=displayName(t);label.style.cssText='position:absolute;top:46px;left:50%;transform:translateX(-50%);white-space:nowrap;background:#172337;font-size:12px';node.append(label);board.append(node);
    }
    const p=previews.get(t.id)||t;
-   node.style.boxSizing='border-box';
-   node.style.width=TOKEN_DIAMETER/(Number(mapPacket?.larguraM)||28)*board.clientWidth+'px';
-   node.style.height=TOKEN_DIAMETER/(Number(mapPacket?.alturaM)||14)*board.clientHeight+'px';
+   const tokenDiameterM=/besta\\s+ululante/i.test(String(t.nome||''))?2.4:1.4;\r\n   node.style.boxSizing='border-box';
+   node.style.width=tokenDiameterM/(Number(mapPacket?.larguraM)||28)*board.clientWidth+'px';
+   node.style.height=tokenDiameterM/(Number(mapPacket?.alturaM)||14)*board.clientHeight+'px';
    node.style.transition=previews.has(t.id)?'none':'left .2s linear,top .2s linear';
    node.style.left=`${p.x/28*100}%`;node.style.top=`${p.y/14*100}%`;
    node.dataset.x=p.x;node.dataset.y=p.y;

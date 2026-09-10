@@ -4,7 +4,7 @@ export function mostrarAtaque(board,event){
  svg.setAttribute('viewBox','0 0 280 140');svg.setAttribute('preserveAspectRatio','none');svg.dataset.attackEffect=event.id;
  svg.style.cssText='position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:8;filter:drop-shadow(0 0 4px currentColor)';
  const name=String(event.item?.nome||'').toLowerCase(),saber=/espada|sabre|saber/.test(name)&&/energia|laser|força|force|luz|saber/.test(name),laser=/laser|blaster|energia|rifle/.test(name);
- const color=saber?'#64eaff':laser?'#ff4545':'#ffda80',a=event.source,b=event.target;
+ const color=/faser|phaser/.test(name)?'#c56cff':/laser/.test(name)?'#ff4545':/blaster/.test(name)?'#ffd447':saber?'#64eaff':'#ffda80',a=event.source,b=event.target;
  const shape=doc.createElementNS(ns,saber?'path':'line');
  if(saber)shape.setAttribute('d','M '+(b.x*10-9)+' '+(b.y*10+7)+' Q '+(b.x*10+12)+' '+(b.y*10+12)+' '+(b.x*10+7)+' '+(b.y*10-9));
  else for(const [key,value]of Object.entries({x1:a.x*10,y1:a.y*10,x2:b.x*10,y2:b.y*10}))shape.setAttribute(key,value);
