@@ -45,3 +45,11 @@ test('alcance e controle inválidos não gastam Ação nem alteram PV',async()=>
   assert.equal(f.resolutions(),0);
  }finally{f.close();}
 });
+test('mestre assume PJ apenas fora do combate',async()=>{
+ const context=fixture();try{
+  await assert.rejects(context.master.attack(context.payload()),/não controla/);
+  context.store.get(MAP).combat.active=false;
+  assert.equal(await context.master.attack({...context.payload(),turnId:null}),'3 de dano');
+  assert.equal(context.store.get(HEALTH_PATH).actors.b.pv,7);
+ }finally{context.close();}
+});

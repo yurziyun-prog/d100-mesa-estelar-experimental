@@ -18,7 +18,7 @@ export function conectarAtaques({database,user,tokens,prepare,onHealth,onError})
     const a=await tx.get(POSITIONS+'/'+command.personagemId),b=await tx.get(POSITIONS+'/'+command.targetId);
     if(cmd?.status!=='pending')return;
     if(!a||!b||cmd.personagemId===cmd.targetId)throw Error('Alvo inválido.');
-    if(cmd.donoUid!==a.donoUid&&!(cmd.donoUid===user().uid&&!a.donoUid))throw Error('Você não controla este personagem.');
+    if(cmd.donoUid!==a.donoUid&&!(cmd.donoUid===user().uid&&(!map.combat?.active||!a.donoUid)))throw Error('Você não controla este personagem.');
     if(!Number.isFinite(cmd.createdAt)||Math.abs(Date.now()-cmd.createdAt)>30000)throw Error('O pedido expirou. Tente o ataque novamente.');
     if((map.mapId||'')!==cmd.mapId||(map.combat?.active?map.combat.turnId:null)!==cmd.turnId)throw Error('O mapa ou a oportunidade mudou.');
     let combat=map.combat;

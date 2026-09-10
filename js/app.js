@@ -36444,7 +36444,7 @@ function labInstalarAcoesConfirmadas_(){
 labInstalarAcoesConfirmadas_();
 
 // Aba paralela: controlador independente e adaptador Firestore.
-import {mountDirectPositionLab} from './nova-direta.js?v=34';
+import {mountDirectPositionLab} from './nova-direta.js?v=35';
 async function novaFicha_(t){
  const legacy=(labEstado_?.tokens||[]).find(x=>String(x.id)===String(t.id));
  let c=batalhaCharLocal_(t.id)||legacy?.charLab;
@@ -36513,7 +36513,7 @@ async function novaDadosAcoes_(t){
  const c=await novaFicha_(t),snapshot={...t,charLab:structuredClone(c)};
  const skills=(batalhaListaPericias_(c)||[]).map(per=>({
   id:batalhaTokenPericia_(per),nome:getNome(per),valor:novaValorPericia_(c,snapshot,per),attack:periciaCriaturaPodeAtacar_(c,per),descricao:getDescricao(per)||'',
-  weapons:novaEquipamentos_(c,per).map(w=>({id:w.valor,nome:w.rotulo,penalty:w.graus||0,valor:novaValorPericia_(c,snapshot,per,w.graus||0),descricao:getDescricao(w.item)||'',dano:w.item?.dano||''}))
+  weapons:novaEquipamentos_(c,per).map(w=>({id:w.valor,nome:w.rotulo,penalty:w.graus||0,valor:novaValorPericia_(c,snapshot,per,w.graus||0),descricao:getDescricao(w.item)||'',dano:w.item?.dano||'',ammunition:labEhArmaMuniciada_(w.item)?{key:labChaveArma_(w.item),capacity:labCapacidadeArma_(w.item)}:null}))
  })).sort((a,b)=>b.valor-a.valor||a.nome.localeCompare(b.nome,'pt-BR'));
  return {skills,pvHtml:labResumoPVHtml_(snapshot,'SEUS PV'),health:labGarantirSnapshotCombate_(snapshot)};
 }

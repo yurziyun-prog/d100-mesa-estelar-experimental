@@ -1,9 +1,10 @@
 // Movimento livre: uma posição por personagem, sem sessão-mestre ou fila de comandos.
 import {saldoMovimento,moverNoTurno,iniciarIniciativa,acaoIniciativa} from './nova-turnos.js?v=18';
 import {destinoSemColisao,TOKEN_DIAMETER} from './nova-colisao.js?v=25';
-import {criarPainelAcoes} from './nova-painel.js?v=27';
-import {conectarAtaques,HEALTH_PATH} from './nova-ataques.js?v=27';
-import {mostrarAtaque} from './nova-efeitos.js?v=27';
+import {criarPainelAcoes} from './nova-painel.js?v=35';
+import {conectarAtaques,HEALTH_PATH} from './nova-ataques.js?v=35';
+import {mostrarAtaque} from './nova-efeitos.js?v=35';
+import {criarEditorMesa} from './nova-editor.js?v=35';
 export const POSITION_PATH='combatesAtivos/mapaMesaSyncDireta/posicoes';
 export const MAP_PATH='combatesAtivos/mapaMesaSyncDireta';
 export const SCENE_PATH='combatesAtivos/mapaMesaSyncDiretaCena';
@@ -17,6 +18,14 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
  let stopScene=null,sceneData=null,sceneRequest=0;
  const propCache=new Map();
  let attacks=null,health={actors:{},revision:0},attacking=false,managing=false,lastEffect='',selectedTarget='';
+ const availableActors=()=>{
+  const available=new Map();
+  if(user()?.master)for(const entry of catalog())if(!['objeto','item'].includes(entry.catalogType))available.set(encodeURIComponent(entry.id),{...entry,id:encodeURIComponent(entry.id),donoUid:String(entry.donoUid||entry.dono||'')});
+  for(const token of tokens.values())if(canView(token))available.set(token.id,token);
+  return available;
+ };
+ const selectedActor=()=>availableActors().get(el('novaSyncPersonagem')?.value);
+ const masterMode=()=>!!user()?.master&&!mapPacket?.combat?.active&&el('novaSyncPersonagem')?.value==='__mestre__';
  function drawCatalog(){
   const select=el('novaSyncMestrePersonagem');if(!select)return;
   const details=el('novaSyncCatalog');if(details)details.hidden=!user()?.master;
@@ -47,9 +56,9 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   const more=el('novaSyncCatalogMore');if(more)more.hidden=!details?.open||list.length<=catalogLimit;
  }
  const canView=t=>!!t&&!!user()&&(user().master||user().uid===t.donoUid);
- const controlled=t=>!!t&&!!user()&&(user().uid===t.donoUid||(user().master&&!t.donoUid));
+ const controlled=t=>!!t&&!!user()&&(user().uid===t.donoUid||(user().master&&(!mapPacket?.combat?.active||!t.donoUid)));
  const updateActions=criarPainelAcoes({root,load:loadActions,roll:rollTest,unlock:unlockSound,attack:async payload=>{
-  if(!attacks||attacking||queues.size||managing)throw Error('Aguarde a sincronização.');
+  if(!attacks||attacking||queues.size||managing||editor.busy)throw Error('Aguarde a sincronização.');
   if(!controlled(tokens.get(payload.actorId)))throw Error('Você não controla este personagem.');
   release();attacking=true;status();
   try{return await attacks.attack({...payload,mapId:mapPacket?.mapId||''});}finally{attacking=false;status();}
@@ -58,14 +67,16 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   return changeTurn('spend');
  }});
  function status(){
-  el('novaSyncStatus').textContent=(queues.size?'Sincronização direta 27 · salvando posição…':error)||`Sincronização direta 27 · ${tokens.size} personagem(ns) · mantenha o mouse pressionado para caminhar`;
+  el('novaSyncStatus').textContent=(queues.size?'Mesa 35 · salvando posição…':error)||`Mesa 35 · ${tokens.size} personagem(ns) · 48 px/m`;
   if(held)el('novaSyncStatus').textContent='Solte o botão do mouse para parar · 3 m/s';
   else if(placementChoice)el('novaSyncStatus').textContent='Clique no mapa para colocar o personagem escolhido.';
   const masterPanel=el('novaSyncMasterPanel'),playerInfo=el('novaSyncPlayerInfo');
   if(masterPanel)masterPanel.hidden=false;
   const masterTitle=el('novaSyncMasterTitle');if(masterTitle)masterTitle.textContent=user()?.master?'Painel do mestre · combate':'Sessão de combate · somente leitura';
   if(masterPanel&&!user()?.master)for(const control of masterPanel.querySelectorAll('button,select'))control.disabled=true;
-  const selected=tokens.get(el('novaSyncPersonagem')?.value),joined=mapPacket?.joined||{};
+  const selected=selectedActor(),joined=mapPacket?.joined||{};
+  const actorSelect=el('novaSyncPersonagem');if(actorSelect)actorSelect.disabled=!!mapPacket?.combat?.active||attacking||!!queues.size||managing;
+  const tools=el('novaSyncEditorTools');if(tools){tools.hidden=!masterMode();for(const control of tools.querySelectorAll('button,input'))control.disabled=editor.busy;}
   const join=el('novaSyncJoin');
   if(join){join.hidden=!!user()?.master;join.textContent=joined[selected?.id]===false?'Entrar no combate':'Sair do combate';join.disabled=!!mapPacket?.combat?.active||!selected||selected.donoUid!==user()?.uid;}
   if(playerInfo)playerInfo.hidden=true;
@@ -75,11 +86,17 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   if(panel)panel.textContent=c?.active?(c.schema===2?
    `Turno ${c.round} · Vez de ${t?.nome||'personagem'} · Ações: ${c.actors[c.activeId].remaining} / ${c.initial[c.activeId].remaining} · Passagens: ${c.actors[c.activeId].passes} / 2 · Movimento: ${saldoMovimento(previews.get(c.activeId)||t,c).toFixed(2)} / 6 m`:
    'Combate da versão anterior: encerre e inicie novamente para rolar a iniciativa.'):'Fora de combate · movimento livre. Ao iniciar, a iniciativa será rolada uma vez para cada personagem.';
-  if(panel&&!user()?.master)panel.textContent=c?.active?'Turno de combate iniciado · Turno '+c.round+'. Aguarde sua vez para agir.':'Modo explorador · movimento livre. O mestre controla o combate.';
+  if(panel&&!user()?.master){
+   const ownTurn=c?.active&&t?.donoUid===user()?.uid;
+   panel.textContent=c?.active?(ownTurn?
+    `Turno ${c.round} · Sua vez, ${displayName(t)} · Ações: ${c.actors?.[t.id]?.remaining??0} · Movimento: ${saldoMovimento(previews.get(t.id)||t,c).toFixed(2)} / 6 m`:
+    `Turno de combate iniciado · Turno ${c.round} · Vez de ${displayName(t)||'outro personagem'}. Aguarde sua vez.`):'Modo explorador · movimento livre.';
+   panel.dataset.ownTurn=String(!!ownTurn);
+  }
   const list=el('novaSyncOrdem');
   if(list)list.textContent=user()?.master&&c?.active&&c.schema===2?'Iniciativa: '+c.order.map(id=>`${tokens.get(id)?.nome||id}: ${c.rolls[id].die} + ${c.rolls[id].initiative} = ${c.rolls[id].total} (${c.actors[id].remaining} Ações; ${c.actors[id].passes>=2?'encerrou':c.actors[id].passes+' passagem(ns)'})`).join(' → '):'';
   for(const [id,available]of [['novaSyncStart',user()?.master&&!c?.active],['novaSyncNext',c?.active&&c.schema===2&&controlled(t)],['novaSyncSpend',c?.active&&c.schema===2&&controlled(t)],['novaSyncEnd',user()?.master&&c?.active]]){
-   const b=el(id);if(b){b.hidden=id==='novaSyncStart'?!!c?.active:id==='novaSyncEnd'?!c?.active:false;b.disabled=!available||queues.size>0||changingTurn||attacking||managing;}
+   const b=el(id);if(b){b.hidden=id==='novaSyncStart'?!!c?.active:id==='novaSyncEnd'?!c?.active:false;b.disabled=!available||queues.size>0||changingTurn||attacking||managing||editor.busy;}
   }
   const roleHint=el('novaSyncTurnoHint');
   if(roleHint)roleHint.textContent='Passar ação preserva as Ações na primeira passagem; a segunda encerra sua participação neste turno. Registrar 1 Ação apenas desconta o gasto, sem resolver ataques ou testes.';
@@ -89,7 +106,8 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   if(quick)quick.disabled=!user()?.master||!!c?.active||placing;
   if(quickAdd)quickAdd.disabled=!user()?.master||!!c?.active||placing||!quickChoices.has(quick?.value);
   for(const id of ['novaSyncRandom','novaSyncClear','novaSyncRestore'])if(el(id))el(id).disabled=!user()?.master||!!c?.active||managing||attacking||queues.size>0;
-  updateActions(selected,c,controlled(selected)&&(!c?.active||c.activeId===selected?.id)&&!queues.size&&!changingTurn&&!attacking&&!managing,{tokens:[...tokens.values()],health:health.actors?.[selected?.id],revision:health.revision,event:health.event});
+  for(const button of el('novaSyncBoard').querySelectorAll('[data-map-action]'))button.disabled=!c?.active||c.activeId!==selected?.id||!controlled(selected)||attacking||!!queues.size||changingTurn;
+  updateActions(selected?{...selected,nome:displayName(selected)}:null,c,controlled(selected)&&tokens.has(selected?.id)&&(!c?.active||c.activeId===selected?.id)&&!queues.size&&!changingTurn&&!attacking&&!managing&&!editor.busy,{tokens:[...tokens.values()],health:health.actors?.[selected?.id],revision:health.revision,event:health.event,targetId:selectedTarget,masterMode:masterMode()});
  }
  function drawMap(){
   const board=el('novaSyncBoard'),select=el('novaSyncMapa'); if(!board||!select)return;
@@ -112,14 +130,20 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
  }
  function draw(){
   const board=el('novaSyncBoard'),select=el('novaSyncPersonagem'),old=select.value;
-  const mine=[...tokens.values()].filter(canView);
-  select.replaceChildren(...mine.map(t=>{const o=root.createElement('option');o.value=t.id;o.textContent=displayName(t);return o;}));
-  select.value=mine.some(t=>t.id===old)?old:mine[0]?.id||'';
-  if(mapPacket?.combat?.active&&mapPacket.combat.schema===2&&canView(tokens.get(mapPacket.combat.activeId))){
-   // Durante o combate, o painel acompanha quem tem a vez.
-   select.value=mapPacket.combat.activeId;
-  }else if(mapPacket?.combat?.turnId!==lastSelectedTurn){
-   lastSelectedTurn=mapPacket?.combat?.turnId||'';
+  board.style.width=(Number(mapPacket?.larguraM)||28)*48+'px';board.style.height=(Number(mapPacket?.alturaM)||14)*48+'px';
+  const mine=[...availableActors().values()];
+  select.replaceChildren(...mine.map(t=>{const option=root.createElement('option');option.value=t.id;option.textContent=displayName(t)+(tokens.has(t.id)?'':' (fora do mapa)');return option;}));
+  if(user()?.master){const option=root.createElement('option');option.value='__mestre__';option.textContent='👑 Mestre';select.prepend(option);}
+  select.value=old==='__mestre__'&&user()?.master?old:mine.some(t=>t.id===old)?old:mine.find(t=>tokens.has(t.id))?.id||(user()?.master?'__mestre__':'');
+  if(mapPacket?.combat?.active&&mapPacket.combat.schema===2){
+   const active=tokens.get(mapPacket.combat.activeId);
+   if(user()?.master)select.value=controlled(active)?active.id:'__mestre__';
+   else if(controlled(active))select.value=active.id;
+  }
+  const turnKey=mapPacket?.combat?.active?[mapPacket.combat.session,mapPacket.combat.round,mapPacket.combat.activeId].join(':'):'';
+  if(turnKey!==lastSelectedTurn||select.value!==old){
+   if(error==='Aguarde o turno deste personagem.'||error==='Aguarde sua vez.')error='';
+   selectedTarget='';lastSelectedTurn=turnKey;
   }
   el('novaSyncInit').style.display=user()?.master?'':'none';
   for(const node of [...board.children])if(node.dataset.token&&!tokens.has(node.dataset.token))node.remove();
@@ -136,21 +160,23 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
    node.style.boxSizing='border-box';
    node.style.width=tokenDiameterM/(Number(mapPacket?.larguraM)||28)*board.clientWidth+'px';
    node.style.height=tokenDiameterM/(Number(mapPacket?.alturaM)||14)*board.clientHeight+'px';
+   const label=node.querySelector('span');if(label){label.textContent=displayName(t);label.style.top='calc(100% + 3px)';}
    node.style.transition=previews.has(t.id)?'none':'left .2s linear,top .2s linear';
    node.style.left=`${p.x/28*100}%`;node.style.top=`${p.y/14*100}%`;
    node.dataset.x=p.x;node.dataset.y=p.y;
-   node.style.cursor=controlled(t)?'grab':'default';node.style.borderColor=t.id===select.value?'#ffd447':'#00d4ff';
+   node.style.cursor=masterMode()?'move':'pointer';node.style.borderColor=t.id===select.value?'#ffd447':t.id===selectedTarget?'#ff7855':'#00d4ff';
    node.querySelectorAll('[data-map-action]').forEach(n=>n.remove());
-   if(mapPacket?.combat?.active&&select.value&&t.id!==select.value&&controlled(tokens.get(select.value))){
+   if(mapPacket?.combat?.active&&selectedTarget===t.id&&mapPacket.combat.activeId===select.value&&t.id!==select.value&&controlled(tokens.get(select.value))){
     const actor=tokens.get(select.value);
-    const action=root.createElement('button');action.type='button';action.dataset.mapAction='attack';action.textContent='⚔';action.title='Atacar '+actor.nome;
-    action.style.cssText='position:absolute;left:50%;transform:translateX(-50%);'+(p.y<2.2?'top:calc(100% + 4px);':'bottom:calc(100% + 4px);')+'z-index:12;padding:2px 5px;font-size:11px;line-height:1;border:1px solid #ffd447;border-radius:5px;background:#18233a;color:#fff;cursor:pointer;';
+    const action=root.createElement('button');action.type='button';action.dataset.mapAction='attack';action.textContent='⚔';action.title='Testar ação de '+displayName(actor)+' contra '+displayName(t);action.disabled=attacking||!!queues.size||changingTurn;
+    const bottomSpace=board.clientHeight*(1-p.y/14)-parseFloat(node.style.height)/2;
+    action.style.cssText='position:absolute;left:50%;transform:translateX(-50%);'+(bottomSpace<54?'bottom:calc(100% + 4px);':'top:calc(100% + 21px);')+'z-index:12;border:1px solid #ffd447;border-radius:5px;background:#18233a;color:#fff;cursor:pointer;';
     action.addEventListener('pointerdown',e=>e.stopPropagation());
-    action.addEventListener('click',e=>{e.stopPropagation();el('novaSyncPersonagem').value=actor.id;draw();updateActions.setTarget(t.id);updateActions.triggerAttack();});
+    action.addEventListener('click',e=>{e.stopPropagation();updateActions.setTarget(t.id);updateActions.triggerAttack();});
     node.append(action);
    }
   }
-  drawMap();drawScene();drawCatalog();status();
+  drawMap();drawScene();editor.paint();drawCatalog();status();
  }
  function drawScene(){
   const board=el('novaSyncBoard'),scene=sceneData;
@@ -173,7 +199,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
    `Não foi possível salvar/sincronizar: ${detail}. O movimento não confirmado volta ao último ponto salvo.`;
   status();console.error('[Sync direta]',e);
  }
- function close(){attacks?.close();attacks=null;health={actors:{},revision:0};held=null;placementChoice='';cancelAnimationFrame(frame);generation++;stop?.();stopMap?.();stopScene?.();stopScene=null;sceneData=null;sceneRequest++;stop=null;stopMap=null;account='';tokens.clear();previews.clear();queues.clear();mapPacket=null;mapData=null;renderedMap=null;mapRequest++;}
+ function close(){editor.close();attacks?.close();attacks=null;health={actors:{},revision:0};held=null;selectedTarget='';placementChoice='';cancelAnimationFrame(frame);generation++;stop?.();stopMap?.();stopScene?.();stopScene=null;sceneData=null;sceneRequest++;stop=null;stopMap=null;account='';tokens.clear();previews.clear();queues.clear();mapPacket=null;mapData=null;renderedMap=null;mapRequest++;}
  function open(){
   const u=user();if(!u)return;if(account===u.uid&&stop)return;close();account=u.uid;error='';const g=generation;
   stop=database.subscribe(POSITION_PATH,rows=>{
@@ -204,11 +230,11 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
      return {...await propCache.get(o.modeloId),...o};
     }));
     if(g!==generation||request!==sceneRequest)return;
-    sceneData=scene?{...scene,objects}:null;drawScene();
+    sceneData=scene?{...scene,objects}:null;drawScene();editor.paint();
    }catch(e){if(g===generation)fail(e);}
   },fail);
   if(prepareAttack)attacks=conectarAtaques({database,user,tokens:()=>[...tokens.values()],prepare:prepareAttack,onError:fail,onHealth:value=>{
-   if(g!==generation)return;health=value;status();const event=value.event;
+   if(g!==generation)return;health=value;draw();const event=value.event;
    if(event&&event.id!==lastEffect){lastEffect=event.id;if(Date.now()-event.ts<5000){mostrarAtaque(board,event);try{playAttackSound(event);}catch(_){}}}
   }});
   draw();
@@ -269,6 +295,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   finally{if(g===generation){queues.delete(id);if(held?.id!==id)previews.delete(id);draw();}}
  }
  const board=el('novaSyncBoard');
+ const editor=criarEditorMesa({board,root,database,scenePath:SCENE_PATH,mapPath:MAP_PATH,positionPath:POSITION_PATH,enabled:masterMode,map:()=>mapPacket,scene:()=>sceneData?.mapId===(mapPacket?.mapId||'')?sceneData:null,fail,changed:draw});
  function point(e){const r=board.getBoundingClientRect();return {x:Math.max(.7,Math.min(27.3,(e.clientX-r.left)/r.width*28)),y:Math.max(.8,Math.min(13.2,(e.clientY-r.top)/r.height*14))};}
  function release(){
   const h=held;if(!h)return;held=null;cancelAnimationFrame(frame);
@@ -305,9 +332,13 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   if(attacking||managing)return;
   const chosen=placementChoice;
   if(chosen&&user()?.master&&!mapPacket?.combat?.active){place(chosen,point(e));return;}
+  if(editor.begin(e))return;
   const clicked=e.target.closest('[data-token]')?.dataset.token;
   if(clicked){
-   if(canView(tokens.get(clicked)||{})){el('novaSyncPersonagem').value=clicked;draw();}
+   release();
+   if(clicked===el('novaSyncPersonagem').value)selectedTarget='';
+   else if(controlled(selectedActor()))selectedTarget=clicked;
+   draw();
    return;
   }
   const id=el('novaSyncPersonagem').value, t=tokens.get(id);
@@ -331,7 +362,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
     if(['objeto','item'].includes(t.catalogType)){
      const scene=await tx.get(SCENE_PATH),objects=scene?.mapId===(s?.mapId||'')?scene.objects:[];
      const object={id:crypto.randomUUID(),nome:String(t.nome),tipo:t.catalogType,modeloId:String(t.id),larguraM:Math.max(.1,Number(t.larguraM)||1),alturaM:Math.max(.1,Number(t.alturaM)||1),pvMax:Number(t.pvMax||t.pv)||0,dureza:Number(t.dureza)||0,...p};
-     tx.set(SCENE_PATH,{mapId:s?.mapId||'',objects:[...objects,object]});return;
+     tx.set(SCENE_PATH,{...(scene?.mapId===(s?.mapId||'')?scene:{}),mapId:s?.mapId||'',objects:[...objects,object]});return;
     }
     if(existing)throw new Error('Este personagem já está no mapa.');
     tx.set(POSITION_PATH+'/'+id,{nome:String(t.nome||'Personagem'),imagem:String(t.imagem||''),donoUid:String(t.donoUid||t.dono||''),...p,revision:0});
@@ -372,6 +403,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   release();placementChoice=placementChoice?'':el('novaSyncMestrePersonagem').value;drawCatalog();status();
  });
  el('novaSyncPersonagem').addEventListener('change',()=>{
+  release();selectedTarget='';
   if(mapPacket?.combat?.active&&mapPacket.combat.schema===2){draw();return;}
   draw();
  });

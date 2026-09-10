@@ -23,6 +23,10 @@ const {chromium}=require('C:/Users/yurzi/.cache/codex-runtimes/codex-primary-run
  });
  await page.goto('https://mesa.test/');
  await page.waitForFunction(()=>window.__SYNC_TEST__?.ready,{timeout:15000});
+ await page.locator('#loginScreen .lang-btn').filter({hasText:'EN'}).click();
+ if(await page.locator('#loginScreen [data-i18n="loginBtn"]').textContent()!=='Login')throw Error('Troca de idioma na tela de login falhou');
+ if(!await page.evaluate(()=>typeof window.fazerLogin==='function'))throw Error('Login não foi inicializado');
+ await page.locator('#loginScreen .lang-btn').filter({hasText:'PT'}).click();
  const combat=await page.evaluate(async()=>{
   const api=window.__SYNC_TEST__;api.setRole('mestre');
   api.setNpcs([{id:'vampiro',nome:'Vampiro',FOR:14,CON:14,TAM:14,DES:14,INT:14,POD:14,CAR:14,periciasTexto:'Combate Desarmado:200|Esquiva:30',armasTexto:'Mordida:1d6+MD|Garras:1d8+MD',vinculosAtaquesPericias:'Combate Desarmado:Mordida,Garras'},{id:'alvo',nome:'Alvo',FOR:14,CON:30,TAM:30,DES:14,INT:14,POD:14,CAR:14,periciasTexto:'Combate Desarmado:30',armasTexto:'Punhos:1d3'}]);
@@ -55,7 +59,7 @@ const {chromium}=require('C:/Users/yurzi/.cache/codex-runtimes/codex-primary-run
   const ctl=mountDirectPositionLab({user:()=>({uid:'player',master:false}),characters:()=>[],mapas:()=>[],
    loadMap:async()=>map,renderMap:window.novaSyncRenderMap_,
    database:{subscribe:(p,fn)=>{positions=fn;return ()=>{};},subscribeDoc:(p,fn)=>{if(p==='combatesAtivos/mapaMesaSyncDireta')mapListener=fn;return ()=>{};}}});
-  ctl.open();await mapListener({mapId:'fixture',nome:'Mapa compartilhado'});
+  window.__positionCtl=ctl;ctl.open();await mapListener({mapId:'fixture',nome:'Mapa compartilhado'});
   positions([{id:'pj',data:{nome:'Jogador',donoUid:'player',x:4,y:4,revision:1}}]);
   const layer=document.querySelector('[data-map-layer]'),svg=layer.firstChild;
   if(!layer.querySelector('mask')||layer.querySelectorAll('path').length<10||layer.querySelectorAll('ellipse').length<10||!layer.querySelector('[data-type="object"] image'))throw Error('Missing native brush/object rendering '+JSON.stringify({paths:layer.querySelectorAll('path').length,ellipses:layer.querySelectorAll('ellipse').length,html:layer.innerHTML.slice(0,600),status:document.getElementById('novaSyncStatus').textContent}));
@@ -64,6 +68,18 @@ const {chromium}=require('C:/Users/yurzi/.cache/codex-runtimes/codex-primary-run
   if(layer.firstChild!==svg||!svg.isConnected)throw Error('Movement rebuilt background');
   return {paths:layer.querySelectorAll('path').length,leaves:layer.querySelectorAll('ellipse').length,objects:layer.querySelectorAll('[data-type="object"]').length,backgroundRetained:true,inputUnchanged:true,playerWithoutLibrary:true};
  });
+ await page.evaluate(async()=>{
+  window.__positionCtl.close();const board=document.querySelector('#novaSyncBoard');
+  const {criarEditorMesa}=await import('/js/nova-editor.js?v=35');
+  window.__editorScene={mapId:'fixture',objects:[]};
+  const editor=criarEditorMesa({board,root:document,database:{transact:async work=>work({get:async path=>path==='map'?{mapId:'fixture'}:structuredClone(window.__editorScene),set:(path,value)=>{window.__editorScene=value;}})},scenePath:'scene',mapPath:'map',positionPath:'positions',enabled:()=>true,map:()=>({mapId:'fixture'}),scene:()=>window.__editorScene,fail:error=>{throw error;},changed:()=>editor.paint()});
+  editor.paint();board.addEventListener('pointerdown',event=>editor.begin(event));
+ });
+ const tree=page.locator('[data-eid="tree"]');await tree.scrollIntoViewIfNeeded();const treeBefore=await tree.boundingBox();
+ await page.mouse.move(treeBefore.x+treeBefore.width/2,treeBefore.y+treeBefore.height/2);await page.mouse.down();await page.mouse.move(treeBefore.x+treeBefore.width/2+48,treeBefore.y+treeBefore.height/2,{steps:8});await page.mouse.up();
+ const treeAfter=await tree.boundingBox();if(Math.abs(treeAfter.x-treeBefore.x-48)>1)throw Error('Objeto da Oficina não moveu um metro');
+ if(!await page.evaluate(()=>Math.abs(window.__editorScene.offsets.tree.x-1)<.01))throw Error('Deslocamento do objeto nativo não foi salvo');
+ console.log('PASS objeto nativo da Oficina movido sem reconstruir a pintura');
  await page.screenshot({path:'work/map14-test.png'});
  console.log(JSON.stringify({result,errors},null,2));await browser.close();
  if(errors.length)process.exitCode=1;
