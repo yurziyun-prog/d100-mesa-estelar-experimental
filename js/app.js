@@ -2028,12 +2028,19 @@ window.soltarInventario = async (event, destinoComp, destinoIndex) => {
         return;
     }
 
-    if(personagemEstaEmBatalha_(char) && destinoComp==='equipado' && origemComp!=='equipado'){
-        if(['veiculo','casa'].includes(origemComp)){
-            notificar_('Em combate, itens no veículo ou em casa não podem ser equipados.','aviso',4300);
-            return;
+    if(personagemEstaEmBatalha_(char) && ['veiculo','casa'].includes(origemComp)){
+        notificar_('Em combate, não é possível pegar equipamentos guardados no veículo ou em casa.','aviso',4300);
+        return;
+    }
+    if(personagemEstaEmBatalha_(char) && destinoComp==='equipado'){
+        const armaEntra=itemEhArmaOuEscudo_(itemOrigem),armaSai=itemDestino&&itemEhArmaOuEscudo_(itemDestino);
+        let custo=0,motivo='';
+        if(armaEntra){
+            if(origemComp==='mochila'){custo=2;motivo=`retirar ${getNome(itemOrigem)} da mochila e equipar`;
+            }else if(origemComp!=='equipado'){custo=1;motivo=`equipar ${getNome(itemOrigem)}`;
+            }else if(armaSai&&String(itemDestino.instanciaId||itemDestino.id)!==String(itemOrigem.instanciaId||itemOrigem.id)){custo=1;motivo=`trocar para ${getNome(itemOrigem)}`;}
         }
-        if(!(await gastarAcaoInventarioEmCombate_(char,1,`equipar ${getNome(itemOrigem)}`)))return;
+        if(custo&&!(await gastarAcaoInventarioEmCombate_(char,custo,motivo)))return;
     }
 
     inv[destinoComp][destinoIndex] = itemOrigem;
@@ -8004,12 +8011,13 @@ function criarCriaturaCombateDoBanco_(modelo,participante=null){
         const nome=(ix>=0?reg.slice(0,ix):reg).trim();
         const dano=(ix>=0?reg.slice(ix+1):'').trim();
         const base=ataqueNaturalPorNome_(nome);
+        const danoFinal=/^0+(?:[.,]0+)?$/.test(dano)?(base?.dano||'1d6+MD'):(dano||base?.dano||'1d6+MD');
         const ps=props[normalizarTextoCombate_(nome)]||[];
         return {
             ...(base||{}),
             nome,
             id:`criatura_${npcSlugPericia_(nome)}`,
-            dano:dano||base?.dano||'1d6+MD',
+            dano:danoFinal,
             penetracao:Number(base?.penetracao||0),
             categoria:'Arma natural',familia:'natural',natural:true,pa:0,pv:999,
             propriedades:ps,
@@ -36523,6 +36531,8 @@ async function novaPrepararAtaque_(a,b,command){
     const defenseDie=1+Math.floor(Math.random()*100);defense={...option,die:defenseDie,...classificarD100_(option.valor,defenseDie)};
    }
    const hit=ataqueSuperaDefesa({grau:grade.grau,valor:value,die},defense);
+   const grauN={Fiasco:0,Falha:1,Sucesso:2,'Crítico':3};
+   const especiais=defense&&hit&&(grauN[grade.grau]||0)-(grauN[defense.grau]||0)>=2?(item.propriedades||[]):[];
    labConsumirMunicao_(actor,item,1);
    let damage=null;
    if(hit){
@@ -36537,8 +36547,9 @@ async function novaPrepararAtaque_(a,b,command){
    if(damage?.resistencia&&!resistances.length)resistances.push(damage.resistencia);
    const resistanceText=resistances.map(r=>'Resistência: '+r.roll+'/'+r.valor+' → '+r.grau+' · '+(r.passou?'resistiu':'não resistiu')).join(' · ');
    const consequences=[healthB.morto?'Morto':healthB.inconsciente?'Inconsciente':'',healthB.incapacitado?'Incapacitado':'',damage?.stunTurnos?'Choque: '+damage.stunTurnos+' oportunidade(s)':''].filter(Boolean).join(' · ');
-   const message=[attackText,defenseText,damageText,resistanceText,consequences].filter(Boolean).join(' · ');
-   return JSON.parse(JSON.stringify({defenseSpent:!!defense,actors:{[a.id]:{combateLab:actor.combateLab,municaoLab:actor.municaoLab||{}},[b.id]:{combateLab:target.combateLab,municaoLab:target.municaoLab||{}}},event:{message,attackerMessage:[attackText,hit?'Atingiu o alvo':'Não atingiu',damageText].filter(Boolean).join(' · '),defenderMessage:[attackText,defenseText,damageText,resistanceText,consequences].filter(Boolean).join(' · '),damage:damage?.final||0,grade:grade.grau,hit,defense,resistances,item:{nome:getNome(item),categoria:item.categoria||'',familia:item.familia||'',tipo:item.tipo||''}}}));
+   const specialText=especiais.length?'Efeito especial: '+especiais.join(', '):'';
+   const message=[attackText,defenseText,specialText,damageText,resistanceText,consequences].filter(Boolean).join(' · ');
+   return JSON.parse(JSON.stringify({defenseSpent:!!defense,actors:{[a.id]:{combateLab:actor.combateLab,municaoLab:actor.municaoLab||{}},[b.id]:{combateLab:target.combateLab,municaoLab:target.municaoLab||{}}},event:{message,attackerMessage:[attackText,hit?'Atingiu o alvo':'Não atingiu',specialText,damageText].filter(Boolean).join(' · '),defenderMessage:[attackText,defenseText,specialText,damageText,resistanceText,consequences].filter(Boolean).join(' · '),specialEffects:especiais,damage:damage?.final||0,grade:grade.grau,hit,defense,resistances,item:{nome:getNome(item),categoria:item.categoria||'',familia:item.familia||'',tipo:item.tipo||''}}}));
   });}finally{Math.random=originalRandom;}
  };
 }
