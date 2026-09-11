@@ -39,6 +39,21 @@ const {chromium}=require('C:/Users/yurzi/.cache/codex-runtimes/codex-primary-run
   if(!result.event.hit||result.event.damage<=0)throw Error('Ataque não aplicou dano');
   if(!Object.keys(result.actors[b.id].combateLab.hit).some(loc=>result.actors[b.id].combateLab.hit[loc]<result.actors[b.id].combateLab.hitMax[loc]))throw Error('PV do alvo não mudou');
   if(JSON.stringify(api.state())!==before)throw Error('Ataque alterou a mesa antiga');
+  const {iniciarIniciativa,defesasRestantes}=await import('/js/nova-turnos.js?v=36');
+  const map={combat:iniciarIniciativa([{...a,initiative:20,actions:3},{...b,initiative:0,actions:3}],'defense',()=>1)};
+  let resolver,preview;
+  for(let seed=1;seed<200;seed++){
+   resolver=await api.prepare(a,b,{skillId:skill.id,weaponId:skill.weapons.find(w=>w.nome==='Mordida').id,seed});
+   preview=resolver(a,b,{},map,{phase:'preview'});if(preview.pending)break;
+  }
+  if(!preview.pending?.options.some(o=>o.nome==='Esquiva'))throw Error('Defesa não ofereceu Esquiva');
+  const defended=resolver(a,b,{},map,{phase:'resolve',choice:preview.pending.options.find(o=>o.nome==='Esquiva').id});
+  if(!defended.defenseSpent||!defended.event.defense)throw Error('Defesa não foi rolada');
+  if(JSON.stringify(defended)!==JSON.stringify(resolver(a,b,{},map,{phase:'resolve',choice:preview.pending.options.find(o=>o.nome==='Esquiva').id})))throw Error('Defesa mudou ao repetir transação');
+  const hurt=structuredClone(result.actors);hurt[a.id]={combateLab:{...data.health,ferimentos:{'Peito':'Sério'}}};
+  const wounded=await api.actions({...a,...hurt[a.id]});
+  if(wounded.skills.find(s=>s.id===skill.id).valor>=skill.valor)throw Error('Ferimento não penalizou perícia de ataque');
+  console.log('PASS defesa nativa, rolagem estável e penalidade de ferimento');
   return {naturalAttacks:skill.weapons.map(w=>w.nome),damage:result.event.damage,deterministicRetry:true};
  });
  console.log(JSON.stringify({combat}));

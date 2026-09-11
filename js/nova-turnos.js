@@ -4,6 +4,7 @@ export function saldoMovimento(token,combat){
 // As posições existentes usam 28 × 14 unidades; a distância usa os metros do mapa.
 export function moverNoTurno(token,dest,map,expectedTurn){
  const combat=map?.combat;
+ if(combat?.pendingAttack)throw new Error('Aguardando a defesa do ataque.');
  if(!combat?.active){
   if(expectedTurn)throw new Error('O turno terminou. Escolha o destino novamente.');
   return {...token,...dest};
@@ -31,6 +32,7 @@ export function iniciarIniciativa(participants,session,d10=()=>1+Math.floor(Math
 }
 
 export function acaoIniciativa(c,action,expected){
+ if(c?.pendingAttack)throw new Error('Aguardando a defesa do ataque.');
  if(!c?.active||c.schema!==2||c.turnId!==expected)throw new Error('A oportunidade mudou. Confira quem age agora.');
  if(!['spend','pass'].includes(action))throw new Error('Ação inválida');
  const id=c.activeId,a=c.actors[id];
@@ -45,4 +47,35 @@ export function acaoIniciativa(c,action,expected){
  if(renewed)queue=[...c.order];
  return {...c,queue,actors:renewed?structuredClone(c.initial):{...c.actors,[id]:changed},
   activeId:queue[0],round,roundId:c.session+':'+round,sequence,turnId:c.session+':'+sequence,lastAction:action};
+}
+
+// Defesa tem sua própria reserva, renovada por rodada, sem alterar Ações.
+export function defesasRestantes(combat,id){
+ const maximum=Number(combat?.initial?.[id]?.remaining||0);
+ return combat?.defenses?.roundId===combat?.roundId?Number(combat.defenses.values?.[id]??maximum):maximum;
+}
+export function gastarDefesa(combat,id){
+ const remaining=defesasRestantes(combat,id);
+ if(remaining<=0)throw Error('Sem Defesas disponíveis.');
+ const values=combat.defenses?.roundId===combat.roundId?combat.defenses.values:{};
+ return {...combat,defenses:{roundId:combat.roundId,values:{...values,[id]:remaining-1}}};
+}
+export function ataqueSuperaDefesa(attack,defense){
+ const rank=grade=>({'Fiasco':0,'Falha':1,'Sucesso':2,'Crítico':3}[grade]??0);
+ if(rank(attack.grau)<2)return false;
+ if(!defense)return true;
+ if(rank(attack.grau)!==rank(defense.grau))return rank(attack.grau)>rank(defense.grau);
+ const a=attack.valor-attack.die,b=defense.valor-defense.die;
+ return a!==b?a>b:attack.valor!==defense.valor?attack.valor>defense.valor:false;
+}
+export function removerMortos(combat,health){
+ if(!combat?.active)return combat;
+ const order=combat.order.filter(id=>!health[id]?.combateLab?.morto);
+ if(order.length===combat.order.length)return combat;
+ let queue=combat.queue.filter(id=>order.includes(id)),round=combat.round;
+ const filter=values=>Object.fromEntries(Object.entries(values).filter(([id])=>order.includes(id)));
+ const initial=filter(combat.initial);
+ let actors=filter(combat.actors);
+ if(!queue.length&&order.length){queue=[...order];round++;actors=structuredClone(initial);}
+ return {...combat,order,queue,initial,actors,active:!!order.length,activeId:queue[0]||null,round,roundId:combat.session+':'+round};
 }

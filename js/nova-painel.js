@@ -15,7 +15,7 @@ export function criarPainelAcoes({root,load,spend,roll,attack,unlock=()=>{}}){
   unlock();busy=true;render();
   try{
    let text;
-   if(target&&skill.attack)text=await attack({actorId:actor.id,targetId:target.id,skillId:skill.id,weaponId:weapon.id,turnId:turn});
+   if(turn&&target&&skill.attack)text=await attack({actorId:actor.id,targetId:target.id,skillId:skill.id,weaponId:weapon.id,turnId:turn});
    else{
     if(turn&&!await spend(actor.id,turn))return;
     const value=weapon?.valor??skill.valor,outcome=roll(value);
@@ -32,6 +32,7 @@ export function criarPainelAcoes({root,load,spend,roll,attack,unlock=()=>{}}){
   if(!current){host.append(node('div',view.masterMode?'Modo Mestre · arraste miniaturas e objetos ou use o lápis para desenhar.':'Selecione em “Atuar como” o personagem que deseja controlar.'));return;}
   if(!sheet)return;
   host.append(node('strong','🎯 Ação de '+name(current),'nova-action-title'));
+  if(view.defenses!==null&&view.defenses!==undefined)host.append(node('div','Defesas disponíveis: '+view.defenses+' · reserva separada das Ações','nova-target-hint'));
   const line=node('div',null,'nova-action-row'),skills=node('select'),weapons=node('select');
   skills.id='novaSyncSkill';weapons.id='novaSyncWeapon';
   for(const [label,control]of [['Ação / Perícia',skills],['Arma / ataque',weapons]]){
@@ -81,7 +82,7 @@ export function criarPainelAcoes({root,load,spend,roll,attack,unlock=()=>{}}){
  const update=async(token,packet,canAct,extra={})=>{
   if(!host)return;
   const changed=current?.id!==token?.id;current=token;combat=packet;allowed=canAct;view=extra;if(changed)sheet=null;
-  const key=JSON.stringify([token?.id,packet?.turnId,canAct,extra.health,extra.targetId,extra.event?.id,extra.masterMode]);
+  const key=JSON.stringify([token?.id,packet?.turnId,canAct,extra.health,extra.targetId,extra.event?.id,extra.masterMode,extra.defenses]);
   if(shown===key)return;shown=key;const pending=++request;
   if(!token){render();return;}
   try{

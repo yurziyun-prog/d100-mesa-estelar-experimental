@@ -91,7 +91,7 @@ service cloud.firestore {
         let dy = (d.y - previous.y) * map.get('alturaM', 14) / 14;
         return !c.get('active', false) ?
           d.diff(previous).affectedKeys().hasOnly(['x','y','revision']) :
-          (c.activeId == tokenId &&
+          (c.get('pendingAttack', null) == null && c.activeId == tokenId &&
            d.get('movementTurn', '') == c.get('roundId', c.turnId) &&
            d.get('movementUsed', -1) is number &&
            d.movementUsed >= spent && d.movementUsed <= 6 &&
@@ -142,7 +142,7 @@ service cloud.firestore {
       function acaoValida() {
         let c = resource.data.combat;
         let n = request.resource.data.combat;
-        return autenticado() && c.schema == 2 && c.active && (controlaAtor(c) || ehMestre()) &&
+        return autenticado() && c.schema == 2 && c.active && c.get('pendingAttack', null) == null && (controlaAtor(c) || ehMestre()) &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['combat']) &&
           n.diff(c).affectedKeys().hasOnly(['queue','actors','activeId','round','roundId','sequence','turnId','lastAction']) &&
           n.lastAction in ['pass','spend'] &&
@@ -152,6 +152,8 @@ service cloud.firestore {
           fluxoValido(c,n);
       }
       allow update: if acaoValida();
+      // O mestre resolve ataque, defesa, morte e atualização da fila numa transação.
+      allow update: if ehMestre();
       // Antes do combate, cada jogador pode marcar o próprio personagem
       // como participante ou ausente da sessão que o mestre iniciará.
       allow update: if autenticado() &&

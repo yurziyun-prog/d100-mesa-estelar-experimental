@@ -1,8 +1,8 @@
 // Movimento livre: uma posição por personagem, sem sessão-mestre ou fila de comandos.
-import {saldoMovimento,moverNoTurno,iniciarIniciativa,acaoIniciativa} from './nova-turnos.js?v=18';
+import {saldoMovimento,moverNoTurno,iniciarIniciativa,acaoIniciativa,defesasRestantes} from './nova-turnos.js?v=36';
 import {destinoSemColisao,TOKEN_DIAMETER} from './nova-colisao.js?v=25';
-import {criarPainelAcoes} from './nova-painel.js?v=35';
-import {conectarAtaques,HEALTH_PATH,HISTORY_PATH} from './nova-ataques.js?v=35';
+import {criarPainelAcoes} from './nova-painel.js?v=36';
+import {conectarAtaques,HEALTH_PATH,HISTORY_PATH} from './nova-ataques.js?v=36';
 import {mostrarAtaque} from './nova-efeitos.js?v=35';
 import {criarEditorMesa} from './nova-editor.js?v=35';
 export const POSITION_PATH='combatesAtivos/mapaMesaSyncDireta/posicoes';
@@ -11,7 +11,7 @@ export const SCENE_PATH='combatesAtivos/mapaMesaSyncDiretaCena';
 export function mountDirectPositionLab({user,characters,catalog=characters,mapas=()=>[],loadMap=async()=>null,renderMap=()=>'',loadProp=async o=>o,loadActions=async()=>({skills:[]}),prepareAttack=null,restoreHealth=async()=>({}),playAttackSound=()=>{},unlockSound=()=>{},rollTest=()=>({die:0,grau:'Indisponível'}),loadCombatants=async()=>{throw new Error('Não foi possível carregar as fichas');},database,root=document}) {
  const el=id=>root.getElementById(id), displayName=t=>String(t?.nome||'').replace(/^(NPC|Monstro|PJ|PM|Objeto|Item)\s*[·:-]\s*/i,''), tokens=new Map(), previews=new Map(), queues=new Map();
  let stop=null,stopMap=null,stopHistory=null,account='',error='',generation=0,mapPacket=null,mapData=null,renderedMap=null,mapRequest=0;
- let changingTurn=false,lastSelectedTurn='';
+ let changingTurn=false,lastSelectedTurn='',defending=false;
  let held=null,frame=0,placing=false,placementChoice='';
  let catalogKey='',catalogLimit=48,sceneRef=null,sceneMapId=null;
  const quickChoices=new Map();
@@ -67,7 +67,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   return changeTurn('spend');
  }});
  function status(){
-  el('novaSyncStatus').textContent=(queues.size?'Mesa 35 · salvando posição…':error)||`Mesa 35 · ${tokens.size} personagem(ns) · 48 px/m`;
+  el('novaSyncStatus').textContent=(queues.size?'Mesa 36 · salvando posição…':error)||`Mesa 36 · ${tokens.size} personagem(ns) · 48 px/m`;
   if(held)el('novaSyncStatus').textContent='Solte o botão do mouse para parar · 3 m/s';
   else if(placementChoice)el('novaSyncStatus').textContent='Clique no mapa para colocar o personagem escolhido.';
   const masterPanel=el('novaSyncMasterPanel'),playerInfo=el('novaSyncPlayerInfo');
@@ -94,9 +94,10 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
    panel.dataset.ownTurn=String(!!ownTurn);
   }
   const list=el('novaSyncOrdem');
+  if(c?.pendingAttack&&panel)panel.textContent+=' · Aguardando defesa';
   if(list)list.textContent=user()?.master&&c?.active&&c.schema===2?'Iniciativa: '+c.order.map(id=>`${tokens.get(id)?.nome||id}: ${c.rolls[id].die} + ${c.rolls[id].initiative} = ${c.rolls[id].total} (${c.actors[id].remaining} Ações; ${c.actors[id].passes>=2?'encerrou':c.actors[id].passes+' passagem(ns)'})`).join(' → '):'';
   for(const [id,available]of [['novaSyncStart',user()?.master&&!c?.active],['novaSyncNext',c?.active&&c.schema===2&&controlled(t)],['novaSyncSpend',c?.active&&c.schema===2&&controlled(t)],['novaSyncEnd',user()?.master&&c?.active]]){
-   const b=el(id);if(b){b.hidden=id==='novaSyncStart'?!!c?.active:id==='novaSyncEnd'?!c?.active:false;b.disabled=!available||queues.size>0||changingTurn||attacking||managing||editor.busy;}
+   const b=el(id);if(b){b.hidden=id==='novaSyncStart'?!!c?.active:id==='novaSyncEnd'?!c?.active:false;b.disabled=!available||queues.size>0||changingTurn||attacking||managing||editor.busy||!!c?.pendingAttack&&id!=='novaSyncEnd';}
   }
   const roleHint=el('novaSyncTurnoHint');
   if(roleHint)roleHint.textContent='Passar ação preserva as Ações na primeira passagem; a segunda encerra sua participação neste turno. Registrar 1 Ação apenas desconta o gasto, sem resolver ataques ou testes.';
@@ -106,8 +107,10 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   if(quick)quick.disabled=!user()?.master||!!c?.active||placing;
   if(quickAdd)quickAdd.disabled=!user()?.master||!!c?.active||placing||!quickChoices.has(quick?.value);
   for(const id of ['novaSyncRandom','novaSyncClear','novaSyncRestore'])if(el(id))el(id).disabled=!user()?.master||!!c?.active||managing||attacking||queues.size>0;
-  for(const button of el('novaSyncBoard').querySelectorAll('[data-map-action]'))button.disabled=!c?.active||c.activeId!==selected?.id||!controlled(selected)||attacking||!!queues.size||changingTurn;
-  updateActions(selected?{...selected,nome:displayName(selected)}:null,c,controlled(selected)&&tokens.has(selected?.id)&&(!c?.active||c.activeId===selected?.id)&&!queues.size&&!changingTurn&&!attacking&&!managing&&!editor.busy,{tokens:[...tokens.values()],health:health.actors?.[selected?.id],revision:health.revision,event:health.event,targetId:selectedTarget,masterMode:masterMode()});
+  for(const button of el('novaSyncBoard').querySelectorAll('[data-map-action]'))button.disabled=!c?.active||c.activeId!==selected?.id||!controlled(selected)||attacking||!!queues.size||changingTurn||!!c?.pendingAttack;
+  const event=health.event,eventVisible=event&&(user()?.master||event.actorUid===user()?.uid||event.targetUid===user()?.uid);
+  const ownEvent=eventVisible?{...event,message:user()?.master?event.message:event.targetUid===user()?.uid?(event.defenderMessage||event.message):(event.attackerMessage||event.message)}:null;
+  updateActions(selected?{...selected,nome:displayName(selected)}:null,c,controlled(selected)&&tokens.has(selected?.id)&&(!c?.active||c.activeId===selected?.id)&&!queues.size&&!changingTurn&&!attacking&&!managing&&!editor.busy&&!c?.pendingAttack,{tokens:[...tokens.values()],health:health.actors?.[selected?.id],revision:health.revision,event:ownEvent,targetId:selectedTarget,masterMode:masterMode(),defenses:c?.active?defesasRestantes(c,selected?.id):null});
  }
  function drawMap(){
   const board=el('novaSyncBoard'),select=el('novaSyncMapa'); if(!board||!select)return;
@@ -158,7 +161,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
    const p=previews.get(t.id)||t;
     const tokenDiameterM=/besta\s+ululante/i.test(String(t.nome||''))?2.4:1;
     const tokenHealth=health.actors?.[t.id]?.combateLab||{};
-    node.style.filter=tokenHealth.morto?'grayscale(1) blur(1.5px)':tokenHealth.incapacitado?'saturate(.55)':'none';
+    node.style.filter='none';
     node.querySelectorAll('[data-state-symbol]').forEach(n=>n.remove());
     if(tokenHealth.morto||tokenHealth.inconsciente||tokenHealth.incapacitado){const state=root.createElement('span');state.dataset.stateSymbol='';state.textContent=tokenHealth.morto?'💀':tokenHealth.inconsciente?'💤':'🩸';state.style.cssText='position:absolute;inset:0;display:grid;place-items:center;font-size:22px;text-shadow:0 1px 3px #000;pointer-events:none;z-index:10;';node.append(state);}
    node.style.boxSizing='border-box';
@@ -185,7 +188,29 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
     node.append(action);
    }
   }
-  drawMap();drawScene();editor.paint();drawCatalog();drawHistory();status();
+  drawMap();drawScene();editor.paint();drawCatalog();drawHistory();drawDefense();status();
+ }
+ function drawDefense(){
+  let box=board.querySelector('[data-defense-prompt]');
+  const pending=health.pending,t=tokens.get(pending?.targetId);
+  if(!pending||mapPacket?.combat?.pendingAttack!==pending.id||!t){box?.remove();return;}
+  const canRespond=user()?.uid===t.donoUid||!!user()?.master&&!t.donoUid;
+  const key=pending.id+':'+canRespond+':'+defending;
+  if(box?.dataset.key===key)return;
+  box?.remove();box=root.createElement('div');box.dataset.defensePrompt='';box.dataset.key=key;
+  box.style.cssText='position:absolute;z-index:30;width:260px;max-width:90%;padding:8px;border:1px solid #00d4ff;border-radius:8px;background:#151b32;color:white;font:13px Arial,sans-serif;box-sizing:border-box;';
+  box.style.left=Math.max(0,Math.min(board.clientWidth-270,t.x/28*board.clientWidth-130))+'px';
+  const y=t.y/14*board.clientHeight;box.style.top=(y>180?y-175:y+40)+'px';
+  const title=root.createElement('strong');title.textContent=canRespond?'Defesa de '+displayName(t)+' · '+pending.remaining+' restante(s)':'Aguardando defesa de '+displayName(t);box.append(title);
+  if(canRespond){
+   const choices=root.createElement('select');choices.style.cssText='width:100%;margin:6px 0;background:#303349;color:white;font:13px Arial;';
+   for(const option of pending.options){const o=root.createElement('option');o.value=option.id;o.textContent=option.nome+' — '+option.valor+'%';choices.append(o);}
+   const hint=root.createElement('div');hint.textContent=pending.ranged?'Ataque à distância: somente Esquiva.':'Aparar exige arma corpo a corpo com alcance suficiente.';box.append(choices,hint);
+   for(const [label,choice]of [['Rolar defesa',null],['Não defender','none']]){const b=root.createElement('button');b.textContent=label;b.disabled=defending;b.style.cssText='font:12px Arial;padding:5px;margin:6px 4px 0 0;';b.addEventListener('click',async()=>{
+    defending=true;drawDefense();try{await attacks.defend({attackId:pending.id,actorId:t.id,choice:choice||choices.value});error='';}catch(e){error=e.message;}finally{defending=false;draw();}
+   });box.append(b);}
+  }
+  box.addEventListener('pointerdown',e=>e.stopPropagation());board.append(box);
  }
  function drawScene(){
   const board=el('novaSyncBoard'),scene=sceneData;
@@ -212,8 +237,8 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   const box=el('novaSyncHistory'),gm=el('novaSyncGmHealth');if(!box)return;
   const own=user()?.master?null:user()?.uid;
   const title=el('novaSyncHistoryTitle');if(title)title.textContent=user()?.master?'Histórico completo':'Seu histórico';
-  const entries=(history.entries||[]).filter(e=>!own||e.donoUid===own||e.actorUid===own||e.source?.donoUid===own);
-  box.replaceChildren();for(const e of entries.slice().reverse()){const row=root.createElement('div');row.textContent=`${new Date(e.ts||Date.now()).toLocaleTimeString()}  ${e.message||e.description||'Ação registrada'}`;box.append(row);}
+  const entries=(history.entries||[]).filter(e=>!own||e.donoUid===own||e.actorUid===own||e.targetUid===own);
+  box.replaceChildren();for(const e of entries.slice().reverse()){const row=root.createElement('div');const message=!own?e.message:e.targetUid===own?(e.defenderMessage||e.message):(e.attackerMessage||e.message);row.textContent=`${new Date(e.ts||Date.now()).toLocaleTimeString()}  ${message||'Ação registrada'}`;box.append(row);}
   if(gm){gm.hidden=!user()?.master;gm.replaceChildren();if(user()?.master&&mapPacket?.combat?.active){for(const id of mapPacket.combat.order||[]){const t=tokens.get(id),h=health.actors?.[id]?.combateLab;if(!t||!h)continue;const row=root.createElement('div');row.textContent=`${displayName(t)} · PV ${Object.values(h.hit||{}).reduce((a,v)=>a+Number(v||0),0)}/${Object.values(h.hitMax||{}).reduce((a,v)=>a+Number(v||0),0)} · Armadura ${Object.values(h.armor||{}).reduce((a,v)=>a+Number(v||0),0)}`;gm.append(row);}}}
  }
  function close(){editor.close();attacks?.close();attacks=null;health={actors:{},revision:0};history={entries:[]};held=null;selectedTarget='';placementChoice='';cancelAnimationFrame(frame);generation++;stop?.();stopMap?.();stopScene?.();stopHistory?.();stopScene=null;stopHistory=null;sceneData=null;sceneRequest++;stop=null;stopMap=null;account='';tokens.clear();previews.clear();queues.clear();mapPacket=null;mapData=null;renderedMap=null;mapRequest++;}
@@ -427,6 +452,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
  });
  el('novaSyncMapa')?.addEventListener('change',()=>{if(user()?.master){const m=(mapas()||[]).find(x=>String(x.id)===String(el('novaSyncMapa').value));if(m)database.writeMap(MAP_PATH,{mapId:String(m.id),nome:String(m.nome||m.id),fundo:String(m.fundo||''),larguraM:Number(m.larguraM)||28,alturaM:Number(m.alturaM)||14}).catch(fail);}});
  async function changeTurn(action){
+  if(mapPacket?.combat?.pendingAttack&&action!=='end')return;
   if(queues.size||changingTurn||managing||attacking)return;
   if(['start','end'].includes(action)?!user()?.master:!controlled(tokens.get(mapPacket?.combat?.activeId)))return;
   const expected=mapPacket?.combat?.turnId||null;
@@ -438,6 +464,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
    await database.transact(async tx=>{
     if(g!==generation)throw new Error('A sessão mudou');
     const state=await tx.get(MAP_PATH)||{},c=state.combat;
+    const healthState=['start','end'].includes(action)?await tx.get(HEALTH_PATH):null;
     if((c?.turnId||null)!==expected)throw new Error('O turno mudou. Confira a tela antes de avançar.');
     let combat;
     if(action==='start'){
@@ -446,11 +473,12 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
     }else{
      if(!c?.active)return;
      if(action!=='end'&&!controlled(tokens.get(c.activeId)))throw new Error('Você não controla este personagem.');
-     combat=action==='end'?{...c,active:false,turnId:crypto.randomUUID()}:acaoIniciativa(c,action,expected);
+     combat=action==='end'?{...c,active:false,pendingAttack:null,turnId:crypto.randomUUID()}:acaoIniciativa(c,action,expected);
     }
     tx.set(MAP_PATH,{...state,combat});
-    if(action==='start')tx.set(HISTORY_PATH,{entries:[...((started.order||[]).map(id=>({ts:Date.now(),message:`Iniciativa: ${tokens.get(id)?.nome||id} · ${started.rolls[id].total}`})))],revision:Date.now()});
+    if(action==='start')tx.set(HISTORY_PATH,{entries:[...((started.order||[]).map(id=>({actorUid:tokens.get(id)?.donoUid||'',ts:Date.now(),message:`Iniciativa: ${tokens.get(id)?.nome||id} · ${started.rolls[id].die} + ${started.rolls[id].initiative} = ${started.rolls[id].total}`})))],revision:Date.now()});
     if(action==='end')tx.set(HISTORY_PATH,{entries:[],revision:Date.now()});
+    if(['start','end'].includes(action))tx.set(HEALTH_PATH,{...(healthState||{actors:{}}),pending:null,revision:(healthState?.revision||0)+1});
    });
    error='';status();return true;
   }catch(e){fail(e);}
