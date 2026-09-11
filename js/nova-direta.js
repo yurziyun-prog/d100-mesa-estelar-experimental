@@ -20,7 +20,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
  let attacks=null,health={actors:{},revision:0},history={entries:[]},attacking=false,managing=false,lastEffect='',selectedTarget='';
  const availableActors=()=>{
   const available=new Map();
-  if(user()?.master)for(const entry of catalog())if(!['objeto','item'].includes(entry.catalogType))available.set(encodeURIComponent(entry.id),{...entry,id:encodeURIComponent(entry.id),donoUid:String(entry.donoUid||entry.dono||'')});
+  if(user()?.master&&!mapPacket?.combat?.active)for(const entry of catalog())if(!['objeto','item'].includes(entry.catalogType))available.set(encodeURIComponent(entry.id),{...entry,id:encodeURIComponent(entry.id),donoUid:String(entry.donoUid||entry.dono||'')});
   for(const token of tokens.values())if(canView(token))available.set(token.id,token);
   return available;
  };
@@ -40,12 +40,12 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   const placeholder=root.createElement('option');placeholder.value='';placeholder.textContent='Escolher personagem para colocar no mapa';
   const list=(user()?.master?catalog():[]).filter(t=>(!type||t.catalogType===type)&&String(t.nome).toLocaleLowerCase('pt-BR').includes(search));
   select.replaceChildren(placeholder,...list.map(t=>{const o=root.createElement('option');o.value=t.id;o.textContent=displayName(t);o.disabled=tokens.has(encodeURIComponent(t.id));if(o.disabled)o.textContent+=' (já está no mapa)';return o;}));
-  select.value=old;select.disabled=!user()?.master||!!mapPacket?.combat?.active||placing;
+  select.value=old;select.disabled=!user()?.master||placing;
   if(el('novaSyncMestreTipo'))el('novaSyncMestreTipo').disabled=select.disabled;
   if(select.disabled)placementChoice='';
   const button=el('novaSyncAdicionar');
   if(button){button.disabled=select.disabled||!select.value||tokens.has(encodeURIComponent(select.value));button.textContent=placementChoice?'Cancelar colocação':'Adicionar ao mapa';}
-  const hint=el('novaSyncAdicionarHint');if(hint)hint.textContent=!user()?.master?'O mestre adiciona personagens ao mapa.':placing?'Adicionando personagem…':placementChoice?'Clique no mapa para escolher a posição.':mapPacket?.combat?.active?'Adicione personagens fora de combate.':'Escolha o tipo e o personagem, depois clique em Adicionar ao mapa.';
+  const hint=el('novaSyncAdicionarHint');if(hint)hint.textContent=!user()?.master?'O mestre adiciona personagens ao mapa.':placing?'Adicionando personagem…':placementChoice?'Clique no mapa para escolher a posição.':'Escolha o tipo e o personagem, depois clique em Adicionar ao mapa.';
   const grid=el('novaSyncCatalogGrid');
   if(grid){
    grid.replaceChildren();
@@ -115,8 +115,8 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   if(el('novaSyncMapa'))el('novaSyncMapa').disabled=!!c?.active||!user()?.master;
   if(el('novaSyncInit'))el('novaSyncInit').disabled=!!c?.active;
   const quick=el('novaSyncQuickSearch'),quickAdd=el('novaSyncQuickAdd');
-  if(quick)quick.disabled=!user()?.master||!!c?.active||placing;
-  if(quickAdd)quickAdd.disabled=!user()?.master||!!c?.active||placing||!quickChoices.has(quick?.value);
+  if(quick)quick.disabled=!user()?.master||placing;
+  if(quickAdd)quickAdd.disabled=!user()?.master||placing||!quickChoices.has(quick?.value);
   for(const id of ['novaSyncRandom','novaSyncClear','novaSyncRestore'])if(el(id))el(id).disabled=!user()?.master||!!c?.active||managing||attacking||queues.size>0;
   for(const button of el('novaSyncBoard').querySelectorAll('[data-map-action]'))button.disabled=!c?.active||c.activeId!==selected?.id||!controlled(selected)||attacking||!!queues.size||changingTurn||!!c?.pendingAttack;
   const event=health.event,eventVisible=event&&(user()?.master||event.actorUid===user()?.uid||event.targetUid===user()?.uid);
@@ -431,16 +431,23 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   placing=true;drawCatalog();
   try{
    const id=encodeURIComponent(t.id);
+   const entrant=mapPacket?.combat?.active?((await loadCombatants([{...t,id}]))||[])[0]:null;
    await database.transact(async tx=>{
     const s=await tx.get(MAP_PATH),existing=await tx.get(POSITION_PATH+'/'+id);
-    if(s?.combat?.active)throw new Error('Coloque personagens fora de combate.');
     if(['objeto','item'].includes(t.catalogType)){
      const scene=await tx.get(SCENE_PATH),objects=scene?.mapId===(s?.mapId||'')?scene.objects:[];
      const object={id:crypto.randomUUID(),nome:String(t.nome),tipo:t.catalogType,modeloId:String(t.id),larguraM:Math.max(.1,Number(t.larguraM)||1),alturaM:Math.max(.1,Number(t.alturaM)||1),pvMax:Number(t.pvMax||t.pv)||0,dureza:Number(t.dureza)||0,...p};
      tx.set(SCENE_PATH,{...(scene?.mapId===(s?.mapId||'')?scene:{}),mapId:s?.mapId||'',objects:[...objects,object]});return;
     }
     if(existing)throw new Error('Este personagem já está no mapa.');
-    tx.set(POSITION_PATH+'/'+id,{nome:String(t.nome||'Personagem'),imagem:String(t.imagem||''),donoUid:String(t.donoUid||t.dono||''),...p,revision:0});
+    tx.set(POSITION_PATH+'/'+id,{nome:String(t.nome||'Personagem'),imagem:String(t.imagem||''),donoUid:String(t.donoUid||t.dono||''),facing:0,...p,revision:0});
+    if(s?.combat?.active&&entrant?.actions>0){
+     const die=1+Math.floor(Math.random()*10),total=Number(entrant.initiative||0)+die,c={...s.combat,order:[...s.combat.order,id],queue:[...s.combat.queue],initial:{...s.combat.initial,[id]:{remaining:entrant.actions,passes:0}},actors:{...s.combat.actors,[id]:{remaining:entrant.actions,passes:0}},rolls:{...s.combat.rolls,[id]:{initiative:Number(entrant.initiative||0),die,total,owner:String(t.donoUid||t.dono||'')}}};
+     c.order.sort((a,b)=>Number(c.rolls[b]?.total||0)-Number(c.rolls[a]?.total||0)||String(a).localeCompare(String(b)));
+     const activeTotal=Number(s.combat.rolls?.[s.combat.activeId]?.total||0);
+     if(total<activeTotal){const ix=Math.max(0,c.queue.indexOf(s.combat.activeId));c.queue.splice(ix+1,0,id);}
+     tx.set(MAP_PATH,{...s,combat:c});
+    }
    });
    el('novaSyncMestrePersonagem').value='';placementChoice='';error='';
   }catch(e){fail(e);}finally{placing=false;draw();}
@@ -461,7 +468,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
  });
  el('novaSyncQuickSearch')?.addEventListener('input',status);
  el('novaSyncQuickAdd')?.addEventListener('click',async()=>{
-  if(!user()?.master||mapPacket?.combat?.active||placing)return;
+  if(!user()?.master||placing)return;
   const input=el('novaSyncQuickSearch'),id=quickChoices.get(input.value);if(!id)return;
   const entry=catalog().find(t=>t.id===id);let p={x:14,y:7};
   if(!['objeto','item'].includes(entry?.catalogType)){
@@ -474,7 +481,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   await place(id,p);input.value='';quickChoices.clear();status();
  });
  el('novaSyncAdicionar')?.addEventListener('click',()=>{
-  if(!user()?.master||mapPacket?.combat?.active||placing)return;
+  if(!user()?.master||placing)return;
   release();placementChoice=placementChoice?'':el('novaSyncMestrePersonagem').value;drawCatalog();status();
  });
  el('novaSyncPersonagem').addEventListener('change',()=>{
