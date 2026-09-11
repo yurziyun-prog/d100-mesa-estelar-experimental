@@ -76,6 +76,9 @@ export function conectarAtaques({database,user,tokens,prepare,prepareEquipment,o
     }
     const event={...result.event,id:defense?command.attackId:id,ts:Date.now(),actorUid:a.donoUid,targetUid:b.donoUid,source:{id:original.personagemId,x:a.x,y:a.y},target:{id:original.targetId,x:b.x,y:b.y}};
     const actors={...(health.actors||{})};for(const [key,value]of Object.entries(result.actors||{}))actors[key]={...actors[key],...value};
+    if(Number.isFinite(result.facing)&&map.combat?.active){
+     tx.set(POSITIONS+'/'+original.personagemId,{...a,facing:result.facing,revision:Number(a.revision||0)+1});
+    }
     tx.set(HEALTH_PATH,clean({actors,revision:(health.revision||0)+1,event,pending:null}));
     tx.set(HISTORY_PATH,clean({entries:[...(history.entries||[]),event].slice(-120),revision:(history.revision||0)+1}));
     if(map.combat?.active)tx.set(MAP,{...map,combat});

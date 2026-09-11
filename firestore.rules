@@ -106,6 +106,10 @@ service cloud.firestore {
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['x','y','revision','movementTurn','movementUsed','facing']) &&
         request.resource.data.revision == resource.data.revision + 1 &&
         movimentoPermitido();
+      allow update: if ehMestre() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['facing','revision']) &&
+        request.resource.data.revision == resource.data.revision + 1 &&
+        request.resource.data.facing is number;
       allow delete: if ehMestre();
     }
 

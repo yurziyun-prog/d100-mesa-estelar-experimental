@@ -2,7 +2,7 @@
 import {saldoMovimento,moverNoTurno,iniciarIniciativa,acaoIniciativa,defesasRestantes} from './nova-turnos.js?v=37';
 import {destinoSemColisao,TOKEN_DIAMETER} from './nova-colisao.js?v=25';
 import {criarPainelAcoes} from './nova-painel.js?v=37';
-import {conectarAtaques,HEALTH_PATH,HISTORY_PATH} from './nova-ataques.js?v=36';
+import {conectarAtaques,HEALTH_PATH,HISTORY_PATH} from './nova-ataques.js?v=37';
 import {mostrarAtaque} from './nova-efeitos.js?v=35';
 import {criarEditorMesa} from './nova-editor.js?v=35';
 export const POSITION_PATH='combatesAtivos/mapaMesaSyncDireta/posicoes';

@@ -36506,10 +36506,10 @@ async function novaPrepararAtaque_(a,b,command){
    const value=novaValorPericia_(ca,actor,per,chosen.graus||0),die=1+Math.floor(Math.random()*100),grade=classificarD100_(value,die);
    const facing=Number.isFinite(b.facing)?b.facing:0;
    const attackAngle=Math.atan2(actor.y-target.y,actor.x-target.x);
-   const actorFacing=Number.isFinite(a.facing)?a.facing:0;
-   let actorDelta=attackAngle+Math.PI-actorFacing;while(actorDelta>Math.PI)actorDelta-=Math.PI*2;while(actorDelta<-Math.PI)actorDelta+=Math.PI*2;
-   const naturalRearAttack=/cauda|calda|rabo|tail/i.test(getNome(item));
-   if(!labAtaqueEhDistancia_(item)&&Math.abs(actorDelta)>Math.PI/2&&!naturalRearAttack)throw Error('Não é possível atacar de costas para o alvo. Gire a miniatura antes de agir.');
+   // Atacar também orienta automaticamente a miniatura para o alvo, como o
+   // movimento normal. Isso impede que um ataque comum seja resolvido de costas.
+   const actorAttackFacing=Math.atan2(target.y-actor.y,target.x-actor.x);
+   actor.facing=actorAttackFacing;
    let rearDelta=attackAngle-facing;while(rearDelta>Math.PI)rearDelta-=Math.PI*2;while(rearDelta<-Math.PI)rearDelta+=Math.PI*2;
    const fromBack=Math.abs(rearDelta)>Math.PI/2;
    const evasionActive=!!(target.combateLab?.evasao||target.combateLab?.manobraEvasao||target.charLab?.evasao||target.charLab?.manobraEvasao);
@@ -36555,7 +36555,7 @@ async function novaPrepararAtaque_(a,b,command){
    const rearText=fromBack?`Ataque pelas costas${evasionActive?' · Evasão permite Esquiva':' · Aparar indisponível · Esquiva -20'}`:'';
    const specialText=especiais.length?'Efeito especial: '+especiais.join(', '):'';
    const message=[attackText,defenseText,rearText,specialText,damageText,resistanceText,consequences].filter(Boolean).join(' · ');
-   return JSON.parse(JSON.stringify({defenseSpent:!!defense,actors:{[a.id]:{combateLab:actor.combateLab,municaoLab:actor.municaoLab||{}},[b.id]:{combateLab:target.combateLab,municaoLab:target.municaoLab||{}}},event:{message,attackerMessage:[attackText,hit?'Atingiu o alvo':'Não atingiu',rearText,specialText,damageText].filter(Boolean).join(' · '),defenderMessage:[attackText,defenseText,rearText,specialText,damageText,resistanceText,consequences].filter(Boolean).join(' · '),specialEffects:especiais,damage:damage?.final||0,grade:grade.grau,hit,fromBack,defense,resistances,item:{nome:getNome(item),categoria:item.categoria||'',familia:item.familia||'',tipo:item.tipo||''}}}));
+   return JSON.parse(JSON.stringify({defenseSpent:!!defense,actors:{[a.id]:{combateLab:actor.combateLab,municaoLab:actor.municaoLab||{}},[b.id]:{combateLab:target.combateLab,municaoLab:target.municaoLab||{}}},facing:actorAttackFacing,event:{message,attackerMessage:[attackText,hit?'Atingiu o alvo':'Não atingiu',rearText,specialText,damageText].filter(Boolean).join(' · '),defenderMessage:[attackText,defenseText,rearText,specialText,damageText,resistanceText,consequences].filter(Boolean).join(' · '),specialEffects:especiais,damage:damage?.final||0,grade:grade.grau,hit,fromBack,defense,resistances,item:{nome:getNome(item),categoria:item.categoria||'',familia:item.familia||'',tipo:item.tipo||''}}}));
   });}finally{Math.random=originalRandom;}
  };
 }
