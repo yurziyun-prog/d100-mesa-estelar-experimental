@@ -103,7 +103,7 @@ service cloud.firestore {
         !exists(/databases/$(database)/documents/combatesAtivos/mapaMesaSyncDireta) ||
         !get(/databases/$(database)/documents/combatesAtivos/mapaMesaSyncDireta).data.get('combat', {}).get('active', false))) || ehDono(resource.data.donoUid)) &&
         posicaoValida() &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['x','y','revision','movementTurn','movementUsed']) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['x','y','revision','movementTurn','movementUsed','facing']) &&
         request.resource.data.revision == resource.data.revision + 1 &&
         movimentoPermitido();
       allow delete: if ehMestre();
