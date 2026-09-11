@@ -12,7 +12,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
  const el=id=>root.getElementById(id), displayName=t=>String(t?.nome||'').replace(/^(NPC|Monstro|PJ|PM|Objeto|Item)\s*[·:-]\s*/i,''), tokens=new Map(), previews=new Map(), queues=new Map();
  let stop=null,stopMap=null,stopHistory=null,account='',error='',generation=0,mapPacket=null,mapData=null,renderedMap=null,mapRequest=0;
  let changingTurn=false,lastSelectedTurn='',defending=false;
- let held=null,frame=0,placing=false,placementChoice='';
+ let held=null,turning=null,frame=0,placing=false,placementChoice='';
  let catalogKey='',catalogLimit=48,sceneRef=null,sceneMapId=null;
  const quickChoices=new Map();
  let stopScene=null,sceneData=null,sceneRequest=0;
@@ -157,6 +157,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
     node.style.cssText='position:absolute;transform:translate(-50%,-50%);width:42px;height:42px;border-radius:50%;border:3px solid #00d4ff;background:#263d62;touch-action:none;user-select:none;transition:left .28s linear,top .28s linear';
     if(t.imagem){const img=root.createElement('img');img.src=t.imagem;img.draggable=false;img.style.cssText='width:100%;height:100%;object-fit:cover;border-radius:50%;pointer-events:none';node.append(img);}
     const label=root.createElement('span');label.textContent=displayName(t);label.style.cssText='position:absolute;top:46px;left:50%;transform:translateX(-50%);white-space:nowrap;background:#172337;font-size:12px';node.append(label);board.append(node);
+    const facingHandle=root.createElement('span');facingHandle.dataset.facingHandle='';facingHandle.title='Segure para girar';facingHandle.style.cssText='position:absolute;width:10px;height:10px;border-radius:50%;background:#ffd447;border:1px solid #111;box-shadow:0 0 3px #000;cursor:grab;z-index:13;transform:translate(-50%,-50%);';node.append(facingHandle);
    }
    const p=previews.get(t.id)||t;
     const tokenDiameterM=/besta\s+ululante/i.test(String(t.nome||''))?2.4:1;
@@ -170,6 +171,9 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
    const label=node.querySelector('span');if(label){label.textContent=displayName(t);label.style.top='calc(100% + 3px)';}
    node.style.transition=previews.has(t.id)?'none':'left .2s linear,top .2s linear';
    node.style.left=`${p.x/28*100}%`;node.style.top=`${p.y/14*100}%`;
+   const facing=Number.isFinite(p.facing)?p.facing:0;
+   const handle=node.querySelector('[data-facing-handle]');
+   if(handle){const radius=Math.max(28,Math.min(54,tokenDiameterM/2*48+7));handle.style.left=(50+Math.cos(facing)*radius/Math.max(1,node.clientWidth)*100)+'%';handle.style.top=(50+Math.sin(facing)*radius/Math.max(1,node.clientHeight)*100)+'%';}
    node.dataset.x=p.x;node.dataset.y=p.y;
    node.style.cursor=masterMode()?'move':'pointer';node.style.borderColor=t.id===select.value?'#ffd447':t.id===selectedTarget?'#ff7855':'#00d4ff';
    node.querySelectorAll('[data-turn-arrow]').forEach(n=>n.remove());
@@ -295,19 +299,19 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
     await database.transact(async tx=>{
      if(await tx.get(path))return;
      tx.set(path,{nome:String(t.nome||'Personagem'),imagem:String(t.imagem||''),donoUid:String(t.donoUid||t.dono||''),
-      x:Math.max(.7,Math.min(27.3,Number.isFinite(t.x)?t.x:4+i*3)),y:Math.max(.8,Math.min(13.2,Number.isFinite(t.y)?t.y:7)),revision:0});
+     x:Math.max(.7,Math.min(27.3,Number.isFinite(t.x)?t.x:4+i*3)),y:Math.max(.8,Math.min(13.2,Number.isFinite(t.y)?t.y:7)),facing:Number.isFinite(t.facing)?t.facing:0,revision:0});
     });
    }
   }catch(e){fail(e);}
  }
  // Keep every segment of the preview. One transaction batches the waiting
  // segments, so latency cannot turn a detour into a chord through a character.
- async function save(id,points){
+ async function save(id,points,facing){
   if(!controlled(tokens.get(id)||{}))return;
   if(!points.length)return;
   const expectedTurn=mapPacket?.combat?.active?mapPacket.combat.turnId:null;
-  const existing=queues.get(id);if(existing){existing.points.push(...points);return;}
-  const q={points:[...points]},g=generation;queues.set(id,q);status();
+  const existing=queues.get(id);if(existing){existing.points.push(...points);if(Number.isFinite(facing))existing.facing=facing;return;}
+  const q={points:[...points],facing:Number.isFinite(facing)?facing:null},g=generation;queues.set(id,q);status();
   try{
    while(q.points.length&&g===generation){
     const pathPoints=q.points.splice(0);
@@ -323,6 +327,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
       if(Math.hypot(moved.x-next.x,moved.y-next.y)>.001){blocked=true;break;}
      }
      const {id:ignored,...value}=moved;
+     if(Number.isFinite(q.facing))value.facing=q.facing;
      value.revision=t.revision+1;tx.set(path,value);return {value,blocked};
     });
     if(g!==generation)return;
@@ -342,7 +347,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
  function point(e){const r=board.getBoundingClientRect();return {x:Math.max(.7,Math.min(27.3,(e.clientX-r.left)/r.width*28)),y:Math.max(.8,Math.min(13.2,(e.clientY-r.top)/r.height*14))};}
  function release(){
   const h=held;if(!h)return;held=null;cancelAnimationFrame(frame);
-  if(h.trail.length)save(h.id,h.trail.splice(0));
+  if(h.trail.length)save(h.id,h.trail.splice(0),h.facing);
   else if(!queues.has(h.id)){previews.delete(h.id);draw();}
   status();
  }
@@ -354,20 +359,25 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   const distance=Math.hypot((h.target.x-t.x)*w/28,(h.target.y-t.y)*height/14);
   try{
    if(distance>0){
-    const ratio=Math.min(1,3*dt/distance);
+    const ratio=Math.min(1,(h.shift?1.5:3)*dt/distance);
     const dest=destinoSemColisao(t,{x:t.x+(h.target.x-t.x)*ratio,y:t.y+(h.target.y-t.y)*ratio},[...tokens.values()].map(t=>previews.get(t.id)||t),mapPacket);
     const p=moverNoTurno(t,dest,mapPacket,h.turn);
     if(p.x!==t.x||p.y!==t.y){
+     if(!h.shift){const dx=(p.x-t.x)*w/28,dy=(p.y-t.y)*height/14;if(Math.hypot(dx,dy)>.001)h.facing=Math.atan2(dy,dx);p.facing=h.facing;}
      previews.set(h.id,p);draw();
      h.trail.push({x:p.x,y:p.y});
-     if(now-h.sent>=200){h.sent=now;save(h.id,h.trail.splice(0));}
+     if(now-h.sent>=200){h.sent=now;save(h.id,h.trail.splice(0),h.facing);}
     }
    }
   }catch(e){release();error=e.message;status();return;}
   frame=requestAnimationFrame(step);
  }
- board.addEventListener('pointermove',e=>{if(held&&e.pointerId===held.pointer){if(!(e.buttons&1))release();else held.target=point(e);}});
- for(const event of ['pointerup','pointercancel','lostpointercapture'])board.addEventListener(event,release);
+ board.addEventListener('pointermove',e=>{
+  if(turning&&e.pointerId===turning.pointer){const t=previews.get(turning.id)||tokens.get(turning.id);if(t){const p=point(e),w=Number(mapPacket?.larguraM)||28,h=Number(mapPacket?.alturaM)||14;const angle=Math.atan2((p.y-t.y)*h/14,(p.x-t.x)*w/28);previews.set(turning.id,{...t,facing:angle});draw();}return;}
+  if(held&&e.pointerId===held.pointer){if(!(e.buttons&1))release();else held.target=point(e);}
+ });
+ const finishTurning=()=>{if(!turning)return;const r=turning;turning=null;const t=previews.get(r.id)||tokens.get(r.id);previews.delete(r.id);if(t&&Number.isFinite(t.facing))database.transact(async tx=>{const path=POSITION_PATH+'/'+r.id,current=await tx.get(path);if(!current)throw new Error('Personagem não encontrado');tx.set(path,{...current,facing:t.facing,revision:Number(current.revision||0)+1});}).catch(fail).finally(draw);};
+ for(const event of ['pointerup','pointercancel','lostpointercapture'])board.addEventListener(event,e=>{if(turning&&e.pointerId===turning.pointer)finishTurning();else release();});
  root.defaultView?.addEventListener('blur',release);
  root.addEventListener('visibilitychange',()=>{if(root.hidden)release();});
  board.addEventListener('pointerdown',e=>{
@@ -377,6 +387,8 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   if(chosen&&user()?.master&&!mapPacket?.combat?.active){place(chosen,point(e));return;}
   if(editor.begin(e))return;
   const clicked=e.target.closest('[data-token]')?.dataset.token;
+  const handle=e.target.closest('[data-facing-handle]');
+  if(handle){const node=handle.closest('[data-token]'),id=node?.dataset.token,t=tokens.get(id);if(!t||!controlled(t)|| (mapPacket?.combat?.active&&mapPacket.combat.activeId!==id))return;turning={id,pointer:e.pointerId};board.setPointerCapture(e.pointerId);e.preventDefault();return;}
   if(clicked){
    release();
    if(clicked===el('novaSyncPersonagem').value)selectedTarget='';
@@ -390,7 +402,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   try{
    const turn=mapPacket?.combat?.active?mapPacket.combat.turnId:null;
    moverNoTurno(previews.get(id)||t,{x:t.x,y:t.y},mapPacket,turn);
-   release();held={id,target:point(e),turn,pointer:e.pointerId,time:performance.now(),sent:performance.now(),trail:[]};
+   release();held={id,target:point(e),turn,pointer:e.pointerId,time:performance.now(),sent:performance.now(),trail:[],shift:e.shiftKey,facing:Number.isFinite(t.facing)?t.facing:0};
    board.setPointerCapture(e.pointerId);frame=requestAnimationFrame(step);
   }catch(e){error=e.message;status();}
  });

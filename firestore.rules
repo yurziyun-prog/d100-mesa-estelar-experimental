@@ -74,10 +74,10 @@ service cloud.firestore {
     match /combatesAtivos/mapaMesaSyncDireta/posicoes/{tokenId} {
       function posicaoValida() {
         let d = request.resource.data;
-        return d.keys().hasOnly(['nome','imagem','donoUid','x','y','revision','movementTurn','movementUsed']) &&
+        return d.keys().hasOnly(['nome','imagem','donoUid','x','y','revision','movementTurn','movementUsed','facing']) &&
           d.nome is string && d.imagem is string && d.donoUid is string &&
           d.x is number && d.y is number && d.revision is int &&
-          d.x >= 0 && d.x <= 28 && d.y >= 0 && d.y <= 14;
+          d.x >= 0 && d.x <= 28 && d.y >= 0 && d.y <= 14 && d.get('facing',0) is number;
       }
       function movimentoPermitido() {
         let path = /databases/$(database)/documents/combatesAtivos/mapaMesaSyncDireta;
@@ -90,7 +90,7 @@ service cloud.firestore {
         let dx = (d.x - previous.x) * map.get('larguraM', 28) / 28;
         let dy = (d.y - previous.y) * map.get('alturaM', 14) / 14;
         return !c.get('active', false) ?
-          d.diff(previous).affectedKeys().hasOnly(['x','y','revision']) :
+          d.diff(previous).affectedKeys().hasOnly(['x','y','revision','facing']) :
           (c.get('pendingAttack', null) == null && c.activeId == tokenId &&
            d.get('movementTurn', '') == c.get('roundId', c.turnId) &&
            d.get('movementUsed', -1) is number &&

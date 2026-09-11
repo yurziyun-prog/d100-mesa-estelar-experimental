@@ -36511,20 +36511,32 @@ async function novaPrepararAtaque_(a,b,command){
    if(distance>range+.001)throw Error('Fora de alcance: '+distance.toFixed(1)+' m; alcance '+range.toFixed(1)+' m.');
    if(labEhArmaMuniciada_(item)&&labMunicaoAtual_(actor,item)<=0)throw Error('Arma sem munição.');
    const value=novaValorPericia_(ca,actor,per,chosen.graus||0),die=1+Math.floor(Math.random()*100),grade=classificarD100_(value,die);
+   const facing=Number.isFinite(b.facing)?b.facing:0;
+   const attackAngle=Math.atan2(actor.y-target.y,actor.x-target.x);
+   const actorFacing=Number.isFinite(a.facing)?a.facing:0;
+   let actorDelta=attackAngle+Math.PI-actorFacing;while(actorDelta>Math.PI)actorDelta-=Math.PI*2;while(actorDelta<-Math.PI)actorDelta+=Math.PI*2;
+   const naturalRearAttack=/cauda|calda|rabo|tail/i.test(getNome(item));
+   if(!labAtaqueEhDistancia_(item)&&Math.abs(actorDelta)>Math.PI/2&&!naturalRearAttack)throw Error('Não é possível atacar de costas para o alvo. Gire a miniatura antes de agir.');
+   let rearDelta=attackAngle-facing;while(rearDelta>Math.PI)rearDelta-=Math.PI*2;while(rearDelta<-Math.PI)rearDelta+=Math.PI*2;
+   const fromBack=Math.abs(rearDelta)>Math.PI/2;
+   const evasionActive=!!(target.combateLab?.evasao||target.combateLab?.manobraEvasao||target.charLab?.evasao||target.charLab?.manobraEvasao);
    const options=[];
    if(map.combat?.active&&defesasRestantes(map.combat,b.id)>0&&!healthB.morto&&!healthB.inconsciente&&!healthB.incapacitado){
     const defenses=batalhaListaPericiasDefesa_(cb);
     if(!defenses.some(labEhEsquivaD7_)){const dodge=batalhaListaPericias_(cb).find(labEhEsquivaD7_);if(dodge)defenses.unshift(dodge);}
     for(const defensePer of defenses){
-     if(labEhEsquivaD7_(defensePer))options.push({id:batalhaTokenPericia_(defensePer),nome:'Esquiva',valor:novaValorPericia_(cb,target,defensePer)});
-     else if(!labAtaqueEhDistancia_(item))for(const weapon of novaEquipamentos_(cb,defensePer)){
+     if(labEhEsquivaD7_(defensePer)){
+      const dodgePenalty=fromBack&&!evasionActive?20:0;
+      options.push({id:batalhaTokenPericia_(defensePer),nome:'Esquiva'+(dodgePenalty?' (-20)':''),valor:Math.max(0,novaValorPericia_(cb,target,defensePer)-dodgePenalty)});
+     }
+     else if(!fromBack&&!labAtaqueEhDistancia_(item))for(const weapon of novaEquipamentos_(cb,defensePer)){
       if(labAtaqueEhDistancia_(weapon.item)||labAlcanceAtaque_(target,weapon.item)+.001<distance)continue;
       if(weapon.item.inutilizavel||weapon.item.pvAtual===0)continue;
       options.push({id:batalhaTokenPericia_(defensePer)+'|'+weapon.valor,nome:'Aparar ('+getNome(weapon.item)+')',valor:novaValorPericia_(cb,target,defensePer,weapon.graus||0)});
      }
     }
    }
-   if(decision.phase==='preview'&&grade.sucesso&&options.length)return {pending:{options,ranged:labAtaqueEhDistancia_(item),remaining:defesasRestantes(map.combat,b.id)}};
+   if(decision.phase==='preview'&&grade.sucesso&&options.length)return {pending:{options,ranged:labAtaqueEhDistancia_(item),fromBack,remaining:defesasRestantes(map.combat,b.id)}};
    let defense=null;
    if(decision.choice&&decision.choice!=='none'){
     const option=options.find(o=>o.id===decision.choice);if(!option)throw Error('Esta defesa não está mais disponível.');
@@ -36547,9 +36559,10 @@ async function novaPrepararAtaque_(a,b,command){
    if(damage?.resistencia&&!resistances.length)resistances.push(damage.resistencia);
    const resistanceText=resistances.map(r=>'Resistência: '+r.roll+'/'+r.valor+' → '+r.grau+' · '+(r.passou?'resistiu':'não resistiu')).join(' · ');
    const consequences=[healthB.morto?'Morto':healthB.inconsciente?'Inconsciente':'',healthB.incapacitado?'Incapacitado':'',damage?.stunTurnos?'Choque: '+damage.stunTurnos+' oportunidade(s)':''].filter(Boolean).join(' · ');
+   const rearText=fromBack?`Ataque pelas costas${evasionActive?' · Evasão permite Esquiva':' · Aparar indisponível · Esquiva -20'}`:'';
    const specialText=especiais.length?'Efeito especial: '+especiais.join(', '):'';
-   const message=[attackText,defenseText,specialText,damageText,resistanceText,consequences].filter(Boolean).join(' · ');
-   return JSON.parse(JSON.stringify({defenseSpent:!!defense,actors:{[a.id]:{combateLab:actor.combateLab,municaoLab:actor.municaoLab||{}},[b.id]:{combateLab:target.combateLab,municaoLab:target.municaoLab||{}}},event:{message,attackerMessage:[attackText,hit?'Atingiu o alvo':'Não atingiu',specialText,damageText].filter(Boolean).join(' · '),defenderMessage:[attackText,defenseText,specialText,damageText,resistanceText,consequences].filter(Boolean).join(' · '),specialEffects:especiais,damage:damage?.final||0,grade:grade.grau,hit,defense,resistances,item:{nome:getNome(item),categoria:item.categoria||'',familia:item.familia||'',tipo:item.tipo||''}}}));
+   const message=[attackText,defenseText,rearText,specialText,damageText,resistanceText,consequences].filter(Boolean).join(' · ');
+   return JSON.parse(JSON.stringify({defenseSpent:!!defense,actors:{[a.id]:{combateLab:actor.combateLab,municaoLab:actor.municaoLab||{}},[b.id]:{combateLab:target.combateLab,municaoLab:target.municaoLab||{}}},event:{message,attackerMessage:[attackText,hit?'Atingiu o alvo':'Não atingiu',rearText,specialText,damageText].filter(Boolean).join(' · '),defenderMessage:[attackText,defenseText,rearText,specialText,damageText,resistanceText,consequences].filter(Boolean).join(' · '),specialEffects:especiais,damage:damage?.final||0,grade:grade.grau,hit,fromBack,defense,resistances,item:{nome:getNome(item),categoria:item.categoria||'',familia:item.familia||'',tipo:item.tipo||''}}}));
   });}finally{Math.random=originalRandom;}
  };
 }
