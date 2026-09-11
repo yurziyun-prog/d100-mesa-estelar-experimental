@@ -5518,7 +5518,7 @@ function labTokenAtual_(){
     const id=labEstado_.ordemIniciativa[Math.max(0,Math.min(labEstado_.ordemIniciativa.length-1,Number(labEstado_.turnoIndex||0)))];
     return (labEstado_.tokens||[]).find(t=>String(t.id)===String(id))||null;
 }
-function labPrepararNovaRodada_(){for(const t of labTokensCombatentes_()){const deb=Math.max(0,Number(t.penalidadeAcaoProximaLab||0));t.acoesAtuaisLab=Math.max(0,Number(t.acoesMaxLab||0)-deb);t.penalidadeAcaoProximaLab=0;t.movimentoGratisDisponivel=labMovimentoPorAcao_(t)>0;t.movimentoBonusLab=0;t.passagensLab=0;}}
+function labPrepararNovaRodada_(){for(const t of labTokensCombatentes_()){const st=labGarantirSnapshotCombate_(t)||{},central=['Cabeça','Peito','Abdômen'].some(loc=>{const max=Number(st.hitMax?.[loc]||0);return max>0&&Number(st.hit?.[loc]||0)<=max/2});const deb=Math.max(0,Number(t.penalidadeAcaoProximaLab||0),central&&Number(st.penalidadeAcoesFerimento||0)>0?1:0);t.acoesAtuaisLab=Math.max(0,Number(t.acoesMaxLab||0)-deb);t.penalidadeAcaoProximaLab=0;t.movimentoGratisDisponivel=labMovimentoPorAcao_(t)>0;t.movimentoBonusLab=0;t.passagensLab=0;}}
 window.labIniciarCombate_=function(){
     const cs=labTokensCombatentes_();if(!cs.length){notificar_('Adicione participantes antes de iniciar o combate.','aviso');return;}
     for(const t of labEstado_.tokens||[]){
@@ -6206,13 +6206,12 @@ window.labPSContinuar_=function(){
 function labReavaliarFerimento_(t,local){
     const st=labGarantirSnapshotCombate_(t);if(!st)return;
     const max=Math.max(1,Number(st.hitMax?.[local]||1)),at=Number(st.hit?.[local]??max);
-    if(at>0){delete st.ferimentos?.[local];}
-    else if(at<=-max){
+    if(at>max/2){delete st.ferimentos?.[local];delete st.resistenciaFerimentos?.[local];}
+    else if(at<=0){
         st.ferimentos=st.ferimentos||{};st.ferimentos[local]='Grave';
         if(/Cabeça|Peito|Abdômen/.test(local)){st.morto=true;st.inconsciente=false;}
     }else{
         st.ferimentos=st.ferimentos||{};st.ferimentos[local]='Sério';
-        if(/Cabeça|Peito|Abdômen/.test(local))st.inconsciente=true;
     }
 }
 window.labPSConcluir_=function(){
@@ -6519,10 +6518,11 @@ function labAplicarDanoLocal_(defensor,total,item,opcoes={}){
             }
         }
     }else{
-        const antesSerio=antes<=0;
-        const antesGrave=antes<=-max;
-        const agoraSerio=depois<=0;
-        const agoraGrave=depois<=-max;
+        const limiteSerio=max/2;
+        const antesSerio=antes<=limiteSerio;
+        const antesGrave=antes<=0;
+        const agoraSerio=depois<=limiteSerio;
+        const agoraGrave=depois<=0;
 
         if(agoraSerio){
             st.ferimentos[local]=agoraGrave?'Grave':'Sério';
@@ -6540,16 +6540,13 @@ function labAplicarDanoLocal_(defensor,total,item,opcoes={}){
 
                 if(!resistencia.passou){
                     if(/Braço|Perna/.test(local))st.membrosInuteis[local]=true;
-                    else st.inconsciente=true;
+                    else st.penalidadeAcoesFerimento=Math.max(1,Number(st.penalidadeAcoesFerimento||0));
                 }
             }
         }
 
         if(agoraGrave&&!antesGrave){
             st.ferimentos[local]='Grave';
-            st.incapacitado=true;
-            defensor.acoesAtuaisLab=0;
-
             const grave=labRolarResistenciaFerimento22_(defensor,opcoes);
             resistencia=grave;
             st.resistenciaFerimentos[local]={
@@ -6562,11 +6559,7 @@ function labAplicarDanoLocal_(defensor,total,item,opcoes={}){
                     st.morto=true;
                     st.inconsciente=false;
                     ferimento='Morto';
-                }else{
-                    st.membrosInuteis[local]=true;
-                    st.inconsciente=true;
-                    ferimento='Ferimento Grave · Inconsciente';
-                }
+                }else{st.membrosInuteis[local]=true;ferimento='Ferimento Grave · membro inutilizado';}
             }else{
                 ferimento='Ferimento Grave · Resistiu';
             }
@@ -36457,7 +36450,7 @@ function labInstalarAcoesConfirmadas_(){
 labInstalarAcoesConfirmadas_();
 
 // Aba paralela: controlador independente e adaptador Firestore.
-import {mountDirectPositionLab} from './nova-direta.js?v=36';
+import {mountDirectPositionLab} from './nova-direta.js?v=37';
 import {ataqueSuperaDefesa,defesasRestantes} from './nova-turnos.js?v=36';
 async function novaFicha_(t){
  const legacy=(labEstado_?.tokens||[]).find(x=>String(x.id)===String(t.id));

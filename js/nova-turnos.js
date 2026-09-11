@@ -70,7 +70,10 @@ export function ataqueSuperaDefesa(attack,defense){
 }
 export function removerMortos(combat,health){
  if(!combat?.active)return combat;
- const order=combat.order.filter(id=>!health[id]?.combateLab?.morto);
+ const order=combat.order.filter(id=>{
+  const st=health[id]?.combateLab||{};
+  return !st.morto&&!st.inconsciente&&!st.incapacitado;
+ });
  if(order.length===combat.order.length)return combat;
  let queue=combat.queue.filter(id=>order.includes(id)),round=combat.round;
  const filter=values=>Object.fromEntries(Object.entries(values).filter(([id])=>order.includes(id)));

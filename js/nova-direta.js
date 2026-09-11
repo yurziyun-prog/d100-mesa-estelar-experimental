@@ -1,5 +1,5 @@
 // Movimento livre: uma posição por personagem, sem sessão-mestre ou fila de comandos.
-import {saldoMovimento,moverNoTurno,iniciarIniciativa,acaoIniciativa,defesasRestantes} from './nova-turnos.js?v=36';
+import {saldoMovimento,moverNoTurno,iniciarIniciativa,acaoIniciativa,defesasRestantes} from './nova-turnos.js?v=37';
 import {destinoSemColisao,TOKEN_DIAMETER} from './nova-colisao.js?v=25';
 import {criarPainelAcoes} from './nova-painel.js?v=37';
 import {conectarAtaques,HEALTH_PATH,HISTORY_PATH} from './nova-ataques.js?v=36';
@@ -396,8 +396,10 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
    draw();
    return;
   }
-  const id=el('novaSyncPersonagem').value, t=tokens.get(id);
+ const id=el('novaSyncPersonagem').value, t=tokens.get(id);
   if(!t||!controlled(t))return;
+  const state=health.actors?.[id]?.combateLab;
+  if(mapPacket?.combat?.active&&(state?.morto||state?.inconsciente||state?.incapacitado)){error='Este personagem está inconsciente ou incapacitado e não pode se mover.';status();return;}
   e.preventDefault();
   try{
    const turn=mapPacket?.combat?.active?mapPacket.combat.turnId:null;
