@@ -24,7 +24,11 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   for(const token of tokens.values())if(canView(token))available.set(token.id,token);
   return available;
  };
- const selectedActor=()=>availableActors().get(el('novaSyncPersonagem')?.value);
+ const selectedActor=()=>{
+  const value=el('novaSyncPersonagem')?.value;
+  if(user()?.master&&mapPacket?.combat?.active&&value==='__automatico__')return tokens.get(mapPacket.combat.activeId);
+  return availableActors().get(value);
+ };
  const masterMode=()=>!!user()?.master&&!mapPacket?.combat?.active&&el('novaSyncPersonagem')?.value==='__mestre__';
  function drawCatalog(){
   const select=el('novaSyncMestrePersonagem');if(!select)return;
@@ -56,7 +60,14 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   const more=el('novaSyncCatalogMore');if(more)more.hidden=!details?.open||list.length<=catalogLimit;
  }
  const canView=t=>!!t&&!!user()&&(user().master||user().uid===t.donoUid);
- const controlled=t=>!!t&&!!user()&&(user().uid===t.donoUid||(user().master&&(!mapPacket?.combat?.active||!t.donoUid)));
+ const controlled=t=>{
+  if(!t||!user())return false;
+  if(user().uid===t.donoUid)return true;
+  if(!user().master)return false;
+  if(!mapPacket?.combat?.active)return true;
+  const value=el('novaSyncPersonagem')?.value;
+  return value==='__automatico__'?t.id===mapPacket.combat.activeId:value===t.id;
+ };
  const updateActions=criarPainelAcoes({root,load:loadActions,roll:rollTest,unlock:unlockSound,attack:async payload=>{
   if(!attacks||attacking||queues.size||managing||editor.busy)throw Error('Aguarde a sincronização.');
   if(!controlled(tokens.get(payload.actorId)))throw Error('Você não controla este personagem.');
@@ -75,7 +86,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   const masterTitle=el('novaSyncMasterTitle');if(masterTitle)masterTitle.textContent=user()?.master?'Painel do mestre · combate':'Sessão de combate · somente leitura';
   if(masterPanel&&!user()?.master)for(const control of masterPanel.querySelectorAll('button,select'))control.disabled=true;
   const selected=selectedActor(),joined=mapPacket?.joined||{};
-  const actorSelect=el('novaSyncPersonagem');if(actorSelect)actorSelect.disabled=!!mapPacket?.combat?.active||attacking||!!queues.size||managing;
+  const actorSelect=el('novaSyncPersonagem');if(actorSelect)actorSelect.disabled=!user()?.master&&!!mapPacket?.combat?.active||attacking||!!queues.size||managing;
   const tools=el('novaSyncEditorTools');if(tools){tools.hidden=!masterMode();for(const control of tools.querySelectorAll('button,input'))control.disabled=editor.busy;}
   const join=el('novaSyncJoin');
   if(join){join.hidden=!!user()?.master;join.textContent=joined[selected?.id]===false?'Entrar no combate':'Sair do combate';join.disabled=!!mapPacket?.combat?.active||!selected||selected.donoUid!==user()?.uid;}
@@ -136,15 +147,16 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   board.style.width=(Number(mapPacket?.larguraM)||28)*48+'px';board.style.height=(Number(mapPacket?.alturaM)||14)*48+'px';
   const mine=[...availableActors().values()];
   select.replaceChildren(...mine.map(t=>{const option=root.createElement('option');option.value=t.id;option.textContent=displayName(t)+(tokens.has(t.id)?'':' (fora do mapa)');return option;}));
-  if(user()?.master){const option=root.createElement('option');option.value='__mestre__';option.textContent='👑 Mestre';select.prepend(option);}
-  select.value=old==='__mestre__'&&user()?.master?old:mine.some(t=>t.id===old)?old:mine.find(t=>tokens.has(t.id))?.id||(user()?.master?'__mestre__':'');
+  if(user()?.master){const option=root.createElement('option');option.value='__mestre__';option.textContent='👑 Mestre';select.prepend(option);if(mapPacket?.combat?.active){const automatic=root.createElement('option');automatic.value='__automatico__';automatic.textContent='⚙ Automático';select.prepend(automatic);}}
+  select.value=mapPacket?.combat?.active&&user()?.master?(old==='__automatico__'||old==='__mestre__'?'__automatico__':mine.some(t=>t.id===old)?old:'__automatico__'):old==='__mestre__'&&user()?.master?old:mine.some(t=>t.id===old)?old:mine.find(t=>tokens.has(t.id))?.id||(user()?.master?'__mestre__':'');
   if(mapPacket?.combat?.active&&mapPacket.combat.schema===2){
    const active=tokens.get(mapPacket.combat.activeId);
-   if(user()?.master)select.value=controlled(active)?active.id:'__mestre__';
+   if(user()?.master&&(!mine.some(t=>t.id===old)||old==='__mestre__'))select.value='__automatico__';
    else if(controlled(active))select.value=active.id;
   }
   const turnKey=mapPacket?.combat?.active?[mapPacket.combat.session,mapPacket.combat.round,mapPacket.combat.activeId].join(':'):'';
   if(turnKey!==lastSelectedTurn||select.value!==old){
+   if(turnKey!==lastSelectedTurn&&user()?.master&&mapPacket?.combat?.active)select.value='__automatico__';
    if(error==='Aguarde o turno deste personagem.'||error==='Aguarde sua vez.')error='';
    selectedTarget='';lastSelectedTurn=turnKey;
   }
@@ -181,9 +193,15 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
     const arrow=root.createElement('span');arrow.dataset.turnArrow='';arrow.textContent='▼';arrow.title='Turno atual';
     arrow.style.cssText='position:absolute;left:50%;top:-24px;transform:translateX(-50%);color:#ffd447;font-size:22px;font-weight:bold;line-height:1;text-shadow:0 0 5px #000;pointer-events:none;z-index:11;';node.append(arrow);
    }
+   node.querySelectorAll('[data-defense-bubble]').forEach(n=>n.remove());
+   if(mapPacket?.combat?.pendingAttack&&health.pending?.actorId===t.id){
+    const bubble=root.createElement('span');bubble.dataset.defenseBubble='';bubble.textContent='⏳ Defesa';bubble.title='Aguardando a defesa do alvo';
+    const above=p.y/14>0.28;
+    bubble.style.cssText='position:absolute;left:50%;'+(above?'top:calc(100% + 20px);':'bottom:calc(100% + 4px);')+'transform:translateX(-50%);white-space:nowrap;padding:2px 5px;border-radius:4px;background:#ffd447;color:#171b2f;font:11px Arial,sans-serif;font-weight:bold;z-index:12;pointer-events:none;';node.append(bubble);
+   }
    node.querySelectorAll('[data-map-action]').forEach(n=>n.remove());
-   if(mapPacket?.combat?.active&&selectedTarget===t.id&&mapPacket.combat.activeId===select.value&&t.id!==select.value&&controlled(tokens.get(select.value))){
-    const actor=tokens.get(select.value);
+   if(mapPacket?.combat?.active&&selectedTarget===t.id&&mapPacket.combat.activeId===selectedActor()?.id&&t.id!==selectedActor()?.id&&controlled(selectedActor())){
+    const actor=selectedActor();
     const action=root.createElement('button');action.type='button';action.dataset.mapAction='attack';action.textContent='⚔';action.title='Testar ação de '+displayName(actor)+' contra '+displayName(t);action.disabled=attacking||!!queues.size||changingTurn;
     const bottomSpace=board.clientHeight*(1-p.y/14)-parseFloat(node.style.height)/2;
     action.style.cssText='position:absolute;left:50%;transform:translateX(-50%);'+(bottomSpace<54?'bottom:calc(100% + 4px);':'top:calc(100% + 21px);')+'z-index:12;border:1px solid #ffd447;border-radius:5px;background:#18233a;color:#fff;cursor:pointer;';
@@ -391,12 +409,12 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   if(handle){const node=handle.closest('[data-token]'),id=node?.dataset.token,t=tokens.get(id);if(!t||!controlled(t)|| (mapPacket?.combat?.active&&mapPacket.combat.activeId!==id))return;turning={id,pointer:e.pointerId};board.setPointerCapture(e.pointerId);e.preventDefault();return;}
   if(clicked){
    release();
-   if(clicked===el('novaSyncPersonagem').value)selectedTarget='';
+   if(clicked===selectedActor()?.id)selectedTarget='';
    else if(controlled(selectedActor()))selectedTarget=clicked;
    draw();
    return;
   }
- const id=el('novaSyncPersonagem').value, t=tokens.get(id);
+  const id=selectedActor()?.id, t=id?tokens.get(id):null;
   if(!t||!controlled(t))return;
   const state=health.actors?.[id]?.combateLab;
   if(mapPacket?.combat?.active&&(state?.morto||state?.inconsciente||state?.incapacitado)){error='Este personagem está inconsciente ou incapacitado e não pode se mover.';status();return;}
