@@ -15,7 +15,10 @@ export function criarPainelAcoes({root,load,spend,roll,attack,unlock=()=>{}}){
   unlock();busy=true;render();
   try{
    let text;
-   if(turn&&target&&skill.attack)text=await attack({actorId:actor.id,targetId:target.id,skillId:skill.id,weaponId:weapon.id,turnId:turn});
+   if(turn&&target&&skill.attack){
+    results.set(actor.id,{text:'Ataque enviado · aguardando confirmação do mestre…',at:Date.now()});render();
+    text=await attack({actorId:actor.id,targetId:target.id,skillId:skill.id,weaponId:weapon.id,turnId:turn});
+   }
    else{
     if(turn&&!await spend(actor.id,turn))return;
     const value=weapon?.valor??skill.valor,outcome=roll(value);
