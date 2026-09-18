@@ -44,9 +44,10 @@ export function painelSuporte({root,host,current,sheet,view,combat,allowed,send,
   x.type=y.type='number';x.step=y.step='0.1';x.value=current.x;x.min='0';x.max='28';y.value=current.y;y.min='0';y.max='14';
   for(const p of support.powers){const o=node('option',p.name+' ('+p.value+'%)');o.value=p.id;powers.append(o);}
   for(const o of view.objects||[]){const option=node('option',o.nome||o.id);option.value=o.id;objects.append(option);}
-  label('Poder',powers);label('Gasto de PP',cost);body.append(description);label('Mensagem / intenção',text);label('Destino X (unidades do mapa)',x);label('Destino Y',y);label('Objeto (telecinese)',objects);
-  const paint=()=>{const p=support.powers.find(p=>p.id===powers.value);cost.min=p.cost;cost.value=p.cost;description.textContent=p.description+(PSI_NARRATIVOS.has(p.id)?' · Resultado sujeito à resposta do mestre.':'');};powers.onchange=paint;paint();
-  button('🔮 Usar poder',()=>run({kind:'direct-psi',powerId:powers.value,cost:Number(cost.value),local:locations.value,text:text.value,x:Number(x.value),y:Number(y.value),objectId:objects.value}),ocupado(view.health,combat));
+  label('Poder',powers);label('Gasto de PP',cost);body.append(description);label('Mensagem / intenção',text);label('Destino X (unidades do mapa)',x);label('Destino Y',y);
+  const objectLabel=node('label','Objeto (telecinese) ');objectLabel.append(objects);body.append(objectLabel);
+  const paint=()=>{const p=support.powers.find(p=>p.id===powers.value),isObject=/mover.?objeto|telecinese/i.test(String(p?.id||' '+p?.name||''));cost.min=p?.cost||0;cost.value=p?.cost||0;description.textContent=(p?.description||'')+(PSI_NARRATIVOS.has(p?.id)?' · Resultado sujeito à resposta do mestre.':'');objectLabel.hidden=!isObject;objects.disabled=!isObject;};powers.onchange=paint;paint();
+  button('🔮 Usar poder',()=>run({kind:'direct-psi',powerId:powers.value,cost:Number(cost.value),local:locations.value,text:text.value,x:Number(x.value),y:Number(y.value),objectId:/mover.?objeto|telecinese/i.test(powers.value)?objects.value:''}),ocupado(view.health,combat));
  }
  for(const request of (view.psiRequests||[]).filter(r=>r.status==='pending'&&view.isMaster)){
   body.append(node('p',request.powerName+' · '+request.text+' · '+(request.description||'')));const answer=node('textarea');answer.placeholder='Resultado ou mensagem autorizada pelo mestre';body.append(answer);

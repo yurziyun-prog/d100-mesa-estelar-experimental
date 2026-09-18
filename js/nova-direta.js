@@ -1,7 +1,7 @@
 // Movimento livre: uma posição por personagem, sem sessão-mestre ou fila de comandos.
 import {saldoMovimento,movimentoMaximo,moverNoTurno,iniciarIniciativa,acaoIniciativa,defesasRestantes} from './nova-turnos.js?v=39';
 import {destinoSemColisao,TOKEN_DIAMETER} from './nova-colisao.js?v=25';
-import {criarPainelAcoes} from './nova-painel.js?v=40';
+import {criarPainelAcoes} from './nova-painel.js?v=41';
 import {conectarAtaques,HEALTH_PATH,HISTORY_PATH} from './nova-ataques.js?v=40';
 import {mostrarAtaque} from './nova-fx.js?v=40';
 import {criarEditorMesa} from './nova-editor.js?v=35';
@@ -126,6 +126,8 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   const quick=el('novaSyncQuickSearch'),quickAdd=el('novaSyncQuickAdd');
   if(quick)quick.disabled=!user()?.master||placing;
   if(quickAdd)quickAdd.disabled=!user()?.master||placing||!quickChoices.has(quick?.value);
+  const remove=el('novaSyncRemove');
+  if(remove)remove.disabled=!user()?.master||!!c?.active||managing||attacking||queues.size>0||!selectedActor();
   for(const id of ['novaSyncRandom','novaSyncClear','novaSyncRestore'])if(el(id))el(id).disabled=!user()?.master||!!c?.active||managing||attacking||queues.size>0;
   for(const button of el('novaSyncBoard').querySelectorAll('[data-map-action]'))button.disabled=!c?.active||c.activeId!==selected?.id||!controlled(selected)||attacking||!!queues.size||changingTurn||!!c?.pendingAttack;
   const event=health.event,eventVisible=event&&(user()?.master||event.actorUid===user()?.uid||event.targetUid===user()?.uid);
@@ -562,8 +564,11 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
  for(const [id,action]of [['novaSyncStart','start'],['novaSyncNext','pass'],['novaSyncSpend','spend'],['novaSyncEnd','end']])el(id)?.addEventListener('click',e=>{if(e.detail<2){unlockSound();changeTurn(action);}});
  async function manage(action){
   if(!user()?.master||mapPacket?.combat?.active||managing||attacking||queues.size)return;
+  const selectedForRemoval=action==='remove'?selectedActor():null;
+  if(action==='remove'&&!selectedForRemoval)return;
   if(action==='clear'&&!root.defaultView.confirm('Limpar os participantes e o estado de combate? O mapa e seus objetos permanecem.'))return;
   if(action==='restore'&&!root.defaultView.confirm('Restaurar o estado de combate dos participantes e objetos atuais?'))return;
+  if(action==='remove'&&!root.defaultView.confirm(`Retirar ${selectedForRemoval.nome||'este personagem'} do mapa?`))return;
   release();managing=true;status();
   try{
    const ids=[...tokens.keys()],restored=action==='restore'?await restoreHealth([...tokens.values()]):null;
@@ -571,7 +576,15 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
     const state=await tx.get(MAP_PATH)||{},healthState=await tx.get(HEALTH_PATH)||{},scene=await tx.get(SCENE_PATH);
     const values=await Promise.all(ids.map(id=>tx.get(POSITION_PATH+'/'+id)));
     if(state.combat?.active)throw Error('Encerre o combate antes de reorganizar a mesa.');
-    if(action==='random'){
+    if(action==='remove'){
+     const id=selectedForRemoval.id;
+     tx.delete(POSITION_PATH+'/'+id);
+     const joined={...(state.joined||{})};delete joined[id];
+     const actors={...(healthState.actors||{})};delete actors[id];
+     tx.set(MAP_PATH,{...state,joined});
+     tx.set(HEALTH_PATH,{...healthState,actors,pending:null,revision:(healthState.revision||0)+1});
+     tx.set(HISTORY_PATH,{entries:healthState.history||[],revision:(healthState.revision||0)+1});
+    }else if(action==='random'){
      const placed=[],w=(Number(state.larguraM)||28)/28,h=(Number(state.alturaM)||14)/14;
      for(const [i,t]of values.entries())if(t){
       let point;for(let k=0;k<600;k++){const candidate={x:.8+Math.random()*26.4,y:.8+Math.random()*12.4};if(placed.every(p=>Math.hypot((candidate.x-p.x)*w,(candidate.y-p.y)*h)>=TOKEN_DIAMETER+.1)){point=candidate;break;}}
@@ -589,6 +602,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   }catch(e){fail(e);}finally{managing=false;draw();}
  }
  for(const [id,action]of [['novaSyncRandom','random'],['novaSyncClear','clear'],['novaSyncRestore','restore']])el(id)?.addEventListener('click',()=>manage(action));
+ el('novaSyncRemove')?.addEventListener('click',()=>manage('remove'));
  el('novaSyncJoin')?.addEventListener('click',async()=>{
   const t=tokens.get(el('novaSyncPersonagem')?.value);if(!t||t.donoUid!==user()?.uid||mapPacket?.combat?.active)return;
   try{await database.transact(async tx=>{const s=await tx.get(MAP_PATH)||{};tx.set(MAP_PATH,{...s,joined:{...(s.joined||{}),[t.id]:(s.joined||{})[t.id]===false}});});error='';status();}catch(e){fail(e);}

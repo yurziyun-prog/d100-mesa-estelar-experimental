@@ -3342,6 +3342,14 @@ function resetarDificuldadeAposRolagem_(idSelect) {
 function obterPAMaxCombate_(char) {
     const regra = obterRegraFadiga_(char);
     if (regra.pa === null) return 0;
+    // Criaturas e NPCs podem declarar diretamente quantas ações possuem.
+    // O campo antigo acoesMaxEspecial continua sendo aceito como fallback.
+    if(Number.isFinite(Number(char?.acoesMax))){
+        return Math.max(0,Number(char.acoesMax)+(regra.pa||0));
+    }
+    if(Number.isFinite(Number(char?.acoes))){
+        return Math.max(0,Number(char.acoes)+(regra.pa||0));
+    }
     if(Number(char?.acoesMaxEspecial||0)>0){
         return Math.max(0,Number(char.acoesMaxEspecial)+(regra.pa||0));
     }
@@ -7974,8 +7982,10 @@ function criarNPCCombateDoBanco_(modelo,participante=null){
         habilidadesTexto:modelo.habilidadesTexto||'',
         vinculosAtaquesPericias:modelo.vinculosAtaquesPericias||'',
         acoesMaxEspecial:Number(modelo.acoesMaxEspecial||0)||0,
+        acoesMax:Number(modelo.acoes ?? modelo.acoesMax ?? modelo.acoesMaxEspecial ?? 0)||0,
         armaduraNatural:Number(modelo.armaduraNatural||0)||0,
-        movimentoTerrestre:Number(modelo.movimentoTerrestre??modelo.movimentoBase??3),
+        deslocamento:Number(modelo.deslocamento??modelo.movimentoTerrestre??modelo.movimentoBase??3),
+        movimentoTerrestre:Number(modelo.deslocamento??modelo.movimentoTerrestre??modelo.movimentoBase??3),
         movimentoVoo:Number(modelo.movimentoVoo||0),
         movimentoNatacao:Number(modelo.movimentoNatacao||0),
         __npcTemporario:true
@@ -8055,8 +8065,10 @@ function criarCriaturaCombateDoBanco_(modelo,participante=null){
         habitat:modelo.habitat||'',comportamento:modelo.comportamento||'',habilidadesTexto:modelo.habilidadesTexto||'',
         vinculosAtaquesPericias:modelo.vinculosAtaquesPericias||'',
         acoesMaxEspecial:Number(modelo.acoesMaxEspecial||0)||0,
+        acoesMax:Number(modelo.acoes ?? modelo.acoesMax ?? modelo.acoesMaxEspecial ?? 0)||0,
         armaduraNatural:Number(modelo.armaduraNatural||0)||0,
-        movimentoTerrestre:Number(modelo.movimentoTerrestre??modelo.movimentoBase??3),
+        deslocamento:Number(modelo.deslocamento??modelo.movimentoTerrestre??modelo.movimentoBase??3),
+        movimentoTerrestre:Number(modelo.deslocamento??modelo.movimentoTerrestre??modelo.movimentoBase??3),
         movimentoVoo:Number(modelo.movimentoVoo||0),
         movimentoNatacao:Number(modelo.movimentoNatacao||0),
         __criaturaTemporaria:true
@@ -11608,7 +11620,7 @@ const rol=document.getElementById('crAtributosRolados');if(rol)rol.checked=model
 crSet_('crPericias',n.periciasTexto||'');crSet_('crEspec',n.especializacoesTexto||'');crSet_('crArmas',n.armasTexto||'');
 crSet_('crAlcances',n.alcancesAtaques||'');crSet_('crHabilidades',n.habilidadesTexto||'');
 crSet_('crArmaduraNatural',Number(n.armaduraNatural||0));crSet_('crAcoesMaxEspecial',Number(n.acoesMaxEspecial||0));
-crSet_('crMovTerra',Number(n.movimentoTerrestre??n.movimentoBase??3));crSet_('crMovVoo',Number(n.movimentoVoo||0));crSet_('crMovNatacao',Number(n.movimentoNatacao||0));
+crSet_('crDeslocamento',Number(n.deslocamento??n.movimentoTerrestre??n.movimentoBase??3));crSet_('crAcoes',Number(n.acoes??n.acoesMax??n.acoesMaxEspecial??2));
 crSet_('crVinculos',n.vinculosAtaquesPericias||'');
 crSet_('crEquipBase',n.equipamentoBaseTexto||'');crSet_('crProps',n.propriedadesAtaques||'');crSet_('crImagem',n.imagem||'');crSet_('crDescricao',n.descricao||'');const sel=document.getElementById('crSelecionavel');if(sel)sel.checked=n.selecionavelCombate!==false;const arq=document.getElementById('crImagemArquivo');if(arq)arq.value='';atualizarPreviewCriaturaBanco_();const d=document.getElementById('crDelete');if(d)d.style.display=n.id?'':'none';}
 
@@ -11658,7 +11670,9 @@ window.salvarCriaturaBanco_=async()=>{
         periciasTexto:v('crPericias'),especializacoesTexto:v('crEspec'),
         armasTexto:v('crArmas'),alcancesAtaques:v('crAlcances'),habilidadesTexto:v('crHabilidades'),
         armaduraNatural:Math.max(0,Number(v('crArmaduraNatural'))||0),acoesMaxEspecial:Math.max(0,Number(v('crAcoesMaxEspecial'))||0),
-        movimentoTerrestre:Math.max(0,Number(v('crMovTerra'))||0),movimentoVoo:Math.max(0,Number(v('crMovVoo'))||0),movimentoNatacao:Math.max(0,Number(v('crMovNatacao'))||0),
+        deslocamento:Math.max(0,Number(v('crDeslocamento'))||0),acoes:Math.max(0,Number(v('crAcoes'))||0),
+        // Compatibilidade com fichas e exportações antigas.
+        movimentoTerrestre:Math.max(0,Number(v('crDeslocamento'))||0),
         vinculosAtaquesPericias:v('crVinculos'),equipamentoBaseTexto:v('crEquipBase'),
         propriedadesAtaques:v('crProps'),imagem:v('crImagem'),descricao:v('crDescricao'),
         selecionavelCombate:!!document.getElementById('crSelecionavel')?.checked,
@@ -12202,7 +12216,9 @@ function normalizarLinhaImportacao_(tipo, bruto) {
             habilidadesTexto:String(bruto.habilidadesTexto||bruto.habilidades||''),
             armaduraNatural:Math.max(0,parseNumero_(bruto.armaduraNatural,0)),
             acoesMaxEspecial:Math.max(0,parseNumero_(bruto.acoesMaxEspecial,0)),
-            movimentoTerrestre:Math.max(0,parseNumero_(bruto.movimentoTerrestre||bruto.movimentoBase,3)),
+            deslocamento:Math.max(0,parseNumero_(bruto.deslocamento??bruto.movimentoTerrestre??bruto.movimentoBase,3)),
+            acoes:Math.max(0,parseNumero_(bruto.acoes??bruto.acoesMax??bruto.acoesMaxEspecial,2)),
+            movimentoTerrestre:Math.max(0,parseNumero_(bruto.deslocamento??bruto.movimentoTerrestre??bruto.movimentoBase,3)),
             movimentoVoo:Math.max(0,parseNumero_(bruto.movimentoVoo,0)),
             movimentoNatacao:Math.max(0,parseNumero_(bruto.movimentoNatacao,0)),
             vinculosAtaquesPericias:String(bruto.vinculosAtaquesPericias||bruto.vinculos||''),
@@ -12471,7 +12487,7 @@ function dadosExportacaoBanco_(tipo) {
             })
         },
         npcs:{dados:npcsDB,cabecalhos:['id','nome','nome_en','nome_zh','tipo','raca','origem','idade','sexo','altura','tamanho','pesoCorporal','sociedade','carreira','conceito','classeSocial','recursos','FOR','CON','TAM','DES','INT','POD','CAR','motivacao','valorMotivacao','periciasTexto','especializacoesTexto','armasTexto','inventarioTexto','selecionavelCombate','imagem','descricao'],map:n=>n},
-        criaturas:{dados:criaturasDB,cabecalhos:['id','nome','nome_en','nome_zh','tipo','especie','habitat','comportamento','altura','tamanho','pesoCorporal','FOR','CON','TAM','DES','INT','POD','CAR','periciasTexto','especializacoesTexto','armasTexto','propriedadesAtaques','alcancesAtaques','habilidadesTexto','vinculosAtaquesPericias','acoesMaxEspecial','armaduraNatural','movimentoTerrestre','movimentoVoo','movimentoNatacao','selecionavelCombate','imagem','descricao'],map:n=>n},
+        criaturas:{dados:criaturasDB,cabecalhos:['id','nome','nome_en','nome_zh','tipo','especie','habitat','comportamento','altura','tamanho','pesoCorporal','FOR','CON','TAM','DES','INT','POD','CAR','periciasTexto','especializacoesTexto','armasTexto','propriedadesAtaques','alcancesAtaques','habilidadesTexto','vinculosAtaquesPericias','acoesMaxEspecial','armaduraNatural','deslocamento','acoes','movimentoTerrestre','movimentoVoo','movimentoNatacao','selecionavelCombate','imagem','descricao'],map:n=>n},
         itens: {
             dados: itensDB,
             cabecalhos: ['id','nome','nome_en','nome_zh','categoria','peso','preco','pa','pv','alcance','dano','penetracao','municao','uso','destinoLocal','locaisProtegidos','nivelAcesso','material','unidade','disponivelCampanha','familiaArma','plataforma','tecnologia','alcanceMetros','municoesCompativeis','consumoPorUso','perfilVisual','perfilSom','inflamabilidade','empuxo','imagem','descricao','descricao_en','descricao_zh'],
@@ -14975,7 +14991,7 @@ async function importarBancoUmaImagem_(tipo,file){
     let reg;
     if(tipo==='itens')reg={id,nome,nome_en:'',nome_zh:'',categoria:'Diversos',peso:0,preco:0,pa:0,pv:1,alcance:'',dano:'',penetracao:0,municao:'',uso:0,qualidade:'Básica',material:'',unidade:'',destino:'',locaisProtegidos:'',imagem,descricao:'',descricao_en:'',descricao_zh:''};
     else if(tipo==='npcs')reg={id,nome,nome_en:'',nome_zh:'',tipo:'NPC',raca:'',origem:'',idade:'',sexo:'',altura:'',tamanho:'Médio',pesoCorporal:'',sociedade:'',carreira:'',conceito:'',classeSocial:'',recursos:'',FOR:10,CON:10,TAM:10,DES:10,INT:10,POD:10,CAR:10,atributosRolados:false,formulasAtributos:{},motivacao:'',valorMotivacao:0,periciasTexto:'',especializacoesTexto:'',armasTexto:'',alcancesAtaques:'',habilidadesTexto:'',equipamentoBaseTexto:'',inventarioTexto:'',selecionavelCombate:false,imagem,descricao:''};
-    else reg={id,nome,tipo:'Criatura',especie:'',habitat:'',comportamento:'',altura:'',tamanho:'Médio',pesoCorporal:'',FOR:10,CON:10,TAM:10,DES:10,INT:5,POD:10,CAR:5,atributosRolados:false,formulasAtributos:{},periciasTexto:'',especializacoesTexto:'',armasTexto:'',alcancesAtaques:'',habilidadesTexto:'',armaduraNatural:0,acoesMaxEspecial:0,movimentoTerrestre:3,movimentoVoo:0,movimentoNatacao:0,vinculosAtaquesPericias:'',equipamentoBaseTexto:'',propriedadesAtaques:'',imagem,descricao:'',selecionavelCombate:false,estadoCombate:null};
+    else reg={id,nome,tipo:'Criatura',especie:'',habitat:'',comportamento:'',altura:'',tamanho:'Médio',pesoCorporal:'',FOR:10,CON:10,TAM:10,DES:10,INT:5,POD:10,CAR:5,atributosRolados:false,formulasAtributos:{},periciasTexto:'',especializacoesTexto:'',armasTexto:'',alcancesAtaques:'',habilidadesTexto:'',armaduraNatural:0,acoesMaxEspecial:0,deslocamento:3,acoes:2,movimentoTerrestre:3,movimentoVoo:0,movimentoNatacao:0,vinculosAtaquesPericias:'',equipamentoBaseTexto:'',propriedadesAtaques:'',imagem,descricao:'',selecionavelCombate:false,estadoCombate:null};
     await setDoc(doc(db,tipo,id),reg,{merge:false});lista.push(reg);return reg;
 }
 window.importarBancoImagensLote_=async function(tipo,ev){
@@ -36452,7 +36468,7 @@ function labInstalarAcoesConfirmadas_(){
 labInstalarAcoesConfirmadas_();
 
 // Aba paralela: controlador independente e adaptador Firestore.
-import {mountDirectPositionLab} from './nova-direta.js?v=40';
+import {mountDirectPositionLab} from './nova-direta.js?v=41';
 import {tocarEfeito} from './nova-fx.js?v=40';
 import {resolverSocorros,resolverPsi,ocupado,teste as novaTesteSuporte_,sorteio as novaSorteioSuporte_} from './nova-suporte.js?v=40';
 import {ataqueSuperaDefesa,defesasRestantes} from './nova-turnos.js?v=36';

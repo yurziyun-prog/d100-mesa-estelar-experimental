@@ -856,6 +856,7 @@
                         <div id="novaSyncTurno" role="status" style="margin:8px 0;">Fora de combate · movimento livre.</div>
                         <div class="nova-acting-row">
                             <label class="nova-acting-label">🎭 Atuar como <select id="novaSyncPersonagem" class="lab-control"><option value="">Escolha um personagem</option></select></label>
+                            <button id="novaSyncRemove" class="btn-small" type="button" title="Retirar do mapa">🗑️ Retirar do mapa</button>
                             <div id="novaSyncEditorTools" hidden>
                                 <button id="novaSyncEditMove" type="button" title="Mover miniaturas e objetos" aria-pressed="true">➤</button>
                                 <button id="novaSyncEditDraw" type="button" title="Desenhar no mapa" aria-pressed="false">✎</button>
@@ -1987,7 +1988,7 @@
           <label style="display:flex;flex-direction:column;gap:4px;"><span>CAR fórmula</span><input id="crFormulaCAR" placeholder="2d6"></label>
         </div>
       </div>
-      <label>Perícias (investimento)<textarea id="crPericias" rows="3"></textarea></label>
+      <label>Perícias registradas (nome:valor)<textarea id="crPericias" rows="3" placeholder="Atletismo:58|Esquiva:78|Resistência:65|Combate Desarmado:69"></textarea><small style="display:block;color:#aaa;margin-top:4px;">Use o nome da perícia seguido do valor percentual. Esses valores são usados nos testes de ataque, defesa e resistência.</small></label>
       <label>Especializações (investimento)<textarea id="crEspec" rows="2"></textarea></label>
       <label>Ataques naturais<input id="crArmas" placeholder="Mordida:1d8+MD|Garras:1d6+MD"></label>
       <label>Alcances dos ataques (m)<input id="crAlcances" placeholder="Mordida:1.5|Garras:1"></label>
@@ -1996,10 +1997,9 @@
         <label>Armadura natural (PA)<input id="crArmaduraNatural" type="number" min="0" value="0"></label>
         <label>AÇ máxima especial<input id="crAcoesMaxEspecial" type="number" min="0" value="0"></label>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(3,minmax(120px,1fr));gap:10px;">
-        <label>Mov. terrestre (m/AÇ)<input id="crMovTerra" type="number" min="0" step="0.5" value="3"></label>
-        <label>Voo (m/AÇ)<input id="crMovVoo" type="number" min="0" step="0.5" value="0"></label>
-        <label>Natação (m/AÇ)<input id="crMovNatacao" type="number" min="0" step="0.5" value="0"></label>
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(160px,1fr));gap:10px;padding:10px;border:1px solid rgba(0,212,255,.22);border-radius:9px;background:rgba(0,212,255,.05);">
+        <label>Deslocamento (m)<input id="crDeslocamento" type="number" min="0" step="0.5" value="3"><small style="display:block;color:#aaa;margin-top:3px;">Distância total disponível no turno, sem gastar ações.</small></label>
+        <label>Ações por turno<input id="crAcoes" type="number" min="0" step="1" value="2"><small style="display:block;color:#aaa;margin-top:3px;">Quantidade de ações da criatura em cada turno.</small></label>
       </div>
       <label>Vínculo perícia → ataques<input id="crVinculos" placeholder="Combate Desarmado:Mordida,Garras|Bote/Salto:Bote e Constrição"></label>
       <label>Equipamento-base<textarea id="crEquipBase" rows="2" placeholder="Coleira de controle|Armadura"></textarea></label>
@@ -2236,7 +2236,7 @@
 .nova-support-panel>summary{cursor:pointer;font-weight:700}.nova-support-panel>div{display:flex;gap:10px;flex-wrap:wrap;align-items:end;padding-top:12px}
 .nova-support-panel label{display:flex;flex-direction:column;gap:4px;font-size:13px}.nova-support-panel select,.nova-support-panel input,.nova-support-panel textarea{font:inherit;color:white;background:#302c46;border:1px solid #726786;border-radius:6px;padding:7px;max-width:360px}.nova-support-panel p,.nova-support-panel h4{flex-basis:100%;margin:4px 0}.nova-support-panel button:disabled{opacity:.4;cursor:not-allowed}
 </style>
-<script type="module" src="js/app.js?v=46.85-suporte-40"></script>
+<script type="module" src="js/app.js?v=46.86-criaturas-41"></script>
 <!-- Mesa Estelar v46.38.0: segurança de objetos, XP contextual, tutorial reforçado, PM/PJ, imagem pós-conclusão e sincronização de magia -->
 
 <div id="battleTokenPreview" class="battle-token-preview" aria-hidden="true"></div>
