@@ -36556,9 +36556,17 @@ async function novaPrepararAtaque_(a,b,command){
    labConsumirMunicao_(actor,item,1);
    let damage=null;
    if(hit){
-    const expr=labExpressaoDano_(actor,item),rolled=grade.grau==='Crítico'?maximizarExpressaoDanoCombate_(expr):rolarExpressaoDanoCombate_(expr);
-    if(!rolled)throw Error('Dano inválido no cadastro da arma: '+expr);
-    damage=labAplicarDanoLocal_(target,rolled.total,item,{grauAtaque:grade.grau,rolagemAtaque:die,valorAtaque:value});
+    const eco=/eco[ _]da[ _]matilha/i.test(getNome(item));
+    if(!eco){
+     const expr=labExpressaoDano_(actor,item),rolled=grade.grau==='Crítico'?maximizarExpressaoDanoCombate_(expr):rolarExpressaoDanoCombate_(expr);
+     if(!rolled)throw Error('Dano inválido no cadastro da arma: '+expr);
+     damage=labAplicarDanoLocal_(target,rolled.total,item,{grauAtaque:grade.grau,rolagemAtaque:die,valorAtaque:value});
+    }else{
+     target.combateLab=target.combateLab||{};target.combateLab.caido=true;
+     const resistencia=labRolarResistenciaFerimento22_(target,{valorAtaque:value,grauAtaque:grade.grau,rolagemAtaque:die});
+     if(!resistencia.passou)target.combateLab.inconscienteAteTurno=Math.max(Number(target.combateLab.inconscienteAteTurno||0),1+Math.floor(Math.random()*4));
+     damage={local:'Área',bruto:0,paEf:0,final:0,resistencia};
+    }
     const props=String(item.propriedades||item.propriedadesAtaque||'').toLocaleLowerCase('pt-BR');
     const dst=target.combateLab||{};
     if(/sangr|bleed/.test(props))dst.sangramentoAtivo=true;

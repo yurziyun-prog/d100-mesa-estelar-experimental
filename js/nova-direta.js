@@ -1,5 +1,5 @@
 // Movimento livre: uma posição por personagem, sem sessão-mestre ou fila de comandos.
-import {saldoMovimento,moverNoTurno,iniciarIniciativa,acaoIniciativa,defesasRestantes} from './nova-turnos.js?v=37';
+import {saldoMovimento,movimentoMaximo,moverNoTurno,iniciarIniciativa,acaoIniciativa,defesasRestantes} from './nova-turnos.js?v=38';
 import {destinoSemColisao,TOKEN_DIAMETER} from './nova-colisao.js?v=25';
 import {criarPainelAcoes} from './nova-painel.js?v=37';
 import {conectarAtaques,HEALTH_PATH,HISTORY_PATH} from './nova-ataques.js?v=20260918';
@@ -94,12 +94,12 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   if(alert){alert.hidden=!error;alert.textContent=error;}
   const c=mapPacket?.combat,t=tokens.get(c?.activeId),panel=el('novaSyncTurno');
   if(panel)panel.textContent=c?.active?(c.schema===2?
-   `Turno ${c.round} · Vez de ${t?.nome||'personagem'} · Ações: ${c.actors[c.activeId].remaining} / ${c.initial[c.activeId].remaining} · Passagens: ${c.actors[c.activeId].passes} / 2 · Movimento: ${saldoMovimento(previews.get(c.activeId)||t,c).toFixed(2)} / 6 m`:
+   `Turno ${c.round} · Vez de ${t?.nome||'personagem'} · Ações: ${c.actors[c.activeId].remaining} / ${c.initial[c.activeId].remaining} · Passagens: ${c.actors[c.activeId].passes} / 2 · Movimento: ${saldoMovimento(previews.get(c.activeId)||t,c).toFixed(2)} / ${movimentoMaximo(previews.get(c.activeId)||t)} m`:
    'Combate da versão anterior: encerre e inicie novamente para rolar a iniciativa.'):'Fora de combate · movimento livre. Ao iniciar, a iniciativa será rolada uma vez para cada personagem.';
   if(panel&&!user()?.master){
    const ownTurn=c?.active&&t?.donoUid===user()?.uid;
    panel.textContent=c?.active?(ownTurn?
-    `Turno ${c.round} · Sua vez, ${displayName(t)} · Ações: ${c.actors?.[t.id]?.remaining??0} · Movimento: ${saldoMovimento(previews.get(t.id)||t,c).toFixed(2)} / 6 m`:
+    `Turno ${c.round} · Sua vez, ${displayName(t)} · Ações: ${c.actors?.[t.id]?.remaining??0} · Movimento: ${saldoMovimento(previews.get(t.id)||t,c).toFixed(2)} / ${movimentoMaximo(previews.get(t.id)||t)} m`:
     `Turno de combate iniciado · Turno ${c.round} · Vez de ${displayName(t)||'outro personagem'}. Aguarde sua vez.`):'Modo explorador · movimento livre.';
    panel.dataset.ownTurn=String(!!ownTurn);
   }

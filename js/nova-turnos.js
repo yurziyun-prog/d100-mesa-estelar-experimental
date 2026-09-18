@@ -1,5 +1,12 @@
+export function movimentoMaximo(token){
+ const n=Number(token?.movementMax??token?.movimentoTerrestre);
+ if(Number.isFinite(n)&&n>0)return n;
+ if(/besta\s+ululante/i.test(String(token?.nome||'')))return 8;
+ return 6;
+}
 export function saldoMovimento(token,combat){
- return Math.max(0,6-(token?.movementTurn===(combat?.roundId||combat?.turnId)?Number(token.movementUsed||0):0));
+ const max=movimentoMaximo(token);
+ return Math.max(0,max-(token?.movementTurn===(combat?.roundId||combat?.turnId)?Number(token.movementUsed||0):0));
 }
 // As posições existentes usam 28 × 14 unidades; a distância usa os metros do mapa.
 export function moverNoTurno(token,dest,map,expectedTurn){
@@ -15,7 +22,7 @@ export function moverNoTurno(token,dest,map,expectedTurn){
  const distance=Math.hypot(dx*width/28,dy*height/14),remaining=saldoMovimento(token,combat);
  const ratio=distance>0?Math.min(1,remaining/distance):0;
  return {...token,x:token.x+dx*ratio,y:token.y+dy*ratio,
-  movementTurn:combat.roundId||combat.turnId,movementUsed:Math.min(6,6-remaining+distance*ratio)};
+  movementTurn:combat.roundId||combat.turnId,movementUsed:Math.min(movimentoMaximo(token),movimentoMaximo(token)-remaining+distance*ratio)};
 }
 
 export function iniciarIniciativa(participants,session,d10=()=>1+Math.floor(Math.random()*10)){

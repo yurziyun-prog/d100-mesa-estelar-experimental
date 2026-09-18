@@ -15,7 +15,11 @@ export function criarPainelAcoes({root,load,spend,roll,attack,unlock=()=>{}}){
   unlock();busy=true;render();
   try{
    let text;
-   if(turn&&target&&skill.attack){
+   if(turn&&target&&skill.id==='primeiros_socorros'){
+    if(!await spend(actor.id,turn))return;
+    const outcome=roll(skill.valor);
+    text=`Primeiros Socorros em ${name(target)}: ${outcome.die}/${skill.valor} → ${outcome.grau}. Tratamento iniciado; conclua no próximo turno.`;
+   }else if(turn&&target&&skill.attack){
     results.set(actor.id,{text:'Ataque enviado · aguardando confirmação do mestre…',at:Date.now()});render();
     text=await attack({actorId:actor.id,targetId:target.id,skillId:skill.id,weaponId:weapon.id,turnId:turn});
    }
@@ -48,6 +52,7 @@ export function criarPainelAcoes({root,load,spend,roll,attack,unlock=()=>{}}){
   const ammoLabel=node('label'),ammo=node('output',null,'nova-ammo');ammo.id='novaSyncAmmo';ammoLabel.append(node('small','Munição'),ammo);line.append(ammoLabel);
   if(passButton)line.append(passButton);
   const button=node('button','🎲 Testar','btn-small btn-select');button.id='novaSyncTest';button.type='button';line.append(button);
+  const firstAidHint=node('div','🩹 Primeiros Socorros: selecione um personagem ferido ao alcance. O tratamento ocupa a oportunidade e será concluído no turno seguinte.','nova-target-hint');firstAidHint.hidden=true;
   const description=node('div',null,'nova-action-description'),targetHint=node('div',null,'nova-target-hint');
   const paint=()=>{
    const {skill,weapon}=selection();
@@ -57,6 +62,7 @@ export function criarPainelAcoes({root,load,spend,roll,attack,unlock=()=>{}}){
    ammo.title=ammunition?'Carga atual / capacidade da arma selecionada':'Esta arma não usa munição';
    const target=(view.tokens||[]).find(token=>token.id===view.targetId&&token.id!==current.id);
    targetHint.textContent=target?'🎯 '+name(target)+' selecionado · Testar executa a ação nesse alvo.':'Clique numa miniatura para selecionar o alvo. Sem alvo, Testar apenas rola a perícia.';
+   firstAidHint.hidden=skills.value!=='primeiros_socorros';
    button.disabled=!allowed||busy||!skill||!!(target&&skill.attack&&!weapon);
   };
   const populateWeapons=()=>{
@@ -80,7 +86,7 @@ export function criarPainelAcoes({root,load,spend,roll,attack,unlock=()=>{}}){
    }pv.append(grid);
   }else pv.innerHTML=sheet.pvHtml||'';
   const own=results.get(current.id),result=node('div',(own?.at>(view.event?.ts||0)?own.text:view.event?.message)||own?.text||'','nova-result');
-  host.append(line,description,pv,result,targetHint);
+  host.append(line,description,firstAidHint,pv,result,targetHint);
  }
  const update=async(token,packet,canAct,extra={})=>{
   if(!host)return;
