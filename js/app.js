@@ -6445,7 +6445,7 @@ function labPenalidadeFerimentoLab22_(t,per){
     const st=labGarantirSnapshotCombate_(t),fs=st?.ferimentos||{};
     const ehSerio=loc=>{
         const v=fs?.[loc];
-        return v==='Sério'||v==='Grave'||v?.serio||v?.grave;
+        return !!(v==='Sério'||v==='Grave'||v?.serio||v?.grave);
     };
     let deg=0;
     const id=normalizarTextoCombate_(per.id||'');
@@ -36450,7 +36450,8 @@ function labInstalarAcoesConfirmadas_(){
 labInstalarAcoesConfirmadas_();
 
 // Aba paralela: controlador independente e adaptador Firestore.
-import {mountDirectPositionLab} from './nova-direta.js?v=37';
+import {mountDirectPositionLab} from './nova-direta.js?v=20260918';
+import {tocarEfeito} from './nova-fx.js?v=20260918';
 import {ataqueSuperaDefesa,defesasRestantes} from './nova-turnos.js?v=36';
 async function novaFicha_(t){
  const legacy=(labEstado_?.tokens||[]).find(x=>String(x.id)===String(t.id));
@@ -36479,7 +36480,8 @@ function novaEquipamentos_(c,per){
 }
 function novaValorPericia_(c,t,per,penalty=0){
  const raw=obterValorRegistroPericia_(c,per.id,!!per.__especializacao),arm=valorPericiaComArmadura_(c,per,raw);
- const extra=Math.max(batalhaPenalidadeFerimento_(c,per),labPenalidadeFerimentoLab22_(t,per))+batalhaPenalidadeCaido_(c)+batalhaPenalidadeInfeccao_(c)+penalty;
+ const escudoEquipado=(obterItensEquipados_(c)||[]).some(item=>/escudo|shield/i.test(getNome(item)));
+ const extra=Math.max(batalhaPenalidadeFerimento_(c,per),labPenalidadeFerimentoLab22_(t,per))+batalhaPenalidadeCaido_(c)+batalhaPenalidadeInfeccao_(c)+penalty+(escudoEquipado?5:0);
  return Math.max(0,Number(aplicarDificuldadeEFadiga_(c,arm.valor,'padrao',extra).valor||0));
 }
 async function novaPrepararAtaque_(a,b,command){
@@ -36489,7 +36491,8 @@ async function novaPrepararAtaque_(a,b,command){
  const chosen=novaEquipamentos_(ca,per).find(w=>w.valor===command.weaponId);
  if(!chosen?.item)throw Error('Arma ou ataque natural indisponível.');
  const seed=Number.isInteger(command.seed)?command.seed:crypto.getRandomValues(new Uint32Array(1))[0];
- return (a,b,health,map,decision={phase:'resolve',choice:'none'})=>{
+ const cone=/eco[ _]da[ _]matilha/i.test(getNome(chosen.item))?{range:15,angle:60,centralPenalty:20}:null;
+ const resolve=(a,b,health,map,decision={phase:'resolve',choice:'none'})=>{
   const actor={...a,...structuredClone(health[a.id]||{}),charLab:structuredClone(ca),diametroM:/besta\s+ululante/i.test(a.nome)?2.4:1,acoesAtuaisLab:3};
   const target={...b,...structuredClone(health[b.id]||{}),charLab:structuredClone(cb),diametroM:/besta\s+ululante/i.test(b.nome)?2.4:1,acoesAtuaisLab:3};
   for(const t of [actor,target]){t.x*=Number(map.larguraM||28)/28;t.y*=Number(map.alturaM||14)/14;}
@@ -36504,6 +36507,8 @@ async function novaPrepararAtaque_(a,b,command){
    if(distance>range+.001)throw Error('Fora de alcance: '+distance.toFixed(1)+' m; alcance '+range.toFixed(1)+' m.');
    if(labEhArmaMuniciada_(item)&&labMunicaoAtual_(actor,item)<=0)throw Error('Arma sem munição.');
    const value=novaValorPericia_(ca,actor,per,chosen.graus||0),die=1+Math.floor(Math.random()*100),grade=classificarD100_(value,die);
+   // O ataque em área compartilha o acerto, mas cada vítima rola sua própria defesa e dano.
+   if(cone)for(const char of String(b.id))randomState=(Math.imul(randomState^char.charCodeAt(0),16777619))>>>0;
    const facing=Number.isFinite(b.facing)?b.facing:0;
    const attackAngle=Math.atan2(actor.y-target.y,actor.x-target.x);
    // Atacar também orienta automaticamente a miniatura para o alvo, como o
@@ -36519,17 +36524,24 @@ async function novaPrepararAtaque_(a,b,command){
     if(!defenses.some(labEhEsquivaD7_)){const dodge=batalhaListaPericias_(cb).find(labEhEsquivaD7_);if(dodge)defenses.unshift(dodge);}
     for(const defensePer of defenses){
      if(labEhEsquivaD7_(defensePer)){
-      const dodgePenalty=fromBack&&!evasionActive?20:0;
-      options.push({id:batalhaTokenPericia_(defensePer),nome:'Esquiva'+(dodgePenalty?' (-20)':''),valor:Math.max(0,novaValorPericia_(cb,target,defensePer)-dodgePenalty)});
+      const dodgePenalty=(fromBack&&!evasionActive?20:0)+(cone&&b.id===command.targetId?cone.centralPenalty:0);
+      options.push({id:batalhaTokenPericia_(defensePer),nome:'Esquiva'+(dodgePenalty?' (-'+dodgePenalty+')':''),valor:Math.max(0,novaValorPericia_(cb,target,defensePer)-dodgePenalty)});
      }
-     else if(!fromBack&&!labAtaqueEhDistancia_(item))for(const weapon of novaEquipamentos_(cb,defensePer)){
+     else if(!cone&&!fromBack&&(!labAtaqueEhDistancia_(item)||novaEquipamentos_(cb,defensePer).some(w=>/escudo|shield/i.test(getNome(w.item)))) )for(const weapon of novaEquipamentos_(cb,defensePer)){
+      const shield=/escudo|shield/i.test(getNome(weapon.item));
       if(labAtaqueEhDistancia_(weapon.item)||labAlcanceAtaque_(target,weapon.item)+.001<distance)continue;
+      if(labAtaqueEhDistancia_(item)&&!shield)continue;
       if(weapon.item.inutilizavel||weapon.item.pvAtual===0)continue;
-      options.push({id:batalhaTokenPericia_(defensePer)+'|'+weapon.valor,nome:'Aparar ('+getNome(weapon.item)+')',valor:novaValorPericia_(cb,target,defensePer,weapon.graus||0)});
+      options.push({id:batalhaTokenPericia_(defensePer)+'|'+weapon.valor,nome:'Aparar ('+getNome(weapon.item)+')',valor:Math.max(0,novaValorPericia_(cb,target,defensePer,weapon.graus||0)-(shield?0:20))});
      }
     }
    }
-   if(decision.phase==='preview'&&grade.sucesso&&options.length)return {pending:{options,ranged:labAtaqueEhDistancia_(item),fromBack,remaining:defesasRestantes(map.combat,b.id)}};
+   if(!cone&&!labAtaqueEhDistancia_(item)&&map.combat?.active&&defesasRestantes(map.combat,b.id)>0&&!healthB.morto&&!healthB.inconsciente&&!healthB.incapacitado){
+    const tail=(ataquesNaturaisChar_(cb)||[]).find(w=>/cauda|calda|rabo|tail/i.test(getNome(w)))||(/besta\s+ululante/i.test(b.nome)?{nome:'Cauda',natural:true,alcanceMetros:2}:null);
+    const attackSkill=(batalhaListaPericias_(cb)||[]).filter(p=>periciaCriaturaPodeAtacar_(cb,p)).sort((p,q)=>novaValorPericia_(cb,target,q)-novaValorPericia_(cb,target,p))[0];
+    if(tail&&attackSkill&&!tail.inutilizavel&&tail.pvAtual!==0&&distance<=labAlcanceAtaque_(target,tail))options.push({id:'natural:aparar-cauda',nome:'Aparar com cauda',valor:novaValorPericia_(cb,target,attackSkill)});
+   }
+   if(decision.phase==='preview'&&grade.sucesso&&options.length)return {pending:{options,ranged:!!cone||labAtaqueEhDistancia_(item),cone:!!cone,fromBack,remaining:defesasRestantes(map.combat,b.id)}};
    let defense=null;
    if(decision.choice&&decision.choice!=='none'){
     const option=options.find(o=>o.id===decision.choice);if(!option)throw Error('Esta defesa não está mais disponível.');
@@ -36558,6 +36570,8 @@ async function novaPrepararAtaque_(a,b,command){
    return JSON.parse(JSON.stringify({defenseSpent:!!defense,actors:{[a.id]:{combateLab:actor.combateLab,municaoLab:actor.municaoLab||{}},[b.id]:{combateLab:target.combateLab,municaoLab:target.municaoLab||{}}},facing:actorAttackFacing,event:{message,attackerMessage:[attackText,hit?'Atingiu o alvo':'Não atingiu',rearText,specialText,damageText].filter(Boolean).join(' · '),defenderMessage:[attackText,defenseText,rearText,specialText,damageText,resistanceText,consequences].filter(Boolean).join(' · '),specialEffects:especiais,damage:damage?.final||0,grade:grade.grau,hit,fromBack,defense,resistances,item:{nome:getNome(item),categoria:item.categoria||'',familia:item.familia||'',tipo:item.tipo||''}}}));
   });}finally{Math.random=originalRandom;}
  };
+ resolve.area=cone;
+ return resolve;
 }
 async function novaDadosAcoes_(t){
  const c=await novaFicha_(t),snapshot={...t,charLab:structuredClone(c)};
@@ -36585,7 +36599,7 @@ const novaSyncController_=mountDirectPositionLab({
  },
  loadActions:novaDadosAcoes_,
  prepareAttack:novaPrepararAtaque_,
- playAttackSound:event=>{labSomAtaque_(event.item,event.grade);if(event.damage>0)labSomDanoAplicado_(event.item);},
+ playAttackSound:event=>{if(!tocarEfeito(obterAudioCtx_(),event.item)){labSomAtaque_(event.item,event.grade);if(event.damage>0)labSomDanoAplicado_(event.item);}},
  unlockSound:()=>obterAudioCtx_()?.resume(),
  restoreHealth:async tokens=>Object.fromEntries(await Promise.all(tokens.map(async t=>{const c=await novaFicha_(t),snapshot={...t,charLab:c};return labComContextoLocal_({...labEstado_,tokens:[snapshot]},false,()=>{labRestaurarTokenCompleto490_(snapshot);return [t.id,JSON.parse(JSON.stringify({combateLab:snapshot.combateLab,municaoLab:{}}))];});}))),
  rollTest:valor=>{const die=1+Math.floor(Math.random()*100);return {die,...classificarD100_(valor,die)};},

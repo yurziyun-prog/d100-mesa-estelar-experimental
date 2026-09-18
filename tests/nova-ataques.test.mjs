@@ -5,7 +5,7 @@ import {iniciarIniciativa} from '../js/nova-turnos.js';
 import {defesasRestantes,acaoIniciativa,moverNoTurno,ataqueSuperaDefesa,removerMortos} from '../js/nova-turnos.js';
 const MAP='combatesAtivos/mapaMesaSyncDireta',POS=MAP+'/posicoes',CMD=MAP+'/acoes';
 const copy=v=>v===undefined?null:structuredClone(v);
-function fixture({defense=false}={}){
+function fixture({defense=false,area=false}={}){
  const rows=[{id:'a',nome:'Jogador',donoUid:'player',x:1,y:1,initiative:20,actions:2},{id:'b',nome:'NPC',donoUid:'',x:2.4,y:1,initiative:0,actions:2}];
  const store=new Map([[MAP,{mapId:'map',combat:iniciarIniciativa(rows,'session',()=>1)}],...rows.map(t=>[POS+'/'+t.id,t])]);
  const listeners=new Set();let lock=Promise.resolve();
@@ -15,8 +15,11 @@ function fixture({defense=false}={}){
   const operation=lock.then(async()=>{const writes=[];const value=await fn({get:async p=>{assert.equal(writes.length,0,'Firestore não permite ler depois de gravar');return copy(store.get(p));},set:(p,v)=>writes.push([p,copy(v)])});for(const [p,v]of writes)store.set(p,v);for(const [p]of writes)emit(p);return value;});lock=operation.catch(()=>{});return operation;
  }};
  const healthMaster=[],healthPlayer=[],errors=[];let resolutions=0;
- const prepare=async()=> (a,b,health,map,decision)=>{if(Math.hypot(a.x-b.x,a.y-b.y)>3)throw Error('Fora de alcance');if(defense&&decision.phase==='preview')return {pending:{remaining:2,options:[{id:'dodge',nome:'Esquiva',valor:60}]}};resolutions++;return {defenseSpent:decision.choice==='dodge',actors:{[b.id]:{pv:(health[b.id]?.pv??10)-3}},event:{message:'3 de dano',damage:3}};};
- const options={database,tokens:()=>[],prepare,onError:e=>errors.push(e)};
+ const prepare=async()=>{
+  const resolve=(a,b,health,map,decision)=>{if(Math.hypot(a.x-b.x,a.y-b.y)>(area?15:3))throw Error('Fora de alcance');if(defense&&decision.phase==='preview')return {pending:{remaining:2,options:[{id:'dodge',nome:'Esquiva',valor:60}]}};resolutions++;return {defenseSpent:decision.choice==='dodge',actors:{[a.id]:{municaoLab:{charge:(health[a.id]?.municaoLab?.charge??10)-1}},[b.id]:{pv:(health[b.id]?.pv??10)-3}},event:{message:'3 de dano',damage:3}};};
+  if(area)resolve.area={range:15,angle:60,centralPenalty:20};return resolve;
+ };
+ const options={database,tokens:()=>[...store.entries()].filter(([key])=>key.startsWith(POS+'/')).map(([key,t])=>({...t,id:key.split('/').pop()})),prepare,onError:e=>errors.push(e)};
  const master=conectarAtaques({...options,user:()=>({uid:'gm',master:true}),onHealth:h=>healthMaster.push(h)});
  const player=conectarAtaques({...options,user:()=>({uid:'player',master:false}),onHealth:h=>healthPlayer.push(h)});
  const payload=()=>({actorId:'a',targetId:'b',skillId:'skill',weaponId:'bite',turnId:store.get(MAP).combat.turnId,mapId:'map'});
@@ -69,6 +72,33 @@ test('defesa pendente bloqueia avanço, pertence ao defensor e gasta reserva sep
   assert.equal(defesasRestantes(f.store.get(MAP).combat,'b'),1);
   await assert.rejects(f.master.defend({attackId:pending.id,actorId:'b',choice:'dodge'}),/oportunidade mudou|já foi resolvida/);
   assert.equal(f.resolutions(),1);
+ }finally{f.close();}
+});
+test('cone inclui aliado, aguarda cada defesa e gasta somente uma ação e uma carga',async()=>{
+ const f=fixture({area:true,defense:true});try{
+  f.store.set(POS+'/c',{id:'c',nome:'Aliado',donoUid:'player',x:3,y:1.5,revision:0});
+  f.store.set(POS+'/d',{id:'d',nome:'Fora',donoUid:'',x:1,y:8,revision:0});
+  await f.player.attack(f.payload());
+  const attackId=f.store.get(HEALTH_PATH).pending.id;
+  assert.equal(f.store.get(HEALTH_PATH).pending.targetId,'b');
+  await f.master.defend({attackId,actorId:'b',choice:'dodge'});
+  assert.equal(f.store.get(HEALTH_PATH).pending.targetId,'c');
+  await assert.rejects(f.master.defend({attackId,actorId:'b',choice:'dodge'}),/já foi resolvida/);
+  await f.player.defend({attackId,actorId:'c',choice:'none'});
+  const h=f.store.get(HEALTH_PATH);
+  assert.equal(h.pending,null);assert.equal(h.actors.b.pv,7);assert.equal(h.actors.c.pv,7);assert.equal(h.actors.d,undefined);
+  assert.equal(h.actors.a.municaoLab.charge,9);assert.equal(f.store.get(MAP).combat.actors.a.remaining,1);
+  assert.equal(h.event.area.angle,60);assert.equal(h.event.area.range,15);
+ }finally{f.close();}
+});
+test('ataque orienta a miniatura também ao gastar a última ação',async()=>{
+ const f=fixture();try{
+  f.store.get(POS+'/b').x=1;f.store.get(POS+'/b').y=2.4;
+  await f.player.attack(f.payload());await new Promise(r=>setTimeout(r,10));
+  assert.equal(f.store.get(POS+'/a').facing,Math.PI/2);
+  f.store.get(POS+'/b').y=1;f.store.get(POS+'/b').x=2.4;
+  await f.player.attack(f.payload());await new Promise(r=>setTimeout(r,10));
+  assert.equal(f.store.get(POS+'/a').facing,0);assert.equal(f.store.get(MAP).combat.activeId,'b');
  }finally{f.close();}
 });
 test('margem, perícia e empate absoluto determinam oposição; mortos saem da renovação',()=>{

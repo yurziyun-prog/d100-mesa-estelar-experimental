@@ -10,7 +10,7 @@ const {chromium}=require('C:/Users/yurzi/.cache/codex-runtimes/codex-primary-run
    let file=path.join(root,u.pathname==='/'?'index.html':u.pathname);
    if(!fs.existsSync(file))return route.fulfill({status:404,body:''});
    let body=fs.readFileSync(file,'utf8');
-   if(file.endsWith('app.js'))body+=`\nwindow.__SYNC_TEST__={ready:true,render:labRender_,state:()=>labEstado_,setState:s=>{labEstado_=s;},packet:p=>labReceberConfirmado_(p),setRole:role=>{userData={role};currentUserUid='test';},reduce:labReduzirComando_,visual:()=>labVisualMovement_,move:labAplicarMovimentoEstadoD2_,handlers:labRuleHandlers_,actions:novaDadosAcoes_,prepare:novaPrepararAtaque_,setNpcs:models=>{npcsDB=models;}};`;
+   if(file.endsWith('app.js'))body+=`\nwindow.__SYNC_TEST__={ready:true,render:labRender_,state:()=>labEstado_,setState:s=>{labEstado_=s;},packet:p=>labReceberConfirmado_(p),setRole:role=>{userData={role};currentUserUid='test';},reduce:labReduzirComando_,visual:()=>labVisualMovement_,move:labAplicarMovimentoEstadoD2_,handlers:labRuleHandlers_,actions:novaDadosAcoes_,prepare:novaPrepararAtaque_,setNpcs:models=>{npcsDB=models;periciasDB=[{id:'esquiva',nome:'Esquiva',atributos:['DES','DES']},{id:'combate_desarmado',nome:'Combate Desarmado',atributos:['FOR','DES']}];}};`;
    return route.fulfill({contentType:file.endsWith('.js')?'text/javascript':'text/html',body});
   }
   if(u.hostname==='www.gstatic.com'){
@@ -29,8 +29,8 @@ const {chromium}=require('C:/Users/yurzi/.cache/codex-runtimes/codex-primary-run
  await page.locator('#loginScreen .lang-btn').filter({hasText:'PT'}).click();
  const combat=await page.evaluate(async()=>{
   const api=window.__SYNC_TEST__;api.setRole('mestre');
-  api.setNpcs([{id:'vampiro',nome:'Vampiro',FOR:14,CON:14,TAM:14,DES:14,INT:14,POD:14,CAR:14,periciasTexto:'Combate Desarmado:200|Esquiva:30',armasTexto:'Mordida:1d6+MD|Garras:1d8+MD',vinculosAtaquesPericias:'Combate Desarmado:Mordida,Garras'},{id:'alvo',nome:'Alvo',FOR:14,CON:30,TAM:30,DES:14,INT:14,POD:14,CAR:14,periciasTexto:'Combate Desarmado:30',armasTexto:'Punhos:1d3'}]);
-  const a={id:'syncnpc%3Avampiro',nome:'Vampiro',x:5,y:5},b={id:'syncnpc%3Aalvo',nome:'Alvo',x:6.4,y:5};
+  api.setNpcs([{id:'vampiro',nome:'Vampiro',FOR:14,CON:14,TAM:14,DES:14,INT:14,POD:14,CAR:14,periciasTexto:'Combate Desarmado:200|Esquiva:30',armasTexto:'Mordida:1d6+MD|Garras:1d8+MD',vinculosAtaquesPericias:'Combate Desarmado:Mordida,Garras'},{id:'alvo',nome:'Alvo',FOR:14,CON:30,TAM:30,DES:14,INT:14,POD:14,CAR:14,periciasTexto:'Combate Desarmado:30|Esquiva:60',armasTexto:'Punhos:1d3'}]);
+  const a={id:'syncnpc%3Avampiro',nome:'Vampiro',x:5,y:5},b={id:'syncnpc%3Aalvo',nome:'Alvo',x:6.4,y:5,facing:Math.PI};
   const data=await api.actions(a),skill=data.skills.find(s=>s.weapons.some(w=>w.nome==='Mordida'));
   if(!skill)throw Error('Mordida do NPC não foi carregada');
   if(!data.skills.every((s,i)=>!i||data.skills[i-1].valor>=s.valor))throw Error('Perícias fora de ordem');
@@ -46,13 +46,13 @@ const {chromium}=require('C:/Users/yurzi/.cache/codex-runtimes/codex-primary-run
    resolver=await api.prepare(a,b,{skillId:skill.id,weaponId:skill.weapons.find(w=>w.nome==='Mordida').id,seed});
    preview=resolver(a,b,{},map,{phase:'preview'});if(preview.pending)break;
   }
-  if(!preview.pending?.options.some(o=>o.nome==='Esquiva'))throw Error('Defesa não ofereceu Esquiva');
+  if(!preview.pending?.options.some(o=>o.nome==='Esquiva'))throw Error('Defesa não ofereceu Esquiva: '+JSON.stringify({preview,skills:(await api.actions(b)).skills}));
   const defended=resolver(a,b,{},map,{phase:'resolve',choice:preview.pending.options.find(o=>o.nome==='Esquiva').id});
   if(!defended.defenseSpent||!defended.event.defense)throw Error('Defesa não foi rolada');
   if(JSON.stringify(defended)!==JSON.stringify(resolver(a,b,{},map,{phase:'resolve',choice:preview.pending.options.find(o=>o.nome==='Esquiva').id})))throw Error('Defesa mudou ao repetir transação');
   const hurt=structuredClone(result.actors);hurt[a.id]={combateLab:{...data.health,ferimentos:{'Peito':'Sério'}}};
   const wounded=await api.actions({...a,...hurt[a.id]});
-  if(wounded.skills.find(s=>s.id===skill.id).valor>=skill.valor)throw Error('Ferimento não penalizou perícia de ataque');
+  if(wounded.skills.find(s=>s.id===skill.id).valor>=skill.valor)throw Error('Ferimento não penalizou perícia de ataque: '+JSON.stringify({healthy:skill.valor,wounded:wounded.skills,health:wounded.health}));
   console.log('PASS defesa nativa, rolagem estável e penalidade de ferimento');
   return {naturalAttacks:skill.weapons.map(w=>w.nome),damage:result.event.damage,deterministicRetry:true};
  });

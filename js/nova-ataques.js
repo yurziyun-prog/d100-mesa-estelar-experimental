@@ -1,10 +1,21 @@
 import {acaoIniciativa,gastarDefesa,removerMortos} from './nova-turnos.js?v=36';
+import {alvosNoCone} from './nova-area.js?v=20260918';
 export const HEALTH_PATH='combatesAtivos/mapaMesaSyncSaude';
 export const HISTORY_PATH='combatesAtivos/mapaMesaSyncHistorico';
 const MAP='combatesAtivos/mapaMesaSyncDireta',POSITIONS=MAP+'/posicoes',COMMANDS=MAP+'/acoes';
 export function conectarAtaques({database,user,tokens,prepare,prepareEquipment,onHealth,onError}){
  let stopHealth=null,stopCommands=null,closed=false;
  const running=new Set(),waiters=new Set(),clean=value=>JSON.parse(JSON.stringify(value));
+ async function orientAttack(original,expectedRevision){
+  try{await database.transact(async tx=>{
+   const map=await tx.get(MAP)||{},path=POSITIONS+'/'+original.personagemId,a=await tx.get(path),b=await tx.get(POSITIONS+'/'+original.targetId);
+   if(!a||!b||(map.mapId||'')!==original.mapId)return;
+   if(Number(a.revision||0)!==Number(expectedRevision||0))return;
+   if(map.combat?.active&&original.turnId&&!original.turnId.startsWith(map.combat.session+':'))return;
+   const facing=Math.atan2((b.y-a.y)*(Number(map.alturaM)||14)/14,(b.x-a.x)*(Number(map.larguraM)||28)/28);
+   tx.set(path,{...a,facing,revision:Number(a.revision||0)+1});
+  });}catch(e){onError(new Error('O ataque foi enviado, mas não foi possível salvar a direção: '+e.message));}
+ }
  async function process(id,command){
   if(running.has(id)||closed||!user()?.master)return;running.add(id);
   const path=COMMANDS+'/'+id;
@@ -38,6 +49,7 @@ export function conectarAtaques({database,user,tokens,prepare,prepareEquipment,o
    const [actor,target]=await Promise.all([find(original.personagemId),find(original.targetId)]);
    if(!actor||!target)throw Error('Participante não encontrado.');
    const resolve=await prepare({...actor,id:original.personagemId},{...target,id:original.targetId},original);
+   if(resolve.area||original.area){await processArea(id,command,original,resolve.area||original.area.shape);if(!defense)await orientAttack(original,actor.revision);return;}
    await database.transact(async tx=>{
     // Firestore exige todas as leituras antes da primeira gravação.
     const cmd=await tx.get(path),map=await tx.get(MAP)||{},health=await tx.get(HEALTH_PATH)||{actors:{},revision:0};
@@ -61,7 +73,8 @@ export function conectarAtaques({database,user,tokens,prepare,prepareEquipment,o
     }
     const result=resolve({...a,id:original.personagemId},{...b,id:original.targetId},health.actors||{},map,{phase:defense?'resolve':'preview',choice:defense?cmd.choice:null});
     if(!defense&&result.pending){
-     const next={...result.pending,id,actorId:original.personagemId,targetId:original.targetId,owner:b.donoUid};
+     const facing=Math.atan2((b.y-a.y)*(Number(map.alturaM)||14)/14,(b.x-a.x)*(Number(map.larguraM)||28)/28);
+     const next={...result.pending,id,actorId:original.personagemId,targetId:original.targetId,owner:b.donoUid,facing};
      tx.set(HEALTH_PATH,clean({...health,pending:next,revision:(health.revision||0)+1}));
      tx.set(MAP,{...map,combat:{...map.combat,pendingAttack:id}});
      tx.set(path,{...cmd,status:'awaiting',message:'Ataque lançado · aguardando defesa de '+b.nome});
@@ -82,9 +95,74 @@ export function conectarAtaques({database,user,tokens,prepare,prepareEquipment,o
     tx.set(path,{...cmd,status:'done',message:event.message});
     if(defense)tx.set(COMMANDS+'/'+command.attackId,{...attackCmd,status:'done',message:event.message});
    });
+   if(!defense)await orientAttack(original,actor.revision);
   }catch(e){
    try{await database.transact(async tx=>{const cmd=await tx.get(path);if(cmd?.status==='pending')tx.set(path,{...cmd,status:'rejected',message:e.message});});}catch(failure){onError(failure);}
   }finally{running.delete(id);}
+ }
+ async function processArea(id,command,original,shape){
+  const defense=command.kind==='direct-defense',attackId=defense?command.attackId:id;
+  const candidates=original.area?.ids||[...new Set([original.targetId,...tokens().map(t=>t.id)])].filter(key=>key!==original.personagemId);
+  const source=await database.get(POSITIONS+'/'+original.personagemId);
+  const prepared=new Map();
+  await Promise.all(candidates.map(async key=>{const t=await database.get(POSITIONS+'/'+key);if(t)prepared.set(key,await prepare({...source,id:original.personagemId},{...t,id:key},original));}));
+  await database.transact(async tx=>{
+   const path=COMMANDS+'/'+id,cmd=await tx.get(path),attackCmd=defense?await tx.get(COMMANDS+'/'+attackId):cmd;
+   const map=await tx.get(MAP)||{},health=await tx.get(HEALTH_PATH)||{actors:{}},history=await tx.get(HISTORY_PATH)||{entries:[]};
+   const a={...await tx.get(POSITIONS+'/'+original.personagemId),id:original.personagemId};
+   const positions=[];for(const key of candidates){const p=await tx.get(POSITIONS+'/'+key);if(p)positions.push({...p,id:key});}
+   if(cmd?.status!=='pending')return;
+   if((map.mapId||'')!==original.mapId||map.combat?.turnId!==original.turnId)throw Error('O mapa ou a oportunidade mudou.');
+   const aim=positions.find(t=>t.id===original.targetId);if(!aim)throw Error('Alvo central não encontrado.');
+   const affected=defense?positions.filter(t=>attackCmd.area.ids.includes(t.id)):alvosNoCone(a,aim,positions,map,shape).filter(t=>!health.actors?.[t.id]?.combateLab?.morto);
+   if(!affected.some(t=>t.id===original.targetId))throw Error('Alvo central fora do alcance do cone.');
+   const responses={...(attackCmd.area?.responses||{})};
+   if(defense){
+    const p=health.pending,b=affected.find(t=>t.id===cmd.personagemId);
+    if(attackCmd.status!=='awaiting'||p?.id!==attackId||p.targetId!==cmd.personagemId||map.combat?.pendingAttack!==attackId)throw Error('Esta defesa já foi resolvida ou encerrada.');
+    if(!b||cmd.donoUid!==b.donoUid&&cmd.donoUid!==user().uid)throw Error('Você não controla o defensor.');
+    if(cmd.choice!=='none'&&!p.options.some(o=>o.id===cmd.choice))throw Error('Defesa indisponível.');
+    responses[b.id]=cmd.choice;
+   }else{
+    if(map.combat?.pendingAttack)throw Error('Aguardando a defesa do ataque anterior.');
+    if(cmd.donoUid!==a.donoUid&&cmd.donoUid!==user().uid)throw Error('Você não controla este personagem.');
+    if(map.combat?.activeId!==a.id)throw Error('Aguarde sua vez.');
+    if(!Number.isFinite(cmd.createdAt)||Math.abs(Date.now()-cmd.createdAt)>30000)throw Error('O pedido expirou. Tente novamente.');
+   }
+   let next=null;
+   for(const b of affected){
+    if(Object.hasOwn(responses,b.id))continue;
+    const preview=prepared.get(b.id)(a,b,health.actors||{},map,{phase:'preview',choice:null});
+    if(preview.pending){next={...preview.pending,id:attackId,actorId:a.id,targetId:b.id,owner:b.donoUid,facing:Math.atan2((aim.y-a.y)*(Number(map.alturaM)||14)/14,(aim.x-a.x)*(Number(map.larguraM)||28)/28)};break;}
+    responses[b.id]='none';
+   }
+   const area={shape,ids:affected.map(t=>t.id),responses};
+   if(next){
+    const message='Ataque em cone · aguardando defesa de '+positions.find(t=>t.id===next.targetId).nome;
+    const launch={id:attackId,ts:Date.now(),actorUid:a.donoUid,targetUid:aim.donoUid,source:{id:a.id,x:a.x,y:a.y},target:{id:aim.id,x:aim.x,y:aim.y},item:{nome:'Eco da Matilha'},message,area:{...shape,source:{x:a.x,y:a.y},aim:{x:aim.x,y:aim.y},width:Number(map.larguraM)||28,height:Number(map.alturaM)||14}};
+    tx.set(HEALTH_PATH,clean({...health,...(!defense?{event:launch}:{}),pending:next,revision:(health.revision||0)+1}));
+    tx.set(MAP,{...map,combat:{...map.combat,pendingAttack:attackId}});
+    tx.set(COMMANDS+'/'+attackId,clean({...attackCmd,area,status:'awaiting',message}));
+    if(defense)tx.set(path,{...cmd,status:'done',message:'Defesa registrada · '+message});
+    return;
+   }
+   const actors={...(health.actors||{})},events=[];
+   const {pendingAttack,...unlocked}=map.combat;let combat=unlocked;
+   for(const b of affected){
+    // Todos usam a mesma rolagem de ataque e o mesmo saldo inicial de munição.
+    const result=prepared.get(b.id)(a,b,health.actors||{},map,{phase:'resolve',choice:responses[b.id]||'none'});
+    for(const [key,value]of Object.entries(result.actors||{}))actors[key]={...actors[key],...value};
+    if(result.defenseSpent)combat=gastarDefesa(combat,b.id);
+    events.push({...result.event,id:attackId+':'+b.id,ts:Date.now(),actorUid:a.donoUid,targetUid:b.donoUid,source:{id:a.id,x:a.x,y:a.y},target:{id:b.id,x:b.x,y:b.y}});
+   }
+   combat=acaoIniciativa(combat,'spend',combat.turnId);combat=removerMortos(combat,actors);
+   const event={...events[0],id:attackId,area:{...shape,source:{x:a.x,y:a.y},aim:{x:aim.x,y:aim.y},width:Number(map.larguraM)||28,height:Number(map.alturaM)||14},message:events.map(e=>e.message).join(' | ')};
+   tx.set(HEALTH_PATH,clean({actors,event,pending:null,revision:(health.revision||0)+1}));
+   tx.set(HISTORY_PATH,clean({entries:[...(history.entries||[]),...events].slice(-120),revision:(history.revision||0)+1}));
+   tx.set(MAP,{...map,combat});
+   tx.set(COMMANDS+'/'+attackId,clean({...attackCmd,area,status:'done',message:event.message}));
+   if(defense)tx.set(path,{...cmd,status:'done',message:event.message});
+  });
  }
  stopHealth=database.subscribeDoc(HEALTH_PATH,value=>{if(!closed)onHealth(value||{actors:{},revision:0});},onError);
  if(user()?.master)stopCommands=database.subscribe(COMMANDS,rows=>{for(const row of rows)if(!row.removed&&['direct-attack','direct-defense','direct-equipment'].includes(row.data.kind)&&row.data.status==='pending')process(row.id,row.data);},onError);

@@ -2,8 +2,8 @@
 import {saldoMovimento,moverNoTurno,iniciarIniciativa,acaoIniciativa,defesasRestantes} from './nova-turnos.js?v=37';
 import {destinoSemColisao,TOKEN_DIAMETER} from './nova-colisao.js?v=25';
 import {criarPainelAcoes} from './nova-painel.js?v=37';
-import {conectarAtaques,HEALTH_PATH,HISTORY_PATH} from './nova-ataques.js?v=37';
-import {mostrarAtaque} from './nova-efeitos.js?v=35';
+import {conectarAtaques,HEALTH_PATH,HISTORY_PATH} from './nova-ataques.js?v=20260918';
+import {mostrarAtaque} from './nova-fx.js?v=20260918';
 import {criarEditorMesa} from './nova-editor.js?v=35';
 export const POSITION_PATH='combatesAtivos/mapaMesaSyncDireta/posicoes';
 export const MAP_PATH='combatesAtivos/mapaMesaSyncDireta';
@@ -17,10 +17,9 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
  const quickChoices=new Map();
  let stopScene=null,sceneData=null,sceneRequest=0;
  const propCache=new Map();
- let attacks=null,health={actors:{},revision:0},history={entries:[]},attacking=false,managing=false,lastEffect='',selectedTarget='';
+ let attacks=null,health={actors:{},revision:0},history={entries:[]},attacking=false,managing=false,lastEffect='',selectedTarget='',sendingActor='';
  const availableActors=()=>{
   const available=new Map();
-  if(user()?.master&&!mapPacket?.combat?.active)for(const entry of catalog())if(!['objeto','item'].includes(entry.catalogType))available.set(encodeURIComponent(entry.id),{...entry,id:encodeURIComponent(entry.id),donoUid:String(entry.donoUid||entry.dono||'')});
   for(const token of tokens.values())if(canView(token))available.set(token.id,token);
   return available;
  };
@@ -71,8 +70,8 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
  const updateActions=criarPainelAcoes({root,load:loadActions,roll:rollTest,unlock:unlockSound,attack:async payload=>{
   if(!attacks||attacking||queues.size||managing||editor.busy)throw Error('Aguarde a sincronização.');
   if(!controlled(tokens.get(payload.actorId)))throw Error('Você não controla este personagem.');
-  release();attacking=true;status();
-  try{return await attacks.attack({...payload,mapId:mapPacket?.mapId||''});}finally{attacking=false;status();}
+  release();attacking=true;sendingActor=payload.actorId;draw();
+  try{return await attacks.attack({...payload,mapId:mapPacket?.mapId||''});}finally{attacking=false;sendingActor='';draw();}
  },spend:async(id,turn)=>{
   if(mapPacket?.combat?.activeId!==id||mapPacket.combat.turnId!==turn)return false;
   return changeTurn('spend');
@@ -183,7 +182,8 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
    const label=node.querySelector('span');if(label){label.textContent=displayName(t);label.style.top='calc(100% + 3px)';}
    node.style.transition=previews.has(t.id)?'none':'left .2s linear,top .2s linear';
    node.style.left=`${p.x/28*100}%`;node.style.top=`${p.y/14*100}%`;
-   const facing=Number.isFinite(p.facing)?p.facing:0;
+   const aim=sendingActor===t.id?tokens.get(selectedTarget):null;
+   const facing=aim?Math.atan2((aim.y-t.y)*(Number(mapPacket?.alturaM)||14)/14,(aim.x-t.x)*(Number(mapPacket?.larguraM)||28)/28):health.pending?.actorId===t.id&&Number.isFinite(health.pending.facing)?health.pending.facing:Number.isFinite(p.facing)?p.facing:0;
    const handle=node.querySelector('[data-facing-handle]');
    if(handle){const radius=Math.max(28,Math.min(54,tokenDiameterM/2*48+7));handle.style.left=(50+Math.cos(facing)*radius/Math.max(1,node.clientWidth)*100)+'%';handle.style.top=(50+Math.sin(facing)*radius/Math.max(1,node.clientHeight)*100)+'%';}
    node.dataset.x=p.x;node.dataset.y=p.y;
@@ -194,8 +194,8 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
     arrow.style.cssText='position:absolute;left:50%;top:-24px;transform:translateX(-50%);color:#ffd447;font-size:22px;font-weight:bold;line-height:1;text-shadow:0 0 5px #000;pointer-events:none;z-index:11;';node.append(arrow);
    }
    node.querySelectorAll('[data-defense-bubble]').forEach(n=>n.remove());
-   if(mapPacket?.combat?.pendingAttack&&health.pending?.actorId===t.id){
-    const bubble=root.createElement('span');bubble.dataset.defenseBubble='';bubble.textContent='⏳ Defesa';bubble.title='Aguardando a defesa do alvo';
+   if(sendingActor===t.id||mapPacket?.combat?.pendingAttack&&health.pending?.actorId===t.id){
+    const bubble=root.createElement('span');bubble.dataset.defenseBubble='';bubble.textContent=sendingActor===t.id?'⏳ Enviando ataque…':'⏳ Defesa';bubble.title=sendingActor===t.id?'Enviando o ataque ao mestre':'Aguardando a defesa do alvo';
     const above=p.y/14>0.28;
     bubble.style.cssText='position:absolute;left:50%;'+(above?'top:calc(100% + 20px);':'bottom:calc(100% + 4px);')+'transform:translateX(-50%);white-space:nowrap;padding:2px 5px;border-radius:4px;background:#ffd447;color:#171b2f;font:11px Arial,sans-serif;font-weight:bold;z-index:12;pointer-events:none;';node.append(bubble);
    }
@@ -227,7 +227,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   if(canRespond){
    const choices=root.createElement('select');choices.style.cssText='width:100%;margin:6px 0;background:#303349;color:white;font:13px Arial;';
    for(const option of pending.options){const o=root.createElement('option');o.value=option.id;o.textContent=option.nome+' — '+option.valor+'%';choices.append(o);}
-   const hint=root.createElement('div');hint.textContent=pending.ranged?'Ataque à distância: somente Esquiva.':'Aparar exige arma corpo a corpo com alcance suficiente.';box.append(choices,hint);
+   const hint=root.createElement('div');hint.textContent=pending.cone?'Cone sonoro: somente Esquiva. O alvo central recebe −20.':pending.ranged?'Ataque à distância: somente Esquiva.':'Aparar exige arma corpo a corpo com alcance suficiente.';box.append(choices,hint);
    for(const [label,choice]of [['Rolar defesa',null],['Não defender','none']]){const b=root.createElement('button');b.textContent=label;b.disabled=defending;b.style.cssText='font:12px Arial;padding:5px;margin:6px 4px 0 0;';b.addEventListener('click',async()=>{
     defending=true;drawDefense();try{await attacks.defend({attackId:pending.id,actorId:t.id,choice:choice||choices.value});error='';}catch(e){error=e.message;}finally{defending=false;draw();}
    });box.append(b);}
@@ -261,7 +261,20 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   const title=el('novaSyncHistoryTitle');if(title)title.textContent=user()?.master?'Histórico completo':'Seu histórico';
   const entries=(history.entries||[]).filter(e=>!own||e.donoUid===own||e.actorUid===own||e.targetUid===own);
   box.replaceChildren();for(const e of entries.slice().reverse()){const row=root.createElement('div');const message=!own?e.message:e.targetUid===own?(e.defenderMessage||e.message):(e.attackerMessage||e.message);row.textContent=`${new Date(e.ts||Date.now()).toLocaleTimeString()}  ${message||'Ação registrada'}`;box.append(row);}
-  if(gm){gm.hidden=!user()?.master;gm.replaceChildren();if(user()?.master&&mapPacket?.combat?.active){for(const id of mapPacket.combat.order||[]){const t=tokens.get(id),h=health.actors?.[id]?.combateLab;if(!t||!h)continue;const row=root.createElement('div');row.textContent=`${displayName(t)} · PV ${Object.values(h.hit||{}).reduce((a,v)=>a+Number(v||0),0)}/${Object.values(h.hitMax||{}).reduce((a,v)=>a+Number(v||0),0)} · Armadura ${Object.values(h.armor||{}).reduce((a,v)=>a+Number(v||0),0)}`;gm.append(row);}}}
+  if(gm){
+   gm.hidden=!user()?.master;gm.replaceChildren();
+   if(user()?.master)for(const id of new Set([...(mapPacket?.combat?.order||[]),...tokens.keys()])){
+    const t=tokens.get(id),h=health.actors?.[id]?.combateLab;if(!t||!h)continue;
+    const row=root.createElement('div');row.className='nova-gm-health-row';
+    const title=root.createElement('strong');title.textContent=displayName(t);row.append(title);
+    const grid=root.createElement('div');grid.className='nova-pv-grid';
+    const order=['Cabeça','Peito','Abdômen','Braço Direito','Braço Esquerdo','Perna Direita','Perna Esquerda'];
+    for(const loc of Object.keys(h.hitMax||{}).sort((a,b)=>(order.includes(a)?order.indexOf(a):99)-(order.includes(b)?order.indexOf(b):99))){
+     const cell=root.createElement('div');cell.className='nova-pv-cell';
+     for(const [tag,text]of [['small',loc],['b',`PV ${h.hit?.[loc]??h.hitMax[loc]}/${h.hitMax[loc]}`],['small',`PA ${h.armor?.[loc]||0}`]]){const n=root.createElement(tag);n.textContent=text;cell.append(n);}grid.append(cell);
+    }row.append(grid);gm.append(row);
+   }
+  }
  }
  function close(){editor.close();attacks?.close();attacks=null;health={actors:{},revision:0};history={entries:[]};held=null;selectedTarget='';placementChoice='';cancelAnimationFrame(frame);generation++;stop?.();stopMap?.();stopScene?.();stopHistory?.();stopScene=null;stopHistory=null;sceneData=null;sceneRequest++;stop=null;stopMap=null;account='';tokens.clear();previews.clear();queues.clear();mapPacket=null;mapData=null;renderedMap=null;mapRequest++;}
  function open(){
