@@ -36483,7 +36483,7 @@ function novaValorPericia_(c,t,per,penalty=0){
  const raw=obterValorRegistroPericia_(c,per.id,!!per.__especializacao),arm=valorPericiaComArmadura_(c,per,raw);
  const escudoEquipado=(obterItensEquipados_(c)||[]).some(item=>/escudo|shield/i.test(getNome(item)));
  const extra=Math.max(batalhaPenalidadeFerimento_(c,per),labPenalidadeFerimentoLab22_(t,per))+batalhaPenalidadeCaido_(c)+batalhaPenalidadeInfeccao_(c)+penalty+(escudoEquipado?5:0);
- return Math.max(0,Number(aplicarDificuldadeEFadiga_(c,arm.valor,'padrao',extra).valor||0));
+ return Math.min(100,Math.max(0,Number(aplicarDificuldadeEFadiga_(c,arm.valor,'padrao',extra).valor||0)));
 }
 async function novaPrepararAtaque_(a,b,command){
  const [ca,cb]=await Promise.all([novaFicha_(a),novaFicha_(b)]);
@@ -36539,10 +36539,10 @@ async function novaPrepararAtaque_(a,b,command){
      }
     }
    }
-   if(!cone&&!labAtaqueEhDistancia_(item)&&map.combat?.active&&defesasRestantes(map.combat,b.id)>0&&!healthB.morto&&!healthB.inconsciente&&!healthB.incapacitado){
+   if(!cone&&!labAtaqueEhDistancia_(item)&&fromBack&&map.combat?.active&&defesasRestantes(map.combat,b.id)>0&&!healthB.morto&&!healthB.inconsciente&&!healthB.incapacitado){
     const tail=(ataquesNaturaisChar_(cb)||[]).find(w=>/cauda|calda|rabo|tail/i.test(getNome(w)))||(/besta\s+ululante/i.test(b.nome)?{nome:'Cauda',natural:true,alcanceMetros:2}:null);
     const attackSkill=(batalhaListaPericias_(cb)||[]).filter(p=>periciaCriaturaPodeAtacar_(cb,p)).sort((p,q)=>novaValorPericia_(cb,target,q)-novaValorPericia_(cb,target,p))[0];
-    if(tail&&attackSkill&&!tail.inutilizavel&&tail.pvAtual!==0&&distance<=labAlcanceAtaque_(target,tail))options.push({id:'natural:aparar-cauda',nome:'Aparar com cauda',valor:novaValorPericia_(cb,target,attackSkill)});
+    if(tail&&attackSkill&&!tail.inutilizavel&&tail.pvAtual!==0&&distance<=labAlcanceAtaque_(target,tail))options.push({id:'natural:aparar-cauda',nome:'Aparar com cauda',valor:Math.max(0,novaValorPericia_(cb,target,attackSkill)-20)});
    }
    if(decision.phase==='preview'&&grade.sucesso&&options.length)return {pending:{options,ranged:!!cone||labAtaqueEhDistancia_(item),cone:!!cone,fromBack,remaining:defesasRestantes(map.combat,b.id)}};
    let defense=null;
