@@ -18,8 +18,23 @@ export function conectarAtaques({database,user,tokens,prepare,prepareEquipment,o
  }
  async function process(id,command){
   if(running.has(id)||closed||!user()?.master)return;running.add(id);
-  const path=COMMANDS+'/'+id;
-  try{
+   const path=COMMANDS+'/'+id;
+   try{
+   if(command.kind==='direct-first-aid'){
+    await database.transact(async tx=>{
+     const cmd=await tx.get(path),map=await tx.get(MAP)||{},health=await tx.get(HEALTH_PATH)||{actors:{}},history=await tx.get(HISTORY_PATH)||{entries:[]};
+     const a=await tx.get(POSITIONS+'/'+command.personagemId),b=await tx.get(POSITIONS+'/'+command.targetId);
+     if(cmd?.status!=='pending'||!a||!b) return;
+     if(Math.hypot((a.x-b.x)*(Number(map.larguraM)||28)/28,(a.y-b.y)*(Number(map.alturaM)||14)/14)>1.501)throw Error('Primeiros Socorros exige alcance de 1,5 m.');
+     if(map.combat?.activeId!==a.id||map.combat.turnId!==command.turnId)throw Error('Aguarde o turno do socorrista.');
+     const value=Math.min(100,Math.max(0,Number(command.valor)||0)),die=1+Math.floor(Math.random()*100),passou=die<=value;
+     const old=health.actors?.[b.id]||{},next=clean({...old});
+     let message=`${a.nome} realizou Primeiros Socorros em ${b.nome}: ${die}/${value} → ${passou?'Sucesso':'Falha'}.`;
+     if(passou){next.inconsciente=false;next.incapacitado=false;const local=command.local||Object.keys(next.hitMax||{})[0];if(local&&next.hit?.[local]!=null){const cura=Math.max(1,Math.min(3,Math.floor(Math.max(0,value-die)/20)+1));next.hit[local]=Math.min(Number(next.hitMax[local]||0),Number(next.hit[local]||0)+cura);next.ferimentos={...(next.ferimentos||{}),[local]:'Estabilizado'};message+=` ${local} estabilizado, +${cura} PV.`;}}
+     let combat=map.combat;if(combat?.active&&combat.activeId===a.id)combat=acaoIniciativa(combat,'spend',command.turnId);
+     tx.set(HEALTH_PATH,clean({...health,actors:{...health.actors,[b.id]:next},revision:(health.revision||0)+1}));tx.set(MAP,{...map,combat});tx.set(HISTORY_PATH,{entries:[...(history.entries||[]),{id,actorUid:a.donoUid||'',ts:Date.now(),message}].slice(-120),revision:(history.revision||0)+1});tx.set(path,{...cmd,status:'done',message});
+    });return;
+   }
    if(command.kind==='direct-equipment'){
     if(!prepareEquipment)throw Error('Troca de equipamento indisponível.');
     const token=await database.get(POSITIONS+'/'+command.personagemId);if(!token)throw Error('Personagem não encontrado.');
@@ -165,7 +180,7 @@ export function conectarAtaques({database,user,tokens,prepare,prepareEquipment,o
   });
  }
  stopHealth=database.subscribeDoc(HEALTH_PATH,value=>{if(!closed)onHealth(value||{actors:{},revision:0});},onError);
- if(user()?.master)stopCommands=database.subscribe(COMMANDS,rows=>{for(const row of rows)if(!row.removed&&['direct-attack','direct-defense','direct-equipment'].includes(row.data.kind)&&row.data.status==='pending')process(row.id,row.data);},onError);
+ if(user()?.master)stopCommands=database.subscribe(COMMANDS,rows=>{for(const row of rows)if(!row.removed&&['direct-attack','direct-defense','direct-equipment','direct-first-aid'].includes(row.data.kind)&&row.data.status==='pending')process(row.id,row.data);},onError);
  async function send(payload){
   const path=COMMANDS+'/'+crypto.randomUUID();
   await database.writeMap(path,{...payload,donoUid:user().uid,createdAt:Date.now(),status:'pending'});
@@ -177,6 +192,7 @@ export function conectarAtaques({database,user,tokens,prepare,prepareEquipment,o
  }
  return {
   attack:({actorId,targetId,skillId,weaponId,turnId,mapId})=>send({kind:'direct-attack',personagemId:actorId,targetId,skillId,weaponId,turnId:turnId||null,mapId:mapId||'',seed:crypto.getRandomValues(new Uint32Array(1))[0]}),
+  firstAid:({actorId,targetId,turnId,value,local})=>send({kind:'direct-first-aid',personagemId:actorId,targetId,turnId,value,local}),
   defend:({attackId,actorId,choice})=>send({kind:'direct-defense',attackId,personagemId:actorId,choice}),
   equipment:payload=>send({...payload,kind:'direct-equipment'}),
   close(){closed=true;stopHealth?.();stopCommands?.();for(const finish of [...waiters])finish(Error('Sessão encerrada.'));}

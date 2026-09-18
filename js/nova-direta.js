@@ -75,6 +75,9 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
  },spend:async(id,turn)=>{
   if(mapPacket?.combat?.activeId!==id||mapPacket.combat.turnId!==turn)return false;
   return changeTurn('spend');
+ },firstAid:async payload=>{
+  if(!attacks)throw Error('Sessão de combate indisponível.');
+  return attacks.firstAid({...payload});
  }});
  function status(){
   el('novaSyncStatus').textContent=(queues.size?'Mesa 36 · salvando posição…':error)||`Mesa 36 · ${tokens.size} personagem(ns) · 48 px/m`;

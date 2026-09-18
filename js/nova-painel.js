@@ -1,4 +1,4 @@
-export function criarPainelAcoes({root,load,spend,roll,attack,unlock=()=>{}}){
+export function criarPainelAcoes({root,load,spend,roll,attack,firstAid,unlock=()=>{}}){
  const host=root.getElementById('novaSyncActionPanel'),passButton=root.getElementById('novaSyncNext');
  const cache=new Map(),preferences=new Map(),results=new Map();
  let current=null,combat=null,allowed=false,busy=false,request=0,shown='',sheet=null,view={};
@@ -16,9 +16,8 @@ export function criarPainelAcoes({root,load,spend,roll,attack,unlock=()=>{}}){
   try{
    let text;
    if(turn&&target&&skill.id==='primeiros_socorros'){
-    if(!await spend(actor.id,turn))return;
     const outcome=roll(skill.valor);
-    text=`Primeiros Socorros em ${name(target)}: ${outcome.die}/${skill.valor} → ${outcome.grau}. Tratamento iniciado; conclua no próximo turno.`;
+    text=firstAid?await firstAid({actorId:actor.id,targetId:target.id,turnId:turn,value:skill.valor,local:view.firstAidLocal||''}):`Primeiros Socorros em ${name(target)}: ${outcome.die}/${skill.valor} → ${outcome.grau}.`;
    }else if(turn&&target&&skill.attack){
     results.set(actor.id,{text:'Ataque enviado · aguardando confirmação do mestre…',at:Date.now()});render();
     text=await attack({actorId:actor.id,targetId:target.id,skillId:skill.id,weaponId:weapon.id,turnId:turn});
