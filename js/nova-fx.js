@@ -23,7 +23,12 @@ export function mostrarAtaque(board,event){
   add('ellipse',{cx:x,cy:y,rx:3,ry:5,fill:color});for(const r of [5,8,11])add('ellipse',{cx:x,cy:y+3,rx:r,ry:r*.45,fill:'none',stroke:color,'stroke-width':'.7'});
  }else if(type==='tail'||type==='saber')add('path',{d:`M ${x-9} ${y+7} Q ${x+12} ${y+12} ${x+7} ${y-9}`,fill:'none',stroke:color,'stroke-width':type==='tail'?'2':'3'});
  else if(['laser','blaster','phaser'].includes(type)){
-  add('line',{x1:a.x*10,y1:a.y*10,x2:x,y2:y,stroke:color,'stroke-width':type==='phaser'?'2.2':'1.3'});add('circle',{cx:x,cy:y,r:event.hit?3:1.5,fill:color});
+  if(type==='laser'){
+   const dx=x-a.x*10,dy=y-a.y*10,len=Math.hypot(dx,dy)||1,nx=-dy/len*2.4,ny=dx/len*2.4;
+   add('polygon',{points:`${a.x*10+nx},${a.y*10+ny} ${x+nx*.35},${y+ny*.35} ${x-nx*.35},${y-ny*.35} ${a.x*10-nx},${a.y*10-ny}`,fill:color,'fill-opacity':'.32',stroke:color,'stroke-width':'1.5'});
+   add('line',{x1:a.x*10,y1:a.y*10,x2:x,y2:y,stroke:'#fff','stroke-width':'1.1'});
+  }else add('line',{x1:a.x*10,y1:a.y*10,x2:x,y2:y,stroke:color,'stroke-width':type==='phaser'?'2.2':'1.3'});
+  add('circle',{cx:x,cy:y,r:event.hit?3:1.5,fill:color});
  }else add('path',{d:`M ${x-4} ${y-4} L ${x+4} ${y+4} M ${x+4} ${y-4} L ${x-4} ${y+4}`,stroke:color,'stroke-width':1.3});
  board.append(svg);svg.animate?.([{opacity:1},{opacity:0}],{duration:type==='sonic'?1000:650,fill:'forwards'});setTimeout(()=>svg.remove(),1100);
 }

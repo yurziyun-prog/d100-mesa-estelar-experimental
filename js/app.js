@@ -5338,7 +5338,8 @@ function labHeuristicaMovimento_(p,c){
     let terra=Number(c?.movimentoTerrestre),voo=Number(c?.movimentoVoo),nat=Number(c?.movimentoNatacao);
     if(!Number.isFinite(terra))terra=3;if(!Number.isFinite(voo))voo=0;if(!Number.isFinite(nat))nat=0;
     if(nome.includes('cila'))terra=0;
-    if(nome.includes('besta_ululante'))terra=Math.max(terra,4);
+    // A Besta Ululante é uma criatura grande: seu deslocamento de referência é 8 m.
+    if(nome.includes('besta_ululante'))terra=Math.max(terra,8);
     if(nome.includes('dragao_trombeta_corredor'))terra=Math.max(terra,4);
     if(nome.includes('dragao_trombeta_alado')){terra=Math.max(terra,3);voo=Math.max(voo,6);}
     if(nome.includes('serpente_sanguessuga')){terra=2;nat=Math.max(nat,3);}
@@ -6555,13 +6556,16 @@ function labAplicarDanoLocal_(defensor,total,item,opcoes={}){
             };
 
             if(!grave.passou){
-                if(/Cabeça|Peito|Abdômen/.test(local)){
-                    st.morto=true;
-                    st.inconsciente=false;
-                    ferimento='Morto';
-                }else{st.membrosInuteis[local]=true;ferimento='Ferimento Grave · membro inutilizado';}
+                st.inconsciente=true;
+                if(/Cabeça|Peito|Abdômen/.test(local)&&depois<=-max){
+                    st.morto=true;st.inconsciente=false;ferimento='Morto';
+                }else if(/Braço|Perna/.test(local)){
+                    st.membrosInuteis[local]=true;ferimento='Ferimento Grave · membro inutilizado · inconsciente';
+                }else ferimento='Ferimento Grave · inconsciente';
             }else{
-                ferimento='Ferimento Grave · Resistiu';
+                st.inconsciente=false;
+                if(/Braço|Perna/.test(local))st.membrosInuteis[local]=true;
+                ferimento='Ferimento Grave · consciente';
             }
         }
 
@@ -6571,9 +6575,6 @@ function labAplicarDanoLocal_(defensor,total,item,opcoes={}){
             delete st.membrosInuteis[local];
         }
     }
-
-    const todos=Object.values(st.hit||{});
-    if(todos.length&&todos.every(v=>Number(v)<=0))st.morto=true;
 
     return {
         roll,local,antes,depois,pa,pen,paEf,
@@ -36503,7 +36504,8 @@ async function novaPrepararAtaque_(a,b,command){
    const healthA=labGarantirSnapshotCombate_(actor),healthB=labGarantirSnapshotCombate_(target),item=structuredClone(chosen.item);
    if(healthA.morto||healthA.inconsciente||healthA.incapacitado)throw Error('Este personagem não pode atacar neste estado.');
    if(healthB.morto)throw Error('O alvo já está morto.');
-   const distance=Math.max(0,labDistanciaEntre_(actor,target)-(actor.diametroM+target.diametroM)/2),range=labAlcanceAtaque_(actor,item);
+ const distance=Math.max(0,labDistanciaEntre_(actor,target)-(actor.diametroM+target.diametroM)/2),range=labAlcanceAtaque_(actor,item);
+ if(!labAtaqueEhDistancia_(item)&&distance>range+.001)throw Error(`Fora de alcance: ${distance.toFixed(2)} m (alcance ${range.toFixed(2)} m).`);
    if(distance>range+.001)throw Error('Fora de alcance: '+distance.toFixed(1)+' m; alcance '+range.toFixed(1)+' m.');
    if(labEhArmaMuniciada_(item)&&labMunicaoAtual_(actor,item)<=0)throw Error('Arma sem munição.');
    const value=novaValorPericia_(ca,actor,per,chosen.graus||0),die=1+Math.floor(Math.random()*100),grade=classificarD100_(value,die);
@@ -36520,19 +36522,20 @@ async function novaPrepararAtaque_(a,b,command){
    const evasionActive=!!(target.combateLab?.evasao||target.combateLab?.manobraEvasao||target.charLab?.evasao||target.charLab?.manobraEvasao);
    const options=[];
    if(map.combat?.active&&defesasRestantes(map.combat,b.id)>0&&!healthB.morto&&!healthB.inconsciente&&!healthB.incapacitado){
-    const defenses=batalhaListaPericiasDefesa_(cb);
+   const defenses=batalhaListaPericiasDefesa_(cb);
+    const shieldEquipped=(obterItensEquipados_(cb)||[]).some(w=>/escudo|shield/i.test(getNome(w)));
     if(!defenses.some(labEhEsquivaD7_)){const dodge=batalhaListaPericias_(cb).find(labEhEsquivaD7_);if(dodge)defenses.unshift(dodge);}
     for(const defensePer of defenses){
      if(labEhEsquivaD7_(defensePer)){
       const dodgePenalty=(fromBack&&!evasionActive?20:0)+(cone&&b.id===command.targetId?cone.centralPenalty:0);
-      options.push({id:batalhaTokenPericia_(defensePer),nome:'Esquiva'+(dodgePenalty?' (-'+dodgePenalty+')':''),valor:Math.max(0,novaValorPericia_(cb,target,defensePer)-dodgePenalty)});
+      options.push({id:batalhaTokenPericia_(defensePer),nome:'Esquiva'+(dodgePenalty?' (-'+dodgePenalty+')':''),valor:Math.max(0,novaValorPericia_(cb,target,defensePer)-dodgePenalty+(shieldEquipped?5:0))});
      }
      else if(!cone&&!fromBack&&(!labAtaqueEhDistancia_(item)||novaEquipamentos_(cb,defensePer).some(w=>/escudo|shield/i.test(getNome(w.item)))) )for(const weapon of novaEquipamentos_(cb,defensePer)){
       const shield=/escudo|shield/i.test(getNome(weapon.item));
       if(labAtaqueEhDistancia_(weapon.item)||labAlcanceAtaque_(target,weapon.item)+.001<distance)continue;
       if(labAtaqueEhDistancia_(item)&&!shield)continue;
       if(weapon.item.inutilizavel||weapon.item.pvAtual===0)continue;
-      options.push({id:batalhaTokenPericia_(defensePer)+'|'+weapon.valor,nome:'Aparar ('+getNome(weapon.item)+')',valor:Math.max(0,novaValorPericia_(cb,target,defensePer,weapon.graus||0)-(shield?0:20))});
+      options.push({id:batalhaTokenPericia_(defensePer)+'|'+weapon.valor,nome:'Aparar ('+getNome(weapon.item)+')',valor:Math.max(0,novaValorPericia_(cb,target,defensePer,weapon.graus||0)-(shield?0:20)+(shield?5:0))});
      }
     }
    }
