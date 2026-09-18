@@ -36559,6 +36559,12 @@ async function novaPrepararAtaque_(a,b,command){
     const expr=labExpressaoDano_(actor,item),rolled=grade.grau==='Crítico'?maximizarExpressaoDanoCombate_(expr):rolarExpressaoDanoCombate_(expr);
     if(!rolled)throw Error('Dano inválido no cadastro da arma: '+expr);
     damage=labAplicarDanoLocal_(target,rolled.total,item,{grauAtaque:grade.grau,rolagemAtaque:die,valorAtaque:value});
+    const props=String(item.propriedades||item.propriedadesAtaque||'').toLocaleLowerCase('pt-BR');
+    const dst=target.combateLab||{};
+    if(/sangr|bleed/.test(props))dst.sangramentoAtivo=true;
+    if(/derrubar|knockdown|impacto/.test(props))dst.caido=true;
+    if(/infecc|infect/.test(props))dst.infecciosoAtivo=true;
+    if(/drenagem|drain/.test(props))actor.combateLab.pontosVidaDrenados=(Number(actor.combateLab.pontosVidaDrenados)||0)+Math.max(0,damage.final||0);
    }
    const attackText=actor.nome+' → '+target.nome+': '+getNome(per)+' · '+getNome(item)+' · '+die+'/'+value+' · '+grade.grau;
    const defenseText=defense?'Defesa de '+target.nome+': '+defense.nome+' · '+defense.die+'/'+defense.valor+' → '+defense.grau+' · '+(hit?'superada':'evitou o ataque'):'';
