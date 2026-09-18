@@ -2,10 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {conectarAtaques,HEALTH_PATH} from '../js/nova-ataques.js';
 import {iniciarIniciativa} from '../js/nova-turnos.js';
+import {resolverSocorros,resolverPsi} from '../js/nova-suporte.js';
 import {defesasRestantes,acaoIniciativa,moverNoTurno,ataqueSuperaDefesa,removerMortos} from '../js/nova-turnos.js';
 const MAP='combatesAtivos/mapaMesaSyncDireta',POS=MAP+'/posicoes',CMD=MAP+'/acoes';
 const copy=v=>v===undefined?null:structuredClone(v);
-function fixture({defense=false,area=false}={}){
+function fixture({defense=false,area=false,support=false}={}){
  const rows=[{id:'a',nome:'Jogador',donoUid:'player',x:1,y:1,initiative:20,actions:2},{id:'b',nome:'NPC',donoUid:'',x:2.4,y:1,initiative:0,actions:2}];
  const store=new Map([[MAP,{mapId:'map',combat:iniciarIniciativa(rows,'session',()=>1)}],...rows.map(t=>[POS+'/'+t.id,t])]);
  const listeners=new Set();let lock=Promise.resolve();
@@ -20,11 +21,25 @@ function fixture({defense=false,area=false}={}){
   if(area)resolve.area={range:15,angle:60,centralPenalty:20};return resolve;
  };
  const options={database,tokens:()=>[...store.entries()].filter(([key])=>key.startsWith(POS+'/')).map(([key,t])=>({...t,id:key.split('/').pop()})),prepare,onError:e=>errors.push(e)};
+ if(support){store.set('personagens/a',{inventario:{mochila:[{nome:'Kit médico',usosRestantes:5}]}});options.prepareSupport=async()=>({sheetPath:'personagens/a',resolve:args=>{
+  const info={firstAid:{value:100},health:{hit:{Peito:7},hitMax:{Peito:7}},targetHealth:{hit:{Peito:-2},hitMax:{Peito:7},inconsciente:true},kits:[{comp:'mochila',index:0,uses:args.sheet.inventario.mochila[0].usosRestantes}],inventory:args.sheet.inventario,powers:[{id:'cura_psi',name:'Cura',value:100,cost:1}],psiMax:10};
+  return args.cmd.kind==='direct-first-aid'?resolverSocorros({...args,info}):resolverPsi({...args,info});}});}
  const master=conectarAtaques({...options,user:()=>({uid:'gm',master:true}),onHealth:h=>healthMaster.push(h)});
  const player=conectarAtaques({...options,user:()=>({uid:'player',master:false}),onHealth:h=>healthPlayer.push(h)});
  const payload=()=>({actorId:'a',targetId:'b',skillId:'skill',weaponId:'bite',turnId:store.get(MAP).combat.turnId,mapId:'map'});
  return {store,emit,listeners,errors,master,player,payload,healthMaster,healthPlayer,resolutions:()=>resolutions,close(){master.close();player.close();}};
 }
+
+test('suporte entre mestre/jogador persiste etapa e kit, rejeita impostor e só cura na rodada seguinte',async()=>{
+ const f=fixture({support:true});try{
+  const payload={kind:'direct-first-aid',actorId:'a',targetId:'b',operation:'start',turnId:f.store.get(MAP).combat.turnId,useKit:true};
+  await assert.rejects(f.player.support({...payload,actorId:'b'}),/controla/);
+  await f.player.support(payload);assert.equal(f.store.get('personagens/a').inventario.mochila[0].usosRestantes,4);assert.equal(f.store.get(HEALTH_PATH).actors.a.treatment.local,'Peito');assert.equal(f.store.get(HEALTH_PATH).actors.b.combateLab.hit.Peito,-2);
+  const command=[...f.store.keys()].filter(p=>p.startsWith(CMD+'/')).at(-1);f.emit(command);await new Promise(r=>setTimeout(r,5));assert.equal(f.store.get('personagens/a').inventario.mochila[0].usosRestantes,4);
+  let map=f.store.get(MAP);while(map.combat.round===1)map.combat=acaoIniciativa(map.combat,'spend',map.combat.turnId);f.store.set(MAP,map);
+  await f.player.support({...payload,operation:'finish',turnId:map.combat.turnId});assert.equal(f.store.get(HEALTH_PATH).actors.a.treatment,null);assert.equal(f.store.get(HEALTH_PATH).actors.b.combateLab.inconsciente,false);assert.ok(f.store.get(HEALTH_PATH).actors.b.combateLab.hit.Peito>-2);
+ }finally{f.close();}
+});
 test('ataque do jogador resolvido uma vez pelo mestre, com dano e gasto atômicos',async()=>{
  const f=fixture();try{
   assert.equal(await f.player.attack(f.payload()),'3 de dano');

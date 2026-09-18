@@ -5645,6 +5645,7 @@ function labCustoMovimento_(t,dist){
 }
 
 function labCharToken_(t){
+    if(t?.__novaFicha)return t.charLab||null;
     if(!t||String(t.id).startsWith('dummy:'))return null;
     const vivo=batalhaCharLocal_(t.id);
     if(vivo){
@@ -36451,8 +36452,9 @@ function labInstalarAcoesConfirmadas_(){
 labInstalarAcoesConfirmadas_();
 
 // Aba paralela: controlador independente e adaptador Firestore.
-import {mountDirectPositionLab} from './nova-direta.js?v=20260918';
-import {tocarEfeito} from './nova-fx.js?v=20260918';
+import {mountDirectPositionLab} from './nova-direta.js?v=40';
+import {tocarEfeito} from './nova-fx.js?v=40';
+import {resolverSocorros,resolverPsi,ocupado,teste as novaTesteSuporte_,sorteio as novaSorteioSuporte_} from './nova-suporte.js?v=40';
 import {ataqueSuperaDefesa,defesasRestantes} from './nova-turnos.js?v=36';
 async function novaFicha_(t){
  const legacy=(labEstado_?.tokens||[]).find(x=>String(x.id)===String(t.id));
@@ -36480,10 +36482,12 @@ function novaEquipamentos_(c,per){
  return list.sort((a,b)=>(a.graus||0)-(b.graus||0)||a.rotulo.localeCompare(b.rotulo,'pt-BR'));
 }
 function novaValorPericia_(c,t,per,penalty=0){
- const raw=obterValorRegistroPericia_(c,per.id,!!per.__especializacao),arm=valorPericiaComArmadura_(c,per,raw);
+ const raw=Math.min(100,obterValorRegistroPericia_(c,per.id,!!per.__especializacao)),arm=valorPericiaComArmadura_(c,per,raw);
  const escudoEquipado=(obterItensEquipados_(c)||[]).some(item=>/escudo|shield/i.test(getNome(item)));
- const extra=Math.max(batalhaPenalidadeFerimento_(c,per),labPenalidadeFerimentoLab22_(t,per))+batalhaPenalidadeCaido_(c)+batalhaPenalidadeInfeccao_(c)+penalty+(escudoEquipado?5:0);
- return Math.min(100,Math.max(0,Number(aplicarDificuldadeEFadiga_(c,arm.valor,'padrao',extra).valor||0)));
+ const extra=Math.max(batalhaPenalidadeFerimento_(c,per),labPenalidadeFerimentoLab22_(t,per))+batalhaPenalidadeCaido_(c)+batalhaPenalidadeInfeccao_(c)+penalty;
+ const effects=Object.values(t.psiEffects||{}).filter(e=>e.untilRound>(t.supportRound||0)),debuff=effects.reduce((s,e)=>s+Number(e.penalty||0),0);
+ const agile=t.psiEffects?.agilidade_psi,bonus=agile?.untilRound>(t.supportRound||0)&&/atlet|acrob|desarmad/i.test(per.id+' '+getNome(per))?Number(agile.bonus||0):0;
+ return Math.min(100,Math.max(0,Number(aplicarDificuldadeEFadiga_(c,arm.valor,'padrao',extra).valor||0)-(escudoEquipado?5:0)-debuff+bonus+Number(t.psiIntuition||0)));
 }
 async function novaPrepararAtaque_(a,b,command){
  const [ca,cb]=await Promise.all([novaFicha_(a),novaFicha_(b)]);
@@ -36496,6 +36500,7 @@ async function novaPrepararAtaque_(a,b,command){
  const resolve=(a,b,health,map,decision={phase:'resolve',choice:'none'})=>{
   const actor={...a,...structuredClone(health[a.id]||{}),charLab:structuredClone(ca),diametroM:/besta\s+ululante/i.test(a.nome)?2.4:1,acoesAtuaisLab:3};
   const target={...b,...structuredClone(health[b.id]||{}),charLab:structuredClone(cb),diametroM:/besta\s+ululante/i.test(b.nome)?2.4:1,acoesAtuaisLab:3};
+  actor.supportRound=target.supportRound=map.combat?.round||0;
   for(const t of [actor,target]){t.x*=Number(map.larguraM||28)/28;t.y*=Number(map.alturaM||14)/14;}
   const state={...labEstado_,tokens:[actor,target],objetosLab:[],log:[]};
   const originalRandom=Math.random;let randomState=seed;
@@ -36503,12 +36508,14 @@ async function novaPrepararAtaque_(a,b,command){
   try{return labComContextoLocal_(state,false,()=>{
    const healthA=labGarantirSnapshotCombate_(actor),healthB=labGarantirSnapshotCombate_(target),item=structuredClone(chosen.item);
    if(healthA.morto||healthA.inconsciente||healthA.incapacitado)throw Error('Este personagem não pode atacar neste estado.');
+   if(ocupado(actor,map.combat))throw Error('Este turno está dedicado a Primeiros Socorros. Apenas defesas são permitidas.');
+   if((healthA.caido||healthA.derrubado)&&!labAtaqueEhDistancia_(item))throw Error('Gaste uma ação para levantar antes de atacar corpo a corpo.');
    if(healthB.morto)throw Error('O alvo já está morto.');
  const distance=Math.max(0,labDistanciaEntre_(actor,target)-(actor.diametroM+target.diametroM)/2),range=labAlcanceAtaque_(actor,item);
  if(!labAtaqueEhDistancia_(item)&&distance>range+.001)throw Error(`Fora de alcance: ${distance.toFixed(2)} m (alcance ${range.toFixed(2)} m).`);
    if(distance>range+.001)throw Error('Fora de alcance: '+distance.toFixed(1)+' m; alcance '+range.toFixed(1)+' m.');
    if(labEhArmaMuniciada_(item)&&labMunicaoAtual_(actor,item)<=0)throw Error('Arma sem munição.');
-   const value=novaValorPericia_(ca,actor,per,chosen.graus||0),die=1+Math.floor(Math.random()*100),grade=classificarD100_(value,die);
+   const value=Math.max(0,novaValorPericia_(ca,actor,per,chosen.graus||0)-((healthA.caido||healthA.derrubado)?30:0)),die=1+Math.floor(Math.random()*100),grade=classificarD100_(value,die);
    // O ataque em área compartilha o acerto, mas cada vítima rola sua própria defesa e dano.
    if(cone)for(const char of String(b.id))randomState=(Math.imul(randomState^char.charCodeAt(0),16777619))>>>0;
    const facing=Number.isFinite(b.facing)?b.facing:0;
@@ -36544,6 +36551,8 @@ async function novaPrepararAtaque_(a,b,command){
     const attackSkill=(batalhaListaPericias_(cb)||[]).filter(p=>periciaCriaturaPodeAtacar_(cb,p)).sort((p,q)=>novaValorPericia_(cb,target,q)-novaValorPericia_(cb,target,p))[0];
     if(tail&&attackSkill&&!tail.inutilizavel&&tail.pvAtual!==0&&distance<=labAlcanceAtaque_(target,tail))options.push({id:'natural:aparar-cauda',nome:'Aparar com cauda',valor:Math.max(0,novaValorPericia_(cb,target,attackSkill)-20)});
    }
+   if(healthB.caido||healthB.derrubado)options.length=0;
+   if(ocupado(target,map.combat))for(const option of options){option.valor=Math.max(0,option.valor-20);option.nome+=' (socorros −20)';}
    if(decision.phase==='preview'&&grade.sucesso&&options.length)return {pending:{options,ranged:!!cone||labAtaqueEhDistancia_(item),cone:!!cone,fromBack,remaining:defesasRestantes(map.combat,b.id)}};
    let defense=null;
    if(decision.choice&&decision.choice!=='none'){
@@ -36560,11 +36569,12 @@ async function novaPrepararAtaque_(a,b,command){
     if(!eco){
      const expr=labExpressaoDano_(actor,item),rolled=grade.grau==='Crítico'?maximizarExpressaoDanoCombate_(expr):rolarExpressaoDanoCombate_(expr);
      if(!rolled)throw Error('Dano inválido no cadastro da arma: '+expr);
-     damage=labAplicarDanoLocal_(target,rolled.total,item,{grauAtaque:grade.grau,rolagemAtaque:die,valorAtaque:value});
+     const absorbed=Math.min(Number(target.psiAbsorption||0),rolled.total);target.psiAbsorption=Math.max(0,Number(target.psiAbsorption||0)-absorbed);
+     damage=labAplicarDanoLocal_(target,rolled.total-absorbed,item,{grauAtaque:grade.grau,rolagemAtaque:die,valorAtaque:value});
     }else{
      target.combateLab=target.combateLab||{};target.combateLab.caido=true;
      const resistencia=labRolarResistenciaFerimento22_(target,{valorAtaque:value,grauAtaque:grade.grau,rolagemAtaque:die});
-     if(!resistencia.passou)target.combateLab.inconscienteAteTurno=Math.max(Number(target.combateLab.inconscienteAteTurno||0),1+Math.floor(Math.random()*4));
+     if(!resistencia.passou){target.combateLab.inconsciente=true;target.combateLab.unconsciousUntilRound=(map.combat?.round||0)+1+Math.floor(Math.random()*4);}
      damage={local:'Área',bruto:0,paEf:0,final:0,resistencia};
     }
     const props=String(item.propriedades||item.propriedadesAtaque||'').toLocaleLowerCase('pt-BR');
@@ -36584,7 +36594,7 @@ async function novaPrepararAtaque_(a,b,command){
    const rearText=fromBack?`Ataque pelas costas${evasionActive?' · Evasão permite Esquiva':' · Aparar indisponível · Esquiva -20'}`:'';
    const specialText=especiais.length?'Efeito especial: '+especiais.join(', '):'';
    const message=[attackText,defenseText,rearText,specialText,damageText,resistanceText,consequences].filter(Boolean).join(' · ');
-   return JSON.parse(JSON.stringify({defenseSpent:!!defense,actors:{[a.id]:{combateLab:actor.combateLab,municaoLab:actor.municaoLab||{}},[b.id]:{combateLab:target.combateLab,municaoLab:target.municaoLab||{}}},facing:actorAttackFacing,event:{message,attackerMessage:[attackText,hit?'Atingiu o alvo':'Não atingiu',rearText,specialText,damageText].filter(Boolean).join(' · '),defenderMessage:[attackText,defenseText,rearText,specialText,damageText,resistanceText,consequences].filter(Boolean).join(' · '),specialEffects:especiais,damage:damage?.final||0,grade:grade.grau,hit,fromBack,defense,resistances,item:{nome:getNome(item),categoria:item.categoria||'',familia:item.familia||'',tipo:item.tipo||''}}}));
+   return JSON.parse(JSON.stringify({defenseSpent:!!defense,actors:{[a.id]:{psiIntuition:0,combateLab:actor.combateLab,municaoLab:actor.municaoLab||{}},[b.id]:{psiAbsorption:target.psiAbsorption||0,combateLab:target.combateLab,municaoLab:target.municaoLab||{}}},facing:actorAttackFacing,event:{message,attackerMessage:[attackText,hit?'Atingiu o alvo':'Não atingiu',rearText,specialText,damageText].filter(Boolean).join(' · '),defenderMessage:[attackText,defenseText,rearText,specialText,damageText,resistanceText,consequences].filter(Boolean).join(' · '),specialEffects:especiais,damage:damage?.final||0,grade:grade.grau,hit,fromBack,defense,resistances,item:{nome:getNome(item),categoria:item.categoria||'',familia:item.familia||'',tipo:item.tipo||''}}}));
   });}finally{Math.random=originalRandom;}
  };
  resolve.area=cone;
@@ -36596,8 +36606,52 @@ async function novaDadosAcoes_(t){
   id:batalhaTokenPericia_(per),nome:getNome(per),valor:novaValorPericia_(c,snapshot,per),attack:periciaCriaturaPodeAtacar_(c,per),descricao:getDescricao(per)||'',
   weapons:novaEquipamentos_(c,per).map(w=>({id:w.valor,nome:w.rotulo,penalty:w.graus||0,valor:novaValorPericia_(c,snapshot,per,w.graus||0),descricao:getDescricao(w.item)||'',dano:w.item?.dano||'',ammunition:labEhArmaMuniciada_(w.item)?{key:labChaveArma_(w.item),capacity:labCapacidadeArma_(w.item)}:null}))
  })).sort((a,b)=>b.valor-a.valor||a.nome.localeCompare(b.nome,'pt-BR'));
- return {skills,pvHtml:labResumoPVHtml_(snapshot,'SEUS PV'),health:labGarantirSnapshotCombate_(snapshot)};
+ const support=novaInfoSuporte_(c,t);
+ return {skills,pvHtml:labResumoPVHtml_(snapshot,'SEUS PV'),health:labGarantirSnapshotCombate_(snapshot),support};
 }
+function novaInfoSuporte_(c,t){
+ const snap={...t,__novaFicha:true,charLab:structuredClone(c)},inventory=structuredClone(normalizarInventario_(c)),kits=[];
+ for(const comp of ['equipado','bolso','mochila'])for(const [index,item]of (inventory[comp]||[]).entries()){
+  if(!item)continue;
+  if(/kit.*(?:medic|médic|socorro)|first.?aid|medical kit/i.test(String(item.idBanco||'')+' '+getNome(item))){
+   const uses=Math.max(0,Number(t.kitUses?.[comp+':'+index]??item.usosRestantes??item.usos??item.cargas??5));kits.push({comp,index,uses,name:getNome(item)});
+  }
+ }
+ const per=labPrimeirosSocorrosPericia_(snap),powers=labPsiPoderes_(snap).map(p=>({id:p.id,name:getNome(p),description:p.observacao||getDescricao(p)||'',cost:Math.max(0,Number(p.custo)||0),range:Number(p.alcanceMetros)||20,value:Math.min(100,labPsiValor_(snap,p))}));
+ return {firstAid:per?{value:novaValorPericia_(c,snap,per)}:null,health:labGarantirSnapshotCombate_(snap),inventory,kits,powers,psiMax:labPsiMax_(snap),psiSpent:Number(c.pontosMagiaGastos)||0};
+}
+async function novaPrepararSuporte_(a,b,tokens){
+ const chars=new Map(await Promise.all(tokens.map(async t=>[t.id,await novaFicha_(t)])));
+ const ca=chars.get(a.id),cb=chars.get(b.id),source=decodeURIComponent(a.id),sheetPath=source.startsWith('sync')||source.startsWith('dummy:')?null:'personagens/'+source;
+ return {sheetPath,resolve:args=>{
+  const {health,map,cmd}=args,sourceChar=args.sheet||ca,info=novaInfoSuporte_(sourceChar,{...a,...health.actors?.[a.id]}),targetInfo=novaInfoSuporte_(cb,{...b,...health.actors?.[b.id]});
+  info.targetHealth=targetInfo.health;info.healthById={};info.willById={};
+  for(const t of tokens){const c=chars.get(t.id),snap={...t,...structuredClone(health.actors?.[t.id]||{}),charLab:c},per=batalhaPericiaPorNomes_(c,['força de vontade','vontade','willpower']);info.healthById[t.id]=labGarantirSnapshotCombate_(snap);info.willById[t.id]=per?novaValorPericia_(c,snap,per):0;}
+  if(cmd.kind==='direct-psi-review'){
+   const requests=structuredClone(health.psiRequests||[]),request=requests.find(r=>r.id===cmd.requestId&&r.status==='pending');if(!request)throw Error('Solicitação já resolvida.');
+   request.status='resolved';request.answer=String(cmd.text||'').slice(0,2000);return {actors:health.actors,psiRequests:requests,eventActorId:request.actorId,eventTargetId:request.targetId,message:request.powerName+' · resposta do mestre: '+request.answer};
+  }
+  if(cmd.kind==='direct-stand'){
+   const actors=structuredClone(health.actors||{}),s=actors[a.id];if(!s?.combateLab||s.combateLab.inconsciente||ocupado(s,map.combat))throw Error('Não pode levantar neste estado.');s.combateLab.caido=false;s.combateLab.derrubado=false;
+   return {actors,combat:map.combat?.active?novaAcaoSuporte_(map.combat,'spend',map.combat.turnId):map.combat,message:a.nome+' levantou-se (1 Ação).'};
+  }
+  if(cmd.kind==='direct-test'){
+   const actors=structuredClone(health.actors||{}),state=actors[a.id]||={combateLab:info.health};
+   if(ocupado(state,map.combat)||state.combateLab.inconsciente||state.combateLab.morto)throw Error('Não pode testar perícias neste estado.');
+   const per=(batalhaListaPericias_(sourceChar)||[]).find(p=>batalhaTokenPericia_(p)===cmd.skillId);if(!per)throw Error('Perícia não encontrada na ficha.');
+   const value=novaValorPericia_(sourceChar,{...a,...state,supportRound:map.combat?.round||0,charLab:sourceChar,__novaFicha:true},per),r=novaTesteSuporte_(value,novaSorteioSuporte_(args.seed));state.psiIntuition=0;
+   return {actors,combat:map.combat?.active?novaAcaoSuporte_(map.combat,'spend',map.combat.turnId):map.combat,message:a.nome+' · '+getNome(per)+': '+r.die+'/'+r.valor+' → '+r.grau};
+  }
+  const result=cmd.kind==='direct-first-aid'?resolverSocorros({...args,info}):resolverPsi({...args,info});
+  // Um paciente recuperado volta à ordem no próximo turno, sem ações gratuitas agora.
+  const combat=result.combat,patient=result.actors?.[b.id]?.combateLab;
+  if(combat?.active&&patient&&!patient.morto&&!patient.inconsciente&&!combat.order.includes(b.id)&&combat.rolls?.[b.id]){
+   combat.order.push(b.id);combat.order.sort((x,y)=>combat.rolls[y].total-combat.rolls[x].total);combat.initial[b.id]={remaining:obterPAMaxCombate_(cb),passes:0};combat.actors[b.id]={remaining:0,passes:2};
+  }
+  return result;
+ }};
+}
+import {acaoIniciativa as novaAcaoSuporte_} from './nova-turnos.js?v=39';
 const novaSyncController_=mountDirectPositionLab({
  user:()=>currentUserUid?{uid:String(currentUserUid),master:batalhaEhMestre_()}:null,
  characters:()=>labEstado_?.tokens?.length?labEstado_.tokens:(userCharacters||[]),
@@ -36616,6 +36670,7 @@ const novaSyncController_=mountDirectPositionLab({
  },
  loadActions:novaDadosAcoes_,
  prepareAttack:novaPrepararAtaque_,
+ prepareSupport:novaPrepararSuporte_,
  playAttackSound:event=>{if(!tocarEfeito(obterAudioCtx_(),event.item)){labSomAtaque_(event.item,event.grade);if(event.damage>0)labSomDanoAplicado_(event.item);}},
  unlockSound:()=>obterAudioCtx_()?.resume(),
  restoreHealth:async tokens=>Object.fromEntries(await Promise.all(tokens.map(async t=>{const c=await novaFicha_(t),snapshot={...t,charLab:c};return labComContextoLocal_({...labEstado_,tokens:[snapshot]},false,()=>{labRestaurarTokenCompleto490_(snapshot);return [t.id,JSON.parse(JSON.stringify({combateLab:snapshot.combateLab,municaoLab:{}}))];});}))),

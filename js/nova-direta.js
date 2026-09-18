@@ -1,17 +1,19 @@
 // Movimento livre: uma posição por personagem, sem sessão-mestre ou fila de comandos.
-import {saldoMovimento,movimentoMaximo,moverNoTurno,iniciarIniciativa,acaoIniciativa,defesasRestantes} from './nova-turnos.js?v=38';
+import {saldoMovimento,movimentoMaximo,moverNoTurno,iniciarIniciativa,acaoIniciativa,defesasRestantes} from './nova-turnos.js?v=39';
 import {destinoSemColisao,TOKEN_DIAMETER} from './nova-colisao.js?v=25';
-import {criarPainelAcoes} from './nova-painel.js?v=37';
-import {conectarAtaques,HEALTH_PATH,HISTORY_PATH} from './nova-ataques.js?v=20260918';
-import {mostrarAtaque} from './nova-fx.js?v=20260918';
+import {criarPainelAcoes} from './nova-painel.js?v=40';
+import {conectarAtaques,HEALTH_PATH,HISTORY_PATH} from './nova-ataques.js?v=40';
+import {mostrarAtaque} from './nova-fx.js?v=40';
 import {criarEditorMesa} from './nova-editor.js?v=35';
+import {ocupado,atualizarDuracoes} from './nova-suporte.js?v=40';
 export const POSITION_PATH='combatesAtivos/mapaMesaSyncDireta/posicoes';
 export const MAP_PATH='combatesAtivos/mapaMesaSyncDireta';
 export const SCENE_PATH='combatesAtivos/mapaMesaSyncDiretaCena';
-export function mountDirectPositionLab({user,characters,catalog=characters,mapas=()=>[],loadMap=async()=>null,renderMap=()=>'',loadProp=async o=>o,loadActions=async()=>({skills:[]}),prepareAttack=null,restoreHealth=async()=>({}),playAttackSound=()=>{},unlockSound=()=>{},rollTest=()=>({die:0,grau:'Indisponível'}),loadCombatants=async()=>{throw new Error('Não foi possível carregar as fichas');},database,root=document}) {
+export function mountDirectPositionLab({user,characters,catalog=characters,mapas=()=>[],loadMap=async()=>null,renderMap=()=>'',loadProp=async o=>o,loadActions=async()=>({skills:[]}),prepareAttack=null,prepareSupport=null,restoreHealth=async()=>({}),playAttackSound=()=>{},unlockSound=()=>{},rollTest=()=>({die:0,grau:'Indisponível'}),loadCombatants=async()=>{throw new Error('Não foi possível carregar as fichas');},database,root=document}) {
  const el=id=>root.getElementById(id), displayName=t=>String(t?.nome||'').replace(/^(NPC|Monstro|PJ|PM|Objeto|Item)\s*[·:-]\s*/i,''), tokens=new Map(), previews=new Map(), queues=new Map();
  let stop=null,stopMap=null,stopHistory=null,account='',error='',generation=0,mapPacket=null,mapData=null,renderedMap=null,mapRequest=0;
  let changingTurn=false,lastSelectedTurn='',defending=false;
+ let durationSync=false;
  let held=null,turning=null,frame=0,placing=false,placementChoice='';
  let catalogKey='',catalogLimit=48,sceneRef=null,sceneMapId=null;
  const quickChoices=new Map();
@@ -29,6 +31,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   return availableActors().get(value);
  };
  const masterMode=()=>!!user()?.master&&!mapPacket?.combat?.active&&el('novaSyncPersonagem')?.value==='__mestre__';
+ const movimentoPsi=t=>health.actors?.[t?.id]?.psiEffects?.aceleracao?.untilRound>(mapPacket?.combat?.round||0)?{...t,movementMax:30}:t;
  function drawCatalog(){
   const select=el('novaSyncMestrePersonagem');if(!select)return;
   const details=el('novaSyncCatalog');if(details)details.hidden=!user()?.master;
@@ -75,11 +78,15 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
  },spend:async(id,turn)=>{
   if(mapPacket?.combat?.activeId!==id||mapPacket.combat.turnId!==turn)return false;
   return changeTurn('spend');
- },firstAid:async payload=>{
+ },support:async payload=>{
   if(!attacks)throw Error('Sessão de combate indisponível.');
-  return attacks.firstAid({...payload});
+  if(!controlled(tokens.get(payload.actorId)))throw Error('Você não controla este personagem.');
+  return attacks.support(payload);
  }});
  function status(){
+  if(user()?.master&&mapPacket?.combat?.active&&!durationSync&&health.supportRound!==mapPacket.combat.roundId){
+   durationSync=true;database.transact(async tx=>{const map=await tx.get(MAP_PATH),h=await tx.get(HEALTH_PATH);if(!map?.combat?.active||!h||h.supportRound===map.combat.roundId)return;atualizarDuracoes(h.actors,map.combat);h.supportRound=map.combat.roundId;h.revision=(h.revision||0)+1;tx.set(HEALTH_PATH,h);tx.set(MAP_PATH,map);}).catch(fail).finally(()=>{durationSync=false;});
+  }
   el('novaSyncStatus').textContent=(queues.size?'Mesa 36 · salvando posição…':error)||`Mesa 36 · ${tokens.size} personagem(ns) · 48 px/m`;
   if(held)el('novaSyncStatus').textContent='Solte o botão do mouse para parar · 3 m/s';
   else if(placementChoice)el('novaSyncStatus').textContent='Clique no mapa para colocar o personagem escolhido.';
@@ -97,12 +104,12 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   if(alert){alert.hidden=!error;alert.textContent=error;}
   const c=mapPacket?.combat,t=tokens.get(c?.activeId),panel=el('novaSyncTurno');
   if(panel)panel.textContent=c?.active?(c.schema===2?
-   `Turno ${c.round} · Vez de ${t?.nome||'personagem'} · Ações: ${c.actors[c.activeId].remaining} / ${c.initial[c.activeId].remaining} · Passagens: ${c.actors[c.activeId].passes} / 2 · Movimento: ${saldoMovimento(previews.get(c.activeId)||t,c).toFixed(2)} / ${movimentoMaximo(previews.get(c.activeId)||t)} m`:
+   `Turno ${c.round} · Vez de ${t?.nome||'personagem'} · Ações: ${c.actors[c.activeId].remaining} / ${c.initial[c.activeId].remaining} · Passagens: ${c.actors[c.activeId].passes} / 2 · Movimento: ${saldoMovimento(movimentoPsi(previews.get(c.activeId)||t),c).toFixed(2)} / ${movimentoMaximo(movimentoPsi(previews.get(c.activeId)||t))} m`:
    'Combate da versão anterior: encerre e inicie novamente para rolar a iniciativa.'):'Fora de combate · movimento livre. Ao iniciar, a iniciativa será rolada uma vez para cada personagem.';
   if(panel&&!user()?.master){
    const ownTurn=c?.active&&t?.donoUid===user()?.uid;
    panel.textContent=c?.active?(ownTurn?
-    `Turno ${c.round} · Sua vez, ${displayName(t)} · Ações: ${c.actors?.[t.id]?.remaining??0} · Movimento: ${saldoMovimento(previews.get(t.id)||t,c).toFixed(2)} / ${movimentoMaximo(previews.get(t.id)||t)} m`:
+    `Turno ${c.round} · Sua vez, ${displayName(t)} · Ações: ${c.actors?.[t.id]?.remaining??0} · Movimento: ${saldoMovimento(movimentoPsi(previews.get(t.id)||t),c).toFixed(2)} / ${movimentoMaximo(movimentoPsi(previews.get(t.id)||t))} m`:
     `Turno de combate iniciado · Turno ${c.round} · Vez de ${displayName(t)||'outro personagem'}. Aguarde sua vez.`):'Modo explorador · movimento livre.';
    panel.dataset.ownTurn=String(!!ownTurn);
   }
@@ -123,7 +130,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   for(const button of el('novaSyncBoard').querySelectorAll('[data-map-action]'))button.disabled=!c?.active||c.activeId!==selected?.id||!controlled(selected)||attacking||!!queues.size||changingTurn||!!c?.pendingAttack;
   const event=health.event,eventVisible=event&&(user()?.master||event.actorUid===user()?.uid||event.targetUid===user()?.uid);
   const ownEvent=eventVisible?{...event,message:user()?.master?event.message:event.targetUid===user()?.uid?(event.defenderMessage||event.message):(event.attackerMessage||event.message)}:null;
-  updateActions(selected?{...selected,nome:displayName(selected)}:null,c,controlled(selected)&&tokens.has(selected?.id)&&(!c?.active||c.activeId===selected?.id)&&!queues.size&&!changingTurn&&!attacking&&!managing&&!editor.busy&&!c?.pendingAttack,{tokens:[...tokens.values()],health:health.actors?.[selected?.id],revision:health.revision,event:ownEvent,targetId:selectedTarget,masterMode:masterMode(),defenses:c?.active?defesasRestantes(c,selected?.id):null});
+  updateActions(selected?{...selected,nome:displayName(selected)}:null,c,controlled(selected)&&tokens.has(selected?.id)&&(!c?.active||c.activeId===selected?.id)&&!queues.size&&!changingTurn&&!attacking&&!managing&&!editor.busy&&!c?.pendingAttack,{allHealth:health.actors,psiRequests:health.psiRequests,isMaster:!!user()?.master,objects:sceneData?.objects||[],tokens:[...tokens.values()],health:health.actors?.[selected?.id],revision:health.revision,event:ownEvent,targetId:selectedTarget,masterMode:masterMode(),defenses:c?.active?defesasRestantes(c,selected?.id):null});
  }
  function drawMap(){
   const board=el('novaSyncBoard'),select=el('novaSyncMapa'); if(!board||!select)return;
@@ -239,6 +246,12 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
  }
  function drawScene(){
   const board=el('novaSyncBoard'),scene=sceneData;
+  board.querySelectorAll('[data-psi-zone]').forEach(n=>n.remove());
+  for(const z of scene?.psiZones||[]){
+   if(mapPacket?.combat?.active&&z.untilRound<=mapPacket.combat.round)continue;
+   const n=root.createElement('div');n.dataset.psiZone=z.id;n.textContent=z.label||z.kind;
+   n.style.cssText=`position:absolute;pointer-events:none;border:2px solid #bb83ff;border-radius:50%;background:#8a4fff33;color:white;transform:translate(-50%,-50%);z-index:3;left:${z.x/28*100}%;top:${z.y/14*100}%;width:${z.radius*2/(mapPacket?.larguraM||28)*100}%;height:${z.radius*2/(mapPacket?.alturaM||14)*100}%;`;board.append(n);
+  }
   if(sceneRef===scene&&sceneMapId===mapPacket?.mapId)return;sceneRef=scene;sceneMapId=mapPacket?.mapId;
   for(const node of board.querySelectorAll('[data-scene-object]'))node.remove();
   if(scene?.mapId!==(mapPacket?.mapId||''))return;
@@ -314,9 +327,9 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
    }catch(e){if(g===generation)fail(e);}
   },fail);
   stopHistory=database.subscribeDoc(HISTORY_PATH,value=>{if(g!==generation)return;history=value||{entries:[]};drawHistory();},fail);
-  if(prepareAttack)attacks=conectarAtaques({database,user,tokens:()=>[...tokens.values()],prepare:prepareAttack,onError:fail,onHealth:value=>{
+  if(prepareAttack)attacks=conectarAtaques({database,user,tokens:()=>[...tokens.values()],prepare:prepareAttack,prepareSupport,onError:fail,onHealth:value=>{
    if(g!==generation)return;health=value;draw();const event=value.event;
-   if(event&&event.id!==lastEffect){lastEffect=event.id;if(Date.now()-event.ts<5000){mostrarAtaque(board,event);try{playAttackSound(event);}catch(_){}}}
+   if(event&&event.id!==lastEffect){lastEffect=event.id;if(Date.now()-event.ts<5000&&event.source&&event.target){mostrarAtaque(board,event);try{playAttackSound(event);}catch(_){}}}
   }});
   draw();
  }
@@ -352,15 +365,19 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
     const result=await database.transact(async tx=>{
      const state=await tx.get(MAP_PATH);
      const path=POSITION_PATH+'/'+id,t=await tx.get(path);
+     const hp=await tx.get(HEALTH_PATH);
+     if(ocupado(hp?.actors?.[id],state?.combat))throw Error('Primeiros Socorros impede movimento neste turno.');
      if(!t)throw new Error('Personagem não encontrado');
      const others=await Promise.all([...tokens.keys()].filter(key=>key!==id).map(async key=>{const value=await tx.get(POSITION_PATH+'/'+key);return value?{...value,id:key}:null;}));
-     let moved={...t,id},blocked=false;
+     const acceleration=hp?.actors?.[id]?.psiEffects?.aceleracao;
+     let moved={...t,id,...(acceleration?.untilRound>(state?.combat?.round||0)?{movementMax:30}:{})},blocked=false;
      for(const next of pathPoints){
       const destination=destinoSemColisao(moved,next,others.filter(Boolean),state);
       moved=moverNoTurno(moved,destination,state,expectedTurn);
       if(Math.hypot(moved.x-next.x,moved.y-next.y)>.001){blocked=true;break;}
      }
      const {id:ignored,...value}=moved;
+     if(acceleration?.untilRound>(state?.combat?.round||0)){if(t.movementMax===undefined)delete value.movementMax;else value.movementMax=t.movementMax;}
      if(Number.isFinite(q.facing))value.facing=q.facing;
      value.revision=t.revision+1;tx.set(path,value);return {value,blocked};
     });
@@ -395,7 +412,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
    if(distance>0){
     const ratio=Math.min(1,(h.shift?1.5:3)*dt/distance);
     const dest=destinoSemColisao(t,{x:t.x+(h.target.x-t.x)*ratio,y:t.y+(h.target.y-t.y)*ratio},[...tokens.values()].map(t=>previews.get(t.id)||t),mapPacket);
-    const p=moverNoTurno(t,dest,mapPacket,h.turn);
+    const p=moverNoTurno(movimentoPsi(t),dest,mapPacket,h.turn);
     if(p.x!==t.x||p.y!==t.y){
      if(!h.shift){const dx=(p.x-t.x)*w/28,dy=(p.y-t.y)*height/14;if(Math.hypot(dx,dy)>.001)h.facing=Math.atan2(dy,dx);p.facing=h.facing;}
      previews.set(h.id,p);draw();
@@ -433,6 +450,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   const id=selectedActor()?.id, t=id?tokens.get(id):null;
   if(!t||!controlled(t))return;
   const state=health.actors?.[id]?.combateLab;
+  if(ocupado(health.actors?.[id],mapPacket?.combat)){error='Primeiros Socorros impede movimento e outras ações neste turno.';status();return;}
   if(mapPacket?.combat?.active&&(state?.morto||state?.inconsciente||state?.incapacitado)){error='Este personagem está inconsciente ou incapacitado e não pode se mover.';status();return;}
   e.preventDefault();
   try{
@@ -519,7 +537,8 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
    await database.transact(async tx=>{
     if(g!==generation)throw new Error('A sessão mudou');
     const state=await tx.get(MAP_PATH)||{},c=state.combat;
-    const healthState=['start','end'].includes(action)?await tx.get(HEALTH_PATH):null;
+    const healthState=await tx.get(HEALTH_PATH);
+    if(action==='spend'&&ocupado(healthState?.actors?.[c?.activeId],c))throw Error('Este turno está dedicado a Primeiros Socorros.');
     if((c?.turnId||null)!==expected)throw new Error('O turno mudou. Confira a tela antes de avançar.');
     let combat;
     if(action==='start'){
@@ -531,6 +550,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
      combat=action==='end'?{...c,active:false,pendingAttack:null,turnId:crypto.randomUUID()}:acaoIniciativa(c,action,expected);
     }
     tx.set(MAP_PATH,{...state,combat});
+    if(user()?.master&&healthState&&!['start','end'].includes(action)){atualizarDuracoes(healthState.actors,combat);tx.set(HEALTH_PATH,{...healthState,revision:(healthState.revision||0)+1});}
     if(action==='start')tx.set(HISTORY_PATH,{entries:[...((started.order||[]).map(id=>({actorUid:tokens.get(id)?.donoUid||'',ts:Date.now(),message:`Iniciativa: ${tokens.get(id)?.nome||id} · ${started.rolls[id].die} + ${started.rolls[id].initiative} = ${started.rolls[id].total}`})))],revision:Date.now()});
     if(action==='end')tx.set(HISTORY_PATH,{entries:[],revision:Date.now()});
     if(['start','end'].includes(action))tx.set(HEALTH_PATH,{...(healthState||{actors:{}}),pending:null,revision:(healthState?.revision||0)+1});

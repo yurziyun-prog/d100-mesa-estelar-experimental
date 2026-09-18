@@ -87,5 +87,6 @@ export function removerMortos(combat,health){
  const initial=filter(combat.initial);
  let actors=filter(combat.actors);
  if(!queue.length&&order.length){queue=[...order];round++;actors=structuredClone(initial);}
- return {...combat,order,queue,initial,actors,active:!!order.length,activeId:queue[0]||null,round,roundId:combat.session+':'+round};
+ const suspended={...combat.suspended};for(const id of combat.order)if(!order.includes(id))suspended[id]=combat.initial[id];
+ return {...combat,order,queue,initial,actors,suspended,active:!!order.length,activeId:queue[0]||null,round,roundId:combat.session+':'+round};
 }

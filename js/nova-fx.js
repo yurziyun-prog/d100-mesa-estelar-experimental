@@ -1,5 +1,6 @@
 export function tipoEfeito(item){
  const n=String(item?.nome||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+ if(/psiquic|psychic/.test(n))return 'psychic';
  for(const [kind,re]of [['sonic',/eco.*matilha|cone.*son|trombeta/],['bite',/mordida|bite/],['stomp',/patada|pisot|stomp/],['tail',/cauda|calda|rabo|tail/],['phaser',/faser|phaser/],['saber',/espada|sabre|saber/],['laser',/laser/],['blaster',/blaster/]])if(re.test(n))return kind;
  return 'impact';
 }
@@ -11,7 +12,10 @@ export function mostrarAtaque(board,event){
  const type=tipoEfeito(event.item),a=event.source,b=event.target,x=b.x*10,y=b.y*10;
  const color={phaser:'#c56cff',laser:'#ff4545',blaster:'#ffd447',sonic:'#80dfff',bite:'#f2e6d0',stomp:'#c9a276',tail:'#c9ddb0',saber:'#64eaff',impact:'#ddd'}[type];
  const add=(tag,attrs)=>{const n=doc.createElementNS(ns,tag);for(const [k,v]of Object.entries(attrs))n.setAttribute(k,v);svg.append(n);return n;};
- if(type==='sonic'&&event.area){
+ if(type==='psychic'){
+  for(const r of [3,6,9])add('circle',{cx:x,cy:y,r,fill:'none',stroke:'#dca8ff','stroke-width':'.8'});
+  add('path',{d:`M ${a.x*10} ${a.y*10} Q ${(a.x*10+x)/2} ${(a.y*10+y)/2-6} ${x} ${y}`,fill:'none',stroke:'#dca8ff','stroke-width':'.8'});
+ }else if(type==='sonic'&&event.area){
   const c=event.area,w=c.width||28,h=c.height||14,ax=c.source.x*w/28,ay=c.source.y*h/14;
   const heading=Math.atan2((c.aim.y-c.source.y)*h/14,(c.aim.x-c.source.x)*w/28),half=c.angle*Math.PI/360;
   const arc=f=>Array.from({length:25},(_,i)=>{const angle=heading-half+2*half*i/24;return `${(ax+Math.cos(angle)*c.range*f)*280/w},${(ay+Math.sin(angle)*c.range*f)*140/h}`;}).join(' ');
@@ -34,7 +38,7 @@ export function mostrarAtaque(board,event){
 }
 export function tocarEfeito(context,item){
  if(!context)return false;
- const type=tipoEfeito(item);if(!['sonic','bite','stomp','tail','phaser'].includes(type))return false;
+ const type=tipoEfeito(item);if(!['sonic','bite','stomp','tail','phaser','psychic'].includes(type))return false;
  const now=context.currentTime;
  const tone=(frequency,end,duration,volume,wave='sine',delay=0)=>{
   const osc=context.createOscillator(),gain=context.createGain(),start=now+delay;
@@ -52,5 +56,6 @@ export function tocarEfeito(context,item){
  if(type==='stomp'){tone(95,28,.32,.16);noise(.35,400,.22);}
  if(type==='tail'){noise(.2,1500,.13);tone(140,45,.14,.06);}
  if(type==='phaser'){tone(1650,310,.28,.07,'sawtooth');tone(1720,330,.25,.035,'triangle');noise(.1,3200,.025);}
+ if(type==='psychic'){tone(440,660,.5,.04);tone(660,880,.5,.025,'sine',.04);}
  return true;
 }

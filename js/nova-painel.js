@@ -1,4 +1,6 @@
-export function criarPainelAcoes({root,load,spend,roll,attack,firstAid,unlock=()=>{}}){
+import {painelSuporte} from './nova-suporte-painel.js?v=40';
+import {ocupado} from './nova-suporte.js?v=40';
+export function criarPainelAcoes({root,load,spend,roll,attack,support,unlock=()=>{}}){
  const host=root.getElementById('novaSyncActionPanel'),passButton=root.getElementById('novaSyncNext');
  const cache=new Map(),preferences=new Map(),results=new Map();
  let current=null,combat=null,allowed=false,busy=false,request=0,shown='',sheet=null,view={};
@@ -8,6 +10,7 @@ export function criarPainelAcoes({root,load,spend,roll,attack,firstAid,unlock=()
  const selection=()=>{const pref=preference(),skill=sheet?.skills.find(entry=>entry.id===pref.skill);return {pref,skill,weapon:skill?.weapons.find(entry=>entry.id===pref.weapon)};};
  async function execute(targetId=view.targetId){
   if(busy||!allowed||!current||!sheet)return;
+  if(ocupado(view.health,combat)){results.set(current.id,{text:'Seu turno está dedicado a Primeiros Socorros. Use os controles de atendimento abaixo.',at:Date.now()});render();return;}
   const actor=current,{skill,weapon}=selection(),turn=combat?.active?combat.turnId:null;
   if(!skill)return;
   const target=(view.tokens||[]).find(token=>token.id===targetId&&token.id!==actor.id);
@@ -15,13 +18,13 @@ export function criarPainelAcoes({root,load,spend,roll,attack,firstAid,unlock=()
   unlock();busy=true;render();
   try{
    let text;
-   if(turn&&target&&skill.id==='primeiros_socorros'){
-    const outcome=roll(skill.valor);
-    text=firstAid?await firstAid({actorId:actor.id,targetId:target.id,turnId:turn,value:skill.valor,local:view.firstAidLocal||''}):`Primeiros Socorros em ${name(target)}: ${outcome.die}/${skill.valor} → ${outcome.grau}.`;
+   if(/primeiros.?socorros/i.test(skill.id+' '+skill.nome)){
+    text='Abra “Primeiros Socorros · Psiquismo” abaixo para escolher a parte e iniciar o atendimento.';
    }else if(turn&&target&&skill.attack){
     results.set(actor.id,{text:'Ataque enviado · aguardando confirmação do mestre…',at:Date.now()});render();
     text=await attack({actorId:actor.id,targetId:target.id,skillId:skill.id,weaponId:weapon.id,turnId:turn});
    }
+   else if(support){text=await support({kind:'direct-test',actorId:actor.id,targetId:actor.id,turnId:turn,skillId:skill.id});}
    else{
     if(turn&&!await spend(actor.id,turn))return;
     const value=weapon?.valor??skill.valor,outcome=roll(value);
@@ -86,16 +89,17 @@ export function criarPainelAcoes({root,load,spend,roll,attack,firstAid,unlock=()
   }else pv.innerHTML=sheet.pvHtml||'';
   const own=results.get(current.id),result=node('div',(own?.at>(view.event?.ts||0)?own.text:view.event?.message)||own?.text||'','nova-result');
   host.append(line,description,firstAidHint,pv,result,targetHint);
+  painelSuporte({root,host,current,sheet,view,combat,allowed,send:support,load});
  }
  const update=async(token,packet,canAct,extra={})=>{
   if(!host)return;
   const changed=current?.id!==token?.id;current=token;combat=packet;allowed=canAct;view=extra;if(changed)sheet=null;
-  const key=JSON.stringify([token?.id,packet?.turnId,canAct,extra.health,extra.targetId,extra.event?.id,extra.masterMode,extra.defenses]);
+  const key=JSON.stringify([token?.id,packet?.turnId,canAct,extra.health,extra.targetId,extra.event?.id,extra.masterMode,extra.defenses,extra.tokens?.map(t=>t.id),extra.objects?.map(t=>t.id),extra.psiRequests]);
   if(shown===key)return;shown=key;const pending=++request;
   if(!token){render();return;}
   try{
-   const healthKey=JSON.stringify(extra.health||{}),cached=cache.get(token.id);
-   if(!cached||cached.healthKey!==healthKey)cache.set(token.id,{healthKey,promise:load({...token,...extra.health})});
+   const healthKey=JSON.stringify([extra.health||{},packet?.round]),cached=cache.get(token.id);
+   if(!cached||cached.healthKey!==healthKey)cache.set(token.id,{healthKey,promise:load({...token,...extra.health,supportRound:packet?.round||0})});
    const data=await cache.get(token.id).promise;if(pending!==request)return;sheet=data;render();
   }catch(error){cache.delete(token.id);if(pending===request)host.textContent='Não foi possível carregar a ficha: '+error.message;}
  };

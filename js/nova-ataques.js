@@ -1,9 +1,10 @@
-import {acaoIniciativa,gastarDefesa,removerMortos} from './nova-turnos.js?v=36';
+import {acaoIniciativa,gastarDefesa,removerMortos} from './nova-turnos.js?v=39';
 import {alvosNoCone} from './nova-area.js?v=20260918';
+import {atualizarDuracoes} from './nova-suporte.js?v=40';
 export const HEALTH_PATH='combatesAtivos/mapaMesaSyncSaude';
 export const HISTORY_PATH='combatesAtivos/mapaMesaSyncHistorico';
 const MAP='combatesAtivos/mapaMesaSyncDireta',POSITIONS=MAP+'/posicoes',COMMANDS=MAP+'/acoes';
-export function conectarAtaques({database,user,tokens,prepare,prepareEquipment,onHealth,onError}){
+export function conectarAtaques({database,user,tokens,prepare,prepareSupport,prepareEquipment,onHealth,onError}){
  let stopHealth=null,stopCommands=null,closed=false;
  const running=new Set(),waiters=new Set(),clean=value=>JSON.parse(JSON.stringify(value));
  async function orientAttack(original,expectedRevision){
@@ -20,19 +21,37 @@ export function conectarAtaques({database,user,tokens,prepare,prepareEquipment,o
   if(running.has(id)||closed||!user()?.master)return;running.add(id);
    const path=COMMANDS+'/'+id;
    try{
-   if(command.kind==='direct-first-aid'){
+   if(['direct-first-aid','direct-test','direct-psi','direct-psi-review','direct-stand'].includes(command.kind)){
+    if(!prepareSupport)throw Error('Suporte indisponível.');
+    const a0=await database.get(POSITIONS+'/'+command.personagemId),b0=await database.get(POSITIONS+'/'+command.targetId);
+    if(!a0||!b0)throw Error('Participante não está no mapa.');
+    const prepared=await prepareSupport({...a0,id:command.personagemId},{...b0,id:command.targetId},tokens());
     await database.transact(async tx=>{
      const cmd=await tx.get(path),map=await tx.get(MAP)||{},health=await tx.get(HEALTH_PATH)||{actors:{}},history=await tx.get(HISTORY_PATH)||{entries:[]};
-     const a=await tx.get(POSITIONS+'/'+command.personagemId),b=await tx.get(POSITIONS+'/'+command.targetId);
-     if(cmd?.status!=='pending'||!a||!b) return;
-     if(Math.hypot((a.x-b.x)*(Number(map.larguraM)||28)/28,(a.y-b.y)*(Number(map.alturaM)||14)/14)>1.501)throw Error('Primeiros Socorros exige alcance de 1,5 m.');
-     if(map.combat?.activeId!==a.id||map.combat.turnId!==command.turnId)throw Error('Aguarde o turno do socorrista.');
-     const value=Math.min(100,Math.max(0,Number(command.valor)||0)),die=1+Math.floor(Math.random()*100),passou=die<=value;
-     const old=health.actors?.[b.id]||{},next=clean({...old});
-     let message=`${a.nome} realizou Primeiros Socorros em ${b.nome}: ${die}/${value} → ${passou?'Sucesso':'Falha'}.`;
-     if(passou){next.inconsciente=false;next.incapacitado=false;const local=command.local||Object.keys(next.hitMax||{})[0];if(local&&next.hit?.[local]!=null){const cura=Math.max(1,Math.min(3,Math.floor(Math.max(0,value-die)/20)+1));next.hit[local]=Math.min(Number(next.hitMax[local]||0),Number(next.hit[local]||0)+cura);next.ferimentos={...(next.ferimentos||{}),[local]:'Estabilizado'};message+=` ${local} estabilizado, +${cura} PV.`;}}
-     let combat=map.combat;if(combat?.active&&combat.activeId===a.id)combat=acaoIniciativa(combat,'spend',command.turnId);
-     tx.set(HEALTH_PATH,clean({...health,actors:{...health.actors,[b.id]:next},revision:(health.revision||0)+1}));tx.set(MAP,{...map,combat});tx.set(HISTORY_PATH,{entries:[...(history.entries||[]),{id,actorUid:a.donoUid||'',ts:Date.now(),message}].slice(-120),revision:(history.revision||0)+1});tx.set(path,{...cmd,status:'done',message});
+     const scene=await tx.get('combatesAtivos/mapaMesaSyncDiretaCena');
+     const sheet=prepared.sheetPath?await tx.get(prepared.sheetPath):null;
+     const positions=await Promise.all(tokens().map(async t=>{const value=await tx.get(POSITIONS+'/'+t.id);return value?{...value,id:t.id}:null;}));
+     const list=positions.filter(Boolean),a=list.find(t=>t.id===cmd?.personagemId),b=list.find(t=>t.id===cmd?.targetId);
+     if(cmd?.status!=='pending')return;
+     if(!a||!b)throw Error('Participante removido do mapa.');
+     if(cmd.donoUid!==a.donoUid&&cmd.donoUid!==user().uid)throw Error('Você não controla este personagem.');
+     if(cmd.kind==='direct-psi-review'&&cmd.donoUid!==user().uid)throw Error('Somente o mestre pode adjudicar.');
+     if(cmd.kind!=='direct-psi-review'){
+      if(map.combat?.pendingAttack)throw Error('Resolva a defesa pendente.');
+      if((map.combat?.active?map.combat.turnId:null)!==cmd.turnId)throw Error('O turno mudou.');
+      if(map.combat?.active&&(map.combat.activeId!==a.id||map.combat.actors[a.id]?.remaining<=0))throw Error('Aguarde seu turno com ações disponíveis.');
+     }
+     const result=prepared.resolve({a,b,health,map,cmd:{...cmd,id,time:Date.now()},sheet,scene,positions:list,seed:cmd.seed});
+     atualizarDuracoes(result.actors,result.combat);
+     const event={id,actorUid:(list.find(t=>t.id===result.eventActorId)||a).donoUid||'',targetUid:(list.find(t=>t.id===result.eventTargetId)||b).donoUid||'',ts:Date.now(),message:result.message};
+     if(cmd.kind==='direct-psi')Object.assign(event,{source:{x:a.x,y:a.y},target:{x:b.x,y:b.y},item:{nome:'Poder psíquico'},hit:true});
+     tx.set(HEALTH_PATH,clean({...health,actors:result.actors||health.actors,psiRequests:result.psiRequests||health.psiRequests||[],event,revision:(health.revision||0)+1}));
+     if(result.inventory&&prepared.sheetPath)tx.set(prepared.sheetPath,{...sheet,inventario:result.inventory});
+     if(result.scene)tx.set('combatesAtivos/mapaMesaSyncDiretaCena',clean(result.scene));
+     for(const [key,value]of Object.entries(result.moves||{}))tx.set(POSITIONS+'/'+key,clean(value));
+     if(result.combat)tx.set(MAP,clean({...map,combat:result.combat}));
+     tx.set(HISTORY_PATH,clean({entries:[...(history.entries||[]),event].slice(-120),revision:(history.revision||0)+1}));
+     tx.set(path,{...cmd,status:'done',message:result.message});
     });return;
    }
    if(command.kind==='direct-equipment'){
@@ -104,7 +123,8 @@ export function conectarAtaques({database,user,tokens,prepare,prepareEquipment,o
     }
     const event={...result.event,id:defense?command.attackId:id,ts:Date.now(),actorUid:a.donoUid,targetUid:b.donoUid,source:{id:original.personagemId,x:a.x,y:a.y},target:{id:original.targetId,x:b.x,y:b.y}};
     const actors={...(health.actors||{})};for(const [key,value]of Object.entries(result.actors||{}))actors[key]={...actors[key],...value};
-    tx.set(HEALTH_PATH,clean({actors,revision:(health.revision||0)+1,event,pending:null}));
+    atualizarDuracoes(actors,combat);
+    tx.set(HEALTH_PATH,clean({...health,actors,revision:(health.revision||0)+1,event,pending:null}));
     tx.set(HISTORY_PATH,clean({entries:[...(history.entries||[]),event].slice(-120),revision:(history.revision||0)+1}));
     if(map.combat?.active)tx.set(MAP,{...map,combat});
     tx.set(path,{...cmd,status:'done',message:event.message});
@@ -171,8 +191,9 @@ export function conectarAtaques({database,user,tokens,prepare,prepareEquipment,o
     events.push({...result.event,id:attackId+':'+b.id,ts:Date.now(),actorUid:a.donoUid,targetUid:b.donoUid,source:{id:a.id,x:a.x,y:a.y},target:{id:b.id,x:b.x,y:b.y}});
    }
    combat=acaoIniciativa(combat,'spend',combat.turnId);combat=removerMortos(combat,actors);
+   atualizarDuracoes(actors,combat);
    const event={...events[0],id:attackId,area:{...shape,source:{x:a.x,y:a.y},aim:{x:aim.x,y:aim.y},width:Number(map.larguraM)||28,height:Number(map.alturaM)||14},message:events.map(e=>e.message).join(' | ')};
-   tx.set(HEALTH_PATH,clean({actors,event,pending:null,revision:(health.revision||0)+1}));
+   tx.set(HEALTH_PATH,clean({...health,actors,event,pending:null,revision:(health.revision||0)+1}));
    tx.set(HISTORY_PATH,clean({entries:[...(history.entries||[]),...events].slice(-120),revision:(history.revision||0)+1}));
    tx.set(MAP,{...map,combat});
    tx.set(COMMANDS+'/'+attackId,clean({...attackCmd,area,status:'done',message:event.message}));
@@ -180,7 +201,7 @@ export function conectarAtaques({database,user,tokens,prepare,prepareEquipment,o
   });
  }
  stopHealth=database.subscribeDoc(HEALTH_PATH,value=>{if(!closed)onHealth(value||{actors:{},revision:0});},onError);
- if(user()?.master)stopCommands=database.subscribe(COMMANDS,rows=>{for(const row of rows)if(!row.removed&&['direct-attack','direct-defense','direct-equipment','direct-first-aid'].includes(row.data.kind)&&row.data.status==='pending')process(row.id,row.data);},onError);
+ if(user()?.master)stopCommands=database.subscribe(COMMANDS,rows=>{for(const row of rows)if(!row.removed&&['direct-attack','direct-defense','direct-equipment','direct-first-aid','direct-test','direct-psi','direct-psi-review','direct-stand'].includes(row.data.kind)&&row.data.status==='pending')process(row.id,row.data);},onError);
  async function send(payload){
   const path=COMMANDS+'/'+crypto.randomUUID();
   await database.writeMap(path,{...payload,donoUid:user().uid,createdAt:Date.now(),status:'pending'});
@@ -192,7 +213,7 @@ export function conectarAtaques({database,user,tokens,prepare,prepareEquipment,o
  }
  return {
   attack:({actorId,targetId,skillId,weaponId,turnId,mapId})=>send({kind:'direct-attack',personagemId:actorId,targetId,skillId,weaponId,turnId:turnId||null,mapId:mapId||'',seed:crypto.getRandomValues(new Uint32Array(1))[0]}),
-  firstAid:({actorId,targetId,turnId,value,local})=>send({kind:'direct-first-aid',personagemId:actorId,targetId,turnId,value,local}),
+  support:({actorId,...payload})=>send({...payload,personagemId:actorId,seed:crypto.getRandomValues(new Uint32Array(1))[0]}),
   defend:({attackId,actorId,choice})=>send({kind:'direct-defense',attackId,personagemId:actorId,choice}),
   equipment:payload=>send({...payload,kind:'direct-equipment'}),
   close(){closed=true;stopHealth?.();stopCommands?.();for(const finish of [...waiters])finish(Error('Sessão encerrada.'));}
