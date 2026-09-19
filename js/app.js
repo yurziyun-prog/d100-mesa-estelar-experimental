@@ -36490,7 +36490,7 @@ function novaBaseCriatura_(attrs,name,special){const c={atributos:attrs,bonus:{}
 
 import {classificarTeste as novaClassificar_,locaisValidos as novaLocaisValidos_,descreverTeste as novaDescreverTeste_} from './nova-regras.js?v=46';
 import {criarRelogio as novaCriarRelogio_} from './nova-duracoes.js?v=46';
-import {mountDirectPositionLab} from './nova-direta.js?v=47';
+import {mountDirectPositionLab} from './nova-direta.js?v=48';
 import {tocarEfeito} from './nova-fx.js?v=46';
 import {identificarKit,testeComSorte,prepararSorte,resolverConsciencia} from './nova-recuperacao.js?v=46';
 import {resolverSocorros,resolverPsi,ocupado,teste as novaTesteSuporte_,sorteio as novaSorteioSuporte_} from './nova-suporte.js?v=46';

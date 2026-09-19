@@ -1,11 +1,22 @@
 export function criarEditorMesa({board,root,database,scenePath,mapPath,positionPath,enabled,map,scene,fail,changed}){
  let gesture=null,tool='move',pending=false;
+ const objectSelect=root.createElement('select'),layerInput=root.createElement('input'),applyLayer=root.createElement('button');
+ objectSelect.id='novaSyncObjectEdit';objectSelect.setAttribute('aria-label','Objeto para editar camada');objectSelect.style.maxWidth='180px';
+ layerInput.id='novaSyncObjectLayer';layerInput.type='number';layerInput.step='1';layerInput.style.width='75px';layerInput.setAttribute('aria-label','Camada do objeto');layerInput.title='1 terreno · 2 piso · 3 obstáculos/personagens · 4 copa';
+ applyLayer.id='novaSyncApplyLayer';applyLayer.type='button';applyLayer.textContent='Aplicar camada';
+ root.getElementById('novaSyncEditorTools')?.append(objectSelect,layerInput,applyLayer);
+ const showLayer=()=>{const o=scene()?.objects?.find(o=>o.id===objectSelect.value);layerInput.value=o?String(o.camada??3):'';layerInput.disabled=applyLayer.disabled=!o||pending;};
+ objectSelect.addEventListener('change',showLayer);
+ applyLayer.addEventListener('click',()=>{if(!enabled()||pending||!objectSelect.value)return;const camada=Number(layerInput.value);if(!Number.isSafeInteger(camada)||!layerInput.value){fail(Error('Informe uma camada inteira.'));return;}commit({kind:'layer',id:objectSelect.value,camada});});
  let paintedScene,paintedActive,paintedTool,paintedBase,paintedPoints;
  const svgNS='http://www.w3.org/2000/svg';
  const point=event=>{const rect=board.getBoundingClientRect();return {x:Math.max(0,Math.min(28,(event.clientX-rect.left)/board.clientWidth*28)),y:Math.max(0,Math.min(14,(event.clientY-rect.top)/board.clientHeight*14))};};
  function paint(){
   const active=enabled(),currentScene=scene(),base=board.querySelector('[data-map-layer]')?.firstChild,points=gesture?.stroke?.points.length||0;
+  layerInput.disabled=applyLayer.disabled=pending||!objectSelect.value;
   if(paintedScene===currentScene&&paintedActive===active&&paintedTool===tool&&paintedBase===base&&paintedPoints===points)return;
+  if(paintedScene!==currentScene){const selected=objectSelect.value;objectSelect.replaceChildren();const empty=root.createElement('option');empty.value='';empty.textContent='Camada de objeto…';objectSelect.append(empty);for(const o of currentScene?.objects||[]){const opt=root.createElement('option');opt.value=o.id;opt.textContent=o.nome||o.id;objectSelect.append(opt);}objectSelect.value=selected;showLayer();}
+  applyLayer.disabled=pending||!objectSelect.value;
   paintedScene=currentScene;paintedActive=active;paintedTool=tool;paintedBase=base;paintedPoints=points;board.dataset.editing=active?'true':'false';
   for(const element of board.querySelectorAll('[data-eid]')){
    const offset=scene()?.offsets?.[element.dataset.eid]||{x:0,y:0},svg=element.ownerSVGElement;
@@ -30,6 +41,7 @@ export function criarEditorMesa({board,root,database,scenePath,mapPath,positionP
     transaction.set(path,{...token,x:Math.max(.7,Math.min(27.3,token.x+edit.dx)),y:Math.max(.7,Math.min(13.3,token.y+edit.dy)),revision:token.revision+1});
    }else{
     const saved=await transaction.get(scenePath),value=saved?.mapId===expectedMap?saved:{mapId:expectedMap,objects:[]};
+    if(edit.kind==='layer'){if(!value.objects?.some(o=>o.id===edit.id))throw Error('Objeto não encontrado.');value.objects=value.objects.map(o=>o.id===edit.id?{...o,camada:edit.camada}:o);}
     if(edit.kind==='object')value.objects=(value.objects||[]).map(object=>object.id===edit.id?{...object,x:Math.max(0,Math.min(28,object.x+edit.dx)),y:Math.max(0,Math.min(14,object.y+edit.dy))}:object);
     if(edit.kind==='native'){const offset=value.offsets?.[edit.id]||{x:0,y:0};value.offsets={...value.offsets,[edit.id]:{x:offset.x+edit.dx,y:offset.y+edit.dy}};}
     if(edit.kind==='draw')value.strokes=[...(value.strokes||[]),edit.stroke];
@@ -46,6 +58,7 @@ export function criarEditorMesa({board,root,database,scenePath,mapPath,positionP
   if(tool==='draw')gesture={kind:'draw',stroke:{id:crypto.randomUUID(),color:root.getElementById('novaSyncInk')?.value||'#ffd447',points:[start]}};
   else{
    const element=token||object||native;if(!element)return true;
+   if(object){objectSelect.value=object.dataset.sceneObject;showLayer();}
    gesture={kind:token?'token':object?'object':'native',id:token?.dataset.token||object?.dataset.sceneObject||native.dataset.eid,element,start,left:element.style.left,top:element.style.top,transform:element.getAttribute('transform')||'',dx:0,dy:0};
   }
   gesture.pointer=event.pointerId;gesture.mapId=map()?.mapId||'';board.setPointerCapture(event.pointerId);return true;
