@@ -199,7 +199,7 @@ const dir=path.join(__dirname,'../js');
   assert.equal(await player.locator('#novaSyncBoard').evaluate(element=>element.clientWidth),1344);
   assert.equal(await player.locator('#novaSyncBoard').evaluate(element=>element.clientHeight),672);
   assert.equal(await master.locator('#novaSyncMasterPanel #novaSyncPersonagem').count(),1);
-  assert.equal(await player.locator('#novaSyncActionPanel select').count(),2);
+  assert.equal(await player.locator('#novaSyncActionPanel select').count(),3);
   await master.locator('#novaSyncPersonagem').selectOption('pj');
   await master.waitForFunction(()=>document.querySelector('#novaSyncActionPanel').textContent.includes('Ação de Jogador'));
   await master.locator('#novaSyncStart').click();

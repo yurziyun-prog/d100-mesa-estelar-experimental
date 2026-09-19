@@ -3,13 +3,14 @@ import {alvosNoCone} from './nova-area.js?v=20260918';
 import {atualizarDuracoes} from './nova-suporte.js?v=46';
 export const HEALTH_PATH='combatesAtivos/mapaMesaSyncSaude';
 export const HISTORY_PATH='combatesAtivos/mapaMesaSyncHistorico';
+const SCENE='combatesAtivos/mapaMesaSyncDiretaCena';
 const MAP='combatesAtivos/mapaMesaSyncDireta',POSITIONS=MAP+'/posicoes',COMMANDS=MAP+'/acoes';
 export function conectarAtaques({database,user,tokens,prepare,prepareSupport,prepareEquipment,onHealth,onError}){
  let stopHealth=null,stopCommands=null,closed=false;
  const running=new Set(),waiters=new Set(),clean=value=>JSON.parse(JSON.stringify(value));
  async function orientAttack(original,expectedRevision){
   try{await database.transact(async tx=>{
-   const map=await tx.get(MAP)||{},path=POSITIONS+'/'+original.personagemId,a=await tx.get(path),b=await tx.get(POSITIONS+'/'+original.targetId);
+   const map=await tx.get(MAP)||{},path=POSITIONS+'/'+original.personagemId,a=await tx.get(path),scene=original.targetKind==='object'?await tx.get(SCENE):null,b=original.targetKind==='object'?scene?.objects?.find(o=>o.id===original.targetId):await tx.get(POSITIONS+'/'+original.targetId);
    if(!a||!b||(map.mapId||'')!==original.mapId)return;
    if(Number(a.revision||0)!==Number(expectedRevision||0))return;
    if(map.combat?.active&&original.turnId&&!original.turnId.startsWith(map.combat.session+':'))return;
@@ -80,7 +81,9 @@ export function conectarAtaques({database,user,tokens,prepare,prepareSupport,pre
    const original=followup?await database.get(COMMANDS+'/'+command.attackId):command;
    if(!original)throw Error('Ataque não encontrado.');
    const find=async id=>tokens().find(t=>t.id===id)||(await database.get(POSITIONS+'/'+id));
-   const [actor,target]=await Promise.all([find(original.personagemId),find(original.targetId)]);
+   const objectTarget=original.targetKind==='object';
+   if(objectTarget&&followup)throw Error('Objetos não têm defesa ativa.');
+   const [actor,target]=await Promise.all([find(original.personagemId),objectTarget?database.get(SCENE).then(s=>s?.objects?.find(o=>o.id===original.targetId)):find(original.targetId)]);
    if(!actor||!target)throw Error('Participante não encontrado.');
    const resolve=await prepare({...actor,id:original.personagemId},{...target,id:original.targetId},original);
    if(resolve.area||original.area){await processArea(id,command,original,resolve.area||original.area.shape);if(!defense)await orientAttack(original,actor.revision);return;}
@@ -89,7 +92,9 @@ export function conectarAtaques({database,user,tokens,prepare,prepareSupport,pre
     const cmd=await tx.get(path),map=await tx.get(MAP)||{},health=await tx.get(HEALTH_PATH)||{actors:{},revision:0};
     const history=await tx.get(HISTORY_PATH)||{entries:[]};
     const attackCmd=followup?await tx.get(COMMANDS+'/'+command.attackId):cmd;
-    const a=await tx.get(POSITIONS+'/'+original.personagemId),b=await tx.get(POSITIONS+'/'+original.targetId);
+    const scene=objectTarget?await tx.get(SCENE):null;
+    const a=await tx.get(POSITIONS+'/'+original.personagemId),b=objectTarget?scene?.objects?.find(o=>o.id===original.targetId):await tx.get(POSITIONS+'/'+original.targetId);
+    if(objectTarget&&(!map.combat?.active||scene?.mapId!==map.mapId))throw Error('Inicie o combate no mapa deste objeto.');
     if(cmd?.status!=='pending')return;
     if(!a||!b||original.personagemId===original.targetId)throw Error('Alvo inválido.');
     if((map.mapId||'')!==original.mapId||(map.combat?.active?map.combat.turnId:null)!==original.turnId)throw Error('O mapa ou a oportunidade mudou.');
@@ -137,6 +142,7 @@ export function conectarAtaques({database,user,tokens,prepare,prepareSupport,pre
     atualizarDuracoes(actors,combat);
     tx.set(HEALTH_PATH,clean({...health,actors,revision:(health.revision||0)+1,event,pending:null}));
     tx.set(HISTORY_PATH,clean({entries:[...(history.entries||[]),event].slice(-120),revision:(history.revision||0)+1}));
+    if(objectTarget&&result.object)tx.set(SCENE,clean({...scene,objects:scene.objects.map(o=>o.id===b.id?result.object:o)}));
     if(map.combat?.active)tx.set(MAP,{...map,combat});
     tx.set(path,{...cmd,status:'done',message:event.message});
     if(followup)tx.set(COMMANDS+'/'+command.attackId,{...attackCmd,status:'done',message:event.message});
@@ -223,7 +229,7 @@ export function conectarAtaques({database,user,tokens,prepare,prepareSupport,pre
   });
  }
  return {
-  attack:({actorId,targetId,skillId,weaponId,turnId,mapId})=>send({kind:'direct-attack',personagemId:actorId,targetId,skillId,weaponId,turnId:turnId||null,mapId:mapId||'',seed:crypto.getRandomValues(new Uint32Array(1))[0]}),
+  attack:({actorId,targetId,targetKind='character',skillId,weaponId,turnId,mapId})=>send({kind:'direct-attack',personagemId:actorId,targetId,targetKind,skillId,weaponId,turnId:turnId||null,mapId:mapId||'',seed:crypto.getRandomValues(new Uint32Array(1))[0]}),
   support:({actorId,...payload})=>send({...payload,...(payload.kind==='direct-psi'&&payload.powerId==='grito_psiquico'&&payload.turnId?{kind:'direct-attack'}:{}),personagemId:actorId,seed:crypto.getRandomValues(new Uint32Array(1))[0]}),
   chooseEffects:({attackId,actorId,effects,local})=>send({kind:'direct-effects',attackId,personagemId:actorId,effects,local:local||''}),
   defend:({attackId,actorId,choice})=>send({kind:'direct-defense',attackId,personagemId:actorId,choice}),

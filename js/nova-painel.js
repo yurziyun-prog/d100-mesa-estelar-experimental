@@ -14,7 +14,7 @@ export function criarPainelAcoes({root,load,spend,roll,attack,support,unlock=()=
   if(ocupado(view.health,combat)){results.set(current.id,{text:'Seu turno está dedicado a Primeiros Socorros. Use os controles de atendimento abaixo.',at:Date.now()});render();return;}
   const actor=current,{skill,weapon}=selection(),turn=combat?.active?combat.turnId:null;
   if(!skill)return;
-  const target=(view.tokens||[]).find(token=>token.id===targetId&&token.id!==actor.id);
+  const object=(view.objects||[]).find(o=>o.id===targetId),target=(view.tokens||[]).find(token=>token.id===targetId&&token.id!==actor.id)||object;
   if(target&&skill.attack&&!weapon)return;
   unlock();busy=true;render();
   try{
@@ -23,7 +23,7 @@ export function criarPainelAcoes({root,load,spend,roll,attack,support,unlock=()=
     text='Abra “Primeiros Socorros” abaixo para escolher a parte e iniciar o atendimento.';
    }else if(turn&&target&&skill.attack){
     results.set(actor.id,{text:'Ataque enviado · aguardando confirmação do mestre…',at:Date.now()});render();
-    text=await attack({actorId:actor.id,targetId:target.id,skillId:skill.id,weaponId:weapon.id,turnId:turn});
+    text=await attack({actorId:actor.id,targetId:target.id,targetKind:object?'object':'character',skillId:skill.id,weaponId:weapon.id,turnId:turn});
    }
    else if(support){text=await support({kind:'direct-test',actorId:actor.id,targetId:actor.id,turnId:turn,skillId:skill.id});}
    else{
@@ -63,10 +63,11 @@ export function criarPainelAcoes({root,load,spend,roll,attack,support,unlock=()=
    const ammunition=weapon?.ammunition;
    ammo.textContent=ammunition?String(view.health?.municaoLab?.[ammunition.key]??ammunition.capacity)+' / '+ammunition.capacity:'—';
    ammo.title=ammunition?'Carga atual / capacidade da arma selecionada':'Esta arma não usa munição';
-   const target=(view.tokens||[]).find(token=>token.id===view.targetId&&token.id!==current.id);
+   const object=(view.objects||[]).find(o=>o.id===view.targetId),target=(view.tokens||[]).find(token=>token.id===view.targetId&&token.id!==current.id)||object;
    targetHint.textContent=target?'🎯 '+name(target)+' selecionado · Testar executa a ação nesse alvo.':'Clique numa miniatura para selecionar o alvo. Sem alvo, Testar apenas rola a perícia.';
+   if(object)targetHint.textContent='🧱 '+object.nome+' · PV '+object.pvAtual+'/'+object.pvMax+' · Dureza '+object.dureza+(object.destruido?' · Destruído':object.destrutivel===false?' · Indestrutível':' · Sem defesa ativa');
    firstAidHint.hidden=skills.value!=='primeiros_socorros';
-   button.disabled=!allowed||busy||!!(view.health?.combateLab||sheet.health)?.inconsciente||!!(view.health?.combateLab||sheet.health)?.morto||!skill||!!(target&&skill.attack&&!weapon);
+   button.disabled=!!(object&&(!combat?.active||object.destruido||!object.destrutivel))||!allowed||busy||!!(view.health?.combateLab||sheet.health)?.inconsciente||!!(view.health?.combateLab||sheet.health)?.morto||!skill||!!(target&&skill.attack&&!weapon);
   };
   const populateWeapons=()=>{
    const skill=sheet.skills.find(entry=>entry.id===skills.value);pref.skill=skills.value;
@@ -90,6 +91,10 @@ export function criarPainelAcoes({root,load,spend,roll,attack,support,unlock=()=
   }else pv.innerHTML=sheet.pvHtml||'';
   const own=results.get(current.id),result=node('div',(own?.at>(view.event?.ts||0)?own.text:view.event?.message)||own?.text||'','nova-result');
   host.append(line,description,firstAidHint,pv,result,targetHint);
+  if((view.objects||[]).length){const label=node('label','Alvo de cenário '),select=node('select');select.id='novaObjectTarget';select.append(node('option','— selecionar objeto —'));select.firstChild.value='';
+   for(const o of view.objects||[]){const option=node('option',o.nome+' · PV '+o.pvAtual+'/'+o.pvMax+(o.destruido?' · destruído':!o.destrutivel?' · indestrutível':''));option.value=o.id;option.disabled=!!o.destruido||!o.destrutivel;select.append(option);}select.value=(view.objects||[]).some(o=>o.id===view.targetId)?view.targetId:'';
+   select.onchange=()=>{view.selectTarget?.(select.value);};label.append(select);host.append(label);
+  }
   const luck=node('button',view.health?.luckPrepared?'🍀 Sorte preparada':'🍀 Usar Sorte ('+(view.health?.luckRemaining??sheet.support?.luck??0)+')','btn-small btn-select');luck.type='button';luck.id='novaLuck';luck.disabled=busy||!!view.health?.luckPrepared||(view.health?.luckRemaining??sheet.support?.luck??0)<=0||!!health?.morto;
   luck.onclick=async()=>{luck.disabled=true;try{const text=await support({kind:'direct-luck',actorId:current.id,targetId:current.id,turnId:combat?.turnId||null});results.set(current.id,{text,at:Date.now()});}catch(e){results.set(current.id,{text:e.message,at:Date.now()});}finally{render();}};line.insertBefore(luck,button);
   if(health?.inconsciente&&!health.morto){const bonus=bonusConsciencia(health,combat);const wake=node('button','Teste de consciência'+(bonus?' (+'+bonus+' por cura)':''),'btn-small btn-select');wake.type='button';wake.id='novaConsciousness';wake.disabled=!allowed||!combat?.active||view.health?.consciousnessRound===combat.roundId;wake.onclick=async()=>{wake.disabled=true;try{const text=await support({kind:'direct-consciousness',actorId:current.id,targetId:current.id,turnId:combat.turnId});results.set(current.id,{text,at:Date.now()});}catch(e){results.set(current.id,{text:e.message,at:Date.now()});}finally{render();}};host.append(wake);}
@@ -102,7 +107,7 @@ export function criarPainelAcoes({root,load,spend,roll,attack,support,unlock=()=
  const update=async(token,packet,canAct,extra={})=>{
   if(!host)return;
   const changed=current?.id!==token?.id;current=token;combat=packet;allowed=canAct;view=extra;if(changed)sheet=null;
-  const key=JSON.stringify([extra.sheetRevision,token?.id,packet?.turnId,canAct,extra.health,extra.targetId,extra.event?.id,extra.masterMode,extra.defenses,extra.tokens?.map(t=>t.id),extra.objects?.map(t=>t.id),extra.psiRequests]);
+  const key=JSON.stringify([extra.sheetRevision,token?.id,packet?.turnId,canAct,extra.health,extra.targetId,extra.event?.id,extra.masterMode,extra.defenses,extra.tokens?.map(t=>t.id),extra.objects?.map(t=>[t.id,t.pvAtual,t.destruido,t.destrutivel]),extra.psiRequests]);
   if(shown===key)return;shown=key;const pending=++request;
   if(!token){render();return;}
   try{

@@ -1,3 +1,4 @@
+import {distanciaObjeto,danoObjeto} from './nova-dano-objetos.js?v=49';
 import {colunasObjetos,importarModelos,camadaPadrao,normalizarObjeto} from './nova-objetos.js?v=47';
 // Integração única do protocolo confirmado com as regras existentes.
 // labEstado_ continua atendendo os controles antigos; nunca é a origem de
@@ -36490,7 +36491,7 @@ function novaBaseCriatura_(attrs,name,special){const c={atributos:attrs,bonus:{}
 
 import {classificarTeste as novaClassificar_,locaisValidos as novaLocaisValidos_,descreverTeste as novaDescreverTeste_} from './nova-regras.js?v=46';
 import {criarRelogio as novaCriarRelogio_} from './nova-duracoes.js?v=46';
-import {mountDirectPositionLab} from './nova-direta.js?v=48';
+import {mountDirectPositionLab} from './nova-direta.js?v=49';
 import {tocarEfeito} from './nova-fx.js?v=46';
 import {identificarKit,testeComSorte,prepararSorte,resolverConsciencia} from './nova-recuperacao.js?v=46';
 import {resolverSocorros,resolverPsi,ocupado,teste as novaTesteSuporte_,sorteio as novaSorteioSuporte_} from './nova-suporte.js?v=46';
@@ -36538,7 +36539,8 @@ function novaValorPericia_(c,t,per,penalty=0){
  return Math.min(100,Math.max(0,Number(aplicarDificuldadeEFadiga_(c,arm.valor,'padrao',extra).valor||0)-(escudoEquipado?5:0)-debuff-(periciaCriaturaPodeAtacar_(c,per)?Number(t.combateLab?.armaDanificadaPenalidade||0):0)+bonus+Number(t.psiIntuition||0)));
 }
 async function novaPrepararAtaque_(a,b,command){
- const [ca,cb]=await Promise.all([novaFicha_(a),novaFicha_(b)]);
+ const objectTarget=command.targetKind==='object';
+ const [ca,cb]=await Promise.all([novaFicha_(a),objectTarget?Promise.resolve({}):novaFicha_(b)]);
  const psi=command.powerId==='grito_psiquico'?novaInfoSuporte_(ca,a).powers.find(p=>p.id==='grito_psiquico'):null;
  if(command.powerId&&!psi)throw Error('Poder não disponível nesta ficha.');
  const per=psi?{id:'grito_psiquico',nome:'Psiquismo'}:(batalhaListaPericias_(ca)||[]).find(p=>batalhaTokenPericia_(p)===command.skillId);
@@ -36547,6 +36549,7 @@ async function novaPrepararAtaque_(a,b,command){
  if(!chosen?.item)throw Error('Arma ou ataque natural indisponível.');
  const seed=Number.isInteger(command.seed)?command.seed:crypto.getRandomValues(new Uint32Array(1))[0];
  const cone=psi?{range:8,angle:60,centralPenalty:20,name:'Grito Psíquico'}:/eco[ _]da[ _]matilha/i.test(getNome(chosen.item))?{range:15,angle:60,centralPenalty:20}:null;
+ if(objectTarget&&cone)throw Error('Este ataque sonoro afeta criaturas, não objetos.');
  const resolve=(a,b,health,map,decision={phase:'resolve',choice:'none'})=>{
   const actor={...a,...structuredClone(health[a.id]||{}),charLab:structuredClone(ca),diametroM:/besta\s+ululante/i.test(a.nome)?2.4:1,acoesAtuaisLab:3};
   const target={...b,...structuredClone(health[b.id]||{}),charLab:structuredClone(cb),diametroM:/besta\s+ululante/i.test(b.nome)?2.4:1,acoesAtuaisLab:3};
@@ -36556,18 +36559,27 @@ async function novaPrepararAtaque_(a,b,command){
   const originalRandom=Math.random;let randomState=seed;
   Math.random=()=>{randomState=(Math.imul(1664525,randomState)+1013904223)>>>0;return randomState/4294967296;};
   try{return labComContextoLocal_(state,false,()=>{
-   const healthA=labGarantirSnapshotCombate_(actor),healthB=labGarantirSnapshotCombate_(target),item=structuredClone(chosen.item);
+   const healthA=labGarantirSnapshotCombate_(actor),healthB=objectTarget?{}:labGarantirSnapshotCombate_(target),item=structuredClone(chosen.item);
+   if(objectTarget)danoObjeto(b,0);
    if(healthA.morto||healthA.inconsciente||healthA.incapacitado)throw Error('Este personagem não pode atacar neste estado.');
    if(ocupado(actor,map.combat))throw Error('Este turno está dedicado a Primeiros Socorros. Apenas defesas são permitidas.');
    if((healthA.caido||healthA.derrubado)&&!cone&&!labAtaqueEhDistancia_(item))throw Error('Gaste uma ação para levantar antes de atacar corpo a corpo.');
    if(healthB.morto)throw Error('O alvo já está morto.');
- const distance=Math.max(0,labDistanciaEntre_(actor,target)-(actor.diametroM+target.diametroM)/2),range=cone?.range||labAlcanceAtaque_(actor,item);
+ const distance=objectTarget?distanciaObjeto(a,b,map):Math.max(0,labDistanciaEntre_(actor,target)-(actor.diametroM+target.diametroM)/2),range=cone?.range||labAlcanceAtaque_(actor,item);
  if(!labAtaqueEhDistancia_(item)&&distance>range+.001)throw Error(`Fora de alcance: ${distance.toFixed(2)} m (alcance ${range.toFixed(2)} m).`);
    if(distance>range+.001)throw Error('Fora de alcance: '+distance.toFixed(1)+' m; alcance '+range.toFixed(1)+' m.');
    if(labEhArmaMuniciada_(item)&&labMunicaoAtual_(actor,item)<=0)throw Error('Arma sem munição.');
    const psiInfo=psi?novaInfoSuporte_(ca,actor):null,psiCost=psi?Number(command.cost??psi.cost):0;
    if(psi&&(!Number.isInteger(psiCost)||psiCost<psi.cost||psiCost>psiInfo.psiMax-Number(actor.psiSpent??psiInfo.psiSpent)))throw Error('PP insuficientes ou custo inválido.');
    const value=Math.max(0,(psi?psi.value:novaValorPericia_(ca,actor,per,chosen.graus||0))-((healthA.caido||healthA.derrubado)?30:0)),attackRoll=testeComSorte(actor,value,max=>1+Math.floor(Math.random()*max)),die=attackRoll.die,grade=attackRoll;
+   if(objectTarget){
+    const expr=labExpressaoDano_(actor,item),rolled=grade.sucesso?(grade.grau==='Crítico'?maximizarExpressaoDanoCombate_(expr):rolarExpressaoDanoCombate_(expr)):{total:0};
+    if(!rolled||!Number.isFinite(rolled.total))throw Error('Dano inválido no cadastro da arma: '+expr);
+    const damage=danoObjeto(b,rolled.total,obterPenetracaoArma_(item));labConsumirMunicao_(actor,item,1);
+    const text=actor.nome+' → '+b.nome+': '+getNome(per)+' · '+getNome(item)+' · '+novaDescreverTeste_(Math.min(100,obterValorRegistroPericia_(ca,per.id,!!per.__especializacao)),value,die)+' · '+grade.grau+(grade.sorte?' · 🍀 Sorte':'')+(grade.grau==='Crítico'?' · Crítico: dano máximo':'');
+    const message=text+(grade.sucesso?' · dano bruto '+damage.bruto+' · dureza '+damage.dureza+' − penetração '+damage.penetracao+' = '+damage.efetiva+' · dano '+damage.dano+' · PV '+damage.object.pvAtual+'/'+damage.object.pvMax+(damage.object.destruido?' · Objeto destruído':''):' · Não atingiu o objeto');
+    return {object:damage.object,actors:{[a.id]:{luckPrepared:!!actor.luckPrepared,psiIntuition:0,combateLab:actor.combateLab,municaoLab:actor.municaoLab||{}}},event:{message,attackerMessage:message,damage:damage.dano,grade:grade.grau,hit:grade.sucesso,item:{nome:getNome(item),categoria:item.categoria||'',familia:item.familia||'',tipo:item.tipo||''}}};
+   }
    // O ataque em área compartilha o acerto, mas cada vítima rola sua própria defesa e dano.
    if(cone)for(const char of String(b.id))randomState=(Math.imul(randomState^char.charCodeAt(0),16777619))>>>0;
    const facing=Number.isFinite(b.facing)?b.facing:0;

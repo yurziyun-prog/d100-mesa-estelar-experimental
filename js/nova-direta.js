@@ -1,3 +1,4 @@
+import {restaurarObjeto} from './nova-dano-objetos.js?v=49';
 import {camadaEntidade,ordenarCamadas} from './nova-camadas.js?v=48';
 import {normalizarObjeto,criarObjeto,objetosDoMapa,prepararCena} from './nova-objetos.js?v=47';
 import {diametroMiniatura} from './nova-recuperacao.js?v=46';
@@ -6,8 +7,8 @@ import {textoDuracao,tempoRestante} from './nova-duracoes.js?v=46';
 // Movimento livre: uma posição por personagem, sem sessão-mestre ou fila de comandos.
 import {saldoMovimento,movimentoMaximo,moverNoTurno,iniciarIniciativa,acaoIniciativa,defesasRestantes} from './nova-turnos.js?v=46';
 import {destinoSemColisao,TOKEN_DIAMETER} from './nova-colisao.js?v=48';
-import {criarPainelAcoes} from './nova-painel.js?v=46';
-import {conectarAtaques,HEALTH_PATH,HISTORY_PATH} from './nova-ataques.js?v=46';
+import {criarPainelAcoes} from './nova-painel.js?v=49';
+import {conectarAtaques,HEALTH_PATH,HISTORY_PATH} from './nova-ataques.js?v=49';
 import {mostrarAtaque} from './nova-fx.js?v=46';
 import {criarEditorMesa} from './nova-editor.js?v=48';
 import {ocupado,atualizarDuracoes} from './nova-suporte.js?v=46';
@@ -176,7 +177,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   const ownEvent=eventVisible?{...event,message:user()?.master?event.message:event.targetUid===user()?.uid?(event.defenderMessage||event.message):(event.attackerMessage||event.message)}:null;
   const watch=selected?.id&&!decodeURIComponent(selected.id).startsWith('sync')?decodeURIComponent(selected.id):'';
   if(watch!==sheetWatch){sheetStop?.();sheetWatch=watch;sheetRevision++;if(watch)sheetStop=database.subscribeDoc('personagens/'+watch,()=>{sheetRevision++;queueMicrotask(()=>status());},fail);}
-  updateActions(selected?{...selected,nome:displayName(selected)}:null,c,controlled(selected)&&tokens.has(selected?.id)&&(!c?.active||c.activeId===selected?.id)&&!queues.size&&!changingTurn&&!attacking&&!managing&&!editor.busy&&!c?.pendingAttack,{sheetRevision,mapWidth:Number(mapPacket?.larguraM)||28,mapHeight:Number(mapPacket?.alturaM)||14,allHealth:health.actors,psiRequests:health.psiRequests,isMaster:!!user()?.master,objects:sceneData?.objects||[],tokens:[...tokens.values()],health:health.actors?.[selected?.id],revision:health.revision,event:ownEvent,targetId:selectedTarget,masterMode:masterMode(),defenses:c?.active?defesasRestantes(c,selected?.id):null});
+  updateActions(selected?{...selected,nome:displayName(selected)}:null,c,controlled(selected)&&tokens.has(selected?.id)&&(!c?.active||c.activeId===selected?.id)&&!queues.size&&!changingTurn&&!attacking&&!managing&&!editor.busy&&!c?.pendingAttack,{selectTarget:id=>{selectedTarget=id;draw();},sheetRevision,mapWidth:Number(mapPacket?.larguraM)||28,mapHeight:Number(mapPacket?.alturaM)||14,allHealth:health.actors,psiRequests:health.psiRequests,isMaster:!!user()?.master,objects:sceneData?.objects||[],tokens:[...tokens.values()],health:health.actors?.[selected?.id],revision:health.revision,event:ownEvent,targetId:selectedTarget,masterMode:masterMode(),defenses:c?.active?defesasRestantes(c,selected?.id):null});
  }
  function drawMap(){
   const board=el('novaSyncBoard'),select=el('novaSyncMapa'); if(!board||!select)return;
@@ -247,7 +248,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
    const label=node.querySelector('span');if(label){label.textContent=displayName(t);label.style.top='calc(100% + 3px)';}
    node.style.transition=previews.has(t.id)?'none':'left .2s linear,top .2s linear';
    node.style.left=`${p.x/28*100}%`;node.style.top=`${p.y/14*100}%`;
-   const aim=sendingActor===t.id?tokens.get(selectedTarget):null;
+   const aim=sendingActor===t.id?(tokens.get(selectedTarget)||(sceneData?.objects||[]).find(o=>o.id===selectedTarget)):null;
    const facing=aim?Math.atan2((aim.y-t.y)*(Number(mapPacket?.alturaM)||14)/14,(aim.x-t.x)*(Number(mapPacket?.larguraM)||28)/28):health.pending?.actorId===t.id&&Number.isFinite(health.pending.facing)?health.pending.facing:Number.isFinite(p.facing)?p.facing:0;
    const handle=node.querySelector('[data-facing-handle]');
    if(handle){const radius=Math.max(28,Math.min(54,tokenDiameterM/2*48+7));handle.style.left=(50+Math.cos(facing)*radius/Math.max(1,node.clientWidth)*100)+'%';handle.style.top=(50+Math.sin(facing)*radius/Math.max(1,node.clientHeight)*100)+'%';}
@@ -342,17 +343,19 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
    const n=root.createElement('div');n.dataset.psiZone=z.id;n.textContent=(z.label||z.kind)+(z.clock?' · '+textoDuracao(z.clock,mapPacket?.combat):'');
    n.style.cssText=`position:absolute;pointer-events:none;border:2px solid #bb83ff;border-radius:50%;background:#8a4fff33;color:white;transform:translate(-50%,-50%);z-index:3;left:${z.x/28*100}%;top:${z.y/14*100}%;width:${z.radius*2/(mapPacket?.larguraM||28)*100}%;height:${z.radius*2/(mapPacket?.alturaM||14)*100}%;`;if(z.powerId==='anoitecer'||/anoitecer/i.test(z.kind||'')){const caster=tokens.get(z.sourceId),privileged=user()?.master||caster?.donoUid===user()?.uid;n.style.background=privileged?'rgba(0,0,0,.6)':'#000';n.style.borderColor='#222';n.style.zIndex='25';if(caster){n.style.left=caster.x/28*100+'%';n.style.top=caster.y/14*100+'%';}}board.append(n);
   }
+  for(const node of board.querySelectorAll('[data-scene-object]'))node.style.outline=node.dataset.sceneObject===selectedTarget?'2px solid #ff7855':'';
   if(sceneRef===scene&&sceneMapId===mapPacket?.mapId)return;sceneRef=scene;sceneMapId=mapPacket?.mapId;
   for(const node of board.querySelectorAll('[data-scene-object]'))node.remove();
   if(scene?.mapId!==(mapPacket?.mapId||''))return;
   for(const o of scene.objects||[]){
    if(o.clock&&tempoRestante(o.clock,mapPacket?.combat)<=0)continue;
-   const node=root.createElement('div');node.dataset.sceneObject=o.id;node.dataset.camada=camadaEntidade(o);node.title=o.nome+' · PV '+o.pvAtual+'/'+o.pvMax+' · Dureza '+o.dureza+' · '+(o.material||'Material não informado')+' · Camada '+o.camada;
-   node.style.cssText='position:absolute;pointer-events:none;transform:translate(-50%,-50%);';
+   const node=root.createElement('div');node.dataset.sceneObject=o.id;node.dataset.camada=camadaEntidade(o);node.style.outline=o.id===selectedTarget?'2px solid #ff7855':'';node.title=o.nome+' · PV '+o.pvAtual+'/'+o.pvMax+' · Dureza '+o.dureza+' · '+(o.material||'Material não informado')+' · Camada '+o.camada;
+   node.style.cssText='position:absolute;pointer-events:none;transform:translate(-50%,-50%);';node.style.outline=o.id===selectedTarget?'2px solid #ff7855':'';
    node.style.left=o.x/28*100+'%';node.style.top=o.y/14*100+'%';
    node.style.transform+=' rotate('+o.angulo+'deg)';node.style.opacity=String(o.opacity??1);
    node.style.width=o.larguraM/(Number(mapPacket?.larguraM)||28)*100+'%';node.style.height=o.alturaM/(Number(mapPacket?.alturaM)||14)*100+'%';
    if(o.imagem){const img=root.createElement('img');img.src=o.imagem;img.alt=o.nome;img.style.cssText='width:100%;height:100%;object-fit:contain';node.append(img);}else{node.textContent=o.nome;node.style.background='#37455b';}
+   if(o.destruido){node.style.filter='grayscale(1)';node.style.opacity='.45';const badge=root.createElement('span');badge.textContent='💥 Restos';badge.style.cssText='position:absolute;top:100%;left:0;white-space:nowrap;background:#181827;color:#ddd;font-size:12px';node.append(badge);}
    if(o.clock){const timer=root.createElement('small');timer.dataset.effectClock='';timer.effectClock=o.clock;timer.textContent=textoDuracao(o.clock,mapPacket?.combat);timer.style.cssText='position:absolute;top:100%;left:0;background:#151b32;color:white;white-space:nowrap';node.append(timer);}
    world().append(node);
   }
@@ -703,7 +706,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
     }else{
      for(const id of Object.keys(restored)){const previous=healthState.actors?.[id];if(previous?.luckRemaining!==undefined)restored[id].luckRemaining=previous.luckRemaining;if(previous?.luckPrepared)restored[id].luckPrepared=true;}
      tx.set(HEALTH_PATH,{actors:restored,revision:(healthState.revision||0)+1});
-     if(scene)tx.set(SCENE_PATH,{...scene,objects:(scene.objects||[]).map(o=>({...o,pvAtual:o.pvMax||0,destruido:false}))});
+     if(scene)tx.set(SCENE_PATH,{...scene,objects:(scene.objects||[]).map(restaurarObjeto)});
     }
    });error='';
   }catch(e){fail(e);}finally{managing=false;draw();}

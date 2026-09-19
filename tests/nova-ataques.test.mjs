@@ -1,3 +1,4 @@
+import {danoObjeto} from '../js/nova-dano-objetos.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {conectarAtaques,HEALTH_PATH} from '../js/nova-ataques.js';
@@ -8,9 +9,10 @@ import {resolverSocorros,resolverPsi} from '../js/nova-suporte.js';
 import {defesasRestantes,acaoIniciativa,moverNoTurno,ataqueSuperaDefesa,removerMortos} from '../js/nova-turnos.js';
 const MAP='combatesAtivos/mapaMesaSyncDireta',POS=MAP+'/posicoes',CMD=MAP+'/acoes';
 const copy=v=>v===undefined?null:structuredClone(v);
-function fixture({defense=false,area=false,support=false,special=false}={}){
+function fixture({defense=false,area=false,support=false,special=false,object=false}={}){
  const rows=[{id:'a',nome:'Jogador',donoUid:'player',x:1,y:1,initiative:20,actions:2},{id:'b',nome:'NPC',donoUid:'',x:2.4,y:1,initiative:0,actions:2}];
  const store=new Map([[MAP,{mapId:'map',combat:iniciarIniciativa(rows,'session',()=>1)}],...rows.map(t=>[POS+'/'+t.id,t])]);
+ if(object)store.set('combatesAtivos/mapaMesaSyncDiretaCena',{mapId:'map',objects:[{id:'box',nome:'Caixa',x:2,y:1,pvMax:5,pvAtual:5,dureza:2,destrutivel:true,bloqueiaMovimento:true}]});
  const listeners=new Set();let lock=Promise.resolve();
  const emit=p=>{for(const l of [...listeners])if(l.doc?p===l.path:p.startsWith(l.path+'/'))l.fn(l.doc?copy(store.get(p)):[{id:p.split('/').pop(),data:copy(store.get(p))}]);};
  const subscribe=(path,fn,doc)=>{const l={path,fn,doc};listeners.add(l);if(doc)fn(copy(store.get(path)));else for(const [p,v]of store)if(p.startsWith(path+'/'))fn([{id:p.split('/').pop(),data:copy(v)}]);return()=>listeners.delete(l);};
@@ -19,7 +21,7 @@ function fixture({defense=false,area=false,support=false,special=false}={}){
  }};
  const healthMaster=[],healthPlayer=[],errors=[];let resolutions=0;
  const prepare=async()=>{
-  const resolve=(a,b,health,map,decision)=>{if(Math.hypot(a.x-b.x,a.y-b.y)>(area?15:3))throw Error('Fora de alcance');if(defense&&decision.phase==='preview')return {pending:{remaining:2,options:[{id:'dodge',nome:'Esquiva',valor:60}]}};if(special&&!decision.effectsConfirmed)return {effectsPending:{type:'effects',options:[{id:'sangrar',nome:'Sangrar'}],locations:['Peito'],maxEffects:1}};resolutions++;return {defenseSpent:decision.choice==='dodge',actors:{[a.id]:{municaoLab:{charge:(health[a.id]?.municaoLab?.charge??10)-1}},[b.id]:{pv:(health[b.id]?.pv??10)-3}},event:{message:'3 de dano',damage:3}};};
+  const resolve=(a,b,health,map,decision)=>{if(Math.hypot(a.x-b.x,a.y-b.y)>(area?15:3))throw Error('Fora de alcance');if(defense&&decision.phase==='preview')return {pending:{remaining:2,options:[{id:'dodge',nome:'Esquiva',valor:60}]}};if(special&&!decision.effectsConfirmed)return {effectsPending:{type:'effects',options:[{id:'sangrar',nome:'Sangrar'}],locations:['Peito'],maxEffects:1}};resolutions++;if(object){const d=danoObjeto(b,7);return {object:d.object,actors:{[a.id]:{municaoLab:{charge:(health[a.id]?.municaoLab?.charge??10)-1}}},event:{message:'Objeto destruído',damage:d.dano}};}return {defenseSpent:decision.choice==='dodge',actors:{[a.id]:{municaoLab:{charge:(health[a.id]?.municaoLab?.charge??10)-1}},[b.id]:{pv:(health[b.id]?.pv??10)-3}},event:{message:'3 de dano',damage:3}};};
   if(area)resolve.area={range:15,angle:60,centralPenalty:20};return resolve;
  };
  const options={database,tokens:()=>[...store.entries()].filter(([key])=>key.startsWith(POS+'/')).map(([key,t])=>({...t,id:key.split('/').pop()})),prepare,onError:e=>errors.push(e)};
@@ -157,3 +159,9 @@ test('transferência compartilhada salva kit e ação juntos, sem repetir gasto 
   assert.equal(f.store.get(MAP).combat.actors.a.remaining,1);assert.equal(f.store.get('personagens/a').inventario.equipado[0].usosRestantes,3);
  }finally{f.close();}
 });
+
+test('objeto: PV, ação e munição juntos; duplicata e alvo destruído não cobram de novo',async()=>{const f=fixture({object:true});try{
+ const payload={...f.payload(),targetKind:'object',targetId:'box'};await f.player.attack(payload);const scene=f.store.get('combatesAtivos/mapaMesaSyncDiretaCena');assert.equal(scene.objects[0].pvAtual,0);assert.equal(scene.objects.length,1);assert.equal(f.store.get(MAP).combat.actors.a.remaining,1);assert.equal(f.store.get(HEALTH_PATH).actors.a.municaoLab.charge,9);assert.equal(f.store.get(HEALTH_PATH).pending,null);
+ const command=[...f.store.keys()].filter(p=>p.startsWith(CMD+'/')).at(-1);f.emit(command);await new Promise(r=>setTimeout(r,5));assert.equal(f.store.get(MAP).combat.actors.a.remaining,1);
+ await assert.rejects(f.player.attack({...payload,turnId:f.store.get(MAP).combat.turnId}),/destruído/);assert.equal(f.store.get(HEALTH_PATH).actors.a.municaoLab.charge,9);assert.equal(f.store.get(MAP).combat.actors.a.remaining,1);
+}finally{f.close();}});
