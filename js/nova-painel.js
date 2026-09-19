@@ -1,5 +1,5 @@
-import {painelSuporte} from './nova-suporte-painel.js?v=42';
-import {ocupado} from './nova-suporte.js?v=42';
+import {painelSuporte} from './nova-suporte-painel.js?v=44';
+import {ocupado} from './nova-suporte.js?v=44';
 export function criarPainelAcoes({root,load,spend,roll,attack,support,unlock=()=>{}}){
  const host=root.getElementById('novaSyncActionPanel'),passButton=root.getElementById('novaSyncNext');
  const cache=new Map(),preferences=new Map(),results=new Map();

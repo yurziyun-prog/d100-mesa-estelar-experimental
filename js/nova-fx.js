@@ -1,7 +1,7 @@
 export function tipoEfeito(item){
  const n=String(item?.nome||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
- if(/psiquic|psychic/.test(n))return 'psychic';
- for(const [kind,re]of [['sonic',/eco.*matilha|cone.*son|trombeta/],['bite',/mordida|bite/],['stomp',/patada|pisot|stomp/],['tail',/cauda|calda|rabo|tail/],['phaser',/faser|phaser/],['saber',/espada|sabre|saber/],['laser',/laser/],['blaster',/blaster/]])if(re.test(n))return kind;
+ if(/psiquic|psychic/.test(n)&&!/grito/.test(n))return 'psychic';
+ for(const [kind,re]of [['sonic',/eco.*matilha|grito.*ps[ií]quico|cone.*son|trombeta/],['bite',/mordida|bite/],['stomp',/patada|pisot|stomp/],['tail',/cauda|calda|rabo|tail/],['phaser',/faser|phaser/],['saber',/espada|sabre|saber/],['laser',/laser/],['blaster',/blaster/]])if(re.test(n))return kind;
  return 'impact';
 }
 export function mostrarAtaque(board,event){

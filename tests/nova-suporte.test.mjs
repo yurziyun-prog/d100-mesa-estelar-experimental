@@ -51,3 +51,8 @@ test('poder resistido produz teste por vítima e efeito expira; narrativa vai ao
  const result=resolverPsi(args);assert.match(result.message,/Vontade/);assert.equal(result.actors.b.psiEffects.atordoado.penalty,20);atualizarDuracoes(result.actors,{...result.combat,round:2});assert.equal(result.actors.b.psiEffects.atordoado,undefined);
  const narrative=resolverPsi({...args,cmd:{...args.cmd,powerId:'telepatia',text:'Socorro'}});assert.equal(narrative.psiRequests[0].text,'Socorro');assert.equal(narrative.psiRequests[0].status,'pending');
 });
+
+test('Grito fora de combate atinge só cone de oito metros e não remove PV',()=>{
+ const args=psiArgs('grito_psiquico');args.b=args.positions[1];args.map.combat={active:false};args.positions.push({id:'longe',x:12,y:1,nome:'Longe'});args.info.resistanceById={b:0};args.info.dodgeById={b:0};
+ const out=resolverPsi(args);assert.equal(out.actors.b.combateLab.hit.Peito,-2);assert.equal(out.actors.b.combateLab.caido,true);assert.ok(out.actors.b.combateLab.unconsciousClock);assert.equal(out.actors.longe,undefined);assert.equal(out.area.range,8);assert.equal(out.powerName,'grito_psiquico');
+});

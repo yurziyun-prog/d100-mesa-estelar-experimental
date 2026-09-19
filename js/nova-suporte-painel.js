@@ -1,4 +1,4 @@
-import {feridas,ocupado,PSI_NARRATIVOS} from './nova-suporte.js?v=42';
+import {feridas,ocupado,PSI_NARRATIVOS} from './nova-suporte.js?v=44';
 
 const states=new WeakMap();
 export function painelSuporte({root,host,current,sheet,view,combat,allowed,send,load}){
@@ -51,7 +51,7 @@ export function painelSuporte({root,host,current,sheet,view,combat,allowed,send,
    targetLabel.firstChild.textContent=copy?'Forma para copiar':p.id==='cura_psi'?'Paciente da cura psíquica':'Alvo';
    targetLabel.hidden=selfIds.has(p.id)||p.id==='mover_objeto';target.disabled=selfIds.has(p.id);
    locLabel.hidden=p.id!=='cura_psi';objLabel.hidden=p.id!=='mover_objeto';destLabel.hidden=!['teletransporte','salto','mover_objeto'].includes(p.id);textLabel.hidden=!PSI_NARRATIVOS.has(p.id);
-   description.textContent=p.id==='ilusao'?'Cria uma cópia ilusória separada de uma pessoa, criatura ou objeto do mapa. Não causa dano e não muda a sua aparência. Manutenção: 2 PP por rodada.':p.id==='mimetismo_psi'?'Você assume a aparência da forma selecionada. A aparência não concede os atributos ou ataques da forma copiada. Duração: 1 minuto; renovação: 1 PP.':(p.description||'')+(PSI_NARRATIVOS.has(p.id)?' · O mestre responderá em uma janela separada.':'');
+   description.textContent=p.id==='grito_psiquico'?'Cone de 60° e 8 m, incluindo aliados. Sem dano físico. Esquiva (−20 no alvo central); se atingido, cai e testa Resistência: falha causa inconsciência por 1d4 rodadas. Use o botão Usar poder abaixo.':p.id==='ilusao'?'Cria uma cópia ilusória separada de uma pessoa, criatura ou objeto do mapa. Não causa dano e não muda a sua aparência. Duração: 1 minuto. Manutenção: 2 PP por rodada (6 segundos fora de combate).':p.id==='mimetismo_psi'?'Você assume a aparência da forma selecionada. A aparência não concede os atributos ou ataques da forma copiada. Duração: 1 minuto.':(p.description||'')+(PSI_NARRATIVOS.has(p.id)?' · O mestre responderá em uma janela separada.':'');
    if(p.id==='cura_psi')fillLocations();
   };
   powers.onchange=paint;target.onchange=()=>{pref.target=target.value;pref.psiPart='';if(powers.value==='cura_psi')fillLocations();};location.onchange=()=>pref.psiPart=location.value;paint();

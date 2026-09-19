@@ -1,6 +1,6 @@
 import {acaoIniciativa,gastarDefesa,removerMortos} from './nova-turnos.js?v=39';
 import {alvosNoCone} from './nova-area.js?v=20260918';
-import {atualizarDuracoes} from './nova-suporte.js?v=42';
+import {atualizarDuracoes} from './nova-suporte.js?v=44';
 export const HEALTH_PATH='combatesAtivos/mapaMesaSyncSaude';
 export const HISTORY_PATH='combatesAtivos/mapaMesaSyncHistorico';
 const MAP='combatesAtivos/mapaMesaSyncDireta',POSITIONS=MAP+'/posicoes',COMMANDS=MAP+'/acoes';
@@ -44,7 +44,7 @@ export function conectarAtaques({database,user,tokens,prepare,prepareSupport,pre
      const result=prepared.resolve({a,b,health,map,cmd:{...cmd,id,time:Date.now()},sheet,scene,positions:list,seed:cmd.seed});
      atualizarDuracoes(result.actors,result.combat);
      const event={id,actorUid:(list.find(t=>t.id===result.eventActorId)||a).donoUid||'',targetUid:(list.find(t=>t.id===result.eventTargetId)||b).donoUid||'',ts:Date.now(),message:result.message};
-     if(cmd.kind==='direct-psi')Object.assign(event,{source:{x:a.x,y:a.y},target:{x:b.x,y:b.y},item:{nome:'Poder psíquico'},hit:true});
+     if(cmd.kind==='direct-psi')Object.assign(event,{source:{x:a.x,y:a.y},target:{x:b.x,y:b.y},item:{nome:result.powerName||'Poder psíquico'},hit:result.psiHit!==false,...(result.area?{area:result.area}:{})});
      tx.set(HEALTH_PATH,clean({...health,actors:result.actors||health.actors,psiRequests:result.psiRequests||health.psiRequests||[],event,revision:(health.revision||0)+1}));
      if(result.inventory&&prepared.sheetPath)tx.set(prepared.sheetPath,{...sheet,inventario:result.inventory});
      if(result.scene)tx.set('combatesAtivos/mapaMesaSyncDiretaCena',clean(result.scene));
@@ -76,8 +76,8 @@ export function conectarAtaques({database,user,tokens,prepare,prepareSupport,pre
      tx.set(path,{...cmd,status:'done',message:result.message});
     });return;
    }
-   const defense=command.kind==='direct-defense';
-   const original=defense?await database.get(COMMANDS+'/'+command.attackId):command;
+   const defense=command.kind==='direct-defense',effectChoice=command.kind==='direct-effects',followup=defense||effectChoice;
+   const original=followup?await database.get(COMMANDS+'/'+command.attackId):command;
    if(!original)throw Error('Ataque não encontrado.');
    const find=async id=>tokens().find(t=>t.id===id)||(await database.get(POSITIONS+'/'+id));
    const [actor,target]=await Promise.all([find(original.personagemId),find(original.targetId)]);
@@ -88,13 +88,17 @@ export function conectarAtaques({database,user,tokens,prepare,prepareSupport,pre
     // Firestore exige todas as leituras antes da primeira gravação.
     const cmd=await tx.get(path),map=await tx.get(MAP)||{},health=await tx.get(HEALTH_PATH)||{actors:{},revision:0};
     const history=await tx.get(HISTORY_PATH)||{entries:[]};
-    const attackCmd=defense?await tx.get(COMMANDS+'/'+command.attackId):cmd;
+    const attackCmd=followup?await tx.get(COMMANDS+'/'+command.attackId):cmd;
     const a=await tx.get(POSITIONS+'/'+original.personagemId),b=await tx.get(POSITIONS+'/'+original.targetId);
     if(cmd?.status!=='pending')return;
     if(!a||!b||original.personagemId===original.targetId)throw Error('Alvo inválido.');
     if((map.mapId||'')!==original.mapId||(map.combat?.active?map.combat.turnId:null)!==original.turnId)throw Error('O mapa ou a oportunidade mudou.');
     const pending=health.pending;
-    if(defense){
+    if(effectChoice){
+     if(attackCmd?.status!=='awaiting'||pending?.type!=='effects'||pending.id!==command.attackId||map.combat?.pendingAttack!==command.attackId)throw Error('Esta escolha já foi resolvida.');
+     if(cmd.personagemId!==original.personagemId||(cmd.donoUid!==a.donoUid&&cmd.donoUid!==user().uid))throw Error('Somente o atacante ou o mestre escolhe os efeitos.');
+    }else if(defense){
+     if(pending?.type==='effects')throw Error('A defesa já foi resolvida.');
      if(attackCmd?.status!=='awaiting'||pending?.id!==command.attackId||map.combat?.pendingAttack!==command.attackId)throw Error('Esta defesa já foi resolvida ou encerrada.');
      if(cmd.donoUid!==b.donoUid&&!(cmd.donoUid===user().uid&&!b.donoUid))throw Error('Você não controla o defensor.');
      if(cmd.personagemId!==original.targetId)throw Error('Defensor inválido.');
@@ -105,8 +109,15 @@ export function conectarAtaques({database,user,tokens,prepare,prepareSupport,pre
      if(!Number.isFinite(cmd.createdAt)||Math.abs(Date.now()-cmd.createdAt)>30000)throw Error('O pedido expirou. Tente novamente.');
      if(map.combat?.active&&map.combat.activeId!==cmd.personagemId)throw Error('Aguarde sua vez.');
     }
-    const result=resolve({...a,id:original.personagemId},{...b,id:original.targetId},health.actors||{},map,{phase:defense?'resolve':'preview',choice:defense?cmd.choice:null});
-    if(!defense&&result.pending){
+    const result=resolve({...a,id:original.personagemId},{...b,id:original.targetId},health.actors||{},map,{phase:followup?'resolve':'preview',choice:defense?cmd.choice:effectChoice?attackCmd.defenseChoice:null,effectsConfirmed:effectChoice,effects:effectChoice?cmd.effects:[],local:effectChoice?cmd.local:''});
+    if(result.effectsPending){
+     const attackId=followup?command.attackId:id,message='Ataque acertou · aguardando escolhas de '+a.nome;
+     tx.set(HEALTH_PATH,clean({...health,pending:{...result.effectsPending,id:attackId,actorId:original.personagemId,targetId:original.targetId,owner:a.donoUid},revision:(health.revision||0)+1}));
+     tx.set(MAP,{...map,combat:{...map.combat,pendingAttack:attackId}});
+     tx.set(COMMANDS+'/'+attackId,clean({...attackCmd,defenseChoice:defense?cmd.choice:'none',status:'awaiting',message}));
+     if(followup)tx.set(path,{...cmd,status:'done',message});return;
+    }
+    if(!followup&&result.pending){
      const facing=Math.atan2((b.y-a.y)*(Number(map.alturaM)||14)/14,(b.x-a.x)*(Number(map.larguraM)||28)/28);
      const next={...result.pending,id,actorId:original.personagemId,targetId:original.targetId,owner:b.donoUid,facing};
      tx.set(HEALTH_PATH,clean({...health,pending:next,revision:(health.revision||0)+1}));
@@ -121,14 +132,14 @@ export function conectarAtaques({database,user,tokens,prepare,prepareSupport,pre
      combat=removerMortos(combat,{...(health.actors||{}),...result.actors});
      if(combat.active)combat=acaoIniciativa(combat,'spend',combat.turnId);
     }
-    const event={...result.event,id:defense?command.attackId:id,ts:Date.now(),actorUid:a.donoUid,targetUid:b.donoUid,source:{id:original.personagemId,x:a.x,y:a.y},target:{id:original.targetId,x:b.x,y:b.y}};
+    const event={...result.event,id:followup?command.attackId:id,ts:Date.now(),actorUid:a.donoUid,targetUid:b.donoUid,source:{id:original.personagemId,x:a.x,y:a.y},target:{id:original.targetId,x:b.x,y:b.y}};
     const actors={...(health.actors||{})};for(const [key,value]of Object.entries(result.actors||{}))actors[key]={...actors[key],...value};
     atualizarDuracoes(actors,combat);
     tx.set(HEALTH_PATH,clean({...health,actors,revision:(health.revision||0)+1,event,pending:null}));
     tx.set(HISTORY_PATH,clean({entries:[...(history.entries||[]),event].slice(-120),revision:(history.revision||0)+1}));
     if(map.combat?.active)tx.set(MAP,{...map,combat});
     tx.set(path,{...cmd,status:'done',message:event.message});
-    if(defense)tx.set(COMMANDS+'/'+command.attackId,{...attackCmd,status:'done',message:event.message});
+    if(followup)tx.set(COMMANDS+'/'+command.attackId,{...attackCmd,status:'done',message:event.message});
    });
    if(!defense)await orientAttack(original,actor.revision);
   }catch(e){
@@ -174,7 +185,7 @@ export function conectarAtaques({database,user,tokens,prepare,prepareSupport,pre
    const area={shape,ids:affected.map(t=>t.id),responses};
    if(next){
     const message='Ataque em cone · aguardando defesa de '+positions.find(t=>t.id===next.targetId).nome;
-    const launch={id:attackId,ts:Date.now(),actorUid:a.donoUid,targetUid:aim.donoUid,source:{id:a.id,x:a.x,y:a.y},target:{id:aim.id,x:aim.x,y:aim.y},item:{nome:'Eco da Matilha'},message,area:{...shape,source:{x:a.x,y:a.y},aim:{x:aim.x,y:aim.y},width:Number(map.larguraM)||28,height:Number(map.alturaM)||14}};
+    const launch={id:attackId,ts:Date.now(),actorUid:a.donoUid,targetUid:aim.donoUid,source:{id:a.id,x:a.x,y:a.y},target:{id:aim.id,x:aim.x,y:aim.y},item:{nome:shape.name||'Eco da Matilha'},message,area:{...shape,source:{x:a.x,y:a.y},aim:{x:aim.x,y:aim.y},width:Number(map.larguraM)||28,height:Number(map.alturaM)||14}};
     tx.set(HEALTH_PATH,clean({...health,...(!defense?{event:launch}:{}),pending:next,revision:(health.revision||0)+1}));
     tx.set(MAP,{...map,combat:{...map.combat,pendingAttack:attackId}});
     tx.set(COMMANDS+'/'+attackId,clean({...attackCmd,area,status:'awaiting',message}));
@@ -201,7 +212,7 @@ export function conectarAtaques({database,user,tokens,prepare,prepareSupport,pre
   });
  }
  stopHealth=database.subscribeDoc(HEALTH_PATH,value=>{if(!closed)onHealth(value||{actors:{},revision:0});},onError);
- if(user()?.master)stopCommands=database.subscribe(COMMANDS,rows=>{for(const row of rows)if(!row.removed&&['direct-attack','direct-defense','direct-equipment','direct-first-aid','direct-test','direct-psi','direct-psi-review','direct-stand'].includes(row.data.kind)&&row.data.status==='pending')process(row.id,row.data);},onError);
+ if(user()?.master)stopCommands=database.subscribe(COMMANDS,rows=>{for(const row of rows)if(!row.removed&&['direct-attack','direct-defense','direct-effects','direct-equipment','direct-first-aid','direct-test','direct-psi','direct-psi-review','direct-stand'].includes(row.data.kind)&&row.data.status==='pending')process(row.id,row.data);},onError);
  async function send(payload){
   const path=COMMANDS+'/'+crypto.randomUUID();
   await database.writeMap(path,{...payload,donoUid:user().uid,createdAt:Date.now(),status:'pending'});
@@ -213,7 +224,8 @@ export function conectarAtaques({database,user,tokens,prepare,prepareSupport,pre
  }
  return {
   attack:({actorId,targetId,skillId,weaponId,turnId,mapId})=>send({kind:'direct-attack',personagemId:actorId,targetId,skillId,weaponId,turnId:turnId||null,mapId:mapId||'',seed:crypto.getRandomValues(new Uint32Array(1))[0]}),
-  support:({actorId,...payload})=>send({...payload,personagemId:actorId,seed:crypto.getRandomValues(new Uint32Array(1))[0]}),
+  support:({actorId,...payload})=>send({...payload,...(payload.kind==='direct-psi'&&payload.powerId==='grito_psiquico'&&payload.turnId?{kind:'direct-attack'}:{}),personagemId:actorId,seed:crypto.getRandomValues(new Uint32Array(1))[0]}),
+  chooseEffects:({attackId,actorId,effects,local})=>send({kind:'direct-effects',attackId,personagemId:actorId,effects,local:local||''}),
   defend:({attackId,actorId,choice})=>send({kind:'direct-defense',attackId,personagemId:actorId,choice}),
   equipment:payload=>send({...payload,kind:'direct-equipment'}),
   close(){closed=true;stopHealth?.();stopCommands?.();for(const finish of [...waiters])finish(Error('Sessão encerrada.'));}

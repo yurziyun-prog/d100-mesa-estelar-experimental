@@ -6,7 +6,7 @@ import {resolverSocorros,resolverPsi} from '../js/nova-suporte.js';
 import {defesasRestantes,acaoIniciativa,moverNoTurno,ataqueSuperaDefesa,removerMortos} from '../js/nova-turnos.js';
 const MAP='combatesAtivos/mapaMesaSyncDireta',POS=MAP+'/posicoes',CMD=MAP+'/acoes';
 const copy=v=>v===undefined?null:structuredClone(v);
-function fixture({defense=false,area=false,support=false}={}){
+function fixture({defense=false,area=false,support=false,special=false}={}){
  const rows=[{id:'a',nome:'Jogador',donoUid:'player',x:1,y:1,initiative:20,actions:2},{id:'b',nome:'NPC',donoUid:'',x:2.4,y:1,initiative:0,actions:2}];
  const store=new Map([[MAP,{mapId:'map',combat:iniciarIniciativa(rows,'session',()=>1)}],...rows.map(t=>[POS+'/'+t.id,t])]);
  const listeners=new Set();let lock=Promise.resolve();
@@ -17,7 +17,7 @@ function fixture({defense=false,area=false,support=false}={}){
  }};
  const healthMaster=[],healthPlayer=[],errors=[];let resolutions=0;
  const prepare=async()=>{
-  const resolve=(a,b,health,map,decision)=>{if(Math.hypot(a.x-b.x,a.y-b.y)>(area?15:3))throw Error('Fora de alcance');if(defense&&decision.phase==='preview')return {pending:{remaining:2,options:[{id:'dodge',nome:'Esquiva',valor:60}]}};resolutions++;return {defenseSpent:decision.choice==='dodge',actors:{[a.id]:{municaoLab:{charge:(health[a.id]?.municaoLab?.charge??10)-1}},[b.id]:{pv:(health[b.id]?.pv??10)-3}},event:{message:'3 de dano',damage:3}};};
+  const resolve=(a,b,health,map,decision)=>{if(Math.hypot(a.x-b.x,a.y-b.y)>(area?15:3))throw Error('Fora de alcance');if(defense&&decision.phase==='preview')return {pending:{remaining:2,options:[{id:'dodge',nome:'Esquiva',valor:60}]}};if(special&&!decision.effectsConfirmed)return {effectsPending:{type:'effects',options:[{id:'sangrar',nome:'Sangrar'}],locations:['Peito'],maxEffects:1}};resolutions++;return {defenseSpent:decision.choice==='dodge',actors:{[a.id]:{municaoLab:{charge:(health[a.id]?.municaoLab?.charge??10)-1}},[b.id]:{pv:(health[b.id]?.pv??10)-3}},event:{message:'3 de dano',damage:3}};};
   if(area)resolve.area={range:15,angle:60,centralPenalty:20};return resolve;
  };
  const options={database,tokens:()=>[...store.entries()].filter(([key])=>key.startsWith(POS+'/')).map(([key,t])=>({...t,id:key.split('/').pop()})),prepare,onError:e=>errors.push(e)};
@@ -121,4 +121,16 @@ test('margem, perícia e empate absoluto determinam oposição; mortos saem da r
  assert.equal(ataqueSuperaDefesa({grau:'Sucesso',valor:60,die:20},{grau:'Sucesso',valor:80,die:40}),false);
  assert.equal(ataqueSuperaDefesa({grau:'Sucesso',valor:60,die:20},{grau:'Sucesso',valor:60,die:20}),false);
  const f=fixture();try{const c=removerMortos(f.store.get(MAP).combat,{b:{combateLab:{morto:true}}});assert.deepEqual(c.order,['a']);assert.deepEqual(acaoIniciativa(acaoIniciativa(c,'pass',c.turnId),'pass',c.session+':1').queue,['a']);}finally{f.close();}
+});
+
+test('defesa, escolha de efeitos e dano formam uma única resolução com autoria e gasto único',async()=>{
+ const f=fixture({defense:true,special:true});try{
+  await f.player.attack(f.payload());let pending=f.store.get(HEALTH_PATH).pending;
+  await f.master.defend({attackId:pending.id,actorId:'b',choice:'dodge'});
+  pending=f.store.get(HEALTH_PATH).pending;assert.equal(pending.type,'effects');assert.equal(f.resolutions(),0);assert.equal(f.store.get(MAP).combat.actors.a.remaining,2);
+  await assert.rejects(f.player.chooseEffects({attackId:pending.id,actorId:'b',effects:[],local:'Peito'}),/Somente/);
+  await f.player.chooseEffects({attackId:pending.id,actorId:'a',effects:['sangrar'],local:'Peito'});
+  assert.equal(f.resolutions(),1);assert.equal(f.store.get(HEALTH_PATH).pending,null);assert.equal(f.store.get(MAP).combat.actors.a.remaining,1);assert.equal(defesasRestantes(f.store.get(MAP).combat,'b'),1);
+  await assert.rejects(f.player.chooseEffects({attackId:pending.id,actorId:'a',effects:[],local:'Peito'}),/já foi resolvida|mudou/);assert.equal(f.resolutions(),1);
+ }finally{f.close();}
 });

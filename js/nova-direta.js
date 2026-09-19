@@ -1,11 +1,13 @@
+import {descreverTeste} from './nova-regras.js?v=44';
+import {textoDuracao,tempoRestante} from './nova-duracoes.js?v=44';
 // Movimento livre: uma posição por personagem, sem sessão-mestre ou fila de comandos.
 import {saldoMovimento,movimentoMaximo,moverNoTurno,iniciarIniciativa,acaoIniciativa,defesasRestantes} from './nova-turnos.js?v=39';
 import {destinoSemColisao,TOKEN_DIAMETER} from './nova-colisao.js?v=25';
-import {criarPainelAcoes} from './nova-painel.js?v=42';
-import {conectarAtaques,HEALTH_PATH,HISTORY_PATH} from './nova-ataques.js?v=42';
-import {mostrarAtaque} from './nova-fx.js?v=40';
+import {criarPainelAcoes} from './nova-painel.js?v=44';
+import {conectarAtaques,HEALTH_PATH,HISTORY_PATH} from './nova-ataques.js?v=44';
+import {mostrarAtaque} from './nova-fx.js?v=44';
 import {criarEditorMesa} from './nova-editor.js?v=35';
-import {ocupado,atualizarDuracoes} from './nova-suporte.js?v=42';
+import {ocupado,atualizarDuracoes} from './nova-suporte.js?v=44';
 export const POSITION_PATH='combatesAtivos/mapaMesaSyncDireta/posicoes';
 export const MAP_PATH='combatesAtivos/mapaMesaSyncDireta';
 export const SCENE_PATH='combatesAtivos/mapaMesaSyncDiretaCena';
@@ -13,7 +15,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
  const el=id=>root.getElementById(id), displayName=t=>String(t?.nome||'').replace(/^(NPC|Monstro|PJ|PM|Objeto|Item)\s*[·:-]\s*/i,''), tokens=new Map(), previews=new Map(), queues=new Map();
  let stop=null,stopMap=null,stopHistory=null,account='',error='',generation=0,mapPacket=null,mapData=null,renderedMap=null,mapRequest=0;
  let changingTurn=false,lastSelectedTurn='',defending=false;
- let durationSync=false;
+ let durationSync=false,clockTimer=null;
  const dismissedPsi=new Set();
  let held=null,turning=null,frame=0,placing=false,placementChoice='';
  let catalogKey='',catalogLimit=48,sceneRef=null,sceneMapId=null;
@@ -82,13 +84,26 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
  },support:async payload=>{
   if(!attacks)throw Error('Sessão de combate indisponível.');
   if(!controlled(tokens.get(payload.actorId)))throw Error('Você não controla este personagem.');
-  return attacks.support(payload);
+  return attacks.support({...payload,mapId:mapPacket?.mapId||''});
  }});
+ function syncDurations(){
+  if(!user()?.master||durationSync||!account)return;
+  const mode=mapPacket?.combat?.active?mapPacket.combat.roundId:'exploration';
+  const preview=structuredClone(health.actors||{}),c=structuredClone(mapPacket?.combat),scene=structuredClone(sceneData);
+  const changed=atualizarDuracoes(preview,c,scene);
+  if(!changed&&health.supportRound===mode)return;
+  durationSync=true;
+  database.transact(async tx=>{
+   const map=await tx.get(MAP_PATH),h=await tx.get(HEALTH_PATH),sc=await tx.get(SCENE_PATH);if(!h)return;
+   const modified=atualizarDuracoes(h.actors,map?.combat,sc),key=map?.combat?.active?map.combat.roundId:'exploration';
+   if(!modified&&h.supportRound===key)return;
+   h.supportRound=key;h.revision=(h.revision||0)+1;tx.set(HEALTH_PATH,h);if(map)tx.set(MAP_PATH,map);if(sc)tx.set(SCENE_PATH,sc);
+  }).catch(fail).finally(()=>durationSync=false);
+ }
+ function paintClocks(){let expired=false;for(const n of board.querySelectorAll('[data-effect-clock]')){n.textContent=textoDuracao(n.effectClock,mapPacket?.combat);if(tempoRestante(n.effectClock,mapPacket?.combat)<=0){n.closest('[data-scene-object]')?.remove();expired=true;}}if(expired)draw();}
  function status(){
   drawPsiInbox();
-  if(user()?.master&&mapPacket?.combat?.active&&!durationSync&&health.supportRound!==mapPacket.combat.roundId){
-   durationSync=true;database.transact(async tx=>{const map=await tx.get(MAP_PATH),h=await tx.get(HEALTH_PATH),scene=await tx.get(SCENE_PATH);if(!map?.combat?.active||!h||h.supportRound===map.combat.roundId)return;atualizarDuracoes(h.actors,map.combat,scene);h.supportRound=map.combat.roundId;h.revision=(h.revision||0)+1;tx.set(HEALTH_PATH,h);tx.set(MAP_PATH,map);if(scene)tx.set(SCENE_PATH,scene);}).catch(fail).finally(()=>{durationSync=false;});
-  }
+  syncDurations();
   el('novaSyncStatus').textContent=(queues.size?'Mesa 36 · salvando posição…':error)||`Mesa 36 · ${tokens.size} personagem(ns) · 48 px/m`;
   if(held)el('novaSyncStatus').textContent='Solte o botão do mouse para parar · 3 m/s';
   else if(placementChoice)el('novaSyncStatus').textContent='Clique no mapa para colocar o personagem escolhido.';
@@ -187,11 +202,13 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
    const p=previews.get(t.id)||t;
     const tokenDiameterM=/besta\s+ululante/i.test(String(t.nome||''))?2.4:1;
     const tokenHealth=health.actors?.[t.id]?.combateLab||{};
-    const mimic=health.actors?.[t.id]?.psiEffects?.mimetismo_psi;
+    const mimicState=health.actors?.[t.id]?.psiEffects?.mimetismo_psi,mimic=mimicState?.clock&&tempoRestante(mimicState.clock,mapPacket?.combat)<=0?null:mimicState;
     const tokenImage=mimic?.image||t.imagem||'';
     const tokenImg=node.querySelector('img');
     if(tokenImg&&tokenImg.getAttribute('src')!==tokenImage){if(tokenImage)tokenImg.src=tokenImage;else tokenImg.remove();}
     if(!tokenImg&&tokenImage){const img=root.createElement('img');img.src=tokenImage;img.draggable=false;img.style.cssText='width:100%;height:100%;object-fit:cover;border-radius:50%;pointer-events:none';node.prepend(img);}
+    node.querySelectorAll('[data-effect-clock]').forEach(n=>n.remove());
+    let timerIndex=0;for(const effect of Object.values(health.actors?.[t.id]?.psiEffects||{})){if(!effect.clock)continue;const timer=root.createElement('small');timer.dataset.effectClock='';timer.effectClock=effect.clock;timer.style.cssText='position:absolute;left:0;top:calc(100% + 20px);background:#151b32;color:#ddd;white-space:nowrap;font-size:10px';timer.style.top='calc(100% + '+(20+14*timerIndex++)+'px)';timer.textContent=textoDuracao(effect.clock,mapPacket?.combat);node.append(timer);}
     node.style.filter='none';
     node.querySelectorAll('[data-state-symbol]').forEach(n=>n.remove());
     if(tokenHealth.morto||tokenHealth.inconsciente||tokenHealth.incapacitado){const state=root.createElement('span');state.dataset.stateSymbol='';state.textContent=tokenHealth.morto?'💀':tokenHealth.inconsciente?'💤':'🩸';state.style.cssText='position:absolute;inset:0;display:grid;place-items:center;font-size:22px;text-shadow:0 1px 3px #000;pointer-events:none;z-index:10;';node.append(state);}
@@ -215,7 +232,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
    }
    node.querySelectorAll('[data-defense-bubble]').forEach(n=>n.remove());
    if(sendingActor===t.id||mapPacket?.combat?.pendingAttack&&health.pending?.actorId===t.id){
-    const bubble=root.createElement('span');bubble.dataset.defenseBubble='';bubble.textContent=sendingActor===t.id?'⏳ Enviando ataque…':'⏳ Defesa';bubble.title=sendingActor===t.id?'Enviando o ataque ao mestre':'Aguardando a defesa do alvo';
+    const bubble=root.createElement('span');bubble.dataset.defenseBubble='';bubble.textContent=sendingActor===t.id?'⏳ Enviando ataque…':health.pending?.type==='effects'?'✨ Escolher efeitos':'⏳ Defesa';bubble.title=sendingActor===t.id?'Enviando o ataque ao mestre':'Aguardando a defesa do alvo';
     const above=p.y/14>0.28;
     bubble.style.cssText='position:absolute;left:50%;'+(above?'top:calc(100% + 20px);':'bottom:calc(100% + 4px);')+'transform:translateX(-50%);white-space:nowrap;padding:2px 5px;border-radius:4px;background:#ffd447;color:#171b2f;font:11px Arial,sans-serif;font-weight:bold;z-index:12;pointer-events:none;';node.append(bubble);
    }
@@ -234,19 +251,33 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
  }
  function drawDefense(){
   let box=board.querySelector('[data-defense-prompt]');
-  const pending=health.pending,t=tokens.get(pending?.targetId);
+  const pending=health.pending,isEffects=pending?.type==='effects',t=tokens.get(isEffects?pending.actorId:pending?.targetId);
   if(!pending||mapPacket?.combat?.pendingAttack!==pending.id||!t){box?.remove();return;}
-  const canRespond=user()?.uid===t.donoUid||!!user()?.master&&!t.donoUid;
-  const key=pending.id+':'+canRespond+':'+defending;
+  const canRespond=user()?.uid===t.donoUid||!!user()?.master;
+  const key=pending.id+':'+pending.type+':'+canRespond+':'+defending;
   if(box?.dataset.key===key)return;
   box?.remove();box=root.createElement('div');box.dataset.defensePrompt='';box.dataset.key=key;
-  box.style.cssText='position:absolute;z-index:30;width:260px;max-width:90%;padding:8px;border:1px solid #00d4ff;border-radius:8px;background:#151b32;color:white;font:13px Arial,sans-serif;box-sizing:border-box;';
+  box.style.cssText='max-height:45vh;overflow:auto;position:absolute;z-index:30;width:260px;max-width:90%;padding:8px;border:1px solid #00d4ff;border-radius:8px;background:#151b32;color:white;font:13px Arial,sans-serif;box-sizing:border-box;';
   box.style.left=Math.max(0,Math.min(board.clientWidth-270,t.x/28*board.clientWidth-130))+'px';
   const y=t.y/14*board.clientHeight;box.style.top=(y>180?y-175:y+40)+'px';
-  const title=root.createElement('strong');title.textContent=canRespond?'Defesa de '+displayName(t)+' · '+pending.remaining+' restante(s)':'Aguardando defesa de '+displayName(t);box.append(title);
+  const title=root.createElement('strong');title.textContent=isEffects?'Escolhas de '+displayName(t):canRespond?'Defesa de '+displayName(t)+' · '+pending.remaining+' restante(s)':'Aguardando defesa de '+displayName(t);box.append(title);
+  if(isEffects){
+   const result=root.createElement('p');result.textContent=pending.attackText+' · '+pending.defenseText;box.append(result);
+   if(canRespond){
+    const checks=[];
+    for(const option of pending.options||[]){const label=root.createElement('label'),input=root.createElement('input');input.type='checkbox';input.value=option.id;label.append(input,root.createTextNode(option.nome));label.style.display='block';box.append(label);checks.push(input);}
+    const hint=root.createElement('small');hint.textContent='Até '+pending.maxEffects+' efeito(s). Escolher o local não consome efeito.';box.append(hint);
+    const location=root.createElement('select');const random=root.createElement('option');random.value='';random.textContent='Local aleatório';location.append(random);
+    for(const local of pending.locations||[]){const o=root.createElement('option');o.value=local;o.textContent=local;location.append(o);}if(pending.locations?.length)box.append(location);
+    const confirm=root.createElement('button');confirm.textContent='Aplicar golpe';confirm.disabled=defending;box.append(confirm);
+    const feedback=root.createElement('p');box.append(feedback);
+    confirm.onclick=async()=>{const effects=checks.filter(c=>c.checked).map(c=>c.value);if(effects.length>pending.maxEffects){feedback.textContent='Escolha no máximo '+pending.maxEffects+' efeito(s).';return;}confirm.disabled=true;try{await attacks.chooseEffects({attackId:pending.id,actorId:pending.actorId,effects,local:location.value});error='';}catch(e){feedback.textContent=e.message;}finally{confirm.disabled=false;}};
+   }
+   box.addEventListener('pointerdown',e=>e.stopPropagation());board.append(box);return;
+  }
   if(canRespond){
    const choices=root.createElement('select');choices.style.cssText='width:100%;margin:6px 0;background:#303349;color:white;font:13px Arial;';
-   for(const option of pending.options){const o=root.createElement('option');o.value=option.id;o.textContent=option.nome+' — '+option.valor+'%';choices.append(o);}
+   for(const option of pending.options){const o=root.createElement('option');o.value=option.id;o.textContent=option.nome+' — '+(option.base!==undefined?descreverTeste(option.base,option.valor,'?',option.modifiers||[]):option.valor+'%');choices.append(o);}
    const hint=root.createElement('div');hint.textContent=pending.cone?'Cone sonoro: somente Esquiva. O alvo central recebe −20.':pending.ranged?'Ataque à distância: somente Esquiva.':'Aparar exige arma corpo a corpo com alcance suficiente.';box.append(choices,hint);
    for(const [label,choice]of [['Rolar defesa',null],['Não defender','none']]){const b=root.createElement('button');b.textContent=label;b.disabled=defending;b.style.cssText='font:12px Arial;padding:5px;margin:6px 4px 0 0;';b.addEventListener('click',async()=>{
     defending=true;drawDefense();try{await attacks.defend({attackId:pending.id,actorId:t.id,choice:choice||choices.value});error='';}catch(e){error=e.message;}finally{defending=false;draw();}
@@ -279,19 +310,21 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   const board=el('novaSyncBoard'),scene=sceneData;
   board.querySelectorAll('[data-psi-zone]').forEach(n=>n.remove());
   for(const z of scene?.psiZones||[]){
-   if(mapPacket?.combat?.active&&z.untilRound<=mapPacket.combat.round)continue;
-   const n=root.createElement('div');n.dataset.psiZone=z.id;n.textContent=z.label||z.kind;
-   n.style.cssText=`position:absolute;pointer-events:none;border:2px solid #bb83ff;border-radius:50%;background:#8a4fff33;color:white;transform:translate(-50%,-50%);z-index:3;left:${z.x/28*100}%;top:${z.y/14*100}%;width:${z.radius*2/(mapPacket?.larguraM||28)*100}%;height:${z.radius*2/(mapPacket?.alturaM||14)*100}%;`;board.append(n);
+   if(z.clock?tempoRestante(z.clock,mapPacket?.combat)<=0:!mapPacket?.combat?.active||z.untilRound<=mapPacket.combat.round)continue;
+   const n=root.createElement('div');n.dataset.psiZone=z.id;n.textContent=(z.label||z.kind)+(z.clock?' · '+textoDuracao(z.clock,mapPacket?.combat):'');
+   n.style.cssText=`position:absolute;pointer-events:none;border:2px solid #bb83ff;border-radius:50%;background:#8a4fff33;color:white;transform:translate(-50%,-50%);z-index:3;left:${z.x/28*100}%;top:${z.y/14*100}%;width:${z.radius*2/(mapPacket?.larguraM||28)*100}%;height:${z.radius*2/(mapPacket?.alturaM||14)*100}%;`;if(z.powerId==='anoitecer'||/anoitecer/i.test(z.kind||'')){const caster=tokens.get(z.sourceId),privileged=user()?.master||caster?.donoUid===user()?.uid;n.style.background=privileged?'rgba(0,0,0,.6)':'#000';n.style.borderColor='#222';n.style.zIndex='25';if(caster){n.style.left=caster.x/28*100+'%';n.style.top=caster.y/14*100+'%';}}board.append(n);
   }
   if(sceneRef===scene&&sceneMapId===mapPacket?.mapId)return;sceneRef=scene;sceneMapId=mapPacket?.mapId;
   for(const node of board.querySelectorAll('[data-scene-object]'))node.remove();
   if(scene?.mapId!==(mapPacket?.mapId||''))return;
   for(const o of scene.objects||[]){
+   if(o.clock&&tempoRestante(o.clock,mapPacket?.combat)<=0)continue;
    const node=root.createElement('div');node.dataset.sceneObject=o.id;node.title=o.nome;
    node.style.cssText='position:absolute;pointer-events:none;transform:translate(-50%,-50%);';
    node.style.left=o.x/28*100+'%';node.style.top=o.y/14*100+'%';
    node.style.width=o.larguraM/(Number(mapPacket?.larguraM)||28)*100+'%';node.style.height=o.alturaM/(Number(mapPacket?.alturaM)||14)*100+'%';
    if(o.imagem){const img=root.createElement('img');img.src=o.imagem;img.alt=o.nome;img.style.cssText='width:100%;height:100%;object-fit:contain';node.append(img);}else{node.textContent=o.nome;node.style.background='#37455b';}
+   if(o.clock){const timer=root.createElement('small');timer.dataset.effectClock='';timer.effectClock=o.clock;timer.textContent=textoDuracao(o.clock,mapPacket?.combat);timer.style.cssText='position:absolute;top:100%;left:0;background:#151b32;color:white;white-space:nowrap';node.append(timer);}
    const firstToken=board.querySelector('[data-token]');board.insertBefore(node,firstToken);
   }
  }
@@ -323,7 +356,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
    }
   }
  }
- function close(){el('novaPsiInbox')?.remove();dismissedPsi.clear();editor.close();attacks?.close();attacks=null;health={actors:{},revision:0};history={entries:[]};held=null;selectedTarget='';placementChoice='';cancelAnimationFrame(frame);generation++;stop?.();stopMap?.();stopScene?.();stopHistory?.();stopScene=null;stopHistory=null;sceneData=null;sceneRequest++;stop=null;stopMap=null;account='';tokens.clear();previews.clear();queues.clear();mapPacket=null;mapData=null;renderedMap=null;mapRequest++;}
+ function close(){clearInterval(clockTimer);clockTimer=null;el('novaPsiInbox')?.remove();dismissedPsi.clear();editor.close();attacks?.close();attacks=null;health={actors:{},revision:0};history={entries:[]};held=null;selectedTarget='';placementChoice='';cancelAnimationFrame(frame);generation++;stop?.();stopMap?.();stopScene?.();stopHistory?.();stopScene=null;stopHistory=null;sceneData=null;sceneRequest++;stop=null;stopMap=null;account='';tokens.clear();previews.clear();queues.clear();mapPacket=null;mapData=null;renderedMap=null;mapRequest++;}
  function open(){
   const u=user();if(!u)return;if(account===u.uid&&stop)return;close();account=u.uid;error='';const g=generation;
   stop=database.subscribe(POSITION_PATH,rows=>{
@@ -363,6 +396,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
    if(g!==generation)return;health=value;draw();const event=value.event;
    if(event&&event.id!==lastEffect){lastEffect=event.id;if(Date.now()-event.ts<5000&&event.source&&event.target){mostrarAtaque(board,event);try{playAttackSound(event);}catch(_){}}}
   }});
+  if(!clockTimer)clockTimer=setInterval(()=>{paintClocks();drawScene();syncDurations();},1000);
   draw();
  }
  async function initialize(){
@@ -572,6 +606,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
     if(g!==generation)throw new Error('A sessão mudou');
     const state=await tx.get(MAP_PATH)||{},c=state.combat;
     const healthState=await tx.get(HEALTH_PATH);
+    const durationScene=await tx.get(SCENE_PATH);
     const freshPositions=action==='start'?await Promise.all(participants.map(t=>tx.get(POSITION_PATH+'/'+t.id))):[];
     if(action==='spend'&&ocupado(healthState?.actors?.[c?.activeId],c))throw Error('Este turno está dedicado a Primeiros Socorros.');
     if((c?.turnId||null)!==expected)throw new Error('O turno mudou. Confira a tela antes de avançar.');
@@ -584,6 +619,8 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
      if(action!=='end'&&!controlled(tokens.get(c.activeId)))throw new Error('Você não controla este personagem.');
      combat=action==='end'?{...c,active:false,pendingAttack:null,turnId:crypto.randomUUID()}:acaoIniciativa(c,action,expected);
     }
+    if(user()?.master&&healthState)atualizarDuracoes(healthState.actors,combat,durationScene);
+    if(user()?.master&&durationScene)tx.set(SCENE_PATH,durationScene);
     tx.set(MAP_PATH,{...state,combat});
     if(action==='start')participants.forEach((t,i)=>{const fresh=freshPositions[i];if(fresh)tx.set(POSITION_PATH+'/'+t.id,{...fresh,movementMax:Number(t.movementMax)||movimentoMaximo(t),revision:Number(fresh.revision||0)+1});});
     if(user()?.master&&healthState&&!['start','end'].includes(action)){atualizarDuracoes(healthState.actors,combat);tx.set(HEALTH_PATH,{...healthState,revision:(healthState.revision||0)+1});}
