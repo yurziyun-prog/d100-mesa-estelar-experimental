@@ -79,7 +79,7 @@ export function removerMortos(combat,health){
  if(!combat?.active)return combat;
  const order=combat.order.filter(id=>{
   const st=health[id]?.combateLab||{};
-  return !st.morto&&!st.inconsciente&&!st.incapacitado;
+  return !st.morto;
  });
  if(order.length===combat.order.length)return combat;
  let queue=combat.queue.filter(id=>order.includes(id)),round=combat.round;

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {conectarAtaques,HEALTH_PATH} from '../js/nova-ataques.js';
 import {iniciarIniciativa} from '../js/nova-turnos.js';
+import {prepararSorte,resolverConsciencia} from '../js/nova-recuperacao.js';
 import {resolverSocorros,resolverPsi} from '../js/nova-suporte.js';
 import {defesasRestantes,acaoIniciativa,moverNoTurno,ataqueSuperaDefesa,removerMortos} from '../js/nova-turnos.js';
 const MAP='combatesAtivos/mapaMesaSyncDireta',POS=MAP+'/posicoes',CMD=MAP+'/acoes';
@@ -22,7 +23,8 @@ function fixture({defense=false,area=false,support=false,special=false}={}){
  };
  const options={database,tokens:()=>[...store.entries()].filter(([key])=>key.startsWith(POS+'/')).map(([key,t])=>({...t,id:key.split('/').pop()})),prepare,onError:e=>errors.push(e)};
  if(support){store.set('personagens/a',{inventario:{mochila:[{nome:'Kit médico',usosRestantes:5}]}});options.prepareSupport=async()=>({sheetPath:'personagens/a',resolve:args=>{
-  const info={firstAid:{value:100},health:{hit:{Peito:7},hitMax:{Peito:7}},targetHealth:{hit:{Peito:-2},hitMax:{Peito:7},inconsciente:true},kits:[{comp:'mochila',index:0,uses:args.sheet.inventario.mochila[0].usosRestantes}],inventory:args.sheet.inventario,powers:[{id:'cura_psi',name:'Cura',value:100,cost:1}],psiMax:10};
+  const info={luck:args.sheet.pontosSorte??2,resistanceById:{a:20},firstAid:{value:100},health:{hit:{Peito:7},hitMax:{Peito:7}},targetHealth:{hit:{Peito:-2},hitMax:{Peito:7},inconsciente:true},kits:[{comp:'mochila',index:0,uses:args.sheet.inventario.mochila[0].usosRestantes}],inventory:args.sheet.inventario,powers:[{id:'cura_psi',name:'Cura',value:100,cost:1}],psiMax:10};
+  if(args.cmd.kind==='direct-luck')return prepararSorte({...args,info});if(args.cmd.kind==='direct-consciousness')return resolverConsciencia({...args,info,roll:()=>100});
   return args.cmd.kind==='direct-first-aid'?resolverSocorros({...args,info}):resolverPsi({...args,info});}});}
  const master=conectarAtaques({...options,user:()=>({uid:'gm',master:true}),onHealth:h=>healthMaster.push(h)});
  const player=conectarAtaques({...options,user:()=>({uid:'player',master:false}),onHealth:h=>healthPlayer.push(h)});
@@ -37,7 +39,7 @@ test('suporte entre mestre/jogador persiste etapa e kit, rejeita impostor e só 
   await f.player.support(payload);assert.equal(f.store.get('personagens/a').inventario.mochila[0].usosRestantes,4);assert.equal(f.store.get(HEALTH_PATH).actors.a.treatment.local,'Peito');assert.equal(f.store.get(HEALTH_PATH).actors.b.combateLab.hit.Peito,-2);
   const command=[...f.store.keys()].filter(p=>p.startsWith(CMD+'/')).at(-1);f.emit(command);await new Promise(r=>setTimeout(r,5));assert.equal(f.store.get('personagens/a').inventario.mochila[0].usosRestantes,4);
   let map=f.store.get(MAP);while(map.combat.round===1)map.combat=acaoIniciativa(map.combat,'spend',map.combat.turnId);f.store.set(MAP,map);
-  await f.player.support({...payload,operation:'finish',turnId:map.combat.turnId});assert.equal(f.store.get(HEALTH_PATH).actors.a.treatment,null);assert.equal(f.store.get(HEALTH_PATH).actors.b.combateLab.inconsciente,false);assert.ok(f.store.get(HEALTH_PATH).actors.b.combateLab.hit.Peito>-2);
+  await f.player.support({...payload,operation:'finish',turnId:map.combat.turnId});assert.equal(f.store.get(HEALTH_PATH).actors.a.treatment,null);assert.equal(f.store.get(HEALTH_PATH).actors.b.combateLab.inconsciente,true);assert.ok(f.store.get(HEALTH_PATH).actors.b.combateLab.hit.Peito>-2);
  }finally{f.close();}
 });
 test('ataque do jogador resolvido uma vez pelo mestre, com dano e gasto atômicos',async()=>{
@@ -132,5 +134,13 @@ test('defesa, escolha de efeitos e dano formam uma única resolução com autori
   await f.player.chooseEffects({attackId:pending.id,actorId:'a',effects:['sangrar'],local:'Peito'});
   assert.equal(f.resolutions(),1);assert.equal(f.store.get(HEALTH_PATH).pending,null);assert.equal(f.store.get(MAP).combat.actors.a.remaining,1);assert.equal(defesasRestantes(f.store.get(MAP).combat,'b'),1);
   await assert.rejects(f.player.chooseEffects({attackId:pending.id,actorId:'a',effects:[],local:'Peito'}),/já foi resolvida|mudou/);assert.equal(f.resolutions(),1);
+ }finally{f.close();}
+});
+
+test('Sorte persiste na ficha e teste de consciência aparece no histórico sem gastar ação',async()=>{
+ const f=fixture({support:true});try{f.store.set(HEALTH_PATH,{actors:{a:{combateLab:{inconsciente:true,hit:{Peito:0},hitMax:{Peito:7}}}}});
+ await f.player.support({kind:'direct-luck',actorId:'a',targetId:'a',turnId:f.store.get(MAP).combat.turnId});assert.equal(f.store.get('personagens/a').pontosSorte,1);
+ await assert.rejects(f.player.support({kind:'direct-luck',actorId:'a',targetId:'a',turnId:f.store.get(MAP).combat.turnId}),/já está preparada/);assert.equal(f.store.get('personagens/a').pontosSorte,1);
+ await f.player.support({kind:'direct-consciousness',actorId:'a',targetId:'a',turnId:f.store.get(MAP).combat.turnId});assert.equal(f.store.get(HEALTH_PATH).actors.a.combateLab.inconsciente,false);assert.equal(f.store.get(HEALTH_PATH).actors.a.luckPrepared,false);assert.equal(f.store.get(MAP).combat.actors.a.remaining,2);assert.match(f.store.get(HEALTH_PATH).event.message,/Teste de consciência.*Sorte/);
  }finally{f.close();}
 });

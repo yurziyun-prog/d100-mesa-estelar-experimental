@@ -1,16 +1,24 @@
-# Primeiros Socorros e psiquismo — atualização 44
+# Primeiros Socorros e psiquismo — atualização 45
 
 Na Sincronização nova, **Primeiros Socorros** e **Psiquismo** são painéis separados, abaixo dos PV. Só se recolhem por clique. A seleção do poder é preservada por personagem. Psiquismo aparece apenas com poderes disponíveis na ficha. Levantar fica fora dos dois painéis.
 
 ## Atendimento
 
 - Escolha paciente (inclusive você) e parte ferida. Uma única parte é selecionada automaticamente.
-- Iniciar exige consciência, sua vez e alcance de 1,5 m. Consome uma carga do kit de bolso/mochila/equipado (cinco quando o item não informa usos) e encerra suas ações da rodada. Casa e veículo não fornecem kits.
+- Iniciar exige consciência, sua vez e alcance de 1,5 m entre as bordas das miniaturas. Consome uma carga do kit de bolso/mochila/equipado (cinco quando o item não informa usos) e encerra suas ações da rodada. Casa e veículo não fornecem kits.
 - Sem kit, o teste é Difícil: metade da perícia. Com kit é normal.
 - Na próxima rodada, escolha Concluir ou Continuar. Cada continuação acrescenta cinco pontos ao teste, até três turnos investidos. Não se rola antes da conclusão.
 - Durante o atendimento, movimento, ataques, poderes e testes comuns ficam bloqueados. A defesa recebe −20 pontos, acumulados com os demais modificadores. Concluir também ocupa a rodada.
-- Sucesso estabiliza a localização, recupera consciência e 1–3 PV pela margem; crítico recupera 4–6 PV, sem ultrapassar o máximo da parte. Infecção não é removida.
+- Sucesso estabiliza a localização e recupera 1–3 PV pela margem; crítico recupera 4–6 PV, sem ultrapassar o máximo da parte. Infecção não é removida.
 - Etapa, paciente, parte, kit e resultado persistem na mesa. A conta do mestre processa os comandos; mantenha-a aberta. Publicar arquivos não modifica uma sessão aberta até recarregar ambas as contas.
+
+## Consciência e Sorte
+
+Inconscientes não podem agir, mover ou defender, mas mantêm uma oportunidade na iniciativa para **Teste de consciência**. Falha encerra essa oportunidade; sucesso permite agir sem gastar uma ação no teste. Só há uma tentativa por rodada. Resultado e modificadores aparecem no histórico. As curas recebidas enquanto inconsciente somam +5 por PV a partir da rodada seguinte; o bônus acumula até despertar, sem ultrapassar 100 no valor efetivo. A duração máxima de inconsciência causada por poderes continua sendo respeitada.
+
+**Usar Sorte** reserva um ponto e garante sucesso comum no próximo teste de perícia, ataque, defesa, poder, primeiros socorros ou consciência. A preparação não acumula. O saldo vem da ficha, pela mesma regra de POD do Mapa Mesa, e o gasto é salvo nela; criaturas temporárias mantêm seu saldo na mesa. Restaurar o combate não devolve pontos de Sorte. Sorte garante sucesso no teste, não vitória automática contra um teste oposto melhor.
+
+Kits são reconhecidos pelos nomes e IDs em português/inglês. **Atualizar ficha e kits** recarrega alterações feitas no inventário. Usos restantes pertencem à instância do kit e não são repostos ao atualizar o cadastro.
 
 ## Psiquismo
 

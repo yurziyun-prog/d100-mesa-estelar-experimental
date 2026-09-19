@@ -29,7 +29,7 @@ test('teletransporte produz posição persistível sem id interno ou dados de fi
 test('socorros: kit gasto uma vez; início não cura; exige próxima rodada; conclui e preserva infecção',()=>{
  const args=base(),first=resolverSocorros(args);assert.equal(first.inventory.mochila[0].usosRestantes,4);assert.equal(first.actors.b.combateLab.hit.Peito,-2);assert.equal(first.combat.actors.a.remaining,0);assert.ok(ocupado(first.actors.a,first.combat));
  const next={...args,health:{actors:first.actors},map:{combat:first.combat},cmd:{operation:'finish'}};assert.throws(()=>resolverSocorros(next),/próxima rodada/);
- next.map.combat=nextRound(first.combat);const done=resolverSocorros(next);assert.equal(done.inventory,null);assert.equal(done.actors.a.treatment,null);assert.equal(done.actors.b.combateLab.inconsciente,false);assert.equal(done.actors.b.combateLab.estabilizados.Peito,true);assert.equal(done.actors.b.combateLab.infecciosoAtivo,true);assert.ok(done.actors.b.combateLab.hit.Peito>-2);
+ next.map.combat=nextRound(first.combat);const done=resolverSocorros(next);assert.equal(done.inventory,null);assert.equal(done.actors.a.treatment,null);assert.equal(done.actors.b.combateLab.inconsciente,true);assert.equal(done.actors.b.combateLab.estabilizados.Peito,true);assert.equal(done.actors.b.combateLab.infecciosoAtivo,true);assert.ok(done.actors.b.combateLab.hit.Peito>-2);
 });
 test('continuação: +5 por turno, máximo três; sem kit metade da perícia',()=>{
  const args=base();args.cmd.useKit=false;let result=resolverSocorros(args);assert.equal(result.inventory,null);

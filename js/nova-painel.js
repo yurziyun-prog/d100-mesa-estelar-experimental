@@ -1,5 +1,6 @@
-import {painelSuporte} from './nova-suporte-painel.js?v=44';
-import {ocupado} from './nova-suporte.js?v=44';
+import {bonusConsciencia} from './nova-recuperacao.js?v=45';
+import {painelSuporte} from './nova-suporte-painel.js?v=45';
+import {ocupado} from './nova-suporte.js?v=45';
 export function criarPainelAcoes({root,load,spend,roll,attack,support,unlock=()=>{}}){
  const host=root.getElementById('novaSyncActionPanel'),passButton=root.getElementById('novaSyncNext');
  const cache=new Map(),preferences=new Map(),results=new Map();
@@ -65,7 +66,7 @@ export function criarPainelAcoes({root,load,spend,roll,attack,support,unlock=()=
    const target=(view.tokens||[]).find(token=>token.id===view.targetId&&token.id!==current.id);
    targetHint.textContent=target?'🎯 '+name(target)+' selecionado · Testar executa a ação nesse alvo.':'Clique numa miniatura para selecionar o alvo. Sem alvo, Testar apenas rola a perícia.';
    firstAidHint.hidden=skills.value!=='primeiros_socorros';
-   button.disabled=!allowed||busy||!skill||!!(target&&skill.attack&&!weapon);
+   button.disabled=!allowed||busy||!!(view.health?.combateLab||sheet.health)?.inconsciente||!!(view.health?.combateLab||sheet.health)?.morto||!skill||!!(target&&skill.attack&&!weapon);
   };
   const populateWeapons=()=>{
    const skill=sheet.skills.find(entry=>entry.id===skills.value);pref.skill=skills.value;
@@ -89,7 +90,11 @@ export function criarPainelAcoes({root,load,spend,roll,attack,support,unlock=()=
   }else pv.innerHTML=sheet.pvHtml||'';
   const own=results.get(current.id),result=node('div',(own?.at>(view.event?.ts||0)?own.text:view.event?.message)||own?.text||'','nova-result');
   host.append(line,description,firstAidHint,pv,result,targetHint);
-  painelSuporte({root,host,current,sheet,view,combat,allowed,send:support,load});
+  const luck=node('button',view.health?.luckPrepared?'🍀 Sorte preparada':'🍀 Usar Sorte ('+(view.health?.luckRemaining??sheet.support?.luck??0)+')','btn-small btn-select');luck.type='button';luck.id='novaLuck';luck.disabled=busy||!!view.health?.luckPrepared||(view.health?.luckRemaining??sheet.support?.luck??0)<=0||!!health?.morto;
+  luck.onclick=async()=>{luck.disabled=true;try{const text=await support({kind:'direct-luck',actorId:current.id,targetId:current.id,turnId:combat?.turnId||null});results.set(current.id,{text,at:Date.now()});}catch(e){results.set(current.id,{text:e.message,at:Date.now()});}finally{render();}};host.append(luck);
+  if(health?.inconsciente&&!health.morto){const bonus=bonusConsciencia(health,combat);const wake=node('button','Teste de consciência'+(bonus?' (+'+bonus+' por cura)':''),'btn-small btn-select');wake.type='button';wake.id='novaConsciousness';wake.disabled=!allowed||!combat?.active||view.health?.consciousnessRound===combat.roundId;wake.onclick=async()=>{wake.disabled=true;try{const text=await support({kind:'direct-consciousness',actorId:current.id,targetId:current.id,turnId:combat.turnId});results.set(current.id,{text,at:Date.now()});}catch(e){results.set(current.id,{text:e.message,at:Date.now()});}finally{render();}};host.append(wake);}
+  const refresh=node('button','↻ Atualizar ficha e kits','btn-small');refresh.type='button';refresh.onclick=async()=>{refresh.disabled=true;try{cache.delete(current.id);sheet=await load({...current,...view.health});render();}catch(e){refresh.textContent=e.message;}};host.append(refresh);
+  painelSuporte({root,host,current,sheet,view,combat,allowed:allowed&&!health?.inconsciente&&!health?.morto,send:support,load});
   const state=view.health?.combateLab||sheet.health;
   if(state?.caido||state?.derrubado){
    const lift=node('button','⬆️ Levantar (1 Ação)','btn-small btn-select');lift.type='button';lift.disabled=!allowed||busy||ocupado(view.health,combat);lift.onclick=()=>support?.({kind:'direct-stand',actorId:current.id,targetId:current.id,turnId:combat?.active?combat.turnId:null});host.append(lift);

@@ -1,4 +1,4 @@
-import {feridas,ocupado,PSI_NARRATIVOS} from './nova-suporte.js?v=44';
+import {feridas,ocupado,PSI_NARRATIVOS} from './nova-suporte.js?v=45';
 
 const states=new WeakMap();
 export function painelSuporte({root,host,current,sheet,view,combat,allowed,send,load}){
@@ -22,7 +22,7 @@ export function painelSuporte({root,host,current,sheet,view,combat,allowed,send,
  targets.onchange=()=>{pref.patient=targets.value;pref.part='';populate();};locations.onchange=()=>pref.part=locations.value;populate();
  if(support.firstAid){
   const treatment=view.health?.treatment,kit=node('input'),line=node('div');line.style.cssText='display:flex;gap:12px;align-items:center;flex-wrap:wrap';first.append(line);
-  kit.type='checkbox';const uses=(support.kits||[]).reduce((s,k)=>s+(view.health?.kitUses?.[k.comp+':'+k.index]??k.uses),0);kit.checked=uses>0&&(pref.kit??true);kit.disabled=!uses||!!treatment;kit.onchange=()=>pref.kit=kit.checked;
+  kit.type='checkbox';const uses=(support.kits||[]).reduce((s,k)=>s+(k.key?k.uses:(view.health?.kitUses?.[k.comp+':'+k.index]??k.uses)),0);kit.checked=uses>0&&(pref.kit??true);kit.disabled=!uses||!!treatment;kit.onchange=()=>pref.kit=kit.checked;
   const kitLabel=field(line,'Usar kit ('+uses+' usos)',kit);kitLabel.style.flexDirection='row';
   if(!treatment)button(line,'🩹 Iniciar tratamento',()=>run({kind:'direct-first-aid',operation:'start',targetId:targets.value,local:locations.value,useKit:kit.checked}),ocupado(view.health,combat));
   else{line.append(node('strong',`Tratamento de ${treatment.local} · ${treatment.turns}/3 turnos · bônus +${(treatment.turns-1)*5}`));const wait=!!combat?.active&&combat.round<=treatment.lastRound;
@@ -31,7 +31,7 @@ export function painelSuporte({root,host,current,sheet,view,combat,allowed,send,
    button(line,'Interromper',()=>run({kind:'direct-first-aid',operation:'cancel',targetId:treatment.targetId}));
    if(wait)first.append(node('p','Aguarde sua vez na próxima rodada.'));
   }
-  first.append(node('p','Alcance 1,5 m. Sem kit: perícia pela metade. Cada turno adicional: +5. Durante o atendimento: apenas defesas, com −20.'));
+  first.append(node('p','Alcance 1,5 m entre as bordas das miniaturas. Sem kit: perícia pela metade. Cada turno adicional: +5. Durante o atendimento: apenas defesas, com −20.'));
  }else first.append(node('p','A ficha não possui a perícia Primeiros Socorros.'));
  if(support.powers?.length){
   const psi=section('psi','🔮 Psiquismo · PP '+Math.max(0,support.psiMax-(view.health?.psiSpent??support.psiSpent))+'/'+support.psiMax);

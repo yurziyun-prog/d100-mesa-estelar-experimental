@@ -1,6 +1,6 @@
-import {acaoIniciativa,gastarDefesa,removerMortos} from './nova-turnos.js?v=39';
+import {acaoIniciativa,gastarDefesa,removerMortos} from './nova-turnos.js?v=45';
 import {alvosNoCone} from './nova-area.js?v=20260918';
-import {atualizarDuracoes} from './nova-suporte.js?v=44';
+import {atualizarDuracoes} from './nova-suporte.js?v=45';
 export const HEALTH_PATH='combatesAtivos/mapaMesaSyncSaude';
 export const HISTORY_PATH='combatesAtivos/mapaMesaSyncHistorico';
 const MAP='combatesAtivos/mapaMesaSyncDireta',POSITIONS=MAP+'/posicoes',COMMANDS=MAP+'/acoes';
@@ -21,7 +21,7 @@ export function conectarAtaques({database,user,tokens,prepare,prepareSupport,pre
   if(running.has(id)||closed||!user()?.master)return;running.add(id);
    const path=COMMANDS+'/'+id;
    try{
-   if(['direct-first-aid','direct-test','direct-psi','direct-psi-review','direct-stand'].includes(command.kind)){
+   if(['direct-luck','direct-consciousness','direct-first-aid','direct-test','direct-psi','direct-psi-review','direct-stand'].includes(command.kind)){
     if(!prepareSupport)throw Error('Suporte indisponível.');
     const a0=await database.get(POSITIONS+'/'+command.personagemId),b0=await database.get(POSITIONS+'/'+command.targetId);
     if(!a0||!b0)throw Error('Participante não está no mapa.');
@@ -36,7 +36,7 @@ export function conectarAtaques({database,user,tokens,prepare,prepareSupport,pre
      if(!a||!b)throw Error('Participante removido do mapa.');
      if(cmd.donoUid!==a.donoUid&&cmd.donoUid!==user().uid)throw Error('Você não controla este personagem.');
      if(cmd.kind==='direct-psi-review'&&cmd.donoUid!==user().uid)throw Error('Somente o mestre pode adjudicar.');
-     if(cmd.kind!=='direct-psi-review'){
+     if(!['direct-psi-review','direct-luck'].includes(cmd.kind)){
       if(map.combat?.pendingAttack)throw Error('Resolva a defesa pendente.');
       if((map.combat?.active?map.combat.turnId:null)!==cmd.turnId)throw Error('O turno mudou.');
       if(map.combat?.active&&(map.combat.activeId!==a.id||map.combat.actors[a.id]?.remaining<=0))throw Error('Aguarde seu turno com ações disponíveis.');
@@ -46,7 +46,7 @@ export function conectarAtaques({database,user,tokens,prepare,prepareSupport,pre
      const event={id,actorUid:(list.find(t=>t.id===result.eventActorId)||a).donoUid||'',targetUid:(list.find(t=>t.id===result.eventTargetId)||b).donoUid||'',ts:Date.now(),message:result.message};
      if(cmd.kind==='direct-psi')Object.assign(event,{source:{x:a.x,y:a.y},target:{x:b.x,y:b.y},item:{nome:result.powerName||'Poder psíquico'},hit:result.psiHit!==false,...(result.area?{area:result.area}:{})});
      tx.set(HEALTH_PATH,clean({...health,actors:result.actors||health.actors,psiRequests:result.psiRequests||health.psiRequests||[],event,revision:(health.revision||0)+1}));
-     if(result.inventory&&prepared.sheetPath)tx.set(prepared.sheetPath,{...sheet,inventario:result.inventory});
+     if(prepared.sheetPath&&(result.inventory||result.sheetPatch))tx.set(prepared.sheetPath,{...sheet,...result.sheetPatch,...(result.inventory?{inventario:result.inventory}:{})});
      if(result.scene)tx.set('combatesAtivos/mapaMesaSyncDiretaCena',clean(result.scene));
      for(const [key,value]of Object.entries(result.moves||{}))tx.set(POSITIONS+'/'+key,clean(value));
      if(result.combat)tx.set(MAP,clean({...map,combat:result.combat}));
@@ -212,7 +212,7 @@ export function conectarAtaques({database,user,tokens,prepare,prepareSupport,pre
   });
  }
  stopHealth=database.subscribeDoc(HEALTH_PATH,value=>{if(!closed)onHealth(value||{actors:{},revision:0});},onError);
- if(user()?.master)stopCommands=database.subscribe(COMMANDS,rows=>{for(const row of rows)if(!row.removed&&['direct-attack','direct-defense','direct-effects','direct-equipment','direct-first-aid','direct-test','direct-psi','direct-psi-review','direct-stand'].includes(row.data.kind)&&row.data.status==='pending')process(row.id,row.data);},onError);
+ if(user()?.master)stopCommands=database.subscribe(COMMANDS,rows=>{for(const row of rows)if(!row.removed&&['direct-attack','direct-defense','direct-effects','direct-equipment','direct-luck','direct-consciousness','direct-first-aid','direct-test','direct-psi','direct-psi-review','direct-stand'].includes(row.data.kind)&&row.data.status==='pending')process(row.id,row.data);},onError);
  async function send(payload){
   const path=COMMANDS+'/'+crypto.randomUUID();
   await database.writeMap(path,{...payload,donoUid:user().uid,createdAt:Date.now(),status:'pending'});

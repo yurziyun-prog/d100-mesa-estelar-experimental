@@ -1,13 +1,14 @@
-import {descreverTeste} from './nova-regras.js?v=44';
-import {textoDuracao,tempoRestante} from './nova-duracoes.js?v=44';
+import {diametroMiniatura} from './nova-recuperacao.js?v=45';
+import {descreverTeste} from './nova-regras.js?v=45';
+import {textoDuracao,tempoRestante} from './nova-duracoes.js?v=45';
 // Movimento livre: uma posição por personagem, sem sessão-mestre ou fila de comandos.
-import {saldoMovimento,movimentoMaximo,moverNoTurno,iniciarIniciativa,acaoIniciativa,defesasRestantes} from './nova-turnos.js?v=39';
+import {saldoMovimento,movimentoMaximo,moverNoTurno,iniciarIniciativa,acaoIniciativa,defesasRestantes} from './nova-turnos.js?v=45';
 import {destinoSemColisao,TOKEN_DIAMETER} from './nova-colisao.js?v=25';
-import {criarPainelAcoes} from './nova-painel.js?v=44';
-import {conectarAtaques,HEALTH_PATH,HISTORY_PATH} from './nova-ataques.js?v=44';
-import {mostrarAtaque} from './nova-fx.js?v=44';
+import {criarPainelAcoes} from './nova-painel.js?v=45';
+import {conectarAtaques,HEALTH_PATH,HISTORY_PATH} from './nova-ataques.js?v=45';
+import {mostrarAtaque} from './nova-fx.js?v=45';
 import {criarEditorMesa} from './nova-editor.js?v=35';
-import {ocupado,atualizarDuracoes} from './nova-suporte.js?v=44';
+import {ocupado,atualizarDuracoes} from './nova-suporte.js?v=45';
 export const POSITION_PATH='combatesAtivos/mapaMesaSyncDireta/posicoes';
 export const MAP_PATH='combatesAtivos/mapaMesaSyncDireta';
 export const SCENE_PATH='combatesAtivos/mapaMesaSyncDiretaCena';
@@ -134,7 +135,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   if(c?.pendingAttack&&panel)panel.textContent+=' · Aguardando defesa';
   if(list)list.textContent=user()?.master&&c?.active&&c.schema===2?'Iniciativa: '+c.order.map(id=>`${tokens.get(id)?.nome||id}: ${c.rolls[id].die} + ${c.rolls[id].initiative} = ${c.rolls[id].total} (${c.actors[id].remaining} Ações; ${c.actors[id].passes>=2?'encerrou':c.actors[id].passes+' passagem(ns)'})`).join(' → '):'';
   for(const [id,available]of [['novaSyncStart',user()?.master&&!c?.active],['novaSyncNext',c?.active&&c.schema===2&&controlled(t)],['novaSyncSpend',c?.active&&c.schema===2&&controlled(t)],['novaSyncEnd',user()?.master&&c?.active]]){
-   const b=el(id);if(b){b.hidden=id==='novaSyncStart'?!!c?.active:id==='novaSyncEnd'?!c?.active:false;b.disabled=!available||queues.size>0||changingTurn||attacking||managing||editor.busy||!!c?.pendingAttack&&id!=='novaSyncEnd';}
+   const b=el(id);if(b){b.hidden=id==='novaSyncStart'?!!c?.active:id==='novaSyncEnd'?!c?.active:false;b.disabled=!available||(['novaSyncNext','novaSyncSpend'].includes(id)&&!!health.actors?.[c?.activeId]?.combateLab?.inconsciente)||queues.size>0||changingTurn||attacking||managing||editor.busy||!!c?.pendingAttack&&id!=='novaSyncEnd';}
   }
   const roleHint=el('novaSyncTurnoHint');
   if(roleHint)roleHint.textContent='Passar ação preserva as Ações na primeira passagem; a segunda encerra sua participação neste turno. Registrar 1 Ação apenas desconta o gasto, sem resolver ataques ou testes.';
@@ -200,7 +201,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
     const facingHandle=root.createElement('span');facingHandle.dataset.facingHandle='';facingHandle.title='Segure para girar';facingHandle.style.cssText='position:absolute;width:10px;height:10px;border-radius:50%;background:#ffd447;border:1px solid #111;box-shadow:0 0 3px #000;cursor:grab;z-index:13;transform:translate(-50%,-50%);';node.append(facingHandle);
    }
    const p=previews.get(t.id)||t;
-    const tokenDiameterM=/besta\s+ululante/i.test(String(t.nome||''))?2.4:1;
+    const tokenDiameterM=diametroMiniatura(t);
     const tokenHealth=health.actors?.[t.id]?.combateLab||{};
     const mimicState=health.actors?.[t.id]?.psiEffects?.mimetismo_psi,mimic=mimicState?.clock&&tempoRestante(mimicState.clock,mapPacket?.combat)<=0?null:mimicState;
     const tokenImage=mimic?.image||t.imagem||'';
@@ -518,7 +519,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   if(!t||!controlled(t))return;
   const state=health.actors?.[id]?.combateLab;
   if(ocupado(health.actors?.[id],mapPacket?.combat)){error='Primeiros Socorros impede movimento e outras ações neste turno.';status();return;}
-  if(mapPacket?.combat?.active&&(state?.morto||state?.inconsciente||state?.incapacitado)){error='Este personagem está inconsciente ou incapacitado e não pode se mover.';status();return;}
+  if(state?.morto||state?.inconsciente||state?.incapacitado){error='Este personagem está inconsciente ou incapacitado e não pode se mover.';status();return;}
   e.preventDefault();
   try{
    const turn=mapPacket?.combat?.active?mapPacket.combat.turnId:null;
@@ -608,6 +609,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
     const healthState=await tx.get(HEALTH_PATH);
     const durationScene=await tx.get(SCENE_PATH);
     const freshPositions=action==='start'?await Promise.all(participants.map(t=>tx.get(POSITION_PATH+'/'+t.id))):[];
+    if(['spend','pass'].includes(action)&&healthState?.actors?.[c?.activeId]?.combateLab?.inconsciente)throw Error('Faça o Teste de consciência antes de avançar.');
     if(action==='spend'&&ocupado(healthState?.actors?.[c?.activeId],c))throw Error('Este turno está dedicado a Primeiros Socorros.');
     if((c?.turnId||null)!==expected)throw new Error('O turno mudou. Confira a tela antes de avançar.');
     let combat;
@@ -666,6 +668,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
      for(const id of ids)tx.delete(POSITION_PATH+'/'+id);
      const {combat,joined,...kept}=state;tx.set(MAP_PATH,kept);tx.set(HEALTH_PATH,{actors:{},revision:(healthState.revision||0)+1});tx.set(HISTORY_PATH,{entries:[],revision:(healthState.revision||0)+1});
     }else{
+     for(const id of Object.keys(restored)){const previous=healthState.actors?.[id];if(previous?.luckRemaining!==undefined)restored[id].luckRemaining=previous.luckRemaining;if(previous?.luckPrepared)restored[id].luckPrepared=true;}
      tx.set(HEALTH_PATH,{actors:restored,revision:(healthState.revision||0)+1});
      if(scene)tx.set(SCENE_PATH,{...scene,objects:(scene.objects||[]).map(o=>({...o,pvAtual:o.pvMax||0,destruido:false}))});
     }

@@ -1,6 +1,7 @@
-import {criarRelogio,atualizarRelogios,RODADA_MS} from './nova-duracoes.js?v=44';
-import {classificarTeste} from './nova-regras.js?v=44';
-import {acaoIniciativa,ataqueSuperaDefesa} from './nova-turnos.js?v=39';
+import {distanciaBordas,testeComSorte,registrarCura,despertar} from './nova-recuperacao.js?v=45';
+import {criarRelogio,atualizarRelogios,RODADA_MS} from './nova-duracoes.js?v=45';
+import {classificarTeste} from './nova-regras.js?v=45';
+import {acaoIniciativa,ataqueSuperaDefesa} from './nova-turnos.js?v=45';
 import {alvosNoCone} from './nova-area.js?v=20260918';
 export const feridas=h=>Object.keys(h?.hitMax||{}).filter(k=>Number(h.hit?.[k]??h.hitMax[k])<Number(h.hitMax[k]));
 const clone=x=>structuredClone(x),cap=x=>Math.max(0,Math.min(100,Number(x)||0));
@@ -9,12 +10,12 @@ export function teste(valor,roll){const die=roll(100);return {valor:cap(valor),d
 const sucesso=r=>['Sucesso','Crítico'].includes(r.grau);
 export function ocupado(actor,combat){return !!actor?.treatment||(combat?.active&&actor?.supportLock===combat.roundId);}
 export function atualizarDuracoes(actors,combat,scene,now=Date.now()){
- const changed=atualizarRelogios(actors,combat,scene,now);
+ let changed=atualizarRelogios(actors,combat,scene,now);
  if(combat?.active)for(const [id,a]of Object.entries(actors||{})){
   const st=a.combateLab;
   if(st?.unconsciousUntilRound&&st.unconsciousUntilRound<=combat.round&&!st.morto){st.inconsciente=false;delete st.unconsciousUntilRound;}
   const initial=combat.suspended?.[id];
-  if(initial&&!st?.morto&&!st?.inconsciente&&!st?.incapacitado&&!combat.order.includes(id)){combat.order.push(id);combat.initial[id]=initial;combat.actors[id]={remaining:0,passes:2};combat.order.sort((x,y)=>combat.rolls[y].total-combat.rolls[x].total);}
+  if(initial&&!st?.morto&&!combat.order.includes(id)){changed=true;combat.order.push(id);combat.initial[id]=initial;combat.actors[id]={remaining:0,passes:2};combat.order.sort((x,y)=>combat.rolls[y].total-combat.rolls[x].total);}
  }
  return changed;
 }
@@ -28,13 +29,13 @@ export function resolverSocorros({a,b,health,map,cmd,info,seed}){
  if(actor.combateLab?.morto||actor.combateLab?.inconsciente||actor.combateLab?.incapacitado)throw Error('O socorrista precisa estar consciente e capaz de agir.');
  if(st?.morto)throw Error('Primeiros Socorros não ressuscita mortos.');
  if(!info.firstAid)throw Error('A ficha não possui Primeiros Socorros.');
- if(distancia(a,b,map)>1.501)throw Error('Fora de alcance: aproxime-se até 1,5 m.');
+ if(distanciaBordas(a,b,map)>1.501)throw Error('Fora de alcance: aproxime-se até 1,5 m.');
  const c=map.combat,old=actor.treatment;let message,inventory=null;
  if(cmd.operation==='start'){
   if(ocupado(actor,c))throw Error('Este turno já está dedicado a Primeiros Socorros.');
-  const local=localValido(st,cmd.local),kit=cmd.useKit!==false?info.kits.find(k=>(actor.kitUses?.[k.comp+':'+k.index]??k.uses)>0):null;
+  const local=localValido(st,cmd.local),kit=cmd.useKit!==false?info.kits.find(k=>(k.key?k.uses:(actor.kitUses?.[k.comp+':'+k.index]??k.uses))>0):null;
   actor.treatment={targetId:b.id,local,turns:1,lastRound:c?.round||0,session:c?.session||'',withKit:!!kit};
-  if(kit){kit.uses=actor.kitUses?.[kit.comp+':'+kit.index]??kit.uses;inventory=clone(info.inventory);const entry=inventory[kit.comp][kit.index];entry.usosRestantes=kit.uses-1;actor.kitUses={...actor.kitUses,[kit.comp+':'+kit.index]:kit.uses-1};}
+  if(kit){kit.uses=kit.key?kit.uses:(actor.kitUses?.[kit.comp+':'+kit.index]??kit.uses);inventory=clone(info.inventory);const entry=inventory[kit.comp][kit.index];entry.usosRestantes=kit.uses-1;actor.kitUses={...actor.kitUses,[kit.key||(kit.comp+':'+kit.index)]:kit.uses-1};}
   message=`${a.nome} iniciou Primeiros Socorros em ${b.nome} · ${local} · ${kit?'kit: '+(kit.uses-1)+' usos restantes':'sem kit: teste Difícil (metade da perícia)'}. Concluir ou continuar no próximo turno.`;
  }else{
   if(!old||old.targetId!==b.id)throw Error('Não há atendimento iniciado para este paciente.');
@@ -44,9 +45,9 @@ export function resolverSocorros({a,b,health,map,cmd,info,seed}){
    old.turns++;old.lastRound=c?.round||0;message=`${a.nome} continua Primeiros Socorros em ${b.nome}: ${old.turns}/3 turnos · bônus +${(old.turns-1)*5}.`;
   }else if(cmd.operation==='finish'){
    const local=old.local;if(!(local in (st.hitMax||{})))throw Error('A parte tratada não existe mais.');
-   const valor=cap((old.withKit?info.firstAid.value:Math.ceil(info.firstAid.value/2))+(old.turns-1)*5),r=teste(valor,sorteio(seed));
-   let healed=0;if(sucesso(r)){healed=curar(st,local,r.grau==='Crítico'?Math.max(4,Math.min(6,1+Math.floor((valor-r.die)/10))):Math.max(1,Math.min(3,1+Math.floor((valor-r.die)/20))));st.inconsciente=false;st.incapacitado=false;delete st.inconscienteAteTurno;delete st.unconsciousUntilRound;}
-   message=`${a.nome}: Primeiros Socorros em ${b.nome} · ${local} · ${r.die}/${valor} → ${r.grau} · ${sucesso(r)?'ferimento estabilizado, consciente, +'+healed+' PV':'sem recuperação'} · ${old.turns}/3 turnos. Infecções não são curadas.`;
+   const valor=cap((old.withKit?info.firstAid.value:Math.ceil(info.firstAid.value/2))+(old.turns-1)*5),r=testeComSorte(actor,valor,sorteio(seed));
+   let healed=0;if(sucesso(r)){healed=curar(st,local,r.grau==='Crítico'?Math.max(4,Math.min(6,1+Math.floor((valor-r.die)/10))):Math.max(1,Math.min(3,1+Math.floor((valor-r.die)/20))));registrarCura(patient,healed,c);}
+   message=`${a.nome}: Primeiros Socorros em ${b.nome} · ${local} · ${r.die}/${valor} → ${r.grau}${r.sorte?' · 🍀 Sorte':''} · ${sucesso(r)?'ferimento estabilizado, +'+healed+' PV':'sem recuperação'} · ${old.turns}/3 turnos. Infecções não são curadas.`;
    actor.treatment=null;
   }else if(cmd.operation==='cancel'){actor.treatment=null;message=`${a.nome} interrompeu o atendimento; o uso do kit não é devolvido.`;}
   else throw Error('Etapa de atendimento inválida.');
@@ -73,7 +74,7 @@ export function resolverPsi({a,b,health,map,cmd,info,positions,scene,seed}){
  if(['ilusao','mimetismo_psi'].includes(power.id)&&(!copySource||copySource.destruido))throw Error('Selecione uma forma existente no mapa.');
  if(copySource&&distancia(a,copySource,map)>range)throw Error('Forma fora do alcance psíquico.');
  if(power.id==='fluxo_marcial'&&c?.active){if(actor.zenRound===c.roundId)throw Error('Guerreiro Zen já foi tentado nesta rodada.');actor.zenRound=c.roundId;}
- const r=teste(power.value,roll);actor.psiMax=info.psiMax;actor.psiSpent=used+cost;const text=[`${a.nome}: ${power.name} → ${b.nome} · ${r.die}/${r.valor} · ${r.grau} · ${cost} PP`],moves={},effects=[];
+ const r=testeComSorte(actor,power.value,roll);actor.psiMax=info.psiMax;actor.psiSpent=used+cost;const text=[`${a.nome}: ${power.name} → ${b.nome} · ${r.die}/${r.valor} · ${r.grau}${r.sorte?' · 🍀 Sorte':''} · ${cost} PP`],moves={},effects=[];
  let requests=clone(health.psiRequests||[]),newScene=clone(scene||{mapId:map.mapId||'',objects:[]}),zenBonus=0;
  const addEffect=(id,key,data={})=>{const t=actors[id]||={combateLab:clone(info.healthById?.[id]||{})};t.psiEffects={...t.psiEffects,[key]:{round:c?.round||0,untilRound:(c?.round||0)+1,source:a.id,...data,clock:criarRelogio((data.durationSeconds||power.durationSeconds||((data.untilRound||((c?.round||0)+1))-(c?.round||0))*6)*1000,c,Number(cmd.time)||Date.now())}};effects.push(id);};
  if(sucesso(r)){
@@ -84,17 +85,17 @@ export function resolverPsi({a,b,health,map,cmd,info,positions,scene,seed}){
    if(resisted.includes(power.id)&&id!==a.id){
     const hidden=h.psiEffects?.ocultar_mente,shield=h.psiEffects?.defesa_mental;
     if(hidden?.untilRound>(c?.round||0)&&['ler_mente','influenciar_mente','controlar_mente'].includes(power.id)){text.push(t.nome+': mente oculta, poder bloqueado');continue;}
-    const d=teste(Number(info.willById?.[id]||0)+(shield?.untilRound>(c?.round||0)?20:0),roll);text.push(`${t.nome}: Vontade ${d.die}/${d.valor} → ${d.grau}`);if(!ataqueSuperaDefesa(r,d)){text.push('Resistiu');continue;}
+    const d=testeComSorte(h,Number(info.willById?.[id]||0)+(shield?.untilRound>(c?.round||0)?20:0),roll);text.push(`${t.nome}: Vontade ${d.die}/${d.valor} → ${d.grau}`);if(!ataqueSuperaDefesa(r,d)){text.push('Resistiu');continue;}
    }
    if(power.id==='grito_psiquico'){
-    const st=h.combateLab,d=st.inconsciente||st.morto||st.caido||st.derrubado?null:teste(Math.max(0,Number(info.dodgeById?.[id]||0)-(id===b.id?20:0)),roll);
+    const st=h.combateLab,d=st.inconsciente||st.morto||st.caido||st.derrubado?null:testeComSorte(h,Math.max(0,Number(info.dodgeById?.[id]||0)-(id===b.id?20:0)),roll);
     if(d)text.push(t.nome+': Esquiva '+d.die+'/'+d.valor+' → '+d.grau);
     if(d&&!ataqueSuperaDefesa(r,d))continue;
-    st.caido=true;const resistance=teste(Number(info.resistanceById?.[id]||0),roll);text.push(t.nome+': caído · sem dano físico · Resistência '+resistance.die+'/'+resistance.valor+' → '+resistance.grau);
+    st.caido=true;const resistance=testeComSorte(h,Number(info.resistanceById?.[id]||0),roll);text.push(t.nome+': caído · sem dano físico · Resistência '+resistance.die+'/'+resistance.valor+' → '+resistance.grau);
     if(!sucesso(resistance)){const rounds=roll(4);st.inconsciente=true;st.unconsciousUntilRound=(c?.round||0)+rounds;st.unconsciousClock=criarRelogio(rounds*6000,c,Number(cmd.time)||Date.now());text.push('Inconsciente por '+rounds+' rodada(s)');}
    }else if(PSI_NARRATIVOS.has(power.id)){
     requests.push({id:cmd.id+':'+id,actorId:a.id,targetId:id,powerId:power.id,powerName:power.name,text:String(cmd.text||'').slice(0,1000),status:'pending',description:power.description});text.push('Interpretação/mensagem enviada ao mestre para adjudicação');
-   }else if(power.id==='cura_psi'){const gain=curar(h.combateLab,local,cost);text.push(`+${gain} PV em ${local}; infecções permanecem`);}
+   }else if(power.id==='cura_psi'){const gain=curar(h.combateLab,local,cost);registrarCura(h,gain,c);text.push(`+${gain} PV em ${local}; infecções permanecem`);}
    else if(power.id==='meditacao_psi'){
     const now=Number(cmd.time),day=Math.floor(now/86400000);if(c?.active||actor.lastMeditationDay===day)throw Error('Meditação é permitida uma vez por dia fora de combate.');
     if(!actor.meditationStarted){actor.meditationStarted=now;text.push('Meditação iniciada: retorne após uma hora.');}
