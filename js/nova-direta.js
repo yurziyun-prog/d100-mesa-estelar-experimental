@@ -1,11 +1,11 @@
 // Movimento livre: uma posição por personagem, sem sessão-mestre ou fila de comandos.
 import {saldoMovimento,movimentoMaximo,moverNoTurno,iniciarIniciativa,acaoIniciativa,defesasRestantes} from './nova-turnos.js?v=39';
 import {destinoSemColisao,TOKEN_DIAMETER} from './nova-colisao.js?v=25';
-import {criarPainelAcoes} from './nova-painel.js?v=41';
-import {conectarAtaques,HEALTH_PATH,HISTORY_PATH} from './nova-ataques.js?v=40';
+import {criarPainelAcoes} from './nova-painel.js?v=42';
+import {conectarAtaques,HEALTH_PATH,HISTORY_PATH} from './nova-ataques.js?v=42';
 import {mostrarAtaque} from './nova-fx.js?v=40';
 import {criarEditorMesa} from './nova-editor.js?v=35';
-import {ocupado,atualizarDuracoes} from './nova-suporte.js?v=40';
+import {ocupado,atualizarDuracoes} from './nova-suporte.js?v=42';
 export const POSITION_PATH='combatesAtivos/mapaMesaSyncDireta/posicoes';
 export const MAP_PATH='combatesAtivos/mapaMesaSyncDireta';
 export const SCENE_PATH='combatesAtivos/mapaMesaSyncDiretaCena';
@@ -14,6 +14,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
  let stop=null,stopMap=null,stopHistory=null,account='',error='',generation=0,mapPacket=null,mapData=null,renderedMap=null,mapRequest=0;
  let changingTurn=false,lastSelectedTurn='',defending=false;
  let durationSync=false;
+ const dismissedPsi=new Set();
  let held=null,turning=null,frame=0,placing=false,placementChoice='';
  let catalogKey='',catalogLimit=48,sceneRef=null,sceneMapId=null;
  const quickChoices=new Map();
@@ -84,8 +85,9 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   return attacks.support(payload);
  }});
  function status(){
+  drawPsiInbox();
   if(user()?.master&&mapPacket?.combat?.active&&!durationSync&&health.supportRound!==mapPacket.combat.roundId){
-   durationSync=true;database.transact(async tx=>{const map=await tx.get(MAP_PATH),h=await tx.get(HEALTH_PATH);if(!map?.combat?.active||!h||h.supportRound===map.combat.roundId)return;atualizarDuracoes(h.actors,map.combat);h.supportRound=map.combat.roundId;h.revision=(h.revision||0)+1;tx.set(HEALTH_PATH,h);tx.set(MAP_PATH,map);}).catch(fail).finally(()=>{durationSync=false;});
+   durationSync=true;database.transact(async tx=>{const map=await tx.get(MAP_PATH),h=await tx.get(HEALTH_PATH),scene=await tx.get(SCENE_PATH);if(!map?.combat?.active||!h||h.supportRound===map.combat.roundId)return;atualizarDuracoes(h.actors,map.combat,scene);h.supportRound=map.combat.roundId;h.revision=(h.revision||0)+1;tx.set(HEALTH_PATH,h);tx.set(MAP_PATH,map);if(scene)tx.set(SCENE_PATH,scene);}).catch(fail).finally(()=>{durationSync=false;});
   }
   el('novaSyncStatus').textContent=(queues.size?'Mesa 36 · salvando posição…':error)||`Mesa 36 · ${tokens.size} personagem(ns) · 48 px/m`;
   if(held)el('novaSyncStatus').textContent='Solte o botão do mouse para parar · 3 m/s';
@@ -132,7 +134,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   for(const button of el('novaSyncBoard').querySelectorAll('[data-map-action]'))button.disabled=!c?.active||c.activeId!==selected?.id||!controlled(selected)||attacking||!!queues.size||changingTurn||!!c?.pendingAttack;
   const event=health.event,eventVisible=event&&(user()?.master||event.actorUid===user()?.uid||event.targetUid===user()?.uid);
   const ownEvent=eventVisible?{...event,message:user()?.master?event.message:event.targetUid===user()?.uid?(event.defenderMessage||event.message):(event.attackerMessage||event.message)}:null;
-  updateActions(selected?{...selected,nome:displayName(selected)}:null,c,controlled(selected)&&tokens.has(selected?.id)&&(!c?.active||c.activeId===selected?.id)&&!queues.size&&!changingTurn&&!attacking&&!managing&&!editor.busy&&!c?.pendingAttack,{allHealth:health.actors,psiRequests:health.psiRequests,isMaster:!!user()?.master,objects:sceneData?.objects||[],tokens:[...tokens.values()],health:health.actors?.[selected?.id],revision:health.revision,event:ownEvent,targetId:selectedTarget,masterMode:masterMode(),defenses:c?.active?defesasRestantes(c,selected?.id):null});
+  updateActions(selected?{...selected,nome:displayName(selected)}:null,c,controlled(selected)&&tokens.has(selected?.id)&&(!c?.active||c.activeId===selected?.id)&&!queues.size&&!changingTurn&&!attacking&&!managing&&!editor.busy&&!c?.pendingAttack,{mapWidth:Number(mapPacket?.larguraM)||28,mapHeight:Number(mapPacket?.alturaM)||14,allHealth:health.actors,psiRequests:health.psiRequests,isMaster:!!user()?.master,objects:sceneData?.objects||[],tokens:[...tokens.values()],health:health.actors?.[selected?.id],revision:health.revision,event:ownEvent,targetId:selectedTarget,masterMode:masterMode(),defenses:c?.active?defesasRestantes(c,selected?.id):null});
  }
  function drawMap(){
   const board=el('novaSyncBoard'),select=el('novaSyncMapa'); if(!board||!select)return;
@@ -185,9 +187,15 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
    const p=previews.get(t.id)||t;
     const tokenDiameterM=/besta\s+ululante/i.test(String(t.nome||''))?2.4:1;
     const tokenHealth=health.actors?.[t.id]?.combateLab||{};
+    const mimic=health.actors?.[t.id]?.psiEffects?.mimetismo_psi;
+    const tokenImage=mimic?.image||t.imagem||'';
+    const tokenImg=node.querySelector('img');
+    if(tokenImg&&tokenImg.getAttribute('src')!==tokenImage){if(tokenImage)tokenImg.src=tokenImage;else tokenImg.remove();}
+    if(!tokenImg&&tokenImage){const img=root.createElement('img');img.src=tokenImage;img.draggable=false;img.style.cssText='width:100%;height:100%;object-fit:cover;border-radius:50%;pointer-events:none';node.prepend(img);}
     node.style.filter='none';
     node.querySelectorAll('[data-state-symbol]').forEach(n=>n.remove());
     if(tokenHealth.morto||tokenHealth.inconsciente||tokenHealth.incapacitado){const state=root.createElement('span');state.dataset.stateSymbol='';state.textContent=tokenHealth.morto?'💀':tokenHealth.inconsciente?'💤':'🩸';state.style.cssText='position:absolute;inset:0;display:grid;place-items:center;font-size:22px;text-shadow:0 1px 3px #000;pointer-events:none;z-index:10;';node.append(state);}
+    else if(health.actors?.[t.id]?.psiEffects?.atordoado){const state=root.createElement('span');state.dataset.stateSymbol='';state.textContent='💫';state.title='Atordoado';state.style.cssText='position:absolute;right:-3px;top:-8px;font-size:16px;text-shadow:0 1px 3px #000;pointer-events:none;z-index:10;';node.append(state);}
    node.style.boxSizing='border-box';
    node.style.width=tokenDiameterM/(Number(mapPacket?.larguraM)||28)*board.clientWidth+'px';
    node.style.height=tokenDiameterM/(Number(mapPacket?.alturaM)||14)*board.clientHeight+'px';
@@ -246,6 +254,27 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   }
   box.addEventListener('pointerdown',e=>e.stopPropagation());board.append(box);
  }
+ function drawPsiInbox(){
+  const shown=(health.psiRequests||[]).filter(r=>!dismissedPsi.has(r.id)&&(r.status==='pending'&&user()?.master||r.status==='resolved'&&tokens.get(r.actorId)?.donoUid===user()?.uid));
+  let box=el('novaPsiInbox');
+  if(!shown.length){box?.remove();return;}
+  if(!box){box=root.createElement('aside');box.id='novaPsiInbox';box.className='nova-psi-inbox';box.setAttribute('aria-label','Mensagens psíquicas');root.body.append(box);}
+  for(const card of [...box.children])if(!shown.some(r=>r.id===card.dataset.request))card.remove();
+  for(const request of shown){
+   let card=[...box.children].find(n=>n.dataset.request===request.id);
+   if(card?.dataset.status===request.status)continue;
+   if(!card){card=root.createElement('section');card.dataset.request=request.id;box.append(card);}card.replaceChildren();card.dataset.status=request.status;
+   const title=root.createElement('strong');title.textContent=request.powerName+' · '+(tokens.get(request.actorId)?.nome||'Personagem');card.append(title);
+   const message=root.createElement('p');message.textContent=request.status==='resolved'?request.answer:request.text||request.description;card.append(message);
+   if(request.status==='resolved'){const close=root.createElement('button');close.textContent='Entendido';close.onclick=()=>{dismissedPsi.add(request.id);drawPsiInbox();};card.append(close);}
+   if(request.status==='pending'){
+    const answer=root.createElement('textarea');answer.placeholder='Resposta para o jogador';answer.setAttribute('aria-label','Resposta do mestre');card.append(answer);
+    const button=root.createElement('button');button.type='button';button.textContent='Enviar resposta';card.append(button);
+    const feedback=root.createElement('p');feedback.setAttribute('role','status');card.append(feedback);
+    button.onclick=async()=>{if(!answer.value.trim()){feedback.textContent='Escreva uma resposta.';return;}button.disabled=true;try{await attacks.support({kind:'direct-psi-review',actorId:request.actorId,targetId:request.targetId,requestId:request.id,text:answer.value,turnId:null});}catch(e){feedback.textContent=e.message;}finally{button.disabled=false;}};
+   }
+  }
+ }
  function drawScene(){
   const board=el('novaSyncBoard'),scene=sceneData;
   board.querySelectorAll('[data-psi-zone]').forEach(n=>n.remove());
@@ -294,7 +323,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
    }
   }
  }
- function close(){editor.close();attacks?.close();attacks=null;health={actors:{},revision:0};history={entries:[]};held=null;selectedTarget='';placementChoice='';cancelAnimationFrame(frame);generation++;stop?.();stopMap?.();stopScene?.();stopHistory?.();stopScene=null;stopHistory=null;sceneData=null;sceneRequest++;stop=null;stopMap=null;account='';tokens.clear();previews.clear();queues.clear();mapPacket=null;mapData=null;renderedMap=null;mapRequest++;}
+ function close(){el('novaPsiInbox')?.remove();dismissedPsi.clear();editor.close();attacks?.close();attacks=null;health={actors:{},revision:0};history={entries:[]};held=null;selectedTarget='';placementChoice='';cancelAnimationFrame(frame);generation++;stop?.();stopMap?.();stopScene?.();stopHistory?.();stopScene=null;stopHistory=null;sceneData=null;sceneRequest++;stop=null;stopMap=null;account='';tokens.clear();previews.clear();queues.clear();mapPacket=null;mapData=null;renderedMap=null;mapRequest++;}
  function open(){
   const u=user();if(!u)return;if(account===u.uid&&stop)return;close();account=u.uid;error='';const g=generation;
   stop=database.subscribe(POSITION_PATH,rows=>{
@@ -321,6 +350,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
    const request=++sceneRequest;
    try{
     const objects=await Promise.all((scene?.objects||[]).map(async o=>{
+     if(o.imagem||!o.modeloId)return o;
      if(!propCache.has(o.modeloId))propCache.set(o.modeloId,loadProp(o).catch(e=>{propCache.delete(o.modeloId);throw e;}));
      return {...await propCache.get(o.modeloId),...o};
     }));
@@ -379,7 +409,8 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
       if(Math.hypot(moved.x-next.x,moved.y-next.y)>.001){blocked=true;break;}
      }
      const {id:ignored,...value}=moved;
-     if(acceleration?.untilRound>(state?.combat?.round||0)){if(t.movementMax===undefined)delete value.movementMax;else value.movementMax=t.movementMax;}
+     // O bônus é temporário e vem da saúde; preservar o deslocamento base na posição.
+     if(t.movementMax===undefined)delete value.movementMax;else value.movementMax=t.movementMax;
      if(Number.isFinite(q.facing))value.facing=q.facing;
      value.revision=t.revision+1;tx.set(path,value);return {value,blocked};
     });
@@ -535,11 +566,13 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   changingTurn=true;status();
   try{
    const joined=mapPacket?.joined||{};
-   const started=action==='start'?iniciarIniciativa(await loadCombatants([...tokens.values()].filter(t=>joined[t.id]!==false)),crypto.randomUUID()):null;
+   const participants=action==='start'?await loadCombatants([...tokens.values()].filter(t=>joined[t.id]!==false)):[];
+   const started=action==='start'?iniciarIniciativa(participants,crypto.randomUUID()):null;
    await database.transact(async tx=>{
     if(g!==generation)throw new Error('A sessão mudou');
     const state=await tx.get(MAP_PATH)||{},c=state.combat;
     const healthState=await tx.get(HEALTH_PATH);
+    const freshPositions=action==='start'?await Promise.all(participants.map(t=>tx.get(POSITION_PATH+'/'+t.id))):[];
     if(action==='spend'&&ocupado(healthState?.actors?.[c?.activeId],c))throw Error('Este turno está dedicado a Primeiros Socorros.');
     if((c?.turnId||null)!==expected)throw new Error('O turno mudou. Confira a tela antes de avançar.');
     let combat;
@@ -552,6 +585,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
      combat=action==='end'?{...c,active:false,pendingAttack:null,turnId:crypto.randomUUID()}:acaoIniciativa(c,action,expected);
     }
     tx.set(MAP_PATH,{...state,combat});
+    if(action==='start')participants.forEach((t,i)=>{const fresh=freshPositions[i];if(fresh)tx.set(POSITION_PATH+'/'+t.id,{...fresh,movementMax:Number(t.movementMax)||movimentoMaximo(t),revision:Number(fresh.revision||0)+1});});
     if(user()?.master&&healthState&&!['start','end'].includes(action)){atualizarDuracoes(healthState.actors,combat);tx.set(HEALTH_PATH,{...healthState,revision:(healthState.revision||0)+1});}
     if(action==='start')tx.set(HISTORY_PATH,{entries:[...((started.order||[]).map(id=>({actorUid:tokens.get(id)?.donoUid||'',ts:Date.now(),message:`Iniciativa: ${tokens.get(id)?.nome||id} · ${started.rolls[id].die} + ${started.rolls[id].initiative} = ${started.rolls[id].total}`})))],revision:Date.now()});
     if(action==='end')tx.set(HISTORY_PATH,{entries:[],revision:Date.now()});

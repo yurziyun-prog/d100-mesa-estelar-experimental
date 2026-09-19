@@ -74,10 +74,10 @@ service cloud.firestore {
     match /combatesAtivos/mapaMesaSyncDireta/posicoes/{tokenId} {
       function posicaoValida() {
         let d = request.resource.data;
-        return d.keys().hasOnly(['nome','imagem','donoUid','x','y','revision','movementTurn','movementUsed','facing']) &&
+        return d.keys().hasOnly(['nome','imagem','donoUid','x','y','revision','movementTurn','movementUsed','movementMax','teleportNonce','facing']) &&
           d.nome is string && d.imagem is string && d.donoUid is string &&
           d.x is number && d.y is number && d.revision is int &&
-          d.x >= 0 && d.x <= 28 && d.y >= 0 && d.y <= 14 && d.get('facing',0) is number;
+          d.x >= 0 && d.x <= 28 && d.y >= 0 && d.y <= 14 && d.get('movementMax',6) is number && d.get('facing',0) is number;
       }
       function movimentoPermitido() {
         let path = /databases/$(database)/documents/combatesAtivos/mapaMesaSyncDireta;
@@ -89,19 +89,21 @@ service cloud.firestore {
         let delta = d.get('movementUsed', 0) - spent;
         let dx = (d.x - previous.x) * map.get('larguraM', 28) / 28;
         let dy = (d.y - previous.y) * map.get('alturaM', 14) / 14;
+        let hp = /databases/$(database)/documents/combatesAtivos/mapaMesaSyncSaude;
+        let state = exists(hp) ? get(hp).data.get('actors', {}).get(tokenId, {}) : {};
+        let accelerated = state.get('psiEffects', {}).get('aceleracao', {}).get('untilRound', -1) > c.get('round', 0);
+        let limit = accelerated ? 30 : previous.get('movementMax', 6);
         return !c.get('active', false) ?
           d.diff(previous).affectedKeys().hasOnly(['x','y','revision','facing']) :
           (c.get('pendingAttack', null) == null && c.activeId == tokenId &&
            d.get('movementTurn', '') == c.get('roundId', c.turnId) &&
            d.get('movementUsed', -1) is number &&
-           d.movementUsed >= spent && d.movementUsed <= 6 &&
+           d.movementUsed >= spent && d.movementUsed <= limit &&
            dx * dx + dy * dy <= delta * delta + 0.00000001);
       }
       allow read: if autenticado();
       allow create: if ehMestre() && posicaoValida() && request.resource.data.revision == 0;
-      allow update: if ((ehMestre() && (resource.data.donoUid == '' ||
-        !exists(/databases/$(database)/documents/combatesAtivos/mapaMesaSyncDireta) ||
-        !get(/databases/$(database)/documents/combatesAtivos/mapaMesaSyncDireta).data.get('combat', {}).get('active', false))) || ehDono(resource.data.donoUid)) &&
+      allow update: if (ehMestre() || ehDono(resource.data.donoUid)) &&
         posicaoValida() &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['x','y','revision','movementTurn','movementUsed','facing']) &&
         request.resource.data.revision == resource.data.revision + 1 &&
@@ -110,6 +112,18 @@ service cloud.firestore {
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['facing','revision']) &&
         request.resource.data.revision == resource.data.revision + 1 &&
         request.resource.data.facing is number;
+      // Teletransporte e outros deslocamentos psíquicos são resolvidos pelo mestre
+      // dentro da transação do comando, sem serem confundidos com arrastar manual.
+      allow update: if ehMestre() &&
+        posicaoValida() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['x','y','revision','teleportNonce']) &&
+        request.resource.data.revision == resource.data.revision + 1 &&
+        request.resource.data.x is number && request.resource.data.y is number &&
+        request.resource.data.teleportNonce is string;
+      // O mestre sincroniza o deslocamento base da ficha ao iniciar o combate.
+      allow update: if ehMestre() && posicaoValida() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['movementMax','revision']) &&
+        request.resource.data.revision == resource.data.revision + 1;
       allow delete: if ehMestre();
     }
 

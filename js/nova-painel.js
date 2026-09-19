@@ -1,5 +1,5 @@
-import {painelSuporte} from './nova-suporte-painel.js?v=41';
-import {ocupado} from './nova-suporte.js?v=40';
+import {painelSuporte} from './nova-suporte-painel.js?v=42';
+import {ocupado} from './nova-suporte.js?v=42';
 export function criarPainelAcoes({root,load,spend,roll,attack,support,unlock=()=>{}}){
  const host=root.getElementById('novaSyncActionPanel'),passButton=root.getElementById('novaSyncNext');
  const cache=new Map(),preferences=new Map(),results=new Map();
@@ -19,7 +19,7 @@ export function criarPainelAcoes({root,load,spend,roll,attack,support,unlock=()=
   try{
    let text;
    if(/primeiros.?socorros/i.test(skill.id+' '+skill.nome)){
-    text='Abra “Primeiros Socorros · Psiquismo” abaixo para escolher a parte e iniciar o atendimento.';
+    text='Abra “Primeiros Socorros” abaixo para escolher a parte e iniciar o atendimento.';
    }else if(turn&&target&&skill.attack){
     results.set(actor.id,{text:'Ataque enviado · aguardando confirmação do mestre…',at:Date.now()});render();
     text=await attack({actorId:actor.id,targetId:target.id,skillId:skill.id,weaponId:weapon.id,turnId:turn});
@@ -90,6 +90,10 @@ export function criarPainelAcoes({root,load,spend,roll,attack,support,unlock=()=
   const own=results.get(current.id),result=node('div',(own?.at>(view.event?.ts||0)?own.text:view.event?.message)||own?.text||'','nova-result');
   host.append(line,description,firstAidHint,pv,result,targetHint);
   painelSuporte({root,host,current,sheet,view,combat,allowed,send:support,load});
+  const state=view.health?.combateLab||sheet.health;
+  if(state?.caido||state?.derrubado){
+   const lift=node('button','⬆️ Levantar (1 Ação)','btn-small btn-select');lift.type='button';lift.disabled=!allowed||busy||ocupado(view.health,combat);lift.onclick=()=>support?.({kind:'direct-stand',actorId:current.id,targetId:current.id,turnId:combat?.active?combat.turnId:null});host.append(lift);
+  }
  }
  const update=async(token,packet,canAct,extra={})=>{
   if(!host)return;

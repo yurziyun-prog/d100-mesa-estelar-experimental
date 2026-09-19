@@ -3344,10 +3344,10 @@ function obterPAMaxCombate_(char) {
     if (regra.pa === null) return 0;
     // Criaturas e NPCs podem declarar diretamente quantas ações possuem.
     // O campo antigo acoesMaxEspecial continua sendo aceito como fallback.
-    if(Number.isFinite(Number(char?.acoesMax))){
+    if(Number(char?.acoesMax)>0){
         return Math.max(0,Number(char.acoesMax)+(regra.pa||0));
     }
-    if(Number.isFinite(Number(char?.acoes))){
+    if(Number(char?.acoes)>0){
         return Math.max(0,Number(char.acoes)+(regra.pa||0));
     }
     if(Number(char?.acoesMaxEspecial||0)>0){
@@ -4180,7 +4180,7 @@ const poderesPsiPadrao = [
     {"id": "fluxo_marcial", "nome": "Fluxo Marcial", "nome_en": "Martial Flow", "nome_zh": "武流", "esfera": "Matéria", "arco": 2, "custo": 1, "observacao": "Após uma rolagem, gaste 1 PP por 1% para alterar o resultado em direção a um grau de sucesso melhor", "observacao_en": "", "observacao_zh": ""},
     {"id": "banimento_caotico", "nome": "Banimento Caótico", "nome_en": "Chaotic Banishment", "nome_zh": "混沌放逐", "esfera": "Matéria", "arco": 3, "custo": 6, "observacao": "Após vencer a resistência do alvo, teletransporta-o para uma posição aleatória válida do mapa.", "observacao_en": "After overcoming the target's resistance, teleports it to a random valid position on the map.", "observacao_zh": "在击败目标的抵抗后，将其瞬移到地图上的一个随机有效位置。"},
     {"id": "agilidade_psi", "nome": "Agilidade", "nome_en": "Agility", "nome_zh": "敏捷强化", "esfera": "Matéria", "arco": 3, "custo": 5, "observacao": "Adiciona 10% em Atletismo, Acrobacia ou Combate Desarmado na rodada para cada 5 PP", "observacao_en": "", "observacao_zh": ""},
-    {"id": "aceleracao", "nome": "Aceleração", "nome_en": "Acceleration", "nome_zh": "加速", "esfera": "Matéria", "arco": 3, "custo": 10, "observacao": "Movimento extremamente rápido, Movimento 30 por uma rodada", "observacao_en": "", "observacao_zh": ""},
+    {"id": "aceleracao", "nome": "Aceleração", "nome_en": "Acceleration", "nome_zh": "加速", "esfera": "Matéria", "arco": 3, "custo": 4, "observacao": "Movimento extremamente rápido, Movimento 30 por uma rodada", "observacao_en": "", "observacao_zh": ""},
     {"id": "doador_vida", "nome": "Doador da Vida", "nome_en": "Life Giver", "nome_zh": "生命赐予者", "esfera": "Matéria", "arco": 3, "custo": 12, "observacao": "Restaura 1 PV a um ser morto por causa não natural, até 2 minutos após a morte", "observacao_en": "", "observacao_zh": ""}
 ];
 
@@ -6018,7 +6018,7 @@ function labPsiRestantes_(t){return Math.max(0,labPsiMax_(t)-Math.max(0,Number(t
 function labPsiPoderes_(t){
     const c=labCharToken_(t)||t?.charLab;if(!c)return [];
     const permitidos=Array.isArray(c.poderesPsiIds)&&c.poderesPsiIds.length?new Set(c.poderesPsiIds.map(String)):null;
-    return (poderesPsiDB||[]).filter(p=>{const treino=treinoPsiEsfera_(c,p.esfera),arco=arcoPsiPorTreino_(treino);return treino>0&&Number(p.arco||1)<=arco&&(!permitidos||permitidos.has(String(p.id)));})
+    return (poderesPsiDB||[]).filter(p=>{const treino=treinoPsiEsfera_(c,p.esfera),arco=arcoPsiPorTreino_(treino);return treino>0&&Number(p.arco||1)<=arco&&(!permitidos||permitidos.has(String(p.id)));}).map(p=>p.id==='aceleracao'?{...p,custo:4}:p)
       .sort((a,b)=>String(a.esfera).localeCompare(String(b.esfera))||Number(a.arco||1)-Number(b.arco||1)||getNome(a).localeCompare(getNome(b)));
 }
 function labPsiValor_(t,poder){
@@ -15812,7 +15812,7 @@ labUsarPsiExecutar_=function(){
     if(gasto>labPsiRestantes_(t)){notificar_(`PP insuficientes. Disponíveis: ${labPsiRestantes_(t)}.`,'aviso');return;}
     if(p.id==='fluxo_marcial'){const chave=`${labEstado_.rodada}:${labEstado_.turnoIndex}`;if(t.guerreiroZenUsoChaveLab===chave){notificar_('Guerreiro Zen só pode ser tentado uma vez por oportunidade.','aviso');return;}}
     const valor=labPsiValor_(t,p),roll=1+Math.floor(Math.random()*100),r=classificarD100_(valor,roll),margem=r.sucesso?labMargemSucesso_(valor,roll):0;
-    const semAcao=p.id==='intuicao_psi';if(!semAcao&&!labPsiConsumirAcao_(t))return;t.psiGastosLab=Math.max(0,Number(t.psiGastosLab||0))+gasto;
+    const semAcao=false;if(!semAcao&&!labPsiConsumirAcao_(t))return;t.psiGastosLab=Math.max(0,Number(t.psiGastosLab||0))+gasto;
     let efeito='';
     if(r.grau==='Fiasco'){if(labPsiRestantes_(t)>0)t.psiGastosLab++;if(!semAcao){if(Number(t.acoesAtuaisLab||0)>0)t.acoesAtuaisLab--;else t.penalidadeAcaoProximaLab=Math.max(1,Number(t.penalidadeAcaoProximaLab||0));}efeito='Falha crítica psíquica: perde 1 PP adicional e sofre a penalidade geral de AÇ.';}
     else if(!r.sucesso)efeito='O poder falhou.';
@@ -36468,9 +36468,9 @@ function labInstalarAcoesConfirmadas_(){
 labInstalarAcoesConfirmadas_();
 
 // Aba paralela: controlador independente e adaptador Firestore.
-import {mountDirectPositionLab} from './nova-direta.js?v=41';
+import {mountDirectPositionLab} from './nova-direta.js?v=42';
 import {tocarEfeito} from './nova-fx.js?v=40';
-import {resolverSocorros,resolverPsi,ocupado,teste as novaTesteSuporte_,sorteio as novaSorteioSuporte_} from './nova-suporte.js?v=40';
+import {resolverSocorros,resolverPsi,ocupado,teste as novaTesteSuporte_,sorteio as novaSorteioSuporte_} from './nova-suporte.js?v=42';
 import {ataqueSuperaDefesa,defesasRestantes} from './nova-turnos.js?v=36';
 async function novaFicha_(t){
  const legacy=(labEstado_?.tokens||[]).find(x=>String(x.id)===String(t.id));
@@ -36658,7 +36658,8 @@ async function novaPrepararSuporte_(a,b,tokens){
    const value=novaValorPericia_(sourceChar,{...a,...state,supportRound:map.combat?.round||0,charLab:sourceChar,__novaFicha:true},per),r=novaTesteSuporte_(value,novaSorteioSuporte_(args.seed));state.psiIntuition=0;
    return {actors,combat:map.combat?.active?novaAcaoSuporte_(map.combat,'spend',map.combat.turnId):map.combat,message:a.nome+' · '+getNome(per)+': '+r.die+'/'+r.valor+' → '+r.grau};
   }
-  const result=cmd.kind==='direct-first-aid'?resolverSocorros({...args,info}):resolverPsi({...args,info});
+  const scene=args.scene?{...args.scene,objects:(args.scene.objects||[]).map(o=>{const modelId=String(o.modeloId||'').split(':').pop(),model=[...(objetosMapaDB||[]),...(itensDB||[])].find(m=>String(m.id)===modelId);return {...o,imagem:o.imagem||model?.imagem||''};})}:args.scene;
+  const result=cmd.kind==='direct-first-aid'?resolverSocorros({...args,info}):resolverPsi({...args,scene,info});
   // Um paciente recuperado volta à ordem no próximo turno, sem ações gratuitas agora.
   const combat=result.combat,patient=result.actors?.[b.id]?.combateLab;
   if(combat?.active&&patient&&!patient.morto&&!patient.inconsciente&&!combat.order.includes(b.id)&&combat.rolls?.[b.id]){
@@ -36696,7 +36697,7 @@ const novaSyncController_=mountDirectPositionLab({
   const c=await novaFicha_(t);
   const fatigue=obterRegraFadiga_(c);
   const int=(c.atributos?.INT||10)+(c.bonus?.INT||0),dex=(c.atributos?.DES||10)+(c.bonus?.DES||0);
-  return {...t,initiative:Math.max(0,Math.ceil((int+dex)/2)+(fatigue.iniciativa||0)),actions:obterPAMaxCombate_(c)};
+  return {...t,movementMax:Number(c.deslocamento??c.movimentoTerrestre)||(/besta\s+ululante/i.test(t.nome)?8:6),initiative:Math.max(0,Math.ceil((int+dex)/2)+(fatigue.iniciativa||0)),actions:obterPAMaxCombate_(c)};
  })),
  renderMap:map=>window.novaSyncRenderMap_(map),
  loadMap:async id=>{

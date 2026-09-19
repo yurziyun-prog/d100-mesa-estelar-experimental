@@ -1,6 +1,6 @@
 import {acaoIniciativa,gastarDefesa,removerMortos} from './nova-turnos.js?v=39';
 import {alvosNoCone} from './nova-area.js?v=20260918';
-import {atualizarDuracoes} from './nova-suporte.js?v=40';
+import {atualizarDuracoes} from './nova-suporte.js?v=42';
 export const HEALTH_PATH='combatesAtivos/mapaMesaSyncSaude';
 export const HISTORY_PATH='combatesAtivos/mapaMesaSyncHistorico';
 const MAP='combatesAtivos/mapaMesaSyncDireta',POSITIONS=MAP+'/posicoes',COMMANDS=MAP+'/acoes';

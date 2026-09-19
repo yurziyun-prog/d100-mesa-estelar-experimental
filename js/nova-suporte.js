@@ -6,15 +6,25 @@ export function sorteio(seed){let s=seed>>>0;return max=>{s=(Math.imul(s,1664525
 export function teste(valor,roll){const die=roll(100);return {valor:cap(valor),die,grau:die===100?'Fiasco':cap(valor)>0&&die<=Math.max(1,Math.floor(cap(valor)/10))?'Crítico':die<=cap(valor)?'Sucesso':'Falha'};}
 const sucesso=r=>['Sucesso','Crítico'].includes(r.grau);
 export function ocupado(actor,combat){return !!actor?.treatment||(combat?.active&&actor?.supportLock===combat.roundId);}
-export function atualizarDuracoes(actors,combat){
+export function atualizarDuracoes(actors,combat,scene){
  if(!combat?.active)return;
  for(const [id,a]of Object.entries(actors||{})){
-  for(const [key,e]of Object.entries(a.psiEffects||{}))if(e.untilRound<=combat.round)delete a.psiEffects[key];
+  for(const [key,e]of Object.entries(a.psiEffects||{}))if(e.untilRound<=combat.round){
+   const periods=e.renewRounds?1+Math.floor((combat.round-e.untilRound)/e.renewRounds):0,cost=periods*Number(e.renewCost||0);
+   if(periods&&!a.combateLab?.morto&&!a.combateLab?.inconsciente&&Number(a.psiMax||0)-Number(a.psiSpent||0)>=cost){a.psiSpent=Number(a.psiSpent||0)+cost;e.untilRound+=periods*e.renewRounds;}
+   else delete a.psiEffects[key];
+  }
   const st=a.combateLab;
   if(st?.unconsciousUntilRound&&st.unconsciousUntilRound<=combat.round&&!st.morto){st.inconsciente=false;delete st.unconsciousUntilRound;
    const initial=combat.suspended?.[id];if(initial&&!combat.order.includes(id)){combat.order.push(id);combat.initial[id]=initial;combat.actors[id]={remaining:0,passes:2};combat.order.sort((x,y)=>combat.rolls[y].total-combat.rolls[x].total);}
   }
  }
+ if(scene?.objects)scene.objects=scene.objects.filter(o=>{
+  if(!o.ilusaoPsi||o.lastRound>=combat.round)return true;
+  const a=actors[o.autorPsiId],cost=2*(combat.round-o.lastRound);
+  if(!a||a.combateLab?.morto||a.combateLab?.inconsciente||Number(a.psiMax||0)-Number(a.psiSpent||0)<cost)return false;
+  a.psiSpent=Number(a.psiSpent||0)+cost;o.lastRound=combat.round;return true;
+ });
 }
 function localValido(health,local){const opts=feridas(health);if(opts.length===1)return opts[0];if(!opts.includes(local))throw Error('Escolha a parte ferida a tratar.');return local;}
 function distancia(a,b,map){return Math.hypot((a.x-b.x)*(map.larguraM||28)/28,(a.y-b.y)*(map.alturaM||14)/14);}
@@ -52,7 +62,7 @@ export function resolverSocorros({a,b,health,map,cmd,info,seed}){
  actor.supportLock=c?.active?c.roundId:null;
  return {actors,combat:fimTurno(c),inventory,message};
 }
-export const PSI_NARRATIVOS=new Set(['psicometria','detectar_psi','visao_distante','empatia','ler_mente','localizar_psi','telepatia','amizade','influenciar_mente','controlar_mente','amnesia','mente_acelerada','doador_vida','fluxo_marcial']);
+export const PSI_NARRATIVOS=new Set(['psicometria','detectar_psi','visao_distante','empatia','ler_mente','localizar_psi','telepatia','amizade','influenciar_mente','controlar_mente','amnesia','mente_acelerada','doador_vida']);
 export function resolverPsi({a,b,health,map,cmd,info,positions,scene,seed}){
  const power=info.powers.find(p=>p.id===cmd.powerId);if(!power)throw Error('Poder não disponível para o treino desta ficha.');
  const actors=clone(health.actors||{}),actor=actors[a.id]||={combateLab:clone(info.health)},target=actors[b.id]||={combateLab:clone(info.targetHealth)},c=clone(map.combat);
@@ -63,13 +73,17 @@ export function resolverPsi({a,b,health,map,cmd,info,positions,scene,seed}){
  if(power.id==='meditacao_psi'&&c?.active)throw Error('Meditação exige uma hora fora de combate.');
  if(power.id==='cura_psi'&&target.combateLab.morto)throw Error('Cura não ressuscita mortos.');
  let local=power.id==='cura_psi'?localValido(target.combateLab,cmd.local):'';
- const self=['meditacao_psi','meditacao_batalha','reflexos','aceleracao','salto','teletransporte','teletransporte_caotico','agilidade_psi','ocultar_mente','anoitecer','circulo_protecao'];
+ const self=['meditacao_psi','meditacao_batalha','reflexos','fluxo_marcial','aceleracao','salto','teletransporte','teletransporte_caotico','agilidade_psi','ocultar_mente','anoitecer','circulo_protecao','defesa_mental'];
  if(self.includes(power.id)&&a.id!==b.id)throw Error('Este poder deve ter você como alvo.');
  const range=Number(power.range)||20;
  if(a.id!==b.id&&distancia(a,b,map)>range)throw Error('Alvo fora do alcance psíquico ('+range+' m).');
- const r=teste(power.value,roll);actor.psiSpent=used+cost;const text=[`${a.nome}: ${power.name} → ${b.nome} · ${r.die}/${r.valor} · ${r.grau} · ${cost} PP`],moves={},effects=[];
- let requests=clone(health.psiRequests||[]),newScene=clone(scene||{objects:[]});
- const addEffect=(id,key,data={})=>{const t=actors[id]||={combateLab:clone(info.healthById?.[id]||{})};t.psiEffects={...t.psiEffects,[key]:{...data,round:c?.round||0,untilRound:(c?.round||0)+1,source:a.id}};effects.push(id);};
+ const copySource=['ilusao','mimetismo_psi'].includes(power.id)?[...positions,...(scene?.objects||[])].find(t=>t.id===(cmd.sourceId||b.id)):null;
+ if(['ilusao','mimetismo_psi'].includes(power.id)&&(!copySource||copySource.destruido))throw Error('Selecione uma forma existente no mapa.');
+ if(copySource&&distancia(a,copySource,map)>range)throw Error('Forma fora do alcance psíquico.');
+ if(power.id==='fluxo_marcial'&&c?.active){if(actor.zenRound===c.roundId)throw Error('Guerreiro Zen já foi tentado nesta rodada.');actor.zenRound=c.roundId;}
+ const r=teste(power.value,roll);actor.psiMax=info.psiMax;actor.psiSpent=used+cost;const text=[`${a.nome}: ${power.name} → ${b.nome} · ${r.die}/${r.valor} · ${r.grau} · ${cost} PP`],moves={},effects=[];
+ let requests=clone(health.psiRequests||[]),newScene=clone(scene||{mapId:map.mapId||'',objects:[]}),zenBonus=0;
+ const addEffect=(id,key,data={})=>{const t=actors[id]||={combateLab:clone(info.healthById?.[id]||{})};t.psiEffects={...t.psiEffects,[key]:{round:c?.round||0,untilRound:(c?.round||0)+1,source:a.id,...data}};effects.push(id);};
  if(sucesso(r)){
   const ids=power.id==='grito_psiquico'?alvosNoCone(a,b,positions,map,{range:20,angle:60}).map(t=>t.id):[b.id];
   const resisted=['medo','grito_psiquico','atordoar_psi','controlar_mente','influenciar_mente','ler_mente','amnesia','banimento_caotico','impulso','amizade'];
@@ -89,18 +103,19 @@ export function resolverPsi({a,b,health,map,cmd,info,positions,scene,seed}){
     else {if(now-actor.meditationStarted<3600000)throw Error('Ainda não transcorreu uma hora de meditação.');actor.psiSpent=Math.max(0,used-Math.ceil(info.psiMax/4));actor.lastMeditationDay=day;delete actor.meditationStarted;text.push('Recuperou ¼ dos PP máximos');}
    }else if(['salto','teletransporte','teletransporte_caotico','banimento_caotico','impulso'].includes(power.id)){
     let dest;if(power.id==='impulso'){const d=Math.max(.01,distancia(a,t,map));dest={x:t.x+(t.x-a.x)/d*5,y:t.y+(t.y-a.y)/d*5};}
-    else if(/caotico/.test(power.id))dest={x:roll(260)/10+1,y:roll(120)/10+1};
+    else if(/caotico/.test(power.id)){for(let attempt=0;attempt<400;attempt++){const p={x:roll(260)/10+1,y:roll(120)/10+1};if(!positions.some(other=>other.id!==id&&distancia(other,p,map)<1)){dest=p;break;}}if(!dest)throw Error('Não há destino livre para o teletransporte.');}
     else {dest={x:Number(cmd.x),y:Number(cmd.y)};if(!Number.isFinite(dest.x)||!Number.isFinite(dest.y)||distancia(t,dest,map)>10+Math.max(0,cost-minimum)*4)throw Error('Escolha um destino válido no alcance de salto/teletransporte.');}
     dest.x=Math.max(.5,Math.min(27.5,dest.x));dest.y=Math.max(.5,Math.min(13.5,dest.y));
-    if(positions.some(p=>p.id!==id&&distancia(p,dest,map)<1))throw Error('Destino ocupado por outra miniatura.');moves[id]={...t,...dest,revision:(t.revision||0)+1};text.push('Posição alterada');
+    if(positions.some(p=>p.id!==id&&distancia(p,dest,map)<1))throw Error('Destino ocupado por outra miniatura.');const {id:internalId,...position}=t;moves[id]={...position,...dest,teleportNonce:String(cmd.id||Date.now()),revision:(t.revision||0)+1};text.push('Posição alterada');
    }else if(power.id==='mover_objeto'){
     const object=newScene.objects?.find(o=>o.id===cmd.objectId);if(!object)throw Error('Selecione um objeto do mapa.');
     const capacity=80*2**Math.max(0,cost-minimum);if(Number(object.peso||object.pesoKg||80)>capacity)throw Error('Objeto pesado demais para esse gasto.');
     const dest={x:Number(cmd.x),y:Number(cmd.y)};if(!Number.isFinite(dest.x)||!Number.isFinite(dest.y)||distancia(object,dest,map)>10||dest.x<0||dest.x>28||dest.y<0||dest.y>14)throw Error('Destino de objeto inválido (máximo 10 m).');Object.assign(object,dest);text.push('Objeto movido');
-   }else if(power.id==='ilusao'){newScene.psiZones=[...(newScene.psiZones||[]),{id:cmd.id,kind:'Ilusão',x:b.x,y:b.y,radius:2,label:String(cmd.text||'Ilusão').slice(0,80),untilRound:(c?.round||0)+1}];text.push('Ilusão criada no mapa por uma rodada');}
+   }else if(power.id==='ilusao'){const source=copySource;const illusion={id:cmd.id+':ilusao',nome:'Ilusão de '+String(source.nome||'forma'),imagem:String(source.imagem||''),modeloId:String(source.modeloId||''),tipo:source.tipo||'objeto',x:Math.min(27.5,Number(a.x||0)+1.2),y:Number(a.y||0),larguraM:Number(source.larguraM||source.diametroM||1),alturaM:Number(source.alturaM||source.diametroM||1),pvMax:0,pvAtual:0,dureza:0,pa:0,destrutivel:true,ilusaoPsi:true,autorPsiId:a.id,lastRound:c?.round||0,qualidadePsi:Math.max(0,r.valor-r.die)};newScene.objects=[...(newScene.objects||[]),illusion];text.push('Ilusão criada como cópia visual de '+String(source.nome||'forma'));}
    else if(['anoitecer','circulo_protecao','defesa_mental'].includes(power.id)){newScene.psiZones=[...(newScene.psiZones||[]),{id:cmd.id,kind:power.name,x:t.x,y:t.y,radius:Math.sqrt(Math.max(1,cost)*5/Math.PI),untilRound:(c?.round||0)+1}];addEffect(id,power.id,{value:cost});}
-   else if(power.id==='mimetismo_psi'){addEffect(id,power.id,{image:cmd.image||''});text.push('Mimetismo ativo por uma rodada');}
-   else if(['atordoar_psi','grito_psiquico','medo'].includes(power.id)){addEffect(id,'atordoado',{penalty:20});text.push(t.nome+': −20 nas perícias por uma rodada');}
+   else if(power.id==='mimetismo_psi'){const source=copySource;addEffect(a.id,power.id,{image:String(source.imagem||''),sourceId:source.id,sourceName:source.nome||'',untilRound:(c?.round||0)+10,renewRounds:10,renewCost:1});text.push('Mimetismo ativo: '+String(source.nome||'forma')+' por 1 minuto (10 rodadas); renovação automática por 1 PP');}
+   else if(power.id==='fluxo_marcial'){const margin=Math.max(0,r.valor-r.die),bonus=margin>=15?3:margin>=10?2:margin>=5?1:0;zenBonus=1+bonus+(r.grau==='Crítico'?1:0);text.push('Guerreiro Zen: ação de ativação devolvida + '+(zenBonus-1)+' Ações extras');}
+   else if(['atordoar_psi','grito_psiquico','medo'].includes(power.id)){addEffect(id,'atordoado',{penalty:20,visual:'💫'});text.push(t.nome+': −20 nas perícias por uma rodada');}
    else if(power.id==='evitar_dano'){h.psiAbsorption=Number(h.psiAbsorption||0)+cost;text.push('Proteção: '+h.psiAbsorption+' PV absorvidos');}
    else if(power.id==='intuicao_psi'){h.psiIntuition=Number(h.psiIntuition||0)+cost;text.push('Bônus +'+cost+' no próximo teste');}
    else if(power.id==='agilidade_psi'){addEffect(id,power.id,{bonus:Math.floor(cost/5)*10});}
@@ -111,5 +126,8 @@ export function resolverPsi({a,b,health,map,cmd,info,positions,scene,seed}){
    else {requests.push({id:cmd.id+':'+id,actorId:a.id,targetId:id,powerId:power.id,powerName:power.name,text:String(cmd.text||''),description:power.description,status:'pending'});text.push('Poder de cadastro: enviado ao mestre para adjudicação');}
   }
  }
- return {actors,combat:c?.active?acaoIniciativa(c,'spend',c.turnId):c,scene:newScene,moves,psiRequests:requests.slice(-60),message:text.join(' · ')};
+ // Creditar antes do gasto evita encerrar a oportunidade na última ação.
+ if(zenBonus&&c?.active&&c.actors?.[a.id])c.actors[a.id]={...c.actors[a.id],remaining:c.actors[a.id].remaining+zenBonus};
+ let combatOut=c?.active?acaoIniciativa(c,'spend',c.turnId):c;
+ return {actors,combat:combatOut,scene:newScene,moves,psiRequests:requests.slice(-60),message:text.join(' · ')};
 }

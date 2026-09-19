@@ -5,6 +5,27 @@ const a={id:'a',nome:'Médico',x:1,y:1,actions:3,initiative:20},b={id:'b',nome:'
 const vital={hit:{Peito:-2,Cabeça:3},hitMax:{Peito:7,Cabeça:3},inconsciente:true,infecciosoAtivo:true};
 function base(){return {a,b,health:{actors:{a:{combateLab:{hit:{Peito:7},hitMax:{Peito:7}}},b:{combateLab:structuredClone(vital)}}},map:{combat:iniciarIniciativa([a,b],'s',()=>1)},cmd:{operation:'start',useKit:true},info:{firstAid:{value:100},health:{hit:{Peito:7},hitMax:{Peito:7}},targetHealth:structuredClone(vital),kits:[{comp:'mochila',index:0,uses:5}],inventory:{mochila:[{nome:'Kit médico',usosRestantes:5}]}},seed:1};}
 function nextRound(c){let result=c;const round=c.round;for(let n=0;n<30&&result.round===round;n++)result=acaoIniciativa(result,'spend',result.turnId);return result;}
+function psiArgs(id,value=100){const args=base();args.b=a;args.positions=[{...a,imagem:'medico.png',revision:0},{...b,imagem:'paciente.png',revision:0}];args.a=args.positions[0];args.info.powers=[{id,name:id,value,cost:2}];args.info.psiMax=20;args.cmd={id:'psi',powerId:id,cost:2};args.scene={mapId:'map',objects:[{id:'tree',nome:'Árvore',imagem:'arvore.png',x:3,y:1,larguraM:2,alturaM:3}]};return args;}
+test('Ilusão copia objeto em separado; Mimetismo altera só o usuário; mantém e encerra com PP',()=>{
+ const args=psiArgs('ilusao');args.cmd.sourceId='tree';const out=resolverPsi(args);
+ assert.equal(out.scene.objects.length,2);assert.equal(out.scene.objects[1].imagem,'arvore.png');assert.equal(out.scene.objects[1].pvMax,0);assert.equal(out.scene.psiZones,undefined);assert.equal(out.actors.a.psiEffects,undefined);
+ atualizarDuracoes(out.actors,{...out.combat,round:2},out.scene);assert.equal(out.actors.a.psiSpent,4);
+ atualizarDuracoes(out.actors,{...out.combat,round:2},out.scene);assert.equal(out.actors.a.psiSpent,4);
+ out.actors.a.psiSpent=20;atualizarDuracoes(out.actors,{...out.combat,round:3},out.scene);assert.equal(out.scene.objects.length,1);
+ const mimic=psiArgs('mimetismo_psi');mimic.cmd.sourceId='b';const m=resolverPsi(mimic);assert.equal(m.actors.a.psiEffects.mimetismo_psi.image,'paciente.png');assert.equal(m.actors.b.psiEffects,undefined);assert.equal(m.scene.objects.length,1);assert.equal(m.actors.a.psiEffects.mimetismo_psi.untilRound,11);
+});
+test('Guerreiro Zen devolve a ativação e bônus pela margem, sem perder última ação nem repetir na rodada',()=>{
+ const args=psiArgs('fluxo_marcial');args.map.combat.actors=structuredClone(args.map.combat.actors);args.map.combat.actors.a.remaining=1;
+ const out=resolverPsi(args);assert.equal(out.combat.activeId,'a');assert.equal(out.combat.round,1);assert.equal(out.combat.actors.a.remaining,4);assert.equal(out.psiRequests.length,0);
+ assert.throws(()=>resolverPsi({...args,health:{actors:out.actors},map:{combat:out.combat}}),/já foi tentado/);
+});
+test('falha de poder gasta PP e ação sem efeito',()=>{
+ const args=psiArgs('aceleracao',0),out=resolverPsi(args);assert.equal(out.combat.actors.a.remaining,2);assert.equal(out.actors.a.psiSpent,2);assert.equal(out.actors.a.psiEffects,undefined);assert.equal(out.psiRequests.length,0);
+});
+test('teletransporte produz posição persistível sem id interno ou dados de ficha',()=>{
+ const args=psiArgs('teletransporte_caotico');args.positions=args.positions.map(({actions,initiative,...p})=>p);args.a=args.positions[0];const out=resolverPsi(args);
+ assert.equal(out.moves.a.id,undefined);assert.equal(out.moves.a.teleportNonce,'psi');assert.equal(out.moves.a.revision,1);assert.ok(out.moves.a.x>=0&&out.moves.a.x<=28);assert.equal(out.combat.actors.a.remaining,2);
+});
 test('socorros: kit gasto uma vez; início não cura; exige próxima rodada; conclui e preserva infecção',()=>{
  const args=base(),first=resolverSocorros(args);assert.equal(first.inventory.mochila[0].usosRestantes,4);assert.equal(first.actors.b.combateLab.hit.Peito,-2);assert.equal(first.combat.actors.a.remaining,0);assert.ok(ocupado(first.actors.a,first.combat));
  const next={...args,health:{actors:first.actors},map:{combat:first.combat},cmd:{operation:'finish'}};assert.throws(()=>resolverSocorros(next),/próxima rodada/);

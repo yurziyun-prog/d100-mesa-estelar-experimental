@@ -1,6 +1,6 @@
-# Primeiros Socorros e psiquismo — atualização 40
+# Primeiros Socorros e psiquismo — atualização 42
 
-Na Sincronização nova, abra **Primeiros Socorros · Psiquismo**, abaixo dos PV.
+Na Sincronização nova, **Primeiros Socorros** e **Psiquismo** são painéis separados, abaixo dos PV. Só se recolhem por clique. A seleção do poder é preservada por personagem. Psiquismo aparece apenas com poderes disponíveis na ficha. Levantar fica fora dos dois painéis.
 
 ## Atendimento
 
@@ -18,11 +18,23 @@ Os poderes são lidos do cadastro e filtrados pelo treino/arco da ficha. O mestr
 
 Aplicação automática: cura por localização, proteção Evitar Dano, Intuição no próximo ataque, Agilidade, Reflexos (+1 ação), Aceleração (30 m), Salto/Teletransporte e suas variantes caóticas, Impulso, Mover Objeto, Atordoar, Medo e Grito Psíquico (cone 60°/20 m com teste de Vontade por alvo). A resistência psíquica é automática e registrada. Meditação requer uma hora fora de combate e é limitada a uma vez por dia real.
 
-Ilusão, Anoitecer, Círculo de Proteção e Defesa Mental desenham áreas no mapa. Defesa Mental acrescenta 20 pontos à resistência mental do beneficiado e Ocultar Mente impede leitura/controle diretos durante o efeito. As áreas são marcadores; não implementam ocultação secreta, colisão nem proteção automática de terceiros dentro delas.
+Ilusão cria uma cópia separada da forma escolhida (personagem, criatura ou objeto), com 0 PV/PA e sem dano. Manutenção de 2 PP por rodada; desaparece se o autor ficar inconsciente, morrer ou não puder pagar. Mimetismo Psi muda a aparência do próprio usuário para a forma escolhida, por dez rodadas, com renovação automática de 1 PP. Não concede os atributos da forma imitada. Na exploração, estes efeitos aguardam a progressão das rodadas; ainda não há relógio de tempo ficcional.
 
-Telepatia, informação (Detectar, Psicometria, Visão Distante, Ler Mente), sugestões/controle mental e efeitos dependentes de interpretação geram solicitações no mesmo painel para o mestre responder. Fluxo Marcial, Doador da Vida e poderes novos de cadastro também entram na adjudicação do mestre: não modificam retroativamente uma rolagem nem ressuscitam automaticamente. Nenhum desses casos é anunciado como efeito automático concluído.
+Anoitecer, Círculo de Proteção e Defesa Mental desenham áreas no mapa. Defesa Mental acrescenta 20 pontos à resistência mental do beneficiado e Ocultar Mente impede leitura/controle diretos durante o efeito. As áreas são marcadores; não implementam ocultação secreta, colisão nem proteção automática de terceiros dentro delas.
 
-Os efeitos temporários expiram por rodada. Custos de manutenção não são renovados automaticamente: ative novamente para pagar e manter. Movimento psíquico valida escala, limites do mapa e ocupação por miniaturas; a colisão com cenário ainda segue revisão do mestre.
+Telepatia, informação (Detectar, Psicometria, Visão Distante, Ler Mente), sugestões/controle mental e efeitos dependentes de interpretação geram solicitações em uma janela flutuante do mestre. A resposta aparece para o jogador e no histórico. Doador da Vida e poderes novos de cadastro ainda dependem de adjudicação. Fluxo Marcial/Guerreiro Zen resolve automaticamente: devolve a ação de ativação e concede 1/2/3 ações extras com margem de pelo menos 5/10/15; crítico concede outra. Uma tentativa por rodada. Falhas consomem ação e PP.
+
+Os efeitos temporários expiram por rodada. Aceleração custa 4 PP e permite 30 m na rodada, sem alterar o deslocamento base. Movimento psíquico valida escala, limites do mapa e ocupação por miniaturas; a colisão com cenário ainda segue revisão do mestre. Destinos são informados como coluna:linha, começando em 1:1 no canto superior esquerdo; o destino fica no centro da casa. Teletransporte Caótico usa o próprio personagem e não mostra seletor de objetos ou destino.
+
+## Publicação
+
+Além de publicar os arquivos do site, publique as regras usando o projeto já configurado no aplicativo:
+
+```powershell
+npx firebase-tools deploy --only firestore:rules --project d100-mesa-estelar --config firebase.rules.json
+```
+
+Se a ferramenta solicitar autenticação, execute `npx firebase-tools login`. Depois recarregue as contas do mestre e do jogador. Enviar ao GitHub não publica as regras do Firestore. Esta atualização não foi publicada no banco remoto durante os testes.
 
 ## Verificação
 
