@@ -1,3 +1,4 @@
+import {normalizarObjeto,criarObjeto,objetosDoMapa,prepararCena} from './nova-objetos.js?v=47';
 import {diametroMiniatura} from './nova-recuperacao.js?v=46';
 import {descreverTeste} from './nova-regras.js?v=46';
 import {textoDuracao,tempoRestante} from './nova-duracoes.js?v=46';
@@ -19,7 +20,27 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
  let durationSync=false,clockTimer=null,sheetStop=null,sheetWatch='',sheetRevision=0,creatureStop=null;
  const dismissedPsi=new Set();
  let held=null,turning=null,frame=0,placing=false,placementChoice='';
- let catalogKey='',catalogLimit=48,sceneRef=null,sceneMapId=null;
+ let catalogKey='',catalogLimit=48,sceneRef=null,sceneMapId=null,sceneSync=null;
+ const archivePath=id=>'combatesAtivos/mapaMesaSyncCena_'+encodeURIComponent(id);
+ async function modelFor(o){if(!o.modeloId)return {};const key=(o.tipo||'objeto')+':'+o.modeloId;if(!propCache.has(key))propCache.set(key,loadProp(o).catch(e=>{propCache.delete(key);throw e;}));return await propCache.get(key)||{};}
+ async function syncScene(){
+  if(!user()?.master||!mapData||!mapPacket?.mapId||sceneSync)return;
+  const id=mapPacket.mapId,map={...mapData,id},g=generation;
+  sceneSync=(async()=>{
+   const seeds=objetosDoMapa(map),raw=await database.get(SCENE_PATH),archive=raw?.mapId===id?raw:await database.get(archivePath(id)),models=new Map();
+   for(const o of [...seeds,...(archive?.objects||[])])if(o.modeloId&&!models.has(o.modeloId))models.set(o.modeloId,await modelFor(o));
+   if(g!==generation)return;
+   await database.transact(async tx=>{
+    const currentMap=await tx.get(MAP_PATH),old=await tx.get(SCENE_PATH),saved=old?.mapId===id?old:await tx.get(archivePath(id));
+    if(currentMap?.mapId!==id)return;
+    const next=prepararCena(saved,map,seeds,models);
+    if(JSON.stringify(next)===JSON.stringify(old))return;
+    if(old?.mapId&&old.mapId!==id)tx.set(archivePath(old.mapId),old);
+    tx.set(SCENE_PATH,next);
+   });
+  })();
+  try{await sceneSync;}catch(e){fail(e);}finally{sceneSync=null;if(mapPacket?.mapId!==id)void syncScene();}
+ }
  const quickChoices=new Map();
  let stopScene=null,sceneData=null,sceneRequest=0;
  const propCache=new Map();
@@ -168,7 +189,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   let layer=board.querySelector('[data-map-layer]');
   if(!layer){layer=root.createElement('div');layer.dataset.mapLayer='';layer.style.cssText='position:absolute;inset:0;pointer-events:none;overflow:hidden';board.prepend(layer);}
   if(renderedMap===mapData&&layer.firstChild)return;
-  layer.innerHTML=mapData?renderMap(mapData):'';
+  layer.innerHTML=mapData?renderMap(mapData,{separateObjects:sceneData?.mapId===mapPacket?.mapId&&sceneData?.objetosMapaImportados}):'';
   const svg=layer.querySelector('svg');
   if(svg){svg.style.cssText='display:block;width:100%;height:100%';svg.setAttribute('preserveAspectRatio','none');}
   renderedMap=mapData;
@@ -322,9 +343,10 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   if(scene?.mapId!==(mapPacket?.mapId||''))return;
   for(const o of scene.objects||[]){
    if(o.clock&&tempoRestante(o.clock,mapPacket?.combat)<=0)continue;
-   const node=root.createElement('div');node.dataset.sceneObject=o.id;node.title=o.nome;
+   const node=root.createElement('div');node.dataset.sceneObject=o.id;node.title=o.nome+' · PV '+o.pvAtual+'/'+o.pvMax+' · Dureza '+o.dureza+' · '+(o.material||'Material não informado')+' · Camada '+o.camada;
    node.style.cssText='position:absolute;pointer-events:none;transform:translate(-50%,-50%);';
    node.style.left=o.x/28*100+'%';node.style.top=o.y/14*100+'%';
+   node.style.transform+=' rotate('+o.angulo+'deg)';node.style.opacity=String(o.opacity??1);
    node.style.width=o.larguraM/(Number(mapPacket?.larguraM)||28)*100+'%';node.style.height=o.alturaM/(Number(mapPacket?.alturaM)||14)*100+'%';
    if(o.imagem){const img=root.createElement('img');img.src=o.imagem;img.alt=o.nome;img.style.cssText='width:100%;height:100%;object-fit:contain';node.append(img);}else{node.textContent=o.nome;node.style.background='#37455b';}
    if(o.clock){const timer=root.createElement('small');timer.dataset.effectClock='';timer.effectClock=o.clock;timer.textContent=textoDuracao(o.clock,mapPacket?.combat);timer.style.cssText='position:absolute;top:100%;left:0;background:#151b32;color:white;white-space:nowrap';node.append(timer);}
@@ -379,19 +401,18 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
     if(p?.mapId===mapPacket?.mapId){mapPacket=p||null;draw();return;}
     const loaded=p?.mapId?await loadMap(p.mapId):null;
     if(g!==generation||request!==mapRequest)return;
-    mapPacket=p||null;mapData=loaded;draw();
+    mapPacket=p||null;mapData=loaded;draw();void syncScene();
    }catch(e){if(g===generation&&request===mapRequest)fail(e);}
   },fail);
   stopScene=database.subscribeDoc(SCENE_PATH,async scene=>{
    const request=++sceneRequest;
    try{
-    const objects=await Promise.all((scene?.objects||[]).map(async o=>{
-     if(o.imagem||!o.modeloId)return o;
-     if(!propCache.has(o.modeloId))propCache.set(o.modeloId,loadProp(o).catch(e=>{propCache.delete(o.modeloId);throw e;}));
-     return {...await propCache.get(o.modeloId),...o};
-    }));
+    const objects=await Promise.all((scene?.objects||[]).map(async o=>normalizarObjeto(o,await modelFor(o))));
     if(g!==generation||request!==sceneRequest)return;
-    sceneData=scene?{...scene,objects}:null;drawScene();editor.paint();
+    const separateBefore=sceneData?.mapId===mapPacket?.mapId&&sceneData?.objetosMapaImportados;
+    sceneData=scene?{...scene,objects}:null;
+    if(separateBefore!==(sceneData?.mapId===mapPacket?.mapId&&sceneData?.objetosMapaImportados))renderedMap=null;
+    draw();editor.paint();void syncScene();
    }catch(e){if(g===generation)fail(e);}
   },fail);
   creatureStop=database.subscribeDoc('combatesAtivos/mapaMesaSyncCriaturas',()=>{sheetRevision++;queueMicrotask(()=>status());},fail);
@@ -542,7 +563,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
     const s=await tx.get(MAP_PATH),existing=await tx.get(POSITION_PATH+'/'+id);
     if(['objeto','item'].includes(t.catalogType)){
      const scene=await tx.get(SCENE_PATH),objects=scene?.mapId===(s?.mapId||'')?scene.objects:[];
-     const object={id:crypto.randomUUID(),nome:String(t.nome),tipo:t.catalogType,modeloId:String(t.id),larguraM:Math.max(.1,Number(t.larguraM)||1),alturaM:Math.max(.1,Number(t.alturaM)||1),pvMax:Number(t.pvMax||t.pv)||0,dureza:Number(t.dureza)||0,...p};
+     const object=criarObjeto(t,{id:crypto.randomUUID(),tipo:t.catalogType,...p});
      tx.set(SCENE_PATH,{...(scene?.mapId===(s?.mapId||'')?scene:{}),mapId:s?.mapId||'',objects:[...objects,object]});return;
     }
     if(existing)throw new Error('Este personagem já está no mapa.');

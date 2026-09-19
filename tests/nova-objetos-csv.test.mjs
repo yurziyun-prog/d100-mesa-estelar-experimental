@@ -1,0 +1,9 @@
+import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import vm from 'node:vm';import {importarModelos} from '../js/nova-objetos.js';
+const source=fs.readFileSync(new URL('../js/app.js',import.meta.url),'utf8');
+test('importação CSV usa transação, mantém registros ausentes e não apaga imagem de campo vazio',async()=>{
+ const store=new Map([['configuracoes/objetosMapa',{ids:['a','b']}],['configuracoes/objetoMapa_a',{id:'a',nome:'Árvore',imagem:'original',pvMax:40,bloqueiaMovimento:true}]]);let parsed,commits=0;const notes=[];
+ const c={structuredClone,window:{},db:{},batalhaEhMestre_:()=>true,objetosMapaDB:[{id:'a',nome:'Árvore'},{id:'b',nome:'Pedra'}],objetoMapaDocId_:id=>'objetoMapa_'+id,doc:(_,a,b)=>a+'/'+b,importarModelos,notificar_:m=>notes.push(m),carregarBancosDeDados:async()=>{},Papa:{parse:(_,opt)=>{parsed=opt.complete({data:[{id:'a',nome:'Árvore maior',pvMax:'50',imagem:''}],errors:[]});}},runTransaction:async(_,fn)=>{const writes=[];await fn({get:async p=>{assert.equal(writes.length,0);return {data:()=>store.get(p)};},set:(p,v)=>writes.push([p,v])});for(const [p,v]of writes)store.set(p,v);commits++;}};
+ vm.createContext(c);vm.runInContext(source.slice(source.indexOf('window.importarObjetosMapaCSV=')),c);
+ const input={files:[{}],value:'file'};await c.window.importarObjetosMapaCSV(input);await parsed;assert.equal(store.get('configuracoes/objetoMapa_a').imagem,'original');assert.equal(store.get('configuracoes/objetoMapa_a').pvMax,50);assert.ok(store.get('configuracoes/objetosMapa').ids.includes('b'));assert.equal(commits,1);assert.equal(input.value,'');
+ c.Papa.parse=(_,opt)=>{parsed=opt.complete({data:[{id:'a',nome:'A',pvMax:'errado'}],errors:[]});};await c.window.importarObjetosMapaCSV(input);await parsed;assert.equal(commits,1);assert.match(notes.at(-1),/Número inválido/);
+});

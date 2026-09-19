@@ -1,3 +1,4 @@
+import {colunasObjetos,importarModelos,camadaPadrao,normalizarObjeto} from './nova-objetos.js?v=47';
 // Integração única do protocolo confirmado com as regras existentes.
 // labEstado_ continua atendendo os controles antigos; nunca é a origem de
 // um comando remoto. O redutor recebe uma cópia do estado lido na transação.
@@ -12422,6 +12423,7 @@ function linhaCSV_(cabecalhos, objeto) {
 }
 
 function dadosExportacaoBanco_(tipo) {
+    if(tipo==='objetosMapa')return {dados:objetosMapaDB,cabecalhos:colunasObjetos,map:o=>normalizarObjeto(o)};
     const configs = {
         pericias: {
             dados: periciasDB,
@@ -15078,6 +15080,7 @@ function preencherEditorObjetoMapa_(o){
     const e=document.getElementById('editorObjetoMapaBanco');if(!e)return;e.style.display='block';
     document.getElementById('editorObjetoMapaTitulo').textContent=o?.id?'Editar objeto':'Novo objeto';document.getElementById('objMapaEditId').value=o?.id||'';
     document.getElementById('objMapaNome').value=o?.nome||'';document.getElementById('objMapaLargura').value=o?.larguraM||1;document.getElementById('objMapaAltura').value=o?.alturaM||1;
+    document.getElementById('objMapaCamada').value=o?.camada??camadaPadrao(o||{});
     document.getElementById('objMapaPV').value=o?.pvMax??10;document.getElementById('objMapaDureza').value=o?.dureza??2;document.getElementById('objMapaPesoKg').value=o?.pesoKg??Math.max(1,Number(o?.larguraM||1)*Number(o?.alturaM||1)*20);document.getElementById('objMapaDestrutivel').checked=o?.destrutivel!==false;
     document.getElementById('objMapaInflamavel').checked=!!o?.inflamavel;document.getElementById('objMapaBloqueiaMov').checked=o?.bloqueiaMovimento!==false;document.getElementById('objMapaBloqueiaVisao').checked=!!o?.bloqueiaVisao;
     const url=document.getElementById('objMapaImagemUrl'),prev=document.getElementById('objMapaImagemPreview'),file=document.getElementById('objMapaImagemFile');url.value=(o?.imagem&&/^https?:/i.test(o.imagem))?o.imagem:'';
@@ -19720,6 +19723,7 @@ window.salvarObjetoMapaEditor_=async function(){
 
     Object.assign(o,{
         nome,imagem:img,tipoVisual:o.tipoVisual||'personalizado',
+        camada:objetoNumero_(document.getElementById('objMapaCamada')?.value,3,-1000),
         larguraM:objetoNumero_(document.getElementById('objMapaLargura')?.value,1,.1),
         alturaM:objetoNumero_(document.getElementById('objMapaAltura')?.value,1,.1),
         pvMax:objetoNumero_(document.getElementById('objMapaPV')?.value,10,0),
@@ -29204,12 +29208,13 @@ function map803HidratarEstado_(st){
   const out=map803Clone_(st||{});out.elements=(out.elements||[]).map(map803HidratarElemento_);return out;
 }
 // Renderização de leitura: usa os mesmos pincéis da Oficina, sem abrir o editor.
-window.novaSyncRenderMap_=function(map){
+window.novaSyncRenderMap_=function(map,{separateObjects=false}={}){
   const state=map803HidratarEstado_(map.oficina2State||gm2legacyToState_(map));
   state.w=Number(state.w||map.larguraM||28);
   state.h=Number(state.h||map.alturaM||14);
   state.ppm=Number(state.ppm||map.pxPorMetro||32);
   if(state.texture==='pedra')state.texture='rocha';
+  if(separateObjects)state.elements=(state.elements||[]).filter(e=>e.type!=='object');
   return gm2staticMesaSvg_(state,state.ppm,true);
 };
 function map803LegacyRefs_(state){
@@ -36485,7 +36490,7 @@ function novaBaseCriatura_(attrs,name,special){const c={atributos:attrs,bonus:{}
 
 import {classificarTeste as novaClassificar_,locaisValidos as novaLocaisValidos_,descreverTeste as novaDescreverTeste_} from './nova-regras.js?v=46';
 import {criarRelogio as novaCriarRelogio_} from './nova-duracoes.js?v=46';
-import {mountDirectPositionLab} from './nova-direta.js?v=46';
+import {mountDirectPositionLab} from './nova-direta.js?v=47';
 import {tocarEfeito} from './nova-fx.js?v=46';
 import {identificarKit,testeComSorte,prepararSorte,resolverConsciencia} from './nova-recuperacao.js?v=46';
 import {resolverSocorros,resolverPsi,ocupado,teste as novaTesteSuporte_,sorteio as novaSorteioSuporte_} from './nova-suporte.js?v=46';
@@ -36731,9 +36736,9 @@ const novaSyncController_=mountDirectPositionLab({
  ],
  loadProp:async o=>{
   const id=o.modeloId.slice(o.modeloId.indexOf(':')+1);
-  let model=o.tipo==='objeto'?await map806BuscarModelo_(id):(itensDB||[]).find(t=>String(t.id)===id);
+  let model=o.tipo!=='item'?await map806BuscarModelo_(id):(itensDB||[]).find(t=>String(t.id)===id);
   if(!model&&o.tipo==='item'){const s=await getDoc(doc(db,'itens',id));if(s.exists())model=s.data();}
-  return {imagem:String(model?.imagem||'')};
+  return model||{};
  },
  loadActions:novaDadosAcoes_,
  prepareAttack:novaPrepararAtaque_,
@@ -36749,7 +36754,7 @@ const novaSyncController_=mountDirectPositionLab({
   const int=(c.atributos?.INT||10)+(c.bonus?.INT||0),dex=(c.atributos?.DES||10)+(c.bonus?.DES||0);
   return {...t,movementMax:Number(c.deslocamento??c.movimentoTerrestre)||(/besta\s+ululante/i.test(t.nome)?8:6),initiative:Math.max(0,Math.ceil((int+dex)/2)+(fatigue.iniciativa||0)),actions:obterPAMaxCombate_(c)};
  })),
- renderMap:map=>window.novaSyncRenderMap_(map),
+ renderMap:(map,options)=>window.novaSyncRenderMap_(map,options),
  loadMap:async id=>{
   let base=(mapasDB||[]).find(x=>String(x.id)===String(id));
   if(!base){const s=await getDoc(doc(db,'mapas',String(id)));base=s.exists()?{id:String(id),...s.data()}:null;}
@@ -36783,3 +36788,25 @@ window.novaSyncAbrir_=()=>{
     return novaSyncController_.open();
 };
 window.novaSyncInicializar_=()=>novaSyncController_.initialize();
+
+window.importarObjetosMapaCSV=async function(input){
+ if(!batalhaEhMestre_()){notificar_('Apenas o mestre pode importar objetos.','aviso');input.value='';return;}
+ const file=input.files?.[0];if(!file)return;
+ Papa.parse(file,{header:true,skipEmptyLines:'greedy',transformHeader:h=>String(h).replace(/^\uFEFF/,'').trim(),complete:async results=>{
+  try{
+   if(results.errors.length)throw Error('CSV inválido: '+results.errors[0].message);
+   const incoming=importarModelos(results.data,objetosMapaDB);if(!incoming.length)throw Error('O CSV está vazio.');
+   if(incoming.length>450)throw Error('Importe até 450 modelos por arquivo.');
+   const indexRef=doc(db,'configuracoes','objetosMapa');
+   await runTransaction(db,async tx=>{
+    const index=(await tx.get(indexRef)).data()||{},docs=await Promise.all(incoming.map(o=>tx.get(doc(db,'configuracoes',objetoMapaDocId_(o.id)))));
+    const fresh=docs.map((d,i)=>({id:incoming[i].id,...(d.data()||{})}));
+    const validated=importarModelos(results.data,[...objetosMapaDB.filter(o=>!incoming.some(n=>n.id===o.id)),...fresh]);
+    for(const o of validated)tx.set(doc(db,'configuracoes',objetoMapaDocId_(o.id)),o);
+    const ids=[...new Set([...(index.ids||[]),...(index.lista||[]).map(o=>o.id),...objetosMapaDB.map(o=>o.id),...validated.map(o=>o.id)])];
+    tx.set(indexRef,{formato:'docs-v1',ids,atualizadoEm:new Date().toISOString()});
+   });
+   await carregarBancosDeDados();notificar_(incoming.length+' modelos importados. Os objetos já colocados mantêm seu estado.','sucesso',5000);
+  }catch(e){notificar_('Não foi possível importar: '+e.message,'erro',7000);}finally{input.value='';}
+ },error:e=>{input.value='';notificar_('Não foi possível ler o CSV: '+e.message,'erro');}});
+};
