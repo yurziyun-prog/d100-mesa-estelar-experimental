@@ -79,6 +79,12 @@ service cloud.firestore {
           d.x is number && d.y is number && d.revision is int &&
           d.x >= 0 && d.x <= 28 && d.y >= 0 && d.y <= 14 && d.get('movementMax',6) is number && d.get('facing',0) is number;
       }
+      function limiteMovimento(c, previous) {
+        let hp = /databases/$(database)/documents/combatesAtivos/mapaMesaSyncSaude;
+        let state = exists(hp) ? get(hp).data.get('actors', {}).get(tokenId, {}) : {};
+        let accelerated = state.get('psiEffects', {}).get('aceleracao', {}).get('untilRound', -1) > c.get('round', 0);
+        return accelerated ? 30 : previous.get('movementMax', 6);
+      }
       function movimentoPermitido() {
         let path = /databases/$(database)/documents/combatesAtivos/mapaMesaSyncDireta;
         let map = exists(path) ? get(path).data : {};
@@ -89,16 +95,12 @@ service cloud.firestore {
         let delta = d.get('movementUsed', 0) - spent;
         let dx = (d.x - previous.x) * map.get('larguraM', 28) / 28;
         let dy = (d.y - previous.y) * map.get('alturaM', 14) / 14;
-        let hp = /databases/$(database)/documents/combatesAtivos/mapaMesaSyncSaude;
-        let state = exists(hp) ? get(hp).data.get('actors', {}).get(tokenId, {}) : {};
-        let accelerated = state.get('psiEffects', {}).get('aceleracao', {}).get('untilRound', -1) > c.get('round', 0);
-        let limit = accelerated ? 30 : previous.get('movementMax', 6);
         return !c.get('active', false) ?
           d.diff(previous).affectedKeys().hasOnly(['x','y','revision','facing']) :
           (c.get('pendingAttack', null) == null && c.activeId == tokenId &&
            d.get('movementTurn', '') == c.get('roundId', c.turnId) &&
            d.get('movementUsed', -1) is number &&
-           d.movementUsed >= spent && d.movementUsed <= limit &&
+           d.movementUsed >= spent && d.movementUsed <= limiteMovimento(c, previous) &&
            dx * dx + dy * dy <= delta * delta + 0.00000001);
       }
       allow read: if autenticado();
