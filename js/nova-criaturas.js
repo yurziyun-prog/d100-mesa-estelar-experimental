@@ -1,0 +1,22 @@
+export const slug=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
+export function migrarTreinos(model,base){
+ if(model.periciasSchema===2)return {periciasSchema:2,periciasTreino:structuredClone(model.periciasTreino||[]),especializacoesTreino:structuredClone(model.especializacoesTreino||[]),legadoPericias:model.legadoPericias||{}};
+ const parse=(text,special)=>String(text||'').split('|').filter(Boolean).map(row=>{const ix=row.lastIndexOf(':'),nome=(ix<0?row:row.slice(0,ix)).trim(),total=Number(row.slice(ix+1).split('@')[0])||0;return {id:slug(nome),nome,treino:Math.max(0,total-base(model,nome,special))};});
+ return {periciasSchema:2,periciasTreino:parse(model.periciasTexto,false),especializacoesTreino:parse(model.especializacoesTexto,true),legadoPericias:{periciasTexto:model.periciasTexto||'',especializacoesTexto:model.especializacoesTexto||''}};
+}
+export function aplicarTreinos(char,model,base,resolveId=slug){const schema=migrarTreinos(model,base);for(const [field,rows,special]of [['pericias',schema.periciasTreino,false],['especializacoes',schema.especializacoesTreino,true]]){char[field]=Object.fromEntries(rows.map(r=>[resolveId(r.nome),{...(char[field]?.[resolveId(r.nome)]||{}),nomeOriginal:r.nome,treino:r.treino,totalNova:Math.max(0,base(char.atributos,r.nome,special)+r.treino)}]));}const groups={};for(const w of char.armasNaturais||[]){const per=periciaDoAtaque(w.nome,vinculosCriatura(model));(groups[per]||=[]).push(w.nome);}char.vinculosAtaquesPericias=Object.entries(groups).map(([p,ws])=>p+':'+ws.join(',')).join('|');char.__novaCriatura=true;return char;}
+export function montarTreinos(root,model,base){
+ const schema=migrarTreinos(model,base),controls=[];const attrs=()=>Object.fromEntries(['FOR','CON','TAM','DES','INT','POD','CAR'].map(k=>[k,Number(root.getElementById('cr'+k)?.value)||0]));
+ for(const [id,key,special]of [['crPericias','periciasTreino',false],['crEspec','especializacoesTreino',true]]){
+  const input=root.getElementById(id);input.hidden=true;let host=root.getElementById(id+'Table');if(!host){host=root.createElement('div');host.id=id+'Table';input.after(host);}host.replaceChildren();
+  const table=root.createElement('table');table.style.width='100%';table.innerHTML='<thead><tr><th>Perícia</th><th>Base</th><th>Treino</th><th>Total</th><th></th></tr></thead>';const body=root.createElement('tbody');table.append(body);host.append(table);
+  const rows=schema[key];const addRow=r=>{const tr=root.createElement('tr'),name=root.createElement('input'),training=root.createElement('input'),b=root.createElement('output'),total=root.createElement('output'),del=root.createElement('button');name.value=r.nome;training.type='number';training.min=0;training.value=r.treino;name.style.width='100%';training.style.width='80px';del.type='button';del.textContent='Remover';for(const el of [name,b,training,total,del]){const td=root.createElement('td');td.append(el);tr.append(td);}body.append(tr);const update=()=>{r.nome=name.value.trim();r.id=slug(r.nome);r.treino=Math.max(0,Number(training.value)||0);const n=base(attrs(),r.nome,special);b.textContent=n;total.textContent=n+r.treino;};name.oninput=training.oninput=update;del.onclick=()=>{rows.splice(rows.indexOf(r),1);tr.remove();};controls.push(update);update();};rows.forEach(addRow);
+  const add=root.createElement('button');add.type='button';add.textContent='Adicionar perícia';add.onclick=()=>{const r={id:'',nome:'',treino:0};rows.push(r);addRow(r);};host.append(add);
+ }
+ for(const k of ['FOR','CON','TAM','DES','INT','POD','CAR'])root.getElementById('cr'+k).oninput=()=>controls.forEach(fn=>fn());
+ return ()=>{for(const key of ['periciasTreino','especializacoesTreino']){schema[key]=schema[key].filter(r=>r.nome);if(new Set(schema[key].map(r=>r.id)).size!==schema[key].length)throw Error('Há perícias repetidas.');}return schema;};
+}
+
+export function periciaDoAtaque(name,links){const q=slug(name);for(const row of String(links||'').split('|')){const ix=row.indexOf(':');if(ix<0)continue;const key=row.slice(0,ix).trim(),values=row.slice(ix+1).split(',').map(s=>s.trim());if(slug(key)===q)return values[0];if(values.some(s=>slug(s)===q))return key;}return 'Combate Desarmado';}
+
+export function vinculosCriatura(model){const s=String(model.vinculosAtaquesPericias||'');return model.id==='besta_ululante'&&model.periciasSchema!==2?s.replace(/Eco da Matilha:Vontade/gi,'Eco da Matilha:Combate Desarmado'):s;}

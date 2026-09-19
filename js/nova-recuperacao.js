@@ -1,5 +1,5 @@
-import {acaoIniciativa} from './nova-turnos.js?v=45';
-import {classificarTeste} from './nova-regras.js?v=45';
+import {acaoIniciativa} from './nova-turnos.js?v=46';
+import {classificarTeste} from './nova-regras.js?v=46';
 export function diametroMiniatura(t){const n=Number(t?.diametroM);return n>0?n:/besta\s+ululante/i.test(t?.nome||'')?2.4:1;}
 export function distanciaBordas(a,b,map={}){if(a.id===b.id)return 0;return Math.max(0,Math.hypot((a.x-b.x)*(map.larguraM||28)/28,(a.y-b.y)*(map.alturaM||14)/14)-(diametroMiniatura(a)+diametroMiniatura(b))/2);}
 export function identificarKit(item){const s=[item.idBanco,item.id,item.nome,item.nome_en,item.nome_zh,item.name].filter(Boolean).join(' ').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replaceAll('_',' ').toLowerCase();return /kit.*(?:medic|socorro)|medkit|primeiros socorros|first[ -]?aid|medical kit/.test(s);}

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {conectarAtaques,HEALTH_PATH} from '../js/nova-ataques.js';
 import {iniciarIniciativa} from '../js/nova-turnos.js';
 import {prepararSorte,resolverConsciencia} from '../js/nova-recuperacao.js';
+import {moverInventario} from '../js/nova-inventario.js';
 import {resolverSocorros,resolverPsi} from '../js/nova-suporte.js';
 import {defesasRestantes,acaoIniciativa,moverNoTurno,ataqueSuperaDefesa,removerMortos} from '../js/nova-turnos.js';
 const MAP='combatesAtivos/mapaMesaSyncDireta',POS=MAP+'/posicoes',CMD=MAP+'/acoes';
@@ -23,6 +24,7 @@ function fixture({defense=false,area=false,support=false,special=false}={}){
  };
  const options={database,tokens:()=>[...store.entries()].filter(([key])=>key.startsWith(POS+'/')).map(([key,t])=>({...t,id:key.split('/').pop()})),prepare,onError:e=>errors.push(e)};
  if(support){store.set('personagens/a',{inventario:{mochila:[{nome:'Kit médico',usosRestantes:5}]}});options.prepareSupport=async()=>({sheetPath:'personagens/a',resolve:args=>{
+  if(args.cmd.kind==='direct-inventory'){const out=moverInventario({...args,actor:args.health.actors?.a});return {...out,actors:args.health.actors||{}};}
   const info={luck:args.sheet.pontosSorte??2,resistanceById:{a:20},firstAid:{value:100},health:{hit:{Peito:7},hitMax:{Peito:7}},targetHealth:{hit:{Peito:-2},hitMax:{Peito:7},inconsciente:true},kits:[{comp:'mochila',index:0,uses:args.sheet.inventario.mochila[0].usosRestantes}],inventory:args.sheet.inventario,powers:[{id:'cura_psi',name:'Cura',value:100,cost:1}],psiMax:10};
   if(args.cmd.kind==='direct-luck')return prepararSorte({...args,info});if(args.cmd.kind==='direct-consciousness')return resolverConsciencia({...args,info,roll:()=>100});
   return args.cmd.kind==='direct-first-aid'?resolverSocorros({...args,info}):resolverPsi({...args,info});}});}
@@ -142,5 +144,16 @@ test('Sorte persiste na ficha e teste de consciência aparece no histórico sem 
  await f.player.support({kind:'direct-luck',actorId:'a',targetId:'a',turnId:f.store.get(MAP).combat.turnId});assert.equal(f.store.get('personagens/a').pontosSorte,1);
  await assert.rejects(f.player.support({kind:'direct-luck',actorId:'a',targetId:'a',turnId:f.store.get(MAP).combat.turnId}),/já está preparada/);assert.equal(f.store.get('personagens/a').pontosSorte,1);
  await f.player.support({kind:'direct-consciousness',actorId:'a',targetId:'a',turnId:f.store.get(MAP).combat.turnId});assert.equal(f.store.get(HEALTH_PATH).actors.a.combateLab.inconsciente,false);assert.equal(f.store.get(HEALTH_PATH).actors.a.luckPrepared,false);assert.equal(f.store.get(MAP).combat.actors.a.remaining,2);assert.match(f.store.get(HEALTH_PATH).event.message,/Teste de consciência.*Sorte/);
+ }finally{f.close();}
+});
+
+test('transferência compartilhada salva kit e ação juntos, sem repetir gasto ou aceitar casa',async()=>{
+ const f=fixture({support:true});try{
+  f.store.set('personagens/a',{inventario:{equipado:[null],mochila:[{instanciaId:'kit',nome:'Kit médico',usosRestantes:3}],casa:[null]}});
+  const cmd={kind:'direct-inventory',actorId:'a',targetId:'a',turnId:f.store.get(MAP).combat.turnId,fromComp:'mochila',toComp:'equipado',fromIndex:0,toIndex:0,itemKey:'kit',targetKey:''};
+  await f.player.support(cmd);assert.equal(f.store.get('personagens/a').inventario.equipado[0].usosRestantes,3);assert.equal(f.store.get(MAP).combat.actors.a.remaining,1);
+  const path=[...f.store.keys()].filter(p=>p.startsWith(CMD+'/')).at(-1);f.emit(path);await new Promise(r=>setTimeout(r,5));assert.equal(f.store.get(MAP).combat.actors.a.remaining,1);
+  await assert.rejects(f.player.support({...cmd,turnId:f.store.get(MAP).combat.turnId,fromComp:'equipado',toComp:'casa'}),/não estão acessíveis/);
+  assert.equal(f.store.get(MAP).combat.actors.a.remaining,1);assert.equal(f.store.get('personagens/a').inventario.equipado[0].usosRestantes,3);
  }finally{f.close();}
 });

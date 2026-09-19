@@ -901,7 +901,7 @@
                         .nova-action-title{display:block;color:#ffd54a;font-size:14px;margin-bottom:6px;}
                         #novaSyncMasterPanel button:disabled{background:#424552!important;color:#a9abb5!important;border-color:#555866!important;filter:grayscale(1);opacity:.6;cursor:not-allowed;box-shadow:none;}
                         .nova-gm-health-row{padding:8px 0;border-bottom:1px solid #ffffff20;}
-                        .nova-action-row{display:grid;grid-template-columns:minmax(180px,1.1fr) minmax(200px,1.2fr) 84px 112px 145px;gap:8px;align-items:end;}
+                        .nova-action-row{display:grid;grid-template-columns:minmax(150px,1fr) minmax(170px,1.1fr) 76px 112px 154px 120px;gap:8px;align-items:end;}
                         #novaSyncActionPanel label{margin:0;font-size:14px;min-width:0;}
                         #novaSyncActionPanel label>small{display:block;font-size:13px;font-weight:700;margin-bottom:4px;}
                         #novaSyncActionPanel select{width:100%;margin:0;}
@@ -1988,8 +1988,8 @@
           <label style="display:flex;flex-direction:column;gap:4px;"><span>CAR fórmula</span><input id="crFormulaCAR" placeholder="2d6"></label>
         </div>
       </div>
-      <label>Perícias registradas (nome:valor)<textarea id="crPericias" rows="3" placeholder="Atletismo:58|Esquiva:78|Resistência:65|Combate Desarmado:69"></textarea><small style="display:block;color:#aaa;margin-top:4px;">Use o nome da perícia seguido do valor percentual. Esses valores são usados nos testes de ataque, defesa e resistência.</small></label>
-      <label>Especializações (investimento)<textarea id="crEspec" rows="2"></textarea></label>
+      <label>Perícias · Base + Treino = Total<textarea id="crPericias" rows="3" placeholder="Atletismo:58|Esquiva:78|Resistência:65|Combate Desarmado:69"></textarea><small style="display:block;color:#aaa;margin-top:4px;">Edite o treino. Base e Total são calculados; registros antigos são convertidos preservando o total de referência.</small></label>
+      <label>Especializações · Base + Treino = Total<textarea id="crEspec" rows="2"></textarea></label>
       <label>Ataques naturais<input id="crArmas" placeholder="Mordida:1d8+MD|Garras:1d6+MD"></label>
       <label>Alcances dos ataques (m)<input id="crAlcances" placeholder="Mordida:1.5|Garras:1"></label>
       <label>Habilidades especiais<textarea id="crHabilidades" rows="2" placeholder="Engolfar|Atropelar"></textarea></label>
@@ -2237,7 +2237,7 @@
 .nova-support-panel label{display:flex;flex-direction:column;gap:4px;font-size:13px}.nova-support-panel [hidden]{display:none!important}.nova-support-panel select,.nova-support-panel input,.nova-support-panel textarea{font:inherit;color:white;background:#302c46;border:1px solid #726786;border-radius:6px;padding:7px;max-width:360px}.nova-support-panel p,.nova-support-panel h4{flex-basis:100%;margin:4px 0}.nova-support-panel button:disabled{opacity:.4;cursor:not-allowed}
 .nova-psi-inbox{position:fixed;right:16px;bottom:16px;width:min(360px,90vw);max-height:55vh;overflow:auto;z-index:1600;padding:14px;background:#17152b;color:#eee;border:2px solid #bb83ff;border-radius:10px;box-shadow:0 5px 25px #0008}.nova-psi-inbox section+section{margin-top:15px;border-top:1px solid #7562aa;padding-top:12px}.nova-psi-inbox textarea{box-sizing:border-box;width:100%;min-height:75px}.nova-psi-inbox button{margin-top:8px}
 </style>
-<script type="module" src="js/app.js?v=46.89-sorte-45"></script>
+<script type="module" src="js/app.js?v=46.90-criaturas-46"></script>
 <!-- Mesa Estelar v46.38.0: segurança de objetos, XP contextual, tutorial reforçado, PM/PJ, imagem pós-conclusão e sincronização de magia -->
 
 <div id="battleTokenPreview" class="battle-token-preview" aria-hidden="true"></div>

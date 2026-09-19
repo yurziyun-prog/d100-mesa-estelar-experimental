@@ -1,14 +1,14 @@
-import {diametroMiniatura} from './nova-recuperacao.js?v=45';
-import {descreverTeste} from './nova-regras.js?v=45';
-import {textoDuracao,tempoRestante} from './nova-duracoes.js?v=45';
+import {diametroMiniatura} from './nova-recuperacao.js?v=46';
+import {descreverTeste} from './nova-regras.js?v=46';
+import {textoDuracao,tempoRestante} from './nova-duracoes.js?v=46';
 // Movimento livre: uma posição por personagem, sem sessão-mestre ou fila de comandos.
-import {saldoMovimento,movimentoMaximo,moverNoTurno,iniciarIniciativa,acaoIniciativa,defesasRestantes} from './nova-turnos.js?v=45';
+import {saldoMovimento,movimentoMaximo,moverNoTurno,iniciarIniciativa,acaoIniciativa,defesasRestantes} from './nova-turnos.js?v=46';
 import {destinoSemColisao,TOKEN_DIAMETER} from './nova-colisao.js?v=25';
-import {criarPainelAcoes} from './nova-painel.js?v=45';
-import {conectarAtaques,HEALTH_PATH,HISTORY_PATH} from './nova-ataques.js?v=45';
-import {mostrarAtaque} from './nova-fx.js?v=45';
+import {criarPainelAcoes} from './nova-painel.js?v=46';
+import {conectarAtaques,HEALTH_PATH,HISTORY_PATH} from './nova-ataques.js?v=46';
+import {mostrarAtaque} from './nova-fx.js?v=46';
 import {criarEditorMesa} from './nova-editor.js?v=35';
-import {ocupado,atualizarDuracoes} from './nova-suporte.js?v=45';
+import {ocupado,atualizarDuracoes} from './nova-suporte.js?v=46';
 export const POSITION_PATH='combatesAtivos/mapaMesaSyncDireta/posicoes';
 export const MAP_PATH='combatesAtivos/mapaMesaSyncDireta';
 export const SCENE_PATH='combatesAtivos/mapaMesaSyncDiretaCena';
@@ -16,7 +16,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
  const el=id=>root.getElementById(id), displayName=t=>String(t?.nome||'').replace(/^(NPC|Monstro|PJ|PM|Objeto|Item)\s*[·:-]\s*/i,''), tokens=new Map(), previews=new Map(), queues=new Map();
  let stop=null,stopMap=null,stopHistory=null,account='',error='',generation=0,mapPacket=null,mapData=null,renderedMap=null,mapRequest=0;
  let changingTurn=false,lastSelectedTurn='',defending=false;
- let durationSync=false,clockTimer=null;
+ let durationSync=false,clockTimer=null,sheetStop=null,sheetWatch='',sheetRevision=0,creatureStop=null;
  const dismissedPsi=new Set();
  let held=null,turning=null,frame=0,placing=false,placementChoice='';
  let catalogKey='',catalogLimit=48,sceneRef=null,sceneMapId=null;
@@ -150,7 +150,9 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   for(const button of el('novaSyncBoard').querySelectorAll('[data-map-action]'))button.disabled=!c?.active||c.activeId!==selected?.id||!controlled(selected)||attacking||!!queues.size||changingTurn||!!c?.pendingAttack;
   const event=health.event,eventVisible=event&&(user()?.master||event.actorUid===user()?.uid||event.targetUid===user()?.uid);
   const ownEvent=eventVisible?{...event,message:user()?.master?event.message:event.targetUid===user()?.uid?(event.defenderMessage||event.message):(event.attackerMessage||event.message)}:null;
-  updateActions(selected?{...selected,nome:displayName(selected)}:null,c,controlled(selected)&&tokens.has(selected?.id)&&(!c?.active||c.activeId===selected?.id)&&!queues.size&&!changingTurn&&!attacking&&!managing&&!editor.busy&&!c?.pendingAttack,{mapWidth:Number(mapPacket?.larguraM)||28,mapHeight:Number(mapPacket?.alturaM)||14,allHealth:health.actors,psiRequests:health.psiRequests,isMaster:!!user()?.master,objects:sceneData?.objects||[],tokens:[...tokens.values()],health:health.actors?.[selected?.id],revision:health.revision,event:ownEvent,targetId:selectedTarget,masterMode:masterMode(),defenses:c?.active?defesasRestantes(c,selected?.id):null});
+  const watch=selected?.id&&!decodeURIComponent(selected.id).startsWith('sync')?decodeURIComponent(selected.id):'';
+  if(watch!==sheetWatch){sheetStop?.();sheetWatch=watch;sheetRevision++;if(watch)sheetStop=database.subscribeDoc('personagens/'+watch,()=>{sheetRevision++;queueMicrotask(()=>status());},fail);}
+  updateActions(selected?{...selected,nome:displayName(selected)}:null,c,controlled(selected)&&tokens.has(selected?.id)&&(!c?.active||c.activeId===selected?.id)&&!queues.size&&!changingTurn&&!attacking&&!managing&&!editor.busy&&!c?.pendingAttack,{sheetRevision,mapWidth:Number(mapPacket?.larguraM)||28,mapHeight:Number(mapPacket?.alturaM)||14,allHealth:health.actors,psiRequests:health.psiRequests,isMaster:!!user()?.master,objects:sceneData?.objects||[],tokens:[...tokens.values()],health:health.actors?.[selected?.id],revision:health.revision,event:ownEvent,targetId:selectedTarget,masterMode:masterMode(),defenses:c?.active?defesasRestantes(c,selected?.id):null});
  }
  function drawMap(){
   const board=el('novaSyncBoard'),select=el('novaSyncMapa'); if(!board||!select)return;
@@ -357,7 +359,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
    }
   }
  }
- function close(){clearInterval(clockTimer);clockTimer=null;el('novaPsiInbox')?.remove();dismissedPsi.clear();editor.close();attacks?.close();attacks=null;health={actors:{},revision:0};history={entries:[]};held=null;selectedTarget='';placementChoice='';cancelAnimationFrame(frame);generation++;stop?.();stopMap?.();stopScene?.();stopHistory?.();stopScene=null;stopHistory=null;sceneData=null;sceneRequest++;stop=null;stopMap=null;account='';tokens.clear();previews.clear();queues.clear();mapPacket=null;mapData=null;renderedMap=null;mapRequest++;}
+ function close(){creatureStop?.();creatureStop=null;sheetStop?.();sheetStop=null;sheetWatch='';clearInterval(clockTimer);clockTimer=null;el('novaPsiInbox')?.remove();dismissedPsi.clear();editor.close();attacks?.close();attacks=null;health={actors:{},revision:0};history={entries:[]};held=null;selectedTarget='';placementChoice='';cancelAnimationFrame(frame);generation++;stop?.();stopMap?.();stopScene?.();stopHistory?.();stopScene=null;stopHistory=null;sceneData=null;sceneRequest++;stop=null;stopMap=null;account='';tokens.clear();previews.clear();queues.clear();mapPacket=null;mapData=null;renderedMap=null;mapRequest++;}
  function open(){
   const u=user();if(!u)return;if(account===u.uid&&stop)return;close();account=u.uid;error='';const g=generation;
   stop=database.subscribe(POSITION_PATH,rows=>{
@@ -392,6 +394,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
     sceneData=scene?{...scene,objects}:null;drawScene();editor.paint();
    }catch(e){if(g===generation)fail(e);}
   },fail);
+  creatureStop=database.subscribeDoc('combatesAtivos/mapaMesaSyncCriaturas',()=>{sheetRevision++;queueMicrotask(()=>status());},fail);
   stopHistory=database.subscribeDoc(HISTORY_PATH,value=>{if(g!==generation)return;history=value||{entries:[]};drawHistory();},fail);
   if(prepareAttack)attacks=conectarAtaques({database,user,tokens:()=>[...tokens.values()],prepare:prepareAttack,prepareSupport,onError:fail,onHealth:value=>{
    if(g!==generation)return;health=value;draw();const event=value.event;
@@ -533,6 +536,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   placing=true;drawCatalog();
   try{
    const id=encodeURIComponent(t.id);
+   if(String(t.id).startsWith('synccriatura:'))await loadActions({...t,id});
    const entrant=mapPacket?.combat?.active?((await loadCombatants([{...t,id}]))||[])[0]:null;
    await database.transact(async tx=>{
     const s=await tx.get(MAP_PATH),existing=await tx.get(POSITION_PATH+'/'+id);
@@ -648,9 +652,11 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
    await database.transact(async tx=>{
     const state=await tx.get(MAP_PATH)||{},healthState=await tx.get(HEALTH_PATH)||{},scene=await tx.get(SCENE_PATH);
     const values=await Promise.all(ids.map(id=>tx.get(POSITION_PATH+'/'+id)));
+    const creaturePath='combatesAtivos/mapaMesaSyncCriaturas',creatures=await tx.get(creaturePath)||{instances:{}};
     if(state.combat?.active)throw Error('Encerre o combate antes de reorganizar a mesa.');
     if(action==='remove'){
      const id=selectedForRemoval.id;
+     const instances={...creatures.instances};delete instances[id];tx.set(creaturePath,{...creatures,instances});
      tx.delete(POSITION_PATH+'/'+id);
      const joined={...(state.joined||{})};delete joined[id];
      const actors={...(healthState.actors||{})};delete actors[id];
@@ -665,6 +671,7 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
       placed.push(point);tx.set(POSITION_PATH+'/'+ids[i],{...t,...point,revision:t.revision+1});
      }
     }else if(action==='clear'){
+     const instances={...creatures.instances};for(const id of ids)delete instances[id];tx.set(creaturePath,{...creatures,instances});
      for(const id of ids)tx.delete(POSITION_PATH+'/'+id);
      const {combat,joined,...kept}=state;tx.set(MAP_PATH,kept);tx.set(HEALTH_PATH,{actors:{},revision:(healthState.revision||0)+1});tx.set(HISTORY_PATH,{entries:[],revision:(healthState.revision||0)+1});
     }else{
@@ -682,5 +689,11 @@ export function mountDirectPositionLab({user,characters,catalog=characters,mapas
   try{await database.transact(async tx=>{const s=await tx.get(MAP_PATH)||{};tx.set(MAP_PATH,{...s,joined:{...(s.joined||{}),[t.id]:(s.joined||{})[t.id]===false}});});error='';status();}catch(e){fail(e);}
  });
  status();
- return {open,close,initialize};
+ async function inventoryMove(char,payload){
+  const map=await database.get(MAP_PATH),id=encodeURIComponent(char.id);if(!map?.combat?.active||!await database.get(POSITION_PATH+'/'+id))return false;
+  open();const message=await attacks.support({...payload,kind:'direct-inventory',actorId:id,targetId:id,turnId:map.combat.turnId});
+  const sheet=await database.get('personagens/'+char.id);if(sheet?.inventario)char.inventario=sheet.inventario;
+  root.defaultView?.renderizarInventario?.(char);return true;
+ }
+ return {open,close,initialize,inventoryMove};
 }

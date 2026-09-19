@@ -1,6 +1,6 @@
-import {bonusConsciencia} from './nova-recuperacao.js?v=45';
-import {painelSuporte} from './nova-suporte-painel.js?v=45';
-import {ocupado} from './nova-suporte.js?v=45';
+import {bonusConsciencia} from './nova-recuperacao.js?v=46';
+import {painelSuporte} from './nova-suporte-painel.js?v=46';
+import {ocupado} from './nova-suporte.js?v=46';
 export function criarPainelAcoes({root,load,spend,roll,attack,support,unlock=()=>{}}){
  const host=root.getElementById('novaSyncActionPanel'),passButton=root.getElementById('novaSyncNext');
  const cache=new Map(),preferences=new Map(),results=new Map();
@@ -91,9 +91,8 @@ export function criarPainelAcoes({root,load,spend,roll,attack,support,unlock=()=
   const own=results.get(current.id),result=node('div',(own?.at>(view.event?.ts||0)?own.text:view.event?.message)||own?.text||'','nova-result');
   host.append(line,description,firstAidHint,pv,result,targetHint);
   const luck=node('button',view.health?.luckPrepared?'🍀 Sorte preparada':'🍀 Usar Sorte ('+(view.health?.luckRemaining??sheet.support?.luck??0)+')','btn-small btn-select');luck.type='button';luck.id='novaLuck';luck.disabled=busy||!!view.health?.luckPrepared||(view.health?.luckRemaining??sheet.support?.luck??0)<=0||!!health?.morto;
-  luck.onclick=async()=>{luck.disabled=true;try{const text=await support({kind:'direct-luck',actorId:current.id,targetId:current.id,turnId:combat?.turnId||null});results.set(current.id,{text,at:Date.now()});}catch(e){results.set(current.id,{text:e.message,at:Date.now()});}finally{render();}};host.append(luck);
+  luck.onclick=async()=>{luck.disabled=true;try{const text=await support({kind:'direct-luck',actorId:current.id,targetId:current.id,turnId:combat?.turnId||null});results.set(current.id,{text,at:Date.now()});}catch(e){results.set(current.id,{text:e.message,at:Date.now()});}finally{render();}};line.insertBefore(luck,button);
   if(health?.inconsciente&&!health.morto){const bonus=bonusConsciencia(health,combat);const wake=node('button','Teste de consciência'+(bonus?' (+'+bonus+' por cura)':''),'btn-small btn-select');wake.type='button';wake.id='novaConsciousness';wake.disabled=!allowed||!combat?.active||view.health?.consciousnessRound===combat.roundId;wake.onclick=async()=>{wake.disabled=true;try{const text=await support({kind:'direct-consciousness',actorId:current.id,targetId:current.id,turnId:combat.turnId});results.set(current.id,{text,at:Date.now()});}catch(e){results.set(current.id,{text:e.message,at:Date.now()});}finally{render();}};host.append(wake);}
-  const refresh=node('button','↻ Atualizar ficha e kits','btn-small');refresh.type='button';refresh.onclick=async()=>{refresh.disabled=true;try{cache.delete(current.id);sheet=await load({...current,...view.health});render();}catch(e){refresh.textContent=e.message;}};host.append(refresh);
   painelSuporte({root,host,current,sheet,view,combat,allowed:allowed&&!health?.inconsciente&&!health?.morto,send:support,load});
   const state=view.health?.combateLab||sheet.health;
   if(state?.caido||state?.derrubado){
@@ -103,11 +102,11 @@ export function criarPainelAcoes({root,load,spend,roll,attack,support,unlock=()=
  const update=async(token,packet,canAct,extra={})=>{
   if(!host)return;
   const changed=current?.id!==token?.id;current=token;combat=packet;allowed=canAct;view=extra;if(changed)sheet=null;
-  const key=JSON.stringify([token?.id,packet?.turnId,canAct,extra.health,extra.targetId,extra.event?.id,extra.masterMode,extra.defenses,extra.tokens?.map(t=>t.id),extra.objects?.map(t=>t.id),extra.psiRequests]);
+  const key=JSON.stringify([extra.sheetRevision,token?.id,packet?.turnId,canAct,extra.health,extra.targetId,extra.event?.id,extra.masterMode,extra.defenses,extra.tokens?.map(t=>t.id),extra.objects?.map(t=>t.id),extra.psiRequests]);
   if(shown===key)return;shown=key;const pending=++request;
   if(!token){render();return;}
   try{
-   const healthKey=JSON.stringify([extra.health||{},packet?.round]),cached=cache.get(token.id);
+   const healthKey=JSON.stringify([extra.sheetRevision,extra.health||{},packet?.round]),cached=cache.get(token.id);
    if(!cached||cached.healthKey!==healthKey)cache.set(token.id,{healthKey,promise:load({...token,...extra.health,supportRound:packet?.round||0})});
    const data=await cache.get(token.id).promise;if(pending!==request)return;sheet=data;render();
   }catch(error){cache.delete(token.id);if(pending===request)host.textContent='Não foi possível carregar a ficha: '+error.message;}

@@ -18,6 +18,7 @@ const {chromium}=require('C:/Users/yurzi/.cache/codex-runtimes/codex-primary-run
   }});
   window.advance=async()=>{const round=map.combat.round;while(map.combat.round===round)map.combat=acaoIniciativa(map.combat,'spend',map.combat.turnId);await render();};window.unconscious=async()=>{health.actors.a.combateLab.inconsciente=true;await render();};window.refresh=render;window.inspect=()=>({health,map,inventory});await render();
  });
+ assert.equal(await page.evaluate(()=>document.querySelector('#novaLuck').parentElement===document.querySelector('#novaSyncTest').parentElement),true);assert.equal(await page.getByText('Atualizar ficha e kits').count(),0);
  assert.equal(await page.locator('summary').count(),2);await page.locator('summary').filter({hasText:'Psiquismo'}).click();await page.evaluate(()=>refresh());assert.equal(await page.locator('details').nth(1).getAttribute('open'),null);await page.locator('summary').filter({hasText:'Psiquismo'}).click();await page.locator('#novaPsiPower').selectOption('cura_psi');await page.evaluate(()=>refresh());assert.equal(await page.locator('#novaPsiPower').inputValue(),'cura_psi');await page.locator('#novaSupportLocation').selectOption('Peito');await page.getByRole('button',{name:'Iniciar tratamento'}).click();
  await page.getByText('Tratamento de Peito').waitFor();assert.equal(await page.getByRole('button',{name:'Concluir e rolar'}).isDisabled(),true);
  let state=await page.evaluate(()=>inspect());assert.equal(state.inventory.mochila[0].usosRestantes,4);assert.equal(state.health.actors.b.combateLab.hit.Peito,-1);

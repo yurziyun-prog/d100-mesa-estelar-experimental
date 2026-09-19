@@ -1,4 +1,4 @@
-import {feridas,ocupado,PSI_NARRATIVOS} from './nova-suporte.js?v=45';
+import {feridas,ocupado,PSI_NARRATIVOS} from './nova-suporte.js?v=46';
 
 const states=new WeakMap();
 export function painelSuporte({root,host,current,sheet,view,combat,allowed,send,load}){

@@ -1,6 +1,6 @@
-import {acaoIniciativa,gastarDefesa,removerMortos} from './nova-turnos.js?v=45';
+import {acaoIniciativa,gastarDefesa,removerMortos} from './nova-turnos.js?v=46';
 import {alvosNoCone} from './nova-area.js?v=20260918';
-import {atualizarDuracoes} from './nova-suporte.js?v=45';
+import {atualizarDuracoes} from './nova-suporte.js?v=46';
 export const HEALTH_PATH='combatesAtivos/mapaMesaSyncSaude';
 export const HISTORY_PATH='combatesAtivos/mapaMesaSyncHistorico';
 const MAP='combatesAtivos/mapaMesaSyncDireta',POSITIONS=MAP+'/posicoes',COMMANDS=MAP+'/acoes';
@@ -21,7 +21,7 @@ export function conectarAtaques({database,user,tokens,prepare,prepareSupport,pre
   if(running.has(id)||closed||!user()?.master)return;running.add(id);
    const path=COMMANDS+'/'+id;
    try{
-   if(['direct-luck','direct-consciousness','direct-first-aid','direct-test','direct-psi','direct-psi-review','direct-stand'].includes(command.kind)){
+   if(['direct-inventory','direct-luck','direct-consciousness','direct-first-aid','direct-test','direct-psi','direct-psi-review','direct-stand'].includes(command.kind)){
     if(!prepareSupport)throw Error('Suporte indisponível.');
     const a0=await database.get(POSITIONS+'/'+command.personagemId),b0=await database.get(POSITIONS+'/'+command.targetId);
     if(!a0||!b0)throw Error('Participante não está no mapa.');
@@ -212,7 +212,7 @@ export function conectarAtaques({database,user,tokens,prepare,prepareSupport,pre
   });
  }
  stopHealth=database.subscribeDoc(HEALTH_PATH,value=>{if(!closed)onHealth(value||{actors:{},revision:0});},onError);
- if(user()?.master)stopCommands=database.subscribe(COMMANDS,rows=>{for(const row of rows)if(!row.removed&&['direct-attack','direct-defense','direct-effects','direct-equipment','direct-luck','direct-consciousness','direct-first-aid','direct-test','direct-psi','direct-psi-review','direct-stand'].includes(row.data.kind)&&row.data.status==='pending')process(row.id,row.data);},onError);
+ if(user()?.master)stopCommands=database.subscribe(COMMANDS,rows=>{for(const row of rows)if(!row.removed&&['direct-attack','direct-defense','direct-effects','direct-equipment','direct-inventory','direct-luck','direct-consciousness','direct-first-aid','direct-test','direct-psi','direct-psi-review','direct-stand'].includes(row.data.kind)&&row.data.status==='pending')process(row.id,row.data);},onError);
  async function send(payload){
   const path=COMMANDS+'/'+crypto.randomUUID();
   await database.writeMap(path,{...payload,donoUid:user().uid,createdAt:Date.now(),status:'pending'});

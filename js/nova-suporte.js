@@ -1,7 +1,7 @@
-import {distanciaBordas,testeComSorte,registrarCura,despertar} from './nova-recuperacao.js?v=45';
-import {criarRelogio,atualizarRelogios,RODADA_MS} from './nova-duracoes.js?v=45';
-import {classificarTeste} from './nova-regras.js?v=45';
-import {acaoIniciativa,ataqueSuperaDefesa} from './nova-turnos.js?v=45';
+import {distanciaBordas,testeComSorte,registrarCura,despertar} from './nova-recuperacao.js?v=46';
+import {criarRelogio,atualizarRelogios,RODADA_MS} from './nova-duracoes.js?v=46';
+import {classificarTeste} from './nova-regras.js?v=46';
+import {acaoIniciativa,ataqueSuperaDefesa} from './nova-turnos.js?v=46';
 import {alvosNoCone} from './nova-area.js?v=20260918';
 export const feridas=h=>Object.keys(h?.hitMax||{}).filter(k=>Number(h.hit?.[k]??h.hitMax[k])<Number(h.hitMax[k]));
 const clone=x=>structuredClone(x),cap=x=>Math.max(0,Math.min(100,Number(x)||0));

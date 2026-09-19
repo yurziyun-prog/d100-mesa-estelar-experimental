@@ -1,4 +1,4 @@
-# Primeiros Socorros e psiquismo — atualização 45
+# Primeiros Socorros e psiquismo — atualização 46
 
 Na Sincronização nova, **Primeiros Socorros** e **Psiquismo** são painéis separados, abaixo dos PV. Só se recolhem por clique. A seleção do poder é preservada por personagem. Psiquismo aparece apenas com poderes disponíveis na ficha. Levantar fica fora dos dois painéis.
 
@@ -18,7 +18,7 @@ Inconscientes não podem agir, mover ou defender, mas mantêm uma oportunidade n
 
 **Usar Sorte** reserva um ponto e garante sucesso comum no próximo teste de perícia, ataque, defesa, poder, primeiros socorros ou consciência. A preparação não acumula. O saldo vem da ficha, pela mesma regra de POD do Mapa Mesa, e o gasto é salvo nela; criaturas temporárias mantêm seu saldo na mesa. Restaurar o combate não devolve pontos de Sorte. Sorte garante sucesso no teste, não vitória automática contra um teste oposto melhor.
 
-Kits são reconhecidos pelos nomes e IDs em português/inglês. **Atualizar ficha e kits** recarrega alterações feitas no inventário. Usos restantes pertencem à instância do kit e não são repostos ao atualizar o cadastro.
+Kits são reconhecidos pelos nomes e IDs em português/inglês. Alterações no inventário atualizam automaticamente a ficha e os kits no painel. Usos restantes pertencem à instância do kit e não são repostos ao atualizar o cadastro.
 
 ## Psiquismo
 
@@ -51,3 +51,17 @@ Se a ferramenta solicitar autenticação, execute `npx firebase-tools login`. De
 ## Verificação
 
 Testes de regras, comando entre mestre/jogador, rejeição de controle indevido, repetição sem gasto duplicado, etapas entre rodadas, kit, cura/PP e um teste de navegador clicando nos controles. O banco remoto real não foi usado nos testes.
+
+## Criaturas, inventário e painel — versão 46
+
+Ataques naturais usam a perícia vinculada, com Combate Desarmado como padrão. O vínculo antigo Eco da Matilha → Vontade da Besta Ululante é corrigido para Combate Desarmado. O cadastro separa Base, Treino e Total; os números legados são migrados como totais, evitando somar a base duas vezes. Com os atributos de referência da Besta, Combate Desarmado fica 44 + 25 = 69. Se gerar atributos por indivíduo estiver ativo, o total varia com os atributos sorteados uma única vez para aquela miniatura.
+
+Campos de cadastro novos: periciasSchema, periciasTreino, especializacoesTreino e legadoPericias. A gravação ocorre ao salvar/importar o cadastro; a leitura já aceita os modelos antigos. Atributos individuais persistem em combatesAtivos/mapaMesaSyncCriaturas. Remover a miniatura apaga sua instância; restaurar não sorteia atributos novamente. A conta do mestre inicializa as instâncias.
+
+O histórico de defesa usa a base real de Esquiva mesmo que ela não esteja na lista de ataques. Isso elimina o +20 fictício do texto de modificadores; a penalidade central do cone continua −20. Sorte fica ao lado de Testar.
+
+Durante combate, compras são bloqueadas para participantes. Transferir entre Equipado e Bolso/Mochila custa uma ação; reorganizar dentro do compartimento não custa. Casa/Veículo não podem ser usados. Exige sua vez, ações disponíveis e não estar inconsciente ou prestando socorros. Inventário e ação são salvos juntos, mantendo os usos de cada kit.
+
+Os CSVs originais foram preservados. A cópia banco_criaturas_2026-09-19_corrigido.csv altera apenas o vínculo antigo do Eco. A importação preserva as fórmulas existentes quando o CSV antigo não traz essas colunas; a exportação nova inclui fórmulas e treino estruturado. O banco de NPCs não foi alterado.
+
+Esta fase não altera regras do Firestore e não exige publicar regras. Publicar os arquivos e recarregar mestre/jogadores. Objetos, fogo, mineração, camadas e os controles CSV dos demais bancos ficam nas próximas fases do roteiro DIRECAO-MESA-EXPERIMENTAL.md.

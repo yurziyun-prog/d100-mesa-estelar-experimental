@@ -2002,6 +2002,7 @@ window.soltarInventario = async (event, destinoComp, destinoIndex) => {
 
     const itemOrigem = inv[origemComp][origemIndex];
     if (!itemOrigem) return;
+    try{if(await novaSyncController_.inventoryMove(char,{fromComp:origemComp,fromIndex:origemIndex,toComp:destinoComp,toIndex:destinoIndex,itemKey:identidadeItem(itemOrigem),targetKey:identidadeItem(inv[destinoComp][destinoIndex])})){renderizarInventario(char);renderizarCombate(char);return;}}catch(e){notificar_(e.message,'aviso');return;}
 
     const itemDestino = inv[destinoComp][destinoIndex] || null;
 
@@ -2458,6 +2459,7 @@ function baseNPCPericia_(char,nome){
 }
 
 function obterValorRegistroPericia_(char, id, ehEspecializacao = false) {
+    if(char?.__novaCriatura){const r=(ehEspecializacao?char.especializacoes:char.pericias)?.[id];return Number(r?.totalNova)||0;}
     if(char?.__npcTemporario || char?.__criaturaTemporaria){
         const fonte=ehEspecializacao ? char.especializacoes : char.pericias;
         const reg=fonte?.[id];
@@ -4936,6 +4938,7 @@ window.renderizarMercadoLocal_=()=>{
 };
 window.comprarItemMercadoLocal_=async(itemId)=>{
     const char=obterPersonagemAtual_(),item=itensDB.find(i=>i.id===itemId);if(!char||!item)return;
+    if(await novaCompraBloqueada_(char))return;
     if(!acessoPermitidoItem_(char,item)){notificar_('Este personagem não possui o nível de acesso necessário.','aviso');return;}
     const state=mercadoLocalNegociacao_[char.id]||{},mult=state.compra?.mult??.90,preco=precoBaseLocalCompra_(item,mult);
     const recursos=Number(char.recursos||0);if(recursos<preco){notificar_('Recursos insuficientes.','aviso');return;}
@@ -5000,6 +5003,7 @@ window.atualizarPrecoQualidadeMercado_ = (itemId) => {
 window.comprarItemMercado = async (itemId) => {
     const char = obterPersonagemAtual_();
     if (!char) { alert('Selecione um personagem antes de comprar.'); return; }
+    if(await novaCompraBloqueada_(char))return;
     const itemBanco = itensDB.find(i => i.id === itemId);
     if (!itemBanco) { alert('Item não encontrado no banco.'); return; }
     if(!acessoPermitidoItem_(char,itemBanco)){
@@ -11612,16 +11616,17 @@ function renderizarBancoCriaturas_(){garantirCriaturasTestePsi_();
  e.innerHTML=l.length?`<div class="db-table-wrap"><table class="db-table"><thead><tr><th style="width:76px;">Imagem</th><th>Nome</th><th>Tipo</th><th>Atributos</th><th>Ataques</th><th>Ações</th></tr></thead><tbody>${l.map(n=>`<tr><td>${n.imagem?`<img src="${escaparBanco_(n.imagem)}" style="width:58px;height:58px;object-fit:cover;border-radius:9px;">`:`<div style="width:58px;height:58px;border-radius:9px;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;font-size:1.5em;">🦖</div>`}</td><td><b>${escaparBanco_(n.nome)}</b><br><small>${escaparBanco_(n.especie||'')}</small></td><td>${escaparBanco_(n.tipo||'Criatura')}<br><small>${escaparBanco_(n.habitat||'')}</small></td><td>FOR ${n.FOR||0} · CON ${n.CON||0} · TAM ${n.TAM||0} · DES ${n.DES||0}<br>INT ${n.INT||0} · POD ${n.POD||0} · CAR ${n.CAR||0}</td><td>${escaparBanco_(n.armasTexto||'—')}<br><small>${escaparBanco_(n.propriedadesAtaques||'')}</small></td><td><button class="btn-small" onclick="editarCriaturaBanco_('${n.id}')">✏️ Editar</button> <button class="btn-small" onclick="duplicarCriaturaBanco_('${n.id}')">📑 Duplicar</button></td></tr>`).join('')}</tbody></table></div>`:'<p style="color:#aaa">Banco vazio.</p>';
 }
 function crSet_(id,v){const e=document.getElementById(id);if(e)e.value=v??'';}
+let novaLerTreinos_=null;
 function crFill_(n={}){crSet_('crOrig',n.id||'');crSet_('crId',n.id||'');crSet_('crNome',n.nome||'');crSet_('crTipo',n.tipo||'Criatura');crSet_('crEspecie',n.especie||'');crSet_('crHabitat',n.habitat||'');crSet_('crComportamento',n.comportamento||'');crSet_('crAltura',n.altura||'');crSet_('crTamanho',n.tamanho||'');crSet_('crPeso',n.pesoCorporal||'');for(const a of ['FOR','CON','TAM','DES','INT','POD','CAR']){
     crSet_('cr'+a,n[a]??10);
     crSet_('crFormula'+a,n.formulasAtributos?.[a]||'');
 }
 const rol=document.getElementById('crAtributosRolados');if(rol)rol.checked=modeloUsaAtributosRolados_(n);
-crSet_('crPericias',n.periciasTexto||'');crSet_('crEspec',n.especializacoesTexto||'');crSet_('crArmas',n.armasTexto||'');
+crSet_('crPericias',n.periciasTexto||'');crSet_('crEspec',n.especializacoesTexto||'');novaLerTreinos_=montarTreinos(document,n,novaBaseCriatura_);crSet_('crArmas',n.armasTexto||'');
 crSet_('crAlcances',n.alcancesAtaques||'');crSet_('crHabilidades',n.habilidadesTexto||'');
 crSet_('crArmaduraNatural',Number(n.armaduraNatural||0));crSet_('crAcoesMaxEspecial',Number(n.acoesMaxEspecial||0));
 crSet_('crDeslocamento',Number(n.deslocamento??n.movimentoTerrestre??n.movimentoBase??3));crSet_('crAcoes',Number(n.acoes??n.acoesMax??n.acoesMaxEspecial??2));
-crSet_('crVinculos',n.vinculosAtaquesPericias||'');
+crSet_('crVinculos',vinculosCriatura(n));
 crSet_('crEquipBase',n.equipamentoBaseTexto||'');crSet_('crProps',n.propriedadesAtaques||'');crSet_('crImagem',n.imagem||'');crSet_('crDescricao',n.descricao||'');const sel=document.getElementById('crSelecionavel');if(sel)sel.checked=n.selecionavelCombate!==false;const arq=document.getElementById('crImagemArquivo');if(arq)arq.value='';atualizarPreviewCriaturaBanco_();const d=document.getElementById('crDelete');if(d)d.style.display=n.id?'':'none';}
 
 window.atualizarPreviewCriaturaBanco_=()=>{
@@ -11679,8 +11684,9 @@ window.salvarCriaturaBanco_=async()=>{
         estadoCombate:null
     };
     try{
-        if(orig&&orig!==id)await deleteDoc(doc(db,'criaturas',orig));
+        Object.assign(n,novaLerTreinos_?.()||{});
         await setDoc(doc(db,'criaturas',id),n,{merge:true});
+        if(orig&&orig!==id)await deleteDoc(doc(db,'criaturas',orig));
         criaturasDB=criaturasDB.filter(x=>x.id!==orig&&x.id!==id);criaturasDB.push(n);
         fecharCriaturaBanco_();renderizarBancoCriaturas_();renderizarFichasEntidadesMestre_();somSalvar_();
     }catch(e){console.error(e);notificar_('Não foi possível salvar a criatura. Verifique as regras do Firestore para /criaturas.','erro',7000);}
@@ -12185,13 +12191,15 @@ function normalizarLinhaImportacao_(tipo, bruto) {
 
     if(tipo==='npcs')return {...comum,tipo:String(bruto.tipo||'NPC'),raca:String(bruto.raca||'Humano'),origem:String(bruto.origem||''),idade:String(bruto.idade||''),sexo:String(bruto.sexo||''),altura:String(bruto.altura||''),tamanho:String(bruto.tamanho||''),pesoCorporal:String(bruto.pesoCorporal||''),sociedade:String(bruto.sociedade||''),carreira:String(bruto.carreira||bruto.tipo||''),conceito:String(bruto.conceito||''),classeSocial:String(bruto.classeSocial||''),recursos:String(bruto.recursos||''),FOR:parseNumero_(bruto.FOR,10),CON:parseNumero_(bruto.CON,10),TAM:parseNumero_(bruto.TAM,10),DES:parseNumero_(bruto.DES,10),INT:parseNumero_(bruto.INT,10),POD:parseNumero_(bruto.POD,10),CAR:parseNumero_(bruto.CAR,10),motivacao:String(bruto.motivacao||''),valorMotivacao:parseNumero_(bruto.valorMotivacao,0),periciasTexto:String(bruto.periciasTexto||bruto.pericias||''),especializacoesTexto:String(bruto.especializacoesTexto||bruto.especializacoes||''),armasTexto:String(bruto.armasTexto||bruto.armas||''),inventarioTexto:String(bruto.inventarioTexto||bruto.inventario||''),selecionavelCombate:bruto.selecionavelCombate===''?true:parseBoolean_(bruto.selecionavelCombate),imagem:String(bruto.imagem||''),descricao:String(bruto.descricao||'')};
     if(tipo==='criaturas'){
+        const anterior=criaturasDB.find(n=>n.id===comum.id);
         const formulas={};
         for(const a of ['FOR','CON','TAM','DES','INT','POD','CAR']){
             const f=String(bruto[`${a}_formula`]||bruto[`formula_${a}`]||'').trim();
             if(f)formulas[a]=f;
         }
-        const atributosRolados=parseBoolean_(bruto.atributosRolados)||Object.values(formulas).some(f=>/\d*d\d+/i.test(f));
-        return {
+        if(!Object.keys(bruto).some(k=>/_formula$|^formula_/.test(k)))Object.assign(formulas,anterior?.formulasAtributos||{});
+        const atributosRolados=Object.hasOwn(bruto,'atributosRolados')?parseBoolean_(bruto.atributosRolados):!!anterior?.atributosRolados||Object.values(formulas).some(f=>/\d*d\d+/i.test(f));
+        const model={
             ...comum,
             tipo:String(bruto.tipo||'Criatura'),
             especie:String(bruto.especie||bruto.raca||''),
@@ -12228,6 +12236,8 @@ function normalizarLinhaImportacao_(tipo, bruto) {
             imagem:String(bruto.imagem||bruto.urlImagem||''),
             descricao:String(bruto.descricao||'')
         };
+        if(Number(bruto.periciasSchema)===2){model.periciasSchema=2;model.periciasTreino=JSON.parse(bruto.periciasTreino||'[]');model.especializacoesTreino=JSON.parse(bruto.especializacoesTreino||'[]');}
+        model.vinculosAtaquesPericias=vinculosCriatura(model);return {...model,...migrarTreinos(model,novaBaseCriatura_)};
     }
     if (tipo === 'itens') {
         const usoBruto = bruto.uso ?? bruto.quantidade ?? '';
@@ -12487,7 +12497,7 @@ function dadosExportacaoBanco_(tipo) {
             })
         },
         npcs:{dados:npcsDB,cabecalhos:['id','nome','nome_en','nome_zh','tipo','raca','origem','idade','sexo','altura','tamanho','pesoCorporal','sociedade','carreira','conceito','classeSocial','recursos','FOR','CON','TAM','DES','INT','POD','CAR','motivacao','valorMotivacao','periciasTexto','especializacoesTexto','armasTexto','inventarioTexto','selecionavelCombate','imagem','descricao'],map:n=>n},
-        criaturas:{dados:criaturasDB,cabecalhos:['id','nome','nome_en','nome_zh','tipo','especie','habitat','comportamento','altura','tamanho','pesoCorporal','FOR','CON','TAM','DES','INT','POD','CAR','periciasTexto','especializacoesTexto','armasTexto','propriedadesAtaques','alcancesAtaques','habilidadesTexto','vinculosAtaquesPericias','acoesMaxEspecial','armaduraNatural','deslocamento','acoes','movimentoTerrestre','movimentoVoo','movimentoNatacao','selecionavelCombate','imagem','descricao'],map:n=>n},
+        criaturas:{dados:criaturasDB,cabecalhos:['periciasSchema','periciasTreino','especializacoesTreino','atributosRolados','FOR_formula','CON_formula','TAM_formula','DES_formula','INT_formula','POD_formula','CAR_formula','id','nome','nome_en','nome_zh','tipo','especie','habitat','comportamento','altura','tamanho','pesoCorporal','FOR','CON','TAM','DES','INT','POD','CAR','periciasTexto','especializacoesTexto','armasTexto','propriedadesAtaques','alcancesAtaques','habilidadesTexto','vinculosAtaquesPericias','acoesMaxEspecial','armaduraNatural','deslocamento','acoes','movimentoTerrestre','movimentoVoo','movimentoNatacao','selecionavelCombate','imagem','descricao'],map:n=>({...n,periciasTreino:JSON.stringify(n.periciasTreino||[]),especializacoesTreino:JSON.stringify(n.especializacoesTreino||[]),...Object.fromEntries(Object.entries(n.formulasAtributos||{}).map(([k,v])=>[k+'_formula',v]))})},
         itens: {
             dados: itensDB,
             cabecalhos: ['id','nome','nome_en','nome_zh','categoria','peso','preco','pa','pv','alcance','dano','penetracao','municao','uso','destinoLocal','locaisProtegidos','nivelAcesso','material','unidade','disponivelCampanha','familiaArma','plataforma','tecnologia','alcanceMetros','municoesCompativeis','consumoPorUso','perfilVisual','perfilSom','inflamabilidade','empuxo','imagem','descricao','descricao_en','descricao_zh'],
@@ -36468,12 +36478,17 @@ function labInstalarAcoesConfirmadas_(){
 labInstalarAcoesConfirmadas_();
 
 // Aba paralela: controlador independente e adaptador Firestore.
-import {classificarTeste as novaClassificar_,locaisValidos as novaLocaisValidos_,descreverTeste as novaDescreverTeste_} from './nova-regras.js?v=45';
-import {criarRelogio as novaCriarRelogio_} from './nova-duracoes.js?v=45';
-import {mountDirectPositionLab} from './nova-direta.js?v=45';
-import {tocarEfeito} from './nova-fx.js?v=45';
-import {identificarKit,testeComSorte,prepararSorte,resolverConsciencia} from './nova-recuperacao.js?v=45';
-import {resolverSocorros,resolverPsi,ocupado,teste as novaTesteSuporte_,sorteio as novaSorteioSuporte_} from './nova-suporte.js?v=45';
+import {moverInventario,identidadeItem} from './nova-inventario.js?v=46';
+async function novaCompraBloqueada_(char){const snap=await getDoc(doc(db,'combatesAtivos','mapaMesaSyncDireta'));const map=snap.data();if(!map?.combat?.active)return false;const p=await getDoc(doc(db,'combatesAtivos','mapaMesaSyncDireta','posicoes',encodeURIComponent(char.id)));if(!p.exists())return false;notificar_('Compras não são permitidas durante combate.','aviso');return true;}
+import {slug as novaSlug_,aplicarTreinos,montarTreinos,periciaDoAtaque,migrarTreinos,vinculosCriatura} from './nova-criaturas.js?v=46';
+function novaBaseCriatura_(attrs,name,special){const c={atributos:attrs,bonus:{}},q=novaSlug_(name),bank=special?especializacoesDB:periciasDB,reg=(bank||[]).find(p=>[p.id,p.nome,p.nome_en].some(n=>novaSlug_(n)===q));return reg?.formula?Number(calcularFormulaPersonagem_(reg.formula,c))||0:baseNPCPericia_(c,name);}
+
+import {classificarTeste as novaClassificar_,locaisValidos as novaLocaisValidos_,descreverTeste as novaDescreverTeste_} from './nova-regras.js?v=46';
+import {criarRelogio as novaCriarRelogio_} from './nova-duracoes.js?v=46';
+import {mountDirectPositionLab} from './nova-direta.js?v=46';
+import {tocarEfeito} from './nova-fx.js?v=46';
+import {identificarKit,testeComSorte,prepararSorte,resolverConsciencia} from './nova-recuperacao.js?v=46';
+import {resolverSocorros,resolverPsi,ocupado,teste as novaTesteSuporte_,sorteio as novaSorteioSuporte_} from './nova-suporte.js?v=46';
 import {ataqueSuperaDefesa,defesasRestantes} from './nova-turnos.js?v=36';
 async function novaFicha_(t){
  const legacy=(labEstado_?.tokens||[]).find(x=>String(x.id)===String(t.id));
@@ -36486,7 +36501,14 @@ async function novaFicha_(t){
    c.armasNaturais=(criarCriaturaCombateDoBanco_(model)?.armasNaturais||[]).filter(w=>ataqueNaturalPorNome_(w.nome)||linked.includes(normalizarTextoCombate_(w.nome))||/mordida|garras|cauda|pres[a-z]*|tent[a-z]*|coice/i.test(w.nome));
   }
  }
- if(source.startsWith('synccriatura:'))c=criarCriaturaCombateDoBanco_(criaturaBancoPorId_(source.slice(13)));
+ if(source.startsWith('synccriatura:')){
+  const model=criaturaBancoPorId_(source.slice(13)),ref=doc(db,'combatesAtivos','mapaMesaSyncCriaturas');
+  let saved=(await getDoc(ref)).data()?.instances?.[t.id];
+  if(!saved&&batalhaEhMestre_())saved=await runTransaction(db,async tx=>{const snap=await tx.get(ref),data=snap.data()||{instances:{}},old=data.instances?.[t.id];if(old)return old;const created={atributos:atributosIndividuoDoModelo_(model,null,'criatura'),modelId:model.id};tx.set(ref,{...data,instances:{...data.instances,[t.id]:created}});return created;});
+  if(!saved)throw Error('Aguardando o mestre preparar os atributos da criatura.');
+  c=aplicarTreinos(criarCriaturaCombateDoBanco_(model,{id:t.id,atributosIndividuo:saved.atributos}),model,novaBaseCriatura_,npcIdPericiaSistema_);
+ }
+
  if(!String(t.id).startsWith('dummy:')&&!c?.__npcTemporario&&!c?.__criaturaTemporaria){
   const snap=await getDoc(doc(db,'personagens',source));if(snap.exists())c={id:t.id,...snap.data()};
  }
@@ -36494,7 +36516,9 @@ async function novaFicha_(t){
  return c;
 }
 function novaEquipamentos_(c,per){
+ if(c.__novaCriatura){const natural=(c.armasNaturais||[]).filter(w=>npcIdPericiaSistema_(periciaDoAtaque(getNome(w),c.vinculosAtaquesPericias))===per.id);if(natural.length)return natural.map(item=>({valor:'natural:'+item.id,rotulo:item.nome,item,graus:0}));}
  let list=batalhaEquipamentos_(c,per);
+ if(c.__novaCriatura)return list.filter(w=>!w.item?.natural);
  if((c.__npcTemporario||c.__criaturaTemporaria)&&periciaCriaturaPodeAtacar_(c,per)&&c.armasNaturais?.length&&!list.some(w=>w.item?.natural)&&!/tiro|disparo|distancia|laser|rifle/i.test(normalizarTextoCombate_(getNome(per)))){
   list=ataquesNaturaisChar_(c).map(item=>({valor:'natural:'+item.id,rotulo:item.nome,item,graus:0}));
  }
@@ -36558,7 +36582,7 @@ async function novaPrepararAtaque_(a,b,command){
     for(const defensePer of defenses){
      if(labEhEsquivaD7_(defensePer)){
       const dodgePenalty=(fromBack&&!evasionActive?20:0)+(cone&&b.id===command.targetId?cone.centralPenalty:0);
-      options.push({id:batalhaTokenPericia_(defensePer),nome:'Esquiva',valor:Math.max(0,novaValorPericia_(cb,target,defensePer)-dodgePenalty+(shieldEquipped?5:0))});
+      options.push({id:batalhaTokenPericia_(defensePer),nome:'Esquiva',base:Math.min(100,obterValorRegistroPericia_(cb,defensePer.id,!!defensePer.__especializacao)),valor:Math.max(0,novaValorPericia_(cb,target,defensePer)-dodgePenalty+(shieldEquipped?5:0))});
      }
      else if(!cone&&!fromBack&&!labAtaqueEhDistancia_(item))for(const weapon of novaEquipamentos_(cb,defensePer)){
       const shield=/escudo|shield/i.test(getNome(weapon.item));
@@ -36576,7 +36600,7 @@ async function novaPrepararAtaque_(a,b,command){
    }
    if(healthB.caido||healthB.derrubado)options.length=0;
    if(ocupado(target,map.combat))for(const option of options){option.valor=Math.max(0,option.valor-20);}
-   for(const o of options){const dp=(batalhaListaPericias_(cb)||[]).find(p=>o.id.startsWith(batalhaTokenPericia_(p)))||((o.id==='natural:aparar-cauda')?(batalhaListaPericias_(cb)||[]).filter(p=>periciaCriaturaPodeAtacar_(cb,p)).sort((p,q)=>novaValorPericia_(cb,target,q)-novaValorPericia_(cb,target,p))[0]:null);o.base=dp?Math.min(100,obterValorRegistroPericia_(cb,dp.id,!!dp.__especializacao)):o.valor;o.modifiers=[];if(ocupado(target,map.combat))o.modifiers.push({name:'primeiros socorros',value:-20});if(cone&&b.id===command.targetId)o.modifiers.push({name:'centro do cone',value:-cone.centralPenalty});if(o.nome.startsWith('Esquiva')&&fromBack&&!evasionActive)o.modifiers.push({name:'pelas costas',value:-20});if(o.nome.startsWith('Aparar')&&!((obterItensEquipados_(cb)||[]).some(w=>/escudo|shield/i.test(getNome(w)))))o.modifiers.push({name:'aparar sem escudo',value:-20});}
+   for(const o of options){const dp=(batalhaListaPericias_(cb)||[]).find(p=>o.id.startsWith(batalhaTokenPericia_(p)))||((o.id==='natural:aparar-cauda')?(batalhaListaPericias_(cb)||[]).filter(p=>periciaCriaturaPodeAtacar_(cb,p)).sort((p,q)=>novaValorPericia_(cb,target,q)-novaValorPericia_(cb,target,p))[0]:null);o.base=o.base??(dp?Math.min(100,obterValorRegistroPericia_(cb,dp.id,!!dp.__especializacao)):o.valor);o.modifiers=[];if(ocupado(target,map.combat))o.modifiers.push({name:'primeiros socorros',value:-20});if(cone&&b.id===command.targetId)o.modifiers.push({name:'centro do cone',value:-cone.centralPenalty});if(o.nome.startsWith('Esquiva')&&fromBack&&!evasionActive)o.modifiers.push({name:'pelas costas',value:-20});if(o.nome.startsWith('Aparar')&&!((obterItensEquipados_(cb)||[]).some(w=>/escudo|shield/i.test(getNome(w)))))o.modifiers.push({name:'aparar sem escudo',value:-20});}
    if(decision.phase==='preview'&&grade.sucesso&&options.length)return {pending:{options,ranged:!!cone||labAtaqueEhDistancia_(item),cone:!!cone,fromBack,remaining:defesasRestantes(map.combat,b.id)}};
    let defense=null;
    if(decision.choice&&decision.choice!=='none'){
@@ -36662,6 +36686,11 @@ async function novaPrepararSuporte_(a,b,tokens){
   const {health,map,cmd}=args,sourceChar=args.sheet||ca,info=novaInfoSuporte_(sourceChar,{...a,...health.actors?.[a.id]}),targetInfo=novaInfoSuporte_(cb,{...b,...health.actors?.[b.id]});
   info.targetHealth=targetInfo.health;info.healthById={};info.willById={};info.dodgeById={};info.resistanceById={};
   for(const t of tokens){const c=chars.get(t.id),snap={...t,...structuredClone(health.actors?.[t.id]||{}),charLab:c},per=batalhaPericiaPorNomes_(c,['força de vontade','vontade','willpower']);info.healthById[t.id]=labGarantirSnapshotCombate_(snap);info.willById[t.id]=per?novaValorPericia_(c,snap,per):0;for(const [key,names]of [["dodgeById",["esquiva"]],["resistanceById",["resistência","resistencia"]]]){const p=batalhaPericiaPorNomes_(c,names);info[key][t.id]=p?novaValorPericia_(c,snap,p):0;}}
+  if(cmd.kind==='direct-inventory'){
+   if(!args.sheet)throw Error('Ficha persistente não encontrada.');
+   const result=moverInventario({...args,actor:health.actors?.[a.id],validarPeso:(inv,comp)=>validarPesoCompartimento_(sourceChar,inv,comp,false)});
+   return {...result,actors:{...health.actors,[a.id]:{...health.actors?.[a.id],inventoryRevision:Number(health.actors?.[a.id]?.inventoryRevision||0)+1}}};
+  }
   if(cmd.kind==='direct-luck')return prepararSorte({...args,info});
   if(cmd.kind==='direct-consciousness')return resolverConsciencia({...args,info,roll:novaSorteioSuporte_(args.seed)});
   if(cmd.kind==='direct-psi-review'){
@@ -36689,7 +36718,7 @@ async function novaPrepararSuporte_(a,b,tokens){
   return result;
  }};
 }
-import {acaoIniciativa as novaAcaoSuporte_} from './nova-turnos.js?v=45';
+import {acaoIniciativa as novaAcaoSuporte_} from './nova-turnos.js?v=46';
 const novaSyncController_=mountDirectPositionLab({
  user:()=>currentUserUid?{uid:String(currentUserUid),master:batalhaEhMestre_()}:null,
  characters:()=>labEstado_?.tokens?.length?labEstado_.tokens:(userCharacters||[]),
