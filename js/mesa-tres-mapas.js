@@ -102,7 +102,7 @@ export function instalarTresMapas(dep={}){
   }
   const quantidade=[...seletor.options].filter(o=>o.value).length;
   const aviso=root.getElementById(atual)?.querySelector('[data-mtm-mapas-disponiveis]');
-  if(aviso)aviso.textContent=quantidade+' mapa'+(quantidade===1?'':'s')+' disponível'+(quantidade===1?'':'eis')+' · Arquivados no Banco de Mapas';
+  if(aviso)aviso.textContent=quantidade+' mapa'+(quantidade===1?'':'s')+' '+(quantidade===1?'disponível':'disponíveis')+' · Arquivados no Banco de Mapas';
  }
  async function limparLaboratoriosRuins(){
   if(!ehMestre()||!dep.deleteDoc)throw Error('Exclusão indisponível para esta sessão.');
