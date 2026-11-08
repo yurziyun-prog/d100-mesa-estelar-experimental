@@ -43,7 +43,7 @@ const casaFaces=()=>{
 // larguraM/alturaM e z são metros. Nenhum dado é alterado aqui.
 function montarCenaReal(scene,W,H){
  const lista=Array.isArray(scene?.objects)?scene.objects:[];
- if(!lista.length)return false;
+ if(!lista.length){faces.length=0;face([V(0,0),V(W,0),V(W,H),V(0,H)],'#607b5a','#607b5a');return true;}
  faces.length=0;
  face([V(0,0),V(W,0),V(W,H),V(0,H)],'#607b5a','#607b5a');
  const cores={
@@ -83,7 +83,7 @@ function montarCenaReal(scene,W,H){
   }else continue;
   visiveis++;
  }
- return visiveis>0;
+ return true; // Cena identificada, mesmo que alguns objetos não tenham equivalente 3D.
 }
 
 export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=()=>null,dimensoes=()=>({W:28,H:14}),mapaAtual=()=>'',ativo=()=>false,modo=()=>'',mapa=()=>'',idMapa=''}={}){
@@ -116,15 +116,15 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
   const center=orientar(V(centroCamera[0],centroCamera[1],0)),scale=Math.min(width/(dims.W*1.36),height/(dims.H*1.85))*zoom;
   const projetar=v=>{const q=orientar(v);return [width/2+(q[0]-center[0])*scale,height*.53+(q[1]-center[1])*scale];};
   const desenharPoligono=(vs,cor,borda)=>{ctx.beginPath();vs.forEach((v,i)=>{const [x,y]=projetar(v);if(i)ctx.lineTo(x,y);else ctx.moveTo(x,y);});ctx.closePath();ctx.fillStyle=cor;ctx.fill();if(borda){ctx.strokeStyle=borda;ctx.lineWidth=Math.max(.6,scale*.018);ctx.stroke();}};
-  const cena=cenaAtual(),real=cena&&String(cena.mapId||'')===String(mapaAtual()||'')&&montarCenaReal(cena,dims.W,dims.H);
-  if(!real)casaFaces();
+  const cena=cenaAtual(),mid=String(mapaAtual()||''),real=!!(cena&&mid&&String(cena.mapId||'')===mid);
+  if(real)montarCenaReal(cena,dims.W,dims.H);
+  else{faces.length=0;face([V(0,0),V(dims.W,0),V(dims.W,dims.H),V(0,dims.H)],'#607b5a','#607b5a');}
   // painter's algorithm em função da profundidade média das faces
   const sorted=faces.map(f=>({...f,depth:f.vs.reduce((sum,v)=>sum+orientar(v)[2],0)/f.vs.length})).sort((a,b)=>a.depth-b.depth);
   for(const f of sorted)desenharPoligono(f.vs,f.cor,f.borda);
   // Um personagem de 1,75 m, na escala física da casa (3,2 m de paredes).
   const tok=lerTokens().find(t=>t.id===selecionado)||lerTokens()[0];
-  let p=tok?[tok.x,tok.y,0]:personagem;
-  if(real&&!tok)p=null;
+  let p=tok?[tok.x,tok.y,0]:null;
   // Visão sem token: um demonstrador virtual, sem salvar um jogador no banco.
   if(p){
   const a=projetar(V(p[0],p[1],0)),b=projetar(V(p[0],p[1],1.75)),mid=projetar(V(p[0],p[1],.94));
@@ -133,7 +133,7 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
   ctx.strokeStyle='#3288ac';ctx.lineWidth=Math.max(5,scale*.48);ctx.beginPath();ctx.moveTo(mid[0],mid[1]);ctx.lineTo(b[0],b[1]+scale*.18);ctx.stroke();
   ctx.fillStyle='#edbb8b';ctx.beginPath();ctx.arc(b[0],b[1]+scale*.13,Math.max(4,scale*.20),0,Math.PI*2);ctx.fill();
   }
-  ctx.fillStyle='#102235bb';ctx.fillRect(10,height-29,Math.min(570,width-20),22);ctx.fillStyle='#edf7ff';ctx.font='12px Segoe UI,Arial';ctx.fillText(real?'Cena compartilhada: geometria experimental · objetos do mapa ativo':'Casa demonstrativa (sem cena carregada)',18,height-14);
+  ctx.fillStyle='#102235bb';ctx.fillRect(10,height-29,Math.min(570,width-20),22);ctx.fillStyle='#edf7ff';ctx.font='12px Segoe UI,Arial';ctx.fillText(real?'Cena compartilhada · objetos reais em visualização 2,5D experimental':'Mapa sem cena 3D carregada · abra uma cena no Construtor',18,height-14);
  }
  const invalidate=()=>{if(!raf)raf=win.requestAnimationFrame(pintar);};
  canvas.addEventListener('pointerdown',e=>{if(modoAtual==='mapa-jogo')return;drag={x:e.clientX,y:e.clientY,id:e.pointerId};canvas.setPointerCapture(e.pointerId);canvas.style.cursor='grabbing';});
