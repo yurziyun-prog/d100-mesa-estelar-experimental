@@ -31,7 +31,7 @@ export function instalarCamera(dep){
  const el=id=>root.getElementById(id);
  const ctl=()=>{try{return dep.controller?.()||null;}catch(_){return null;}};
  let zm=1,zj=1,alvo={tx:0,ty:0},atual={tx:0,ty:0},raf=0,ultimoMapa='',centrado=false,panorama={};
- let livre=false,ultimoAtor='',quadros=0; // v173: câmera solta (o mestre arrastou/andou com as setas): não segue ninguém até ele pedir
+ let livre=false,ultimoAtor='',quadros=0,tokenExterno=''; // v173: câmera solta (o mestre arrastou/andou com as setas): não segue ninguém até ele pedir
  // v209: visão inclinada (estilo Ragnarok): o plano do mapa rotaciona em torno do eixo X (projeção
  // ortográfica — sem perspectiva, para o clique-para-andar continuar matematicamente exato: o retângulo
  // projetado encolhe cos(θ) na vertical e a normalização por getBoundingClientRect inverte a conta).
@@ -152,7 +152,10 @@ export function instalarCamera(dep){
    const vw=novaAba?(b.parentElement?.clientWidth||w):w,vh=novaAba?(b.parentElement?.clientHeight||h):h;
    const aid=a?String(a.id):'';if(aid!==ultimoAtor){ultimoAtor=aid;if(aid)livre=false;}
    const fc=focoConstrutor();
-   if(fc)alvo=deslocamento({x:fc.x/100*w,y:fc.y/100*h},z,w,h,vw,vh);
+   const tok=tokenExterno&&/\\bmapa-jogo\\b/.test(String(root.body?.className||''))?b.querySelector('[data-token="'+CSS.escape(tokenExterno)+'"]'):null;
+    const xp=tok?parseFloat(tok.style.left):NaN,yp=tok?parseFloat(tok.style.top):NaN;
+    if(tok&&Number.isFinite(xp)&&Number.isFinite(yp)){livre=false;alvo=deslocamento({x:xp/100*w,y:yp/100*h},z,w,h,vw,vh);}
+    else if(fc)alvo=deslocamento({x:fc.x/100*w,y:fc.y/100*h},z,w,h,vw,vh);
    else if(a&&!livre){const n=b.querySelector(`[data-token="${CSS.escape(String(a.id))}"]`);const px=n?parseFloat(n.style.left):Number(a.x)/28*100,py=n?parseFloat(n.style.top):Number(a.y)/14*100;
     if(Number.isFinite(px)&&Number.isFinite(py))alvo=deslocamento({x:px/100*w,y:py/100*h},z,w,h,vw,vh);}
    else if(!centrado&&!livre){alvo=deslocamento({x:w/2,y:h/2},z,w,h,vw,vh);centrado=true;} // v146: sem personagem, amplia a partir do meio do mapa
@@ -175,6 +178,6 @@ export function instalarCamera(dep){
  }
  function agendar(){if(!raf)raf=win.requestAnimationFrame(quadro);}
  const vigia=setInterval(()=>{try{controles();pad();}catch(_){}agendar();},500);agendar();
- win.mesaCameraV144={zoom:()=>zoomAtual(),mover,livre:()=>livre,definir:n=>{const N=niveis();mudar(N.includes(n)?n:N.reduce((p,q)=>Math.abs(q-n)<Math.abs(p-n)?q:p,N[0]));},angulo:()=>angulo,inclinar:a=>aplicarAngulo(a)};
+ win.mesaCameraV144={zoom:()=>zoomAtual(),mover,livre:()=>livre,definir:n=>{const N=niveis();mudar(N.includes(n)?n:N.reduce((p,q)=>Math.abs(q-n)<Math.abs(p-n)?q:p,N[0]));},angulo:()=>angulo,inclinar:a=>aplicarAngulo(a),seguirToken:id=>{tokenExterno=String(id||'');livre=false;centrado=false;agendar();}};
  return {parar(){clearInterval(vigia);if(raf)win.cancelAnimationFrame(raf);const b=el('novaSyncBoard');if(b){b.style.transform='';b.style.clipPath='';}}};
 }
