@@ -59,10 +59,52 @@ body.mapa-construtor #novaSyncStatus,body.mapa-mestre #novaSyncStatus,body.mapa-
 body.mapa-jogo #rlNecTopo,body.mapa-jogo #novaMapTopV68{display:none!important}
 body.mapa-construtor #mbBarra .mb-turno,body.mapa-mestre #mbBarra .mb-turno,body.mapa-construtor #mbBarra .mb-st,body.mapa-mestre #mbBarra .mb-st{display:none!important}
 `;
+
+// Ilustração volumétrica do laboratório. Renderizada só em v224 e só nos modos
+// Mestre/Jogo: não substitui nem altera os objetos físicos salvos no Firestore.
+const CASAS_V224=[
+ {x:4,y:2,w:6,h:4,cor:'#815534',luz:'#ae8053',telha:'#9b6940',tipo:'madeira'},
+ {x:20,y:2,w:4,h:4,cor:'#a34a36',luz:'#d07753',telha:'#b75739',tipo:'tijolo'},
+ {x:4,y:10,w:4,h:4,cor:'#9e8159',luz:'#c9ac7d',telha:'#b79a72',tipo:'adobe'},
+ {x:20,y:10,w:4,h:4,cor:'#725334',luz:'#b18a54',telha:'#946a43',tipo:'madeira'}
+];
+function svgCasaV224(c){
+ const {x,y,w,h,cor,luz,telha}=c,altura=.8,beiral=.12;
+ const Y=y-altura,portaX=x+w/2-.32,frente=y+h;
+ return `<g stroke-linejoin="round">
+  <path d="M${x+.16} ${y+.16} L${x+w+.45} ${y+.2} L${x+w+.55} ${frente+.4} L${x+.15} ${frente+.45}Z" fill="#060e13" opacity=".28"/>
+  <path d="M${x} ${Y} L${x+w} ${Y} L${x+w} ${frente} L${x} ${frente}Z" fill="${luz}" stroke="#3b2a21" stroke-width=".075"/>
+  <path d="M${x+w} ${Y} l.55 .42 v${h} l-.55 -.42Z" fill="${cor}" stroke="#3d2a23" stroke-width=".07"/>
+  <path d="M${x} ${frente-.17} L${x+w} ${frente-.17} L${x+w+.55} ${frente+.3} L${x+.3} ${frente+.3}Z" fill="${cor}" stroke="#35231a" stroke-width=".06"/>
+  <path d="M${x-beiral} ${Y+.05} L${x+w+beiral} ${Y+.05} L${x+w+beiral+.3} ${y+h*.43} L${x+.08} ${y+h*.43}Z" fill="${telha}" stroke="#3a271b" stroke-width=".08"/>
+  <path d="M${x+.08} ${y+h*.43} L${x+w+beiral+.3} ${y+h*.43} L${x+w+.48} ${y+h*.56} L${x+.25} ${y+h*.56}Z" fill="${cor}" stroke="#4c3224" stroke-width=".06"/>
+  <path d="M${x+.04} ${Y+.11} L${x+w} ${Y+.11} M${x+.1} ${y+h*.19} L${x+w+.1} ${y+h*.19}" stroke="#e6c79a" opacity=".3" stroke-width=".06"/>
+  <rect x="${x+w*.18}" y="${frente-.65}" width=".58" height=".37" rx=".04" fill="#80bdd0" stroke="#53402b" stroke-width=".095"/>
+  <rect x="${portaX}" y="${frente-.7}" width=".64" height=".7" fill="#4a3024" stroke="#e0b978" stroke-width=".075"/>
+  <circle cx="${portaX+.48}" cy="${frente-.34}" r=".035" fill="#f6df8f"/>
+  </g>`;
+}
+const LAB_V224_SVG=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 14" preserveAspectRatio="none" aria-hidden="true" style="width:100%;height:100%;display:block;overflow:visible">${CASAS_V224.map(svgCasaV224).join('')}</svg>`;
 export function instalarTresMapas(dep={}){
  const root=dep.root||document,win=root.defaultView||window;
  const ehMestre=()=>{try{return !!dep.ehMestre?.();}catch(_){return false;}};
  const uid=()=>{try{return String(dep.uid?.()||'mestre');}catch(_){return 'mestre';}};
+ function atualizarVisual25D(){
+  const board=root.getElementById('novaSyncBoard');
+  if(!board)return;
+  const mapa=String(win.novaSyncController_?.mapaAtual?.()||board.dataset.mapaVisivel||'');
+  const mostrar=ehMestre()&&mapa===MAPA_T&&(atual==='mapa-mestre'||atual==='mapa-jogo');
+  let camada=board.querySelector(':scope > #mtmVolumetriaV224');
+  if(!camada){
+   camada=root.createElement('div');camada.id='mtmVolumetriaV224';
+   camada.style.cssText='position:absolute;inset:0;z-index:16;pointer-events:none;overflow:visible;isolation:isolate';
+   camada.innerHTML=LAB_V224_SVG;
+   board.append(camada);
+  }
+  camada.hidden=!mostrar;
+  camada.style.display=mostrar?'block':'none';
+ }
+
  function casaExterior(){
   const W=28,H=14;
   const madeira=MATERIAIS.find(m=>m.id==='madeira')||MATERIAIS[0];
@@ -164,6 +206,7 @@ export function instalarTresMapas(dep={}){
   root.body.classList.remove('mapa-construtor','mapa-mestre','mapa-jogo');root.body.classList.add(id);
   atual=id;win.mesaVista25D=id!=='mapa-construtor';
   atualizarPainel();
+  atualizarVisual25D();
   const cam=win.mesaCameraV144;
   if(id==='mapa-construtor'){cam?.seguirToken?.('');cam?.inclinar?.(0);cam?.definir?.(1);}
   else if(id==='mapa-mestre'){cam?.seguirToken?.('');cam?.inclinar?.(30);cam?.definir?.(1.5);}
@@ -176,6 +219,7 @@ export function instalarTresMapas(dep={}){
   atual='';win.mesaVista25D=false;
   const cam=win.mesaCameraV144;cam?.seguirToken?.('');
   if(vistaAnterior){if(Number.isFinite(vistaAnterior.angulo))cam?.inclinar?.(vistaAnterior.angulo);if(Number.isFinite(vistaAnterior.zoom))cam?.definir?.(vistaAnterior.zoom);}
+  atualizarVisual25D();
   vistaAnterior=null;
   for(const id of ['mapa-construtor','mapa-mestre','mapa-jogo'])root.getElementById(id)?.classList.remove('active');
  }
@@ -245,6 +289,6 @@ export function instalarTresMapas(dep={}){
   abrir('mapa-jogo',root.querySelector('.mtm-tab[data-mtm="mapa-jogo"]'));
  },true);
  // se a sessão esconder a aba por troca de papel, restaura a seção
- const iv=setInterval(()=>{try{if(!ehMestre()&&atual){voltarMesa();}for(const b of root.querySelectorAll('.mtm-tab'))b.hidden=!ehMestre();if(atual)atualizarPainel();}catch(_){}},1500);iv.unref?.();
+ const iv=setInterval(()=>{try{if(!ehMestre()&&atual){voltarMesa();}for(const b of root.querySelectorAll('.mtm-tab'))b.hidden=!ehMestre();if(atual){atualizarPainel();atualizarVisual25D();}else root.getElementById('mtmVolumetriaV224')?.setAttribute('hidden','');}catch(_){}},1500);iv.unref?.();
  return {abrir,voltarMesa,aba:()=>atual};
 }
