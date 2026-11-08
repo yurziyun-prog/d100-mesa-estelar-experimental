@@ -150,6 +150,27 @@ export function instalarEfeitos(dep){
  let somLigado=true;try{somLigado=win.localStorage.getItem('mesa:somEfeitos')!=='0';}catch(_){}
  let ctx=null,mestreVol=null,ultimoEvento='',estados=new Map(),clima={modo:'limpo'},mapa=null,parar=[],assinado=null,ultimoSeg=0,primeira=true;
  const board=()=>el('novaSyncBoard');
+ // Sons de combate são eventos espaciais: o documento de saúde é global,
+ // mas o áudio só pode tocar no mapa em que o evento realmente ocorreu.
+ // Na ausência de um mapa identificável, não tocar (fail closed).
+ const mapaAudivel=()=>String(board()?.dataset.mapaVisivel||ctl()?.mapaAtual?.()||'');
+ const tokenMapa=id=>{
+  if(!id)return '';
+  try{return String(ctl()?.token?.(String(id))?.mapaId||'');}catch(_){return '';}
+ };
+ const eventoNoMapa=ev=>{
+  const visivel=mapaAudivel();
+  if(!visivel)return false;
+  const explicito=String(ev?.mapId||ev?.mapaId||'');
+  if(explicito)return explicito===visivel;
+  const ids=[ev?.source?.id,ev?.target?.id].filter(Boolean);
+  // Evento legado: só reproduzir quando os participantes são
+  // identificáveis e todos estão no mapa visível.
+  if(!ids.length)return false;
+  const locais=ids.map(tokenMapa);
+  return locais.every(id=>id&&id===visivel);
+ };
+
 
  // ------------------------------------------------------------ áudio
  function audio(){
@@ -262,7 +283,7 @@ export function instalarEfeitos(dep){
 
  // ------------------------------------------------------------ reação aos eventos do combate
  function aoEvento(ev){
-  if(!ev?.id||ev.id===ultimoEvento)return;ultimoEvento=ev.id;if(Date.now()-Number(ev.ts||0)>6000)return;
+  if(!ev?.id||ev.id===ultimoEvento)return;ultimoEvento=ev.id;if(Date.now()-Number(ev.ts||0)>6000||!eventoNoMapa(ev))return;
   const nome=String(ev.item?.nome||''),tipo=tipoArma(nome+' '+String(ev.message||'').slice(0,0));
   if(ev.natureza==='clima'&&ev.target){
    const ab=abrigoEf(win.mesaVisualClima?.()?.abrigo);
@@ -301,7 +322,7 @@ export function instalarEfeitos(dep){
   for(const [id,a] of Object.entries(atores)){
    const cl=a?.combateLab||{},antes=estados.get(id),agora={morto:!!cl.morto,caido:!!(cl.caido||cl.derrubado)};estados.set(id,agora);
    if(primeira||!antes)continue;
-   const t=ctl()?.token?.(id);if(!t||String(t.mapaId||mapa?.mapId)!==String(mapa?.mapId||''))continue;
+   const t=ctl()?.token?.(id);if(!t||!mapaAudivel()||String(t.mapaId||'')!==mapaAudivel())continue;
    if(agora.morto&&!antes.morto){marcarToken(id,'ef-morre',1500);pinta('ef-fumaca',t,ppm()*1.6,2700);texto(t,'💀','#e8e8e8');
     if(ehCriatura(id)){let v=vozDaCriatura(modeloTexto(id));if(v==='rosnado')v='gemido';if(v)tocar(v,tamanhoVoz(id)*.85);}else tocar('morteHumana');setTimeout(()=>tocar('queda'),500);}
    else if(agora.caido&&!antes.caido){marcarToken(id,'ef-cai',650);pinta('ef-poeira',t,ppm()*1.8,850);tocar('queda');}
@@ -328,7 +349,7 @@ let ocupado=false;
    const hp=hs.exists()?hs.data():{actors:{}},hh=hi.exists()?hi.data():{entries:[],revision:0};
    const actors={...(hp.actors||{})};for(const {t,r} of alvos)actors[t.id]={...(actors[t.id]||{}),combateLab:r.combateLab};
    const p=alvos[0];
-   const event={id:'clima:'+hora.toString(36)+Math.random().toString(36).slice(2,6),ts:hora,natureza:'clima',source:{x:Number(ponto.x),y:-1},target:{id:p?String(p.t.id):'',x:Number(ponto.x),y:Number(ponto.y)},item:{nome},hit:!!p,damage:p?Number(p.r.total)||0:0,message:msg};
+   const event={id:'clima:'+hora.toString(36)+Math.random().toString(36).slice(2,6),ts:hora,mapId:String(mapa?.mapId||''),natureza:'clima',source:{x:Number(ponto.x),y:-1},target:{id:p?String(p.t.id):'',x:Number(ponto.x),y:Number(ponto.y)},item:{nome},hit:!!p,damage:p?Number(p.r.total)||0:0,message:msg};
    tx.set(D(HEALTH),clean({...hp,actors,event,revision:Number(hp.revision||0)+1}));
    tx.set(D(HIST),clean({entries:[...(hh.entries||[]),{id:'clima:'+hora.toString(36),ts:hora,actorUid:'',targetUid:'',message:msg}].slice(-120),revision:Number(hh.revision||0)+1}));
   });
@@ -366,6 +387,7 @@ let ocupado=false;
   }catch(e){console.warn('[Efeitos] meteoro',e);}finally{ocupado=false;}
  }
  function desenharClima(){
+  if(!mapaAtivoVisivel())return;
   // v130: o clima vem do painel 🎨 Visual do mapa (por mapa ou cenário inteiro)
   const e=climaAgora(),modo=e.clima||'nenhum',ab=abrigoEf(e.abrigo),int=Number(e.intensidadeClima)||1;
   const seg=Math.floor(Date.now()/1000);if(seg===ultimoSeg)return;ultimoSeg=seg;
@@ -394,11 +416,11 @@ let ocupado=false;
  // v193: passos — compara a posição (left/top %) dos tokens a cada ciclo e balança a miniatura quem se moveu
  const ultPos=new Map(),ultPasso=new Map();let ultSomPasso=0,mapaPassos='',passosProntos=false;
  function passos(){
-  const b=board();if(!b||!movLivre())return;
+  const b=board();if(!b||!movLivre()||!mapaAudivel())return;
   const mv=String(b.dataset.mapaVisivel||'');if(mv!==mapaPassos){mapaPassos=mv;passosProntos=false;ultPos.clear();ultPasso.clear();}
   const agora=Date.now(),vivos=new Set();
   for(const n of b.querySelectorAll('[data-token]')){
-   const id=n.dataset.token;if(!id)continue;vivos.add(id);
+   const id=n.dataset.token;if(!id||tokenMapa(id)!==mapaAudivel())continue;vivos.add(id);
    const ch=(n.style.left||'')+'|'+(n.style.top||''),antes=ultPos.get(id);
    if(n.dataset.sprite&&!n.style.getPropertyValue('--resp-d')){let h=0;for(const c of id)h=(h*31+c.charCodeAt(0))%997;n.style.setProperty('--resp-d',-(h%40)/10+'s');n.style.setProperty('--resp',(3.4+(h%13)/10).toFixed(1)+'s');} /* cada um respira num ritmo */
    if(antes===undefined&&passosProntos&&n.dataset.sprite){n.classList.remove('ef-surge');void n.offsetWidth;n.classList.add('ef-surge');setTimeout(()=>n.classList.remove('ef-surge'),800);tocar('surgir');} /* miniatura nova entrou no mapa */
