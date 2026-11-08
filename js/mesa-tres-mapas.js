@@ -5,6 +5,7 @@
 // Por enquanto as três usam o mesmo tabuleiro (`#sincronizacao-nova`), que é movido para a aba ativa.
 // A aba "Mapa da Mesa" original continua exatamente como era; ao voltar, o tabuleiro volta para lá.
 import {MATERIAIS,oChao,oParede,oPorta,montarPeca} from './mesa-construcao.js?v=180';
+import {instalarLaboratorio25D} from './mesa-lab25d.js';
 const MAPA_T='mesa_laboratorio_v224',MAPA_I='mesa_laboratorio_v224_interior',LIG='combatesAtivos/mesaLigacoes';
 const POS='combatesAtivos/mapaMesaSyncDireta/posicoes';
 const CSS=`
@@ -20,6 +21,8 @@ body:is(.mapa-construtor,.mapa-mestre,.mapa-jogo) #mbBarra button,body:is(.mapa-
 .mtm-mini select{background:#17273d;color:white;border:1px solid #44607d;border-radius:5px;max-width:min(300px,60vw);padding:5px}
 .mtm-mini .mtm-estado{color:#afc4dc}
 body.mapa-jogo #mbBarra{display:flex!important}
+body.mtm-preview25d .mtm-host>#sincronizacao-nova{position:absolute!important;left:-200vw!important;top:0!important;visibility:hidden!important;pointer-events:none!important;width:100%!important}
+body.mtm-preview25d .mtm-host{position:relative}
 
 body.mapa-construtor,body.mapa-mestre,body.mapa-jogo{overflow-y:auto!important;height:auto!important;min-height:100vh!important}
 #mapa-construtor,#mapa-mestre,#mapa-jogo{width:100%;max-width:none!important;box-sizing:border-box}
@@ -60,49 +63,29 @@ body.mapa-jogo #rlNecTopo,body.mapa-jogo #novaMapTopV68{display:none!important}
 body.mapa-construtor #mbBarra .mb-turno,body.mapa-mestre #mbBarra .mb-turno,body.mapa-construtor #mbBarra .mb-st,body.mapa-mestre #mbBarra .mb-st{display:none!important}
 `;
 
-// Ilustração volumétrica do laboratório. Renderizada só em v224 e só nos modos
-// Mestre/Jogo: não substitui nem altera os objetos físicos salvos no Firestore.
-const CASAS_V224=[
- {x:4,y:2,w:6,h:4,cor:'#815534',luz:'#ae8053',telha:'#9b6940',tipo:'madeira'},
- {x:20,y:2,w:4,h:4,cor:'#a34a36',luz:'#d07753',telha:'#b75739',tipo:'tijolo'},
- {x:4,y:10,w:4,h:4,cor:'#9e8159',luz:'#c9ac7d',telha:'#b79a72',tipo:'adobe'},
- {x:20,y:10,w:4,h:4,cor:'#725334',luz:'#b18a54',telha:'#946a43',tipo:'madeira'}
-];
-function svgCasaV224(c){
- const {x,y,w,h,cor,luz,telha}=c,altura=.8,beiral=.12;
- const Y=y-altura,portaX=x+w/2-.32,frente=y+h;
- return `<g stroke-linejoin="round">
-  <path d="M${x+.16} ${y+.16} L${x+w+.45} ${y+.2} L${x+w+.55} ${frente+.4} L${x+.15} ${frente+.45}Z" fill="#060e13" opacity=".28"/>
-  <path d="M${x} ${Y} L${x+w} ${Y} L${x+w} ${frente} L${x} ${frente}Z" fill="${luz}" stroke="#3b2a21" stroke-width=".075"/>
-  <path d="M${x+w} ${Y} l.55 .42 v${h} l-.55 -.42Z" fill="${cor}" stroke="#3d2a23" stroke-width=".07"/>
-  <path d="M${x} ${frente-.17} L${x+w} ${frente-.17} L${x+w+.55} ${frente+.3} L${x+.3} ${frente+.3}Z" fill="${cor}" stroke="#35231a" stroke-width=".06"/>
-  <path d="M${x-beiral} ${Y+.05} L${x+w+beiral} ${Y+.05} L${x+w+beiral+.3} ${y+h*.43} L${x+.08} ${y+h*.43}Z" fill="${telha}" stroke="#3a271b" stroke-width=".08"/>
-  <path d="M${x+.08} ${y+h*.43} L${x+w+beiral+.3} ${y+h*.43} L${x+w+.48} ${y+h*.56} L${x+.25} ${y+h*.56}Z" fill="${cor}" stroke="#4c3224" stroke-width=".06"/>
-  <path d="M${x+.04} ${Y+.11} L${x+w} ${Y+.11} M${x+.1} ${y+h*.19} L${x+w+.1} ${y+h*.19}" stroke="#e6c79a" opacity=".3" stroke-width=".06"/>
-  <rect x="${x+w*.18}" y="${frente-.65}" width=".58" height=".37" rx=".04" fill="#80bdd0" stroke="#53402b" stroke-width=".095"/>
-  <rect x="${portaX}" y="${frente-.7}" width=".64" height=".7" fill="#4a3024" stroke="#e0b978" stroke-width=".075"/>
-  <circle cx="${portaX+.48}" cy="${frente-.34}" r=".035" fill="#f6df8f"/>
-  </g>`;
-}
-const LAB_V224_SVG=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 14" preserveAspectRatio="none" aria-hidden="true" style="width:100%;height:100%;display:block;overflow:visible">${CASAS_V224.map(svgCasaV224).join('')}</svg>`;
 export function instalarTresMapas(dep={}){
  const root=dep.root||document,win=root.defaultView||window;
  const ehMestre=()=>{try{return !!dep.ehMestre?.();}catch(_){return false;}};
  const uid=()=>{try{return String(dep.uid?.()||'mestre');}catch(_){return 'mestre';}};
+ let lab25D=null,modoLab25D=true;
  function atualizarVisual25D(){
   const board=root.getElementById('novaSyncBoard');
-  if(!board)return;
-  const mapa=String(win.novaSyncController_?.mapaAtual?.()||board.dataset.mapaVisivel||'');
-  const mostrar=ehMestre()&&mapa===MAPA_T&&(atual==='mapa-mestre'||atual==='mapa-jogo');
-  let camada=board.querySelector(':scope > #mtmVolumetriaV224');
-  if(!camada){
-   camada=root.createElement('div');camada.id='mtmVolumetriaV224';
-   camada.style.cssText='position:absolute;inset:0;z-index:16;pointer-events:none;overflow:visible;isolation:isolate';
-   camada.innerHTML=LAB_V224_SVG;
-   board.append(camada);
+  const mapa=String(win.novaSyncController_?.mapaAtual?.()||board?.dataset.mapaVisivel||'');
+  const mostrar=ehMestre()&&mapa===MAPA_T&&(atual==='mapa-mestre'||atual==='mapa-jogo')&&modoLab25D;
+  if(mostrar&&!lab25D){
+   const host=root.getElementById(atual)?.querySelector('.mtm-host');
+   if(host)lab25D=instalarLaboratorio25D({root,win,host});
   }
-  camada.hidden=!mostrar;
-  camada.style.display=mostrar?'block':'none';
+  // Quando o laboratório é alternado, o tabuleiro continua montado para as
+  // assinaturas do Firebase, mas só uma visualização aparece ao usuário.
+  root.body.classList.toggle('mtm-preview25d',mostrar);
+  const host=root.getElementById(atual)?.querySelector('.mtm-host');
+  if(lab25D?.el&&host&&!host.contains(lab25D.el))host.prepend(lab25D.el);
+  lab25D?.atualizar({visivel:mostrar,token:atorSelecionado});
+  for(const btn of root.querySelectorAll('[data-mtm-preview]')){
+   btn.hidden=!(atual==='mapa-mestre'||atual==='mapa-jogo')||mapa!==MAPA_T;
+   btn.textContent=modoLab25D?'🗺️ Usar mapa funcional':'🏠 Ver protótipo 2,5D';
+  }
  }
 
  function casaExterior(){
@@ -173,8 +156,9 @@ export function instalarTresMapas(dep={}){
   b.hidden=!ehMestre();
   b.addEventListener('click',()=>abrir(id,b));
   tabs.insertBefore(b,ancora?.nextSibling||null);ancora=b;
-  const sec=root.createElement('div');sec.id=id;sec.className='tab-content';sec.innerHTML=`<div class="form-section"><div class="mtm-faixa"><b>${ic} ${nome}</b><span class="mtm-dica">${dica}</span><div class="mtm-controles"><button type="button" data-criar-demo>🏘️ Criar vila v224</button><button type="button" data-editar-casa>🧱 Construir</button><button type="button" data-diretor>🧭 NPCs e criaturas</button><button type="button" data-voltar-mesa>Voltar à Mesa</button></div></div><div class="mtm-mini"><span data-mtm-mapa>Mapa carregado: verificando…</span><label data-mtm-seletor style="display:none">Acompanhar <select data-mtm-ator><option value="">Selecione uma miniatura</option></select></label><span class="mtm-estado" data-mtm-estado></span></div><div class="mtm-host"></div></div>`;
+  const sec=root.createElement('div');sec.id=id;sec.className='tab-content';sec.innerHTML=`<div class="form-section"><div class="mtm-faixa"><b>${ic} ${nome}</b><span class="mtm-dica">${dica}</span><div class="mtm-controles"><button type="button" data-criar-demo>🏘️ Criar vila v224</button><button type="button" data-mtm-preview hidden>🏠 Ver protótipo 2,5D</button><button type="button" data-editar-casa>🧱 Construir</button><button type="button" data-diretor>🧭 NPCs e criaturas</button><button type="button" data-voltar-mesa>Voltar à Mesa</button></div></div><div class="mtm-mini"><span data-mtm-mapa>Mapa carregado: verificando…</span><label data-mtm-seletor style="display:none">Acompanhar <select data-mtm-ator><option value="">Selecione uma miniatura</option></select></label><span class="mtm-estado" data-mtm-estado></span></div><div class="mtm-host"></div></div>`;
   sec.querySelector('[data-criar-demo]').addEventListener('click',async e=>{if(!win.confirm('Criar uma vila e um interior de laboratório no banco? Nenhum personagem ou mapa existente será apagado.'))return;const btn=e.currentTarget;btn.disabled=true;try{await garantirMapa();await win.abrirMapaBancoNaMesa_?.(MAPA_T);}catch(err){console.warn('[Três mapas]',err);win.alert('Falha ao criar mapa: '+(err?.message||err)+'\n\nSe a operação for negada em mapas/, confira se está autenticado na conta que o Firebase reconhece como mestre.');}finally{btn.disabled=false;}});
+  sec.querySelector('[data-mtm-preview]').addEventListener('click',()=>{modoLab25D=!modoLab25D;atualizarVisual25D();});
   const btnConstruir=sec.querySelector('[data-editar-casa]');
   btnConstruir.hidden=id!=='mapa-construtor';
   btnConstruir.addEventListener('click',()=>{
@@ -289,6 +273,6 @@ export function instalarTresMapas(dep={}){
   abrir('mapa-jogo',root.querySelector('.mtm-tab[data-mtm="mapa-jogo"]'));
  },true);
  // se a sessão esconder a aba por troca de papel, restaura a seção
- const iv=setInterval(()=>{try{if(!ehMestre()&&atual){voltarMesa();}for(const b of root.querySelectorAll('.mtm-tab'))b.hidden=!ehMestre();if(atual){atualizarPainel();atualizarVisual25D();}else root.getElementById('mtmVolumetriaV224')?.setAttribute('hidden','');}catch(_){}},1500);iv.unref?.();
+ const iv=setInterval(()=>{try{if(!ehMestre()&&atual){voltarMesa();}for(const b of root.querySelectorAll('.mtm-tab'))b.hidden=!ehMestre();if(atual){atualizarPainel();atualizarVisual25D();}else atualizarVisual25D();}catch(_){}},1500);iv.unref?.();
  return {abrir,voltarMesa,aba:()=>atual};
 }
