@@ -69,11 +69,11 @@ export function instalarTresMapas(dep={}){
  const root=dep.root||document,win=root.defaultView||window;
  const ehMestre=()=>{try{return !!dep.ehMestre?.();}catch(_){return false;}};
  const uid=()=>{try{return String(dep.uid?.()||'mestre');}catch(_){return 'mestre';}};
- let lab25D=null,modoLab25D=true;
+ let lab25D=null,modoLab25D=false;
  function atualizarVisual25D(){
   const board=root.getElementById('novaSyncBoard');
   const mapa=String(win.novaSyncController_?.mapaAtual?.()||board?.dataset.mapaVisivel||'');
-  const mostrar=ehMestre()&&(atual==='mapa-mestre'||atual==='mapa-jogo')&&modoLab25D;
+  const mostrar=ehMestre()&&!!atual&&modoLab25D;
   if(mostrar&&!lab25D){
    const host=root.getElementById(atual)?.querySelector('.mtm-host');
    if(host)lab25D=instalarLaboratorio25D({root,win,host});
@@ -83,10 +83,10 @@ export function instalarTresMapas(dep={}){
   root.body.classList.toggle('mtm-preview25d',mostrar);
   const host=root.getElementById(atual)?.querySelector('.mtm-host');
   if(lab25D?.el&&host&&!host.contains(lab25D.el))host.prepend(lab25D.el);
-  lab25D?.atualizar({visivel:mostrar,token:atorSelecionado});
+  lab25D?.atualizar({visivel:mostrar,token:atorSelecionado,modo:atual});
   for(const btn of root.querySelectorAll('[data-mtm-preview]')){
-   btn.hidden=!(atual==='mapa-mestre'||atual==='mapa-jogo');
-   btn.textContent=modoLab25D?'🗺️ Usar mapa funcional':'🏠 Ver protótipo 2,5D';
+   btn.hidden=!atual;
+   btn.textContent=modoLab25D?'🗺️ Editar no mapa funcional':(atual==='mapa-construtor'?'🏗️ Inspecionar em 3D':'🏠 Ver protótipo 2,5D');
   }
  }
 
@@ -235,6 +235,8 @@ export function instalarTresMapas(dep={}){
   sync.classList.add('active');
   root.body.classList.remove('mapa-construtor','mapa-mestre','mapa-jogo');root.body.classList.add(id);
   atual=id;win.mesaVista25D=id!=='mapa-construtor';
+  // Construtor inicia no editor funcional; mestre e jogo, na visualização.
+  modoLab25D=id!=='mapa-construtor';
   atualizarPainel();
   atualizarVisual25D();
   filtrarMapasDaArea();
