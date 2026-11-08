@@ -176,6 +176,23 @@ export function mountDirectPositionLab({user,characters,workshop=null,renderScen
  const currentMapId=()=>String(mapPacket?.mapId||'');
  const tokenOnCurrentMap=t=>!!t&&tokenMapId(t)===currentMapId();
  const tokensOnCurrentMap=()=>[...tokens.values()].filter(tokenOnCurrentMap);
+ // Um documento global de saúde recebe eventos de TODOS os mapas.
+ // Nunca reproduzir efeito visual/sonoro de outro mapa.
+ const eventoAudivelNesteMapa=ev=>{
+  const visivel=currentMapId();
+  if(!ev||!visivel)return false;
+  const id=String(ev.mapId||ev.mapaId||'');
+  if(id)return id===visivel;
+  // Compatibilidade com eventos antigos sem mapa: ambos os participantes
+  // devem ser identificáveis e pertencer à tela aberta, sem inferências.
+  const ids=[ev.source?.id,ev.target?.id].filter(Boolean);
+  if(!ids.length)return false;
+  return ids.every(tid=>{
+   const t=tokens.get(String(tid))||tokens.get(encodeURIComponent(String(tid)));
+   return !!t&&String(t.mapaId||'')===visivel;
+  });
+ };
+
  function desiredViewMapId(){
   const shared=sharedMapPacket||{};
   if(user()?.master)return String(shared?.mapId||'');
@@ -820,7 +837,7 @@ visualSync();
   stopHistory=database.subscribeDoc(HISTORY_PATH,value=>{if(g!==generation)return;history=value||{entries:[]};drawHistory();},fail);
   if(prepareAttack)attacks=conectarAtaques({database,user,tokens:()=>tokensOnCurrentMap(),prepare:prepareAttack,prepareSupport,onError:fail,onHealth:value=>{
    if(g!==generation)return;health=value;drawSuaveV203();const event=value.event;
-   if(event&&event.id!==lastEffect){lastEffect=event.id;if(Date.now()-event.ts<5000&&event.source&&event.target){let novo=false;try{novo=!!visual?.ataque(event);}catch(_){}if(!novo)mostrarAtaque(board,event);try{playAttackSound(event);}catch(_){}}}
+   if(event&&event.id!==lastEffect){lastEffect=event.id;if(Date.now()-Number(event.ts||0)<5000&&event.source&&event.target&&eventoAudivelNesteMapa(event)){let novo=false;try{novo=!!visual?.ataque(event);}catch(_){}if(!novo)mostrarAtaque(board,event);try{playAttackSound(event);}catch(_){}}}
   }});
   if(!clockTimer)clockTimer=setInterval(()=>{paintClocks();drawScene();syncDurations();syncFire();},1000);
   draw();
