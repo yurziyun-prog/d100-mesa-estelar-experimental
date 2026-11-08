@@ -152,7 +152,7 @@ export function instalarCamera(dep){
    const vw=novaAba?(b.parentElement?.clientWidth||w):w,vh=novaAba?(b.parentElement?.clientHeight||h):h;
    const aid=a?String(a.id):'';if(aid!==ultimoAtor){ultimoAtor=aid;if(aid)livre=false;}
    const fc=focoConstrutor();
-   const tok=tokenExterno&&/\\bmapa-jogo\\b/.test(String(root.body?.className||''))?b.querySelector('[data-token="'+CSS.escape(tokenExterno)+'"]'):null;
+   const tok=tokenExterno&&/\bmapa-jogo\b/.test(String(root.body?.className||''))?b.querySelector('[data-token="'+CSS.escape(tokenExterno)+'"]'):null;
     const xp=tok?parseFloat(tok.style.left):NaN,yp=tok?parseFloat(tok.style.top):NaN;
     if(tok&&Number.isFinite(xp)&&Number.isFinite(yp)){livre=false;alvo=deslocamento({x:xp/100*w,y:yp/100*h},z,w,h,vw,vh);}
     else if(fc)alvo=deslocamento({x:fc.x/100*w,y:fc.y/100*h},z,w,h,vw,vh);
