@@ -91,19 +91,18 @@ export function instalarTresMapas(dep={}){
  }
 
  function filtrarMapasDaArea(){
+  // v225.1: Não filtrar as opções da barra. <option hidden/disabled> não
+  // funciona de maneira consistente nos seletores nativos (Edge/Windows).
+  // A barra já exclui mapas arquivados V176 e preserva os demais.
   const seletor=root.querySelector('#mbBarra [data-mapa]');
   if(!seletor)return;
-  const ativo=!!atual;
-  // A lista de cenários permanece intacta no Firebase e no Mapa da Mesa.
-  // Apenas a navegação destes três painéis é simplificada.
   for(const option of seletor.options){
-   const id=String(option.value||'');
-   const mapa=(dep.mapas?.()||[]).find(m=>String(m.id)===id);
-   const referencia=MAPAS_REFERENCIA_V225.test(String(mapa?.nome||''));
-   const mostrar=(!id)||(!MAPAS_DESCARTADOS_V224.has(id)&&referencia);
-   option.hidden=ativo&&!mostrar;
-   option.disabled=ativo&&!mostrar;
+   option.hidden=false;
+   option.disabled=false;
   }
+  const quantidade=[...seletor.options].filter(o=>o.value).length;
+  const aviso=root.getElementById(atual)?.querySelector('[data-mtm-mapas-disponiveis]');
+  if(aviso)aviso.textContent=quantidade+' mapa'+(quantidade===1?'':'s')+' disponível'+(quantidade===1?'':'eis')+' · Arquivados no Banco de Mapas';
  }
  async function limparLaboratoriosRuins(){
   if(!ehMestre()||!dep.deleteDoc)throw Error('Exclusão indisponível para esta sessão.');
@@ -199,7 +198,7 @@ export function instalarTresMapas(dep={}){
   b.hidden=!ehMestre();
   b.addEventListener('click',()=>abrir(id,b));
   tabs.insertBefore(b,ancora?.nextSibling||null);ancora=b;
-  const sec=root.createElement('div');sec.id=id;sec.className='tab-content';sec.innerHTML=`<div class="form-section"><div class="mtm-faixa"><b>${ic} ${nome}</b><span class="mtm-dica">${dica}</span><div class="mtm-controles"><button type="button" data-limpar-demo>🗑️ Excluir laboratórios ruins</button><button type="button" data-mtm-preview hidden>🏠 Ver protótipo 2,5D</button><button type="button" data-editar-casa>🧱 Construir</button><button type="button" data-diretor>🧭 NPCs e criaturas</button><button type="button" data-voltar-mesa>Voltar à Mesa</button></div></div><div class="mtm-mini"><span data-mtm-mapa>Mapa carregado: verificando…</span><label data-mtm-seletor style="display:none">Acompanhar <select data-mtm-ator><option value="">Selecione uma miniatura</option></select></label><span class="mtm-estado" data-mtm-estado></span></div><div class="mtm-host"></div></div>`;
+  const sec=root.createElement('div');sec.id=id;sec.className='tab-content';sec.innerHTML=`<div class="form-section"><div class="mtm-faixa"><b>${ic} ${nome}</b><span class="mtm-dica">${dica}</span><div class="mtm-controles"><button type="button" data-limpar-demo>🗑️ Excluir laboratórios ruins</button><button type="button" data-mtm-preview hidden>🏠 Ver protótipo 2,5D</button><button type="button" data-editar-casa>🧱 Construir</button><button type="button" data-diretor>🧭 NPCs e criaturas</button><button type="button" data-voltar-mesa>Voltar à Mesa</button></div></div><div class="mtm-mini"><span data-mtm-mapa>Mapa carregado: verificando…</span><span data-mtm-mapas-disponiveis style="color:#9fb3cc"></span><label data-mtm-seletor style="display:none">Acompanhar <select data-mtm-ator><option value="">Selecione uma miniatura</option></select></label><span class="mtm-estado" data-mtm-estado></span></div><div class="mtm-host"></div></div>`;
   sec.querySelector('[data-limpar-demo]').addEventListener('click',async e=>{
    const botao=e.currentTarget;botao.disabled=true;
    try{await limparLaboratoriosRuins();}catch(err){console.warn('[Três mapas] limpeza',err);win.alert(err?.message||String(err));}
