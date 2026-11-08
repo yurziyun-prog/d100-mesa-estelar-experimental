@@ -1,4 +1,4 @@
-// Mesa Estelar v222 — três abas do mestre em cima do MESMO mapa:
+// Mesa Estelar v224.1 — três modos do mestre para o mesmo mundo compartilhado:
 //   🏗️ Mapa construtor — visão de cima, para construir cidade/casa.
 //   👑 Mapa do mestre — visão de jogo para dirigir a sessão; botão direito num NPC abre o jogo.
 //   🎮 Mapa de jogo   — a mesma visão do jogador, controlando quem foi escolhido.
@@ -37,7 +37,7 @@ body:is(.mapa-construtor,.mapa-mestre) #mbBarra{display:flex;flex-wrap:wrap;gap:
 .mtm-host>#sincronizacao-nova{display:block!important}
 .mtm-faixa{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 8px;padding:7px 10px;border-radius:10px;border:1px solid #2f4664;background:rgba(8,14,26,.75);color:#c6d3e6;font:12.5px 'Segoe UI',Arial,sans-serif}
 .mtm-faixa b{color:#eafcff}.mtm-faixa .mtm-dica{color:#9fb3cc}
-body.mapa-construtor #mbBarra [data-a="atuar"],body.mapa-construtor #mbBarra [data-a="remover"]{display:none!important}
+body.mapa-construtor #mbBarra [data-a="atuar"]{display:none!important}
 body.mapa-jogo #mbBarra [data-a="editar"],body.mapa-jogo #mbBarra [data-a="colocar"],body.mapa-jogo #mbBarra [data-a="mover"],body.mapa-jogo #mbBarra [data-a="remover"],body.mapa-jogo #mbBarra [data-a="desenhar"]{display:none!important}
 body.mapa-jogo #mdAtalhos,body.mapa-jogo #mbTopo,body.mapa-jogo #mbBase{display:none!important}
 /* a seção antiga vira só o tabuleiro dentro das abas novas */
@@ -120,8 +120,21 @@ export function instalarTresMapas(dep={}){
   b.hidden=!ehMestre();
   b.addEventListener('click',()=>abrir(id,b));
   tabs.insertBefore(b,ancora?.nextSibling||null);ancora=b;
-  const sec=root.createElement('div');sec.id=id;sec.className='tab-content';sec.innerHTML=`<div class="form-section"><div class="mtm-faixa"><b>${ic} ${nome}</b><span class="mtm-dica">${dica}</span><div class="mtm-controles"><button type="button" data-criar-demo>🏘️ Criar vila v224</button><button type="button" data-voltar-mesa>Voltar à Mesa</button></div></div><div class="mtm-mini"><span data-mtm-mapa>Mapa carregado: verificando…</span><label data-mtm-seletor style="display:none">Acompanhar <select data-mtm-ator><option value="">Selecione uma miniatura</option></select></label><span class="mtm-estado" data-mtm-estado></span></div><div class="mtm-host"></div></div>`;
+  const sec=root.createElement('div');sec.id=id;sec.className='tab-content';sec.innerHTML=`<div class="form-section"><div class="mtm-faixa"><b>${ic} ${nome}</b><span class="mtm-dica">${dica}</span><div class="mtm-controles"><button type="button" data-criar-demo>🏘️ Criar vila v224</button><button type="button" data-editar-casa>🧱 Construir</button><button type="button" data-diretor>🧭 NPCs e criaturas</button><button type="button" data-voltar-mesa>Voltar à Mesa</button></div></div><div class="mtm-mini"><span data-mtm-mapa>Mapa carregado: verificando…</span><label data-mtm-seletor style="display:none">Acompanhar <select data-mtm-ator><option value="">Selecione uma miniatura</option></select></label><span class="mtm-estado" data-mtm-estado></span></div><div class="mtm-host"></div></div>`;
   sec.querySelector('[data-criar-demo]').addEventListener('click',async e=>{if(!win.confirm('Criar vila, interior e personagens de teste no banco compartilhado?'))return;const btn=e.currentTarget;btn.disabled=true;try{await garantirMapa();await win.abrirMapaBancoNaMesa_?.(MAPA_T);}catch(err){console.warn('[Três mapas]',err);win.alert('Falha ao criar mapa: '+(err?.message||err));}finally{btn.disabled=false;}});
+  const btnConstruir=sec.querySelector('[data-editar-casa]');
+  btnConstruir.hidden=id!=='mapa-construtor';
+  btnConstruir.addEventListener('click',()=>{
+   const construtor=win.mesaOficina3V175?.construtor;
+   if(!construtor?.entrar){win.alert('O editor de construção ainda não carregou. Abra um mapa e tente novamente.');return;}
+   try{construtor.entrar();}catch(err){win.alert('Não foi possível abrir o construtor: '+(err?.message||err));}
+  });
+  const btnDiretor=sec.querySelector('[data-diretor]');
+  btnDiretor.hidden=id!=='mapa-mestre';
+  btnDiretor.addEventListener('click',()=>{
+   const botao=root.getElementById('mdBotao');
+   if(botao)botao.click();else win.alert('O painel Diretor de cena ainda não está disponível.');
+  });
   sec.querySelector('[data-voltar-mesa]').addEventListener('click',()=>voltarMesa(true));
   root.getElementById('appScreen')?.append(sec);
  }
