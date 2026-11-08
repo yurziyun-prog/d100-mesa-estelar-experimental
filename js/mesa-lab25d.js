@@ -44,7 +44,7 @@ export function instalarLaboratorio25D({root=document,win=window,host,ativo=()=>
  const canvas=root.createElement('canvas');canvas.style.cssText='width:100%;height:100%;display:block;cursor:grab;touch-action:none';canvas.setAttribute('aria-label','Protótipo geométrico 2,5D: casa, rua e personagem');
  const help=root.createElement('div');help.style.cssText='position:absolute;left:12px;top:10px;z-index:2;padding:6px 9px;border-radius:7px;background:#0c1b2dda;color:#e8f5ff;font:12px Segoe UI,Arial,sans-serif;pointer-events:none';help.textContent='Laboratório geométrico 2,5D · arraste para girar · roda para aproximar · não edita objetos';
  painel.append(canvas,help);host.prepend(painel);
- const ctx=canvas.getContext('2d');let yaw=-.65,pitch=.62,zoom=1.0,raf=0,drag=null,ultimoModo='',personagem=[18,13,0],selecionado='';
+ const ctx=canvas.getContext('2d');let yaw=-.65,pitch=.62,zoom=1.0,raf=0,drag=null,ultimoModo='',personagem=[18,13,0],selecionado='',modoAtual='mapa-construtor',centroCamera=[14,9],ultimoTokenPos='';
  const lerTokens=()=>{const b=root.getElementById('novaSyncBoard');return [...(b?.querySelectorAll('[data-token]')||[])].map(el=>({id:el.dataset.token,x:parseFloat(el.style.left)*.28,y:parseFloat(el.style.top)*.14})).filter(t=>Number.isFinite(t.x)&&Number.isFinite(t.y));};
  function orientar(p){const [x,y,z]=p,c=Math.cos(yaw),s=Math.sin(yaw);const xx=x*c-y*s,yy=x*s+y*c;return [xx,yy*Math.sin(pitch)-z*Math.cos(pitch),yy*Math.cos(pitch)+z*Math.sin(pitch)];}
  function pintar(){
@@ -54,7 +54,9 @@ export function instalarLaboratorio25D({root=document,win=window,host,ativo=()=>
   ctx.setTransform(dpr,0,0,dpr,0,0);
   const width=W/dpr,height=H/dpr;
   const grad=ctx.createLinearGradient(0,0,0,height);grad.addColorStop(0,'#9fb8c9');grad.addColorStop(1,'#cad4cf');ctx.fillStyle=grad;ctx.fillRect(0,0,width,height);
-  const center=orientar(V(14,9,0)),scale=Math.min(width/38,height/26)*zoom;
+  const tokSeguimento=lerTokens().find(t=>t.id===selecionado);
+  if(modoAtual==='mapa-jogo'&&tokSeguimento){centroCamera=[tokSeguimento.x,tokSeguimento.y];}
+  const center=orientar(V(centroCamera[0],centroCamera[1],0)),scale=Math.min(width/38,height/26)*zoom;
   const projetar=v=>{const q=orientar(v);return [width/2+(q[0]-center[0])*scale,height*.53+(q[1]-center[1])*scale];};
   const desenharPoligono=(vs,cor,borda)=>{ctx.beginPath();vs.forEach((v,i)=>{const [x,y]=projetar(v);if(i)ctx.lineTo(x,y);else ctx.moveTo(x,y);});ctx.closePath();ctx.fillStyle=cor;ctx.fill();if(borda){ctx.strokeStyle=borda;ctx.lineWidth=Math.max(.6,scale*.018);ctx.stroke();}};
   casaFaces();
@@ -73,10 +75,45 @@ export function instalarLaboratorio25D({root=document,win=window,host,ativo=()=>
   ctx.fillStyle='#102235bb';ctx.fillRect(10,height-29,Math.min(440,width-20),22);ctx.fillStyle='#edf7ff';ctx.font='12px Segoe UI,Arial';ctx.fillText('Casa: 7 × 5 m · parede 3,2 m · personagem 1,75 m',18,height-14);
  }
  const invalidate=()=>{if(!raf)raf=win.requestAnimationFrame(pintar);};
- canvas.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY,id:e.pointerId};canvas.setPointerCapture(e.pointerId);canvas.style.cursor='grabbing';});
- canvas.addEventListener('pointermove',e=>{if(!drag||e.pointerId!==drag.id)return; yaw+= (e.clientX-drag.x)*.007;pitch=clamp(pitch+(e.clientY-drag.y)*.005,.24,1.48);drag.x=e.clientX;drag.y=e.clientY;invalidate();});
+ canvas.addEventListener('pointerdown',e=>{if(modoAtual==='mapa-jogo')return;drag={x:e.clientX,y:e.clientY,id:e.pointerId};canvas.setPointerCapture(e.pointerId);canvas.style.cursor='grabbing';});
+ canvas.addEventListener('pointermove',e=>{if(modoAtual==='mapa-jogo'||!drag||e.pointerId!==drag.id)return; yaw+=(e.clientX-drag.x)*.007;pitch=clamp(pitch+(e.clientY-drag.y)*.005,.16,1.56);drag.x=e.clientX;drag.y=e.clientY;invalidate();});
  const stop=e=>{if(drag&&e.pointerId===drag.id){drag=null;canvas.style.cursor='grab';}};canvas.addEventListener('pointerup',stop);canvas.addEventListener('pointercancel',stop);
- canvas.addEventListener('wheel',e=>{e.preventDefault();zoom=clamp(zoom*Math.exp(-e.deltaY*.001),.7,3);invalidate();},{passive:false});
+ canvas.addEventListener('wheel',e=>{if(modoAtual==='mapa-jogo')return;e.preventDefault();zoom=clamp(zoom*Math.exp(-e.deltaY*.001),.7,3);invalidate();},{passive:false});
  const resize=typeof ResizeObserver!=='undefined'?new ResizeObserver(invalidate):null;resize?.observe(painel);
- return {el:painel,atualizar({visivel=false,token=''}={}){if(painel.hidden===!visivel&&selecionado===token)return;selecionado=token; painel.hidden=!visivel; painel.style.display=visivel?'block':'none';if(visivel)invalidate();},destruir(){resize?.disconnect();if(raf)win.cancelAnimationFrame(raf);painel.remove();}};
+ const acompanhamento=win.setInterval(()=>{
+  if(modoAtual!=='mapa-jogo'||painel.hidden)return;
+  const t=lerTokens().find(t=>t.id===selecionado);
+  if(!t)return;
+  const chave=t.id+':'+t.x.toFixed(3)+':'+t.y.toFixed(3);
+  if(chave!==ultimoTokenPos){
+   ultimoTokenPos=chave;
+   // Ângulo vinculado ao deslocamento observado, não ao arrasto do jogador.
+   // O protótipo NÃO interfere no movimento/combate verdadeiro do tabuleiro.
+   if(Number.isFinite(centroCamera[0])&&Number.isFinite(centroCamera[1])){
+    const dx=t.x-centroCamera[0],dy=t.y-centroCamera[1];
+    if(Math.hypot(dx,dy)>.12)yaw=Math.atan2(dy,dx)-Math.PI*.5;
+   }
+   centroCamera=[t.x,t.y];
+   invalidate();
+  }
+ },160);
+ return {el:painel,atualizar({visivel=false,token='',modo='mapa-construtor'}={}){
+  const mudou=modoAtual!==modo,tokenMudou=selecionado!==token;
+  modoAtual=modo;selecionado=token;
+  if(mudou){
+   drag=null;
+   if(modo==='mapa-construtor'){pitch=1.20;zoom=1.20;centroCamera=[14,9];}
+   if(modo==='mapa-mestre'){pitch=.68;zoom=1;centroCamera=[14,9];}
+   if(modo==='mapa-jogo'){pitch=.53;zoom=1.3;const t=lerTokens().find(t=>t.id===selecionado);if(t)centroCamera=[t.x,t.y];}
+  }
+  canvas.style.cursor=modo==='mapa-jogo'?'default':'grab';
+  canvas.style.touchAction=modo==='mapa-jogo'?'auto':'none';
+  help.textContent=modo==='mapa-construtor'
+   ?'CONSTRUTOR · arraste para girar e inclinar · roda para zoom · modelo visual, edição ainda no mapa funcional'
+   :modo==='mapa-mestre'
+   ?'MESTRE · câmera livre para inspeção · arraste para girar · roda para zoom'
+   :'JOGO · câmera automática vinculada à miniatura · rotação e zoom manual desativados';
+  painel.hidden=!visivel;painel.style.display=visivel?'block':'none';
+  if(visivel&&(mudou||tokenMudou||!raf))invalidate();
+ },destruir(){win.clearInterval(acompanhamento);resize?.disconnect();if(raf)win.cancelAnimationFrame(raf);painel.remove();}};
 }
