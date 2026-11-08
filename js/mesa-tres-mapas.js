@@ -84,21 +84,32 @@ export function instalarTresMapas(dep={}){
   out.push(oPorta({x:Math.round(W/2)-1,y:H-.3,w:2,h:.3},mat,W,H));return out;
  }
  async function garantirMapa(){
-  if(!dep.setDoc||!dep.doc)return false;
-  const ja=(dep.mapas?.()||[]).some(m=>String(m.id)===MAPA_T);if(ja)return true;
+  if(!dep.setDoc||!dep.doc||!dep.db)throw Error('API de gravação indisponível. Abra um mapa como mestre.');
   const db=dep.db,docFn=dep.doc,setDoc=dep.setDoc,dono=uid();
-  await setDoc(docFn(db,'mapas',MAPA_T),{id:MAPA_T,nome:'Laboratório v224 — Vila de demonstração',larguraM:28,alturaM:14,pxPorMetro:40,fundo:'#4f6b3a',criadoPor:dono,atualizadoEm:new Date().toISOString(),testeV222:true});
-  await setDoc(docFn(db,'combatesAtivos','mapaMesaSyncCena_'+MAPA_T),{mapId:MAPA_T,objects:casaExterior()});
-  await setDoc(docFn(db,'mapas',MAPA_I),{id:MAPA_I,nome:'Laboratório v224 — Interior da casa',larguraM:10,alturaM:7,pxPorMetro:40,fundo:'#6b5a44',criadoPor:dono,atualizadoEm:new Date().toISOString(),testeV222:true});
-  await setDoc(docFn(db,'combatesAtivos','mapaMesaSyncCena_'+MAPA_I),{mapId:MAPA_I,objects:interior()});
-  await setDoc(docFn(db,POS+'/demo_kael'),{nome:'Kael Teste',imagem:'',donoUid:dono,x:8,y:11,revision:0,facing:0,camada:3,mapaId:MAPA_T,diametroM:1});
-  await setDoc(docFn(db,POS+'/syncnpc:ferreiro~1'),{nome:'Ferreiro',imagem:'',donoUid:'',x:19,y:9,revision:0,facing:0,camada:3,mapaId:MAPA_T,diametroM:1});
-  await setDoc(docFn(db,POS+'/synccriatura:zumbi_1~1'),{nome:'Zumbi de teste',imagem:'',donoUid:'',x:23,y:5,revision:0,facing:0,camada:3,mapaId:MAPA_T,diametroM:1});
-  const snap=await dep.getDoc?.(docFn(db,LIG));const v=snap?.exists?.()?snap.data():{};
-  const ligs=(v.ligacoes||[]).filter(l=>l.id!=='ligTres224');
-  ligs.push({id:'ligTres222',a:{mapa:MAPA_T,x:8,y:5.8},b:{mapa:MAPA_I,x:5,y:6.2},tipo:'porta',interiorV164:true,testeV222:true});
-  await setDoc(docFn(db,LIG),{...v,ligacoes:ligs,atualizadoEm:Date.now()});
-  await win.recarregarBancoMapas_?.();
+  let etapa='Verificar mapas';
+  const gravar=async(path,data)=>{
+    etapa=path;
+    try{return await setDoc(docFn(db,...path.split('/')),data);}
+    catch(err){
+      const e=new Error('Permissão ou gravação recusada em '+etapa+': '+String(err?.code||err?.message||err));
+      e.cause=err;
+      throw e;
+    }
+  };
+  // O laboratório cria SOMENTE mapas/cenas. Miniaturas e vínculos de campanha
+  // devem ser adicionados pelos sistemas oficiais depois de confirmar o mapa.
+  // Assim a demonstração não sobrescreve personagens com IDs reutilizados.
+  etapa='mapas/'+MAPA_T;
+  if(!(dep.mapas?.()||[]).some(m=>String(m.id)===MAPA_T)){
+    await gravar('mapas/'+MAPA_T,{id:MAPA_T,nome:'Laboratório v224 — Vila de demonstração',larguraM:28,alturaM:14,pxPorMetro:40,fundo:'#4f6b3a',criadoPor:dono,atualizadoEm:new Date().toISOString(),testeV224:true});
+  }
+  await gravar('combatesAtivos/mapaMesaSyncCena_'+MAPA_T,{mapId:MAPA_T,objects:casaExterior()});
+  etapa='mapas/'+MAPA_I;
+  if(!(dep.mapas?.()||[]).some(m=>String(m.id)===MAPA_I)){
+    await gravar('mapas/'+MAPA_I,{id:MAPA_I,nome:'Laboratório v224 — Interior da casa',larguraM:10,alturaM:7,pxPorMetro:40,fundo:'#6b5a44',criadoPor:dono,atualizadoEm:new Date().toISOString(),testeV224:true});
+  }
+  await gravar('combatesAtivos/mapaMesaSyncCena_'+MAPA_I,{mapId:MAPA_I,objects:interior()});
+  try{await win.recarregarBancoMapas_?.();}catch(err){console.warn('[Três mapas] recarregar lista:',err);}
   return true;
  }
  if(root.getElementById('mtmCss'))return;
@@ -121,7 +132,7 @@ export function instalarTresMapas(dep={}){
   b.addEventListener('click',()=>abrir(id,b));
   tabs.insertBefore(b,ancora?.nextSibling||null);ancora=b;
   const sec=root.createElement('div');sec.id=id;sec.className='tab-content';sec.innerHTML=`<div class="form-section"><div class="mtm-faixa"><b>${ic} ${nome}</b><span class="mtm-dica">${dica}</span><div class="mtm-controles"><button type="button" data-criar-demo>🏘️ Criar vila v224</button><button type="button" data-editar-casa>🧱 Construir</button><button type="button" data-diretor>🧭 NPCs e criaturas</button><button type="button" data-voltar-mesa>Voltar à Mesa</button></div></div><div class="mtm-mini"><span data-mtm-mapa>Mapa carregado: verificando…</span><label data-mtm-seletor style="display:none">Acompanhar <select data-mtm-ator><option value="">Selecione uma miniatura</option></select></label><span class="mtm-estado" data-mtm-estado></span></div><div class="mtm-host"></div></div>`;
-  sec.querySelector('[data-criar-demo]').addEventListener('click',async e=>{if(!win.confirm('Criar vila, interior e personagens de teste no banco compartilhado?'))return;const btn=e.currentTarget;btn.disabled=true;try{await garantirMapa();await win.abrirMapaBancoNaMesa_?.(MAPA_T);}catch(err){console.warn('[Três mapas]',err);win.alert('Falha ao criar mapa: '+(err?.message||err));}finally{btn.disabled=false;}});
+  sec.querySelector('[data-criar-demo]').addEventListener('click',async e=>{if(!win.confirm('Criar uma vila e um interior de laboratório no banco? Nenhum personagem ou mapa existente será apagado.'))return;const btn=e.currentTarget;btn.disabled=true;try{await garantirMapa();await win.abrirMapaBancoNaMesa_?.(MAPA_T);}catch(err){console.warn('[Três mapas]',err);win.alert('Falha ao criar mapa: '+(err?.message||err)+'\n\nSe a operação for negada em mapas/, confira se está autenticado na conta que o Firebase reconhece como mestre.');}finally{btn.disabled=false;}});
   const btnConstruir=sec.querySelector('[data-editar-casa]');
   btnConstruir.hidden=id!=='mapa-construtor';
   btnConstruir.addEventListener('click',()=>{
