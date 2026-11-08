@@ -454,7 +454,7 @@ export function instalarTempoReal(dep){
   await dep.runTransaction(dep.db,async tx=>{
    const s=await tx.get(D(HEALTH)),hp=s.exists()?s.data():{actors:{},revision:0},h=await tx.get(D(HIST)),hh=h.exists()?h.data():{entries:[],revision:0};
    const actors=clean(hp.actors||{}),msg=mexer(actors);if(!msg)return;feito=true;
-   const event={id:'rt:'+crypto.randomUUID(),ts:Date.now(),actorUid:'',targetUid:'',message:msg};
+   const event={id:'rt:'+crypto.randomUUID(),ts:Date.now(),mapId:String(map?.mapId||''),actorUid:'',targetUid:'',message:msg};
    tx.set(D(HEALTH),clean({...hp,actors,event,revision:Number(hp.revision||0)+1}));
    tx.set(D(HIST),clean({entries:[...(hh.entries||[]),event].slice(-120),revision:Number(hh.revision||0)+1}));
   });
@@ -521,7 +521,7 @@ export function instalarTempoReal(dep){
    if(extra.kind==='direct-psi'&&psiOfensivoRT(extra.powerId,actorId,targetId))exigirAtaqueRT(hp.actors?.[actorId],rtAtual,map);
    const id='rt:'+crypto.randomUUID(),seed=semente();
    const res=prep.resolve({a,b,health:hp,map:{...map,combat:null},cmd:{...extra,id,time:Date.now(),seed},sheet,scene,positions:pos,seed});
-   const event={id,ts:Date.now(),actorUid:a.donoUid||'',targetUid:b.donoUid||'',message:'⚡ '+String(res.message||'')};
+   const event={id,ts:Date.now(),mapId:String(map?.mapId||''),actorUid:a.donoUid||'',targetUid:b.donoUid||'',message:'⚡ '+String(res.message||'')};
    if(extra.kind==='direct-psi')Object.assign(event,{source:{id:a.id,x:a.x,y:a.y},target:{id:b.id,x:b.x,y:b.y},item:{nome:res.powerName||'Poder psíquico'},hit:res.psiHit!==false,...(res.area?{area:res.area}:{})});
    tx.set(D(HEALTH),clean({...hp,actors:clean(res.actors||hp.actors||{}),psiRequests:res.psiRequests||hp.psiRequests||[],event,revision:Number(hp.revision||0)+1}));
    if(prep.sheetPath&&sheet&&(res.inventory||res.sheetPatch))tx.set(D(prep.sheetPath),clean({...sheet,...(res.sheetPatch||{}),...(res.inventory?{inventario:res.inventory}:{})}));
