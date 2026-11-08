@@ -76,7 +76,12 @@ export function instalarTresMapas(dep={}){
   const mostrar=ehMestre()&&!!atual&&modoLab25D;
   if(mostrar&&!lab25D){
    const host=root.getElementById(atual)?.querySelector('.mtm-host');
-   if(host)lab25D=instalarLaboratorio25D({root,win,host});
+   if(host)lab25D=instalarLaboratorio25D({
+    root,win,host,
+    cenaAtual:()=>win.novaSyncController_?.cenaAtual?.()||null,
+    dimensoes:()=>win.novaSyncController_?.dimsAtual?.()||({W:28,H:14}),
+    mapaAtual:()=>String(win.novaSyncController_?.mapaAtual?.()||'')
+   });
   }
   // Quando o laboratório é alternado, o tabuleiro continua montado para as
   // assinaturas do Firebase, mas só uma visualização aparece ao usuário.
