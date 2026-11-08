@@ -2,6 +2,8 @@
 // Projeção de vértices reais [x,y,z], não fachadas coladas em um tabuleiro 2D.
 // Apenas visualização experimental; não escreve no Firebase.
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
+// Inspirado na leitura isometrica de RPGs classicos: norte estavel, cameras sem rotacao livre no jogo.
+const JOGO_YAW=-Math.PI/4, JOGO_PITCH=.75, JOGO_ZOOM=1.6;
 const V=(x,y,z=0)=>[x,y,z];
 const casa={x:9,y:5,w:7,d:5,h:3.2,telhado:1.7};
 const faces=[];
@@ -54,8 +56,8 @@ export function instalarLaboratorio25D({root=document,win=window,host,ativo=()=>
   ctx.setTransform(dpr,0,0,dpr,0,0);
   const width=W/dpr,height=H/dpr;
   const grad=ctx.createLinearGradient(0,0,0,height);grad.addColorStop(0,'#9fb8c9');grad.addColorStop(1,'#cad4cf');ctx.fillStyle=grad;ctx.fillRect(0,0,width,height);
-  const tokSeguimento=lerTokens().find(t=>t.id===selecionado);
-  if(modoAtual==='mapa-jogo'&&tokSeguimento){centroCamera=[tokSeguimento.x,tokSeguimento.y];}
+   // No modo de jogo a camera desliza suavemente para seguir a miniatura.
+  // O angulo do mundo nunca gira quando a miniatura muda de direcao.
   const center=orientar(V(centroCamera[0],centroCamera[1],0)),scale=Math.min(width/38,height/26)*zoom;
   const projetar=v=>{const q=orientar(v);return [width/2+(q[0]-center[0])*scale,height*.53+(q[1]-center[1])*scale];};
   const desenharPoligono=(vs,cor,borda)=>{ctx.beginPath();vs.forEach((v,i)=>{const [x,y]=projetar(v);if(i)ctx.lineTo(x,y);else ctx.moveTo(x,y);});ctx.closePath();ctx.fillStyle=cor;ctx.fill();if(borda){ctx.strokeStyle=borda;ctx.lineWidth=Math.max(.6,scale*.018);ctx.stroke();}};
@@ -84,27 +86,26 @@ export function instalarLaboratorio25D({root=document,win=window,host,ativo=()=>
   if(modoAtual!=='mapa-jogo'||painel.hidden)return;
   const t=lerTokens().find(t=>t.id===selecionado);
   if(!t)return;
+  centroCamera[0]+=(t.x-centroCamera[0])*.26;
+  centroCamera[1]+=(t.y-centroCamera[1])*.26;
+  if(Math.hypot(t.x-centroCamera[0],t.y-centroCamera[1])>.008)invalidate();
   const chave=t.id+':'+t.x.toFixed(3)+':'+t.y.toFixed(3);
   if(chave!==ultimoTokenPos){
    ultimoTokenPos=chave;
-   // Ângulo vinculado ao deslocamento observado, não ao arrasto do jogador.
-   // O protótipo NÃO interfere no movimento/combate verdadeiro do tabuleiro.
-   if(Number.isFinite(centroCamera[0])&&Number.isFinite(centroCamera[1])){
-    const dx=t.x-centroCamera[0],dy=t.y-centroCamera[1];
-    if(Math.hypot(dx,dy)>.12)yaw=Math.atan2(dy,dx)-Math.PI*.5;
-   }
-   centroCamera=[t.x,t.y];
+   // O jogador se move no mundo; o mundo mantém seu norte isométrico.
+   // Câmera do jogo acompanha sem exigir controle manual do ângulo.
    invalidate();
   }
  },160);
  return {el:painel,atualizar({visivel=false,token='',modo='mapa-construtor'}={}){
   const mudou=modoAtual!==modo,tokenMudou=selecionado!==token;
   modoAtual=modo;selecionado=token;
+  if(modo==='mapa-jogo'&&tokenMudou){const t=lerTokens().find(t=>t.id===token);if(t)centroCamera=[t.x,t.y];}
   if(mudou){
    drag=null;
    if(modo==='mapa-construtor'){pitch=1.20;zoom=1.20;centroCamera=[14,9];}
    if(modo==='mapa-mestre'){pitch=.68;zoom=1;centroCamera=[14,9];}
-   if(modo==='mapa-jogo'){pitch=.53;zoom=1.3;const t=lerTokens().find(t=>t.id===selecionado);if(t)centroCamera=[t.x,t.y];}
+   if(modo==='mapa-jogo'){yaw=JOGO_YAW;pitch=JOGO_PITCH;zoom=JOGO_ZOOM;const t=lerTokens().find(t=>t.id===selecionado);if(t)centroCamera=[t.x,t.y];}
   }
   canvas.style.cursor=modo==='mapa-jogo'?'default':'grab';
   canvas.style.touchAction=modo==='mapa-jogo'?'auto':'none';
@@ -112,7 +113,7 @@ export function instalarLaboratorio25D({root=document,win=window,host,ativo=()=>
    ?'CONSTRUTOR · arraste para girar e inclinar · roda para zoom · modelo visual, edição ainda no mapa funcional'
    :modo==='mapa-mestre'
    ?'MESTRE · câmera livre para inspeção · arraste para girar · roda para zoom'
-   :'JOGO · câmera automática vinculada à miniatura · rotação e zoom manual desativados';
+   :'JOGO · estilo isométrico clássico · norte fixo · acompanha personagem · rotação e zoom bloqueados';
   painel.hidden=!visivel;painel.style.display=visivel?'block':'none';
   if(visivel&&(mudou||tokenMudou||!raf))invalidate();
  },destruir(){win.clearInterval(acompanhamento);resize?.disconnect();if(raf)win.cancelAnimationFrame(raf);painel.remove();}};
