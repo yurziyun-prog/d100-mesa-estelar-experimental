@@ -1,0 +1,13 @@
+.firebase-public/
+.firebase/
+firebase-debug.log*
+# Artes e pacotes pesados ficam fora do git (o código e os testes vão para o GitHub).
+arte/
+arte-fonte/
+imagens/
+_entregas/
+docs/**/*.png
+docs/**/*.jpg
+docs/**/*.jpeg
+docs/**/*.webp
+dados/backups/

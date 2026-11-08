@@ -1,0 +1,50 @@
+# Dificuldades, causas e alternativas (para o GPT ler) — reconciliado com a 3ª etapa
+
+Histórico da etapa anterior: `docs/dificuldades-para-gpt.historico-etapa2.md` (mantido; nada foi apagado).
+Cada linha: **problema → causa (confirmada ou hipótese) → o que foi feito → arquivo → evidência → ambiente → se falhar.**
+Ambientes: **[H]** harness local (Edge sem cabeça, Firestore falso, papel de jogador SIMULADO; mestre SIMULADO por alguns segundos) · **[U]** teste unitário (Node) · **[pub]** site publicado · **[pend]** não testado.
+Nada aqui foi provado com sessão autenticada real nem com controle físico.
+
+## Resolvidos nesta etapa
+| Problema | Causa | Solução | Arquivo | Evidência | Ambiente | Se falhar |
+|---|---|---|---|---|---|---|
+| Miniaturas ora gigantes ora minúsculas | **Confirmada:** a câmera de cada atlas se ajusta à criatura (ortho 3,2–9 m) e o desenho era dimensionado pelo `diametroM` do token × 1,6 × escala do catálogo × ajuste: multiplicadores acumulados sem relação com metros | Cada atlas tem **tamanho de quadro em metros** (ortho × alvo/medida); o desenho mede exatamente isso, independente do token. Colisão (`soloM`) separada da pegada visual | `scripts/escala-fisica.cjs`, `js/mesa-escala-fisica.js`, `js/mesa-arte3d.js` | `tests/v205-escala-browser.cjs` (quadro medido = tabela; sem disco), fotos em `docs/antes-depois/` | [H] | Medir de novo com `blender --medir`; ajustar o alvo da espécie |
+| Discos/auras atrás das miniaturas | **Confirmada:** `box-shadow` do token (círculo 50%, `mesa-visual.js`) + fundo azul `#263d62` do token sem imagem + `.tp-sombra`/`.tp-anel` das montarias em solo | CSS: tokens com arte 3D sem fundo, sombra redonda e anel; sombra de montaria só quando voa (efeito aprovado) | `js/mesa-arte3d.js` (CSS_SEM_AURA), `js/mesa-transporte.js` | o teste de escala falha se o token tiver fundo/sombra | [H] | Procurar pseudo-elementos com `getComputedStyle(n,'::after')` |
+| Giros e andar espontâneos | **Confirmada:** o movimento era lido de `getBoundingClientRect()`; pan/zoom/rolagem mudavam a medida | Movimento pela posição LÓGICA (28×14); âncora de rumo (≥ 7% de unidade); rumo conservado ao parar; tremor de rede ignorado | `js/mesa-arte3d.js` | `tests/v205-giros-browser.cjs` (parado + pan/zoom/rolagem; ±180°; jitter) | [H] | Instrumentar por token (posição, rumo, ação) com a mesma câmera |
+| Voador "intangível" ou sempre por cima | A colisão só tratava objetos, com `mesaVoandoV203` booleano; ordem visual pela ordem no DOM | `mesa-espaco.js`: altitude dos pés + altura do corpo; corpo×corpo só se os intervalos verticais se sobrepõem; objeto por altura (parede 3 m, tronco 4 m…); ordem visual por altitude | `js/mesa-espaco.js`, `js/nova-colisao.js`, `js/nova-camadas.js`, `js/nova-direta.js` | `tests/v205-espaco.test.mjs` | [U]; voo real com cavaleiro [pend] | Dado de altura por objeto (`alturaZM`) em vez da heurística |
+| Balões permanentes (Sentar, Abrir, Ligar, Subir) | Pílulas `mo-vizinho` e botão `anEscada` desenhados perto do personagem | Pílula escondida (existe para F/controle); **clicar no objeto** age; escada/rampa começam ao **andar para dentro** (trava até sair da zona) | `js/mesa-objetos.js`, `js/mesa-andares.js` | o percurso do jogador clica nos objetos e anda nas escadas | [H] | O clique usa a referência de `#moCamada` (não `#novaSyncBoard`: borda × zoom) |
+| Cachoeira = tapete listrado | Peça Blender estática (14 faixas) | Peça só com o leito (miolo transparente); água = canvas animado (aceleração até o lábio, degraus com espuma, poço com anéis) | `scripts/blender/sala_pecas.py`, `js/mesa-cachoeira.js` | `tests/v205-cachoeira-browser.cjs` (quadros diferentes; água só no canal) | [H] | Atlas Blender em loop se o canvas pesar |
+| Caverna com interior exposto | Maciço sem teto | Telhado de rocha sobre a caverna natural e a gruta; abre **só para quem está dentro, no mesmo nível, nesta sessão** (antes qualquer jogador abria para todos) | `js/mesa-ecossistema.js`, `js/mesa-tetos.js` | `tests/v205-subsolo-browser.cjs` | [H] com UMA sessão; duas sessões independentes [pend] | Emulador com dois contextos (precisa de Java) |
+| Subsolo real | `andarDo*` ≥ 1 e `(andar-1)*3` impediam elevação negativa | ID continua positivo (9); **elevação por dado** (`elevacaoAndarV205`); visão/cobertura por elevação; ligação explícita `ligaAndaresV205` | `js/mesa-andares.js`, `js/mesa-ecossistema.js`, `js/mesa-editor-rapido.js` (`ajustar`) | `tests/v205-andares-subsolo.test.mjs`, `tests/v205-subsolo-browser.cjs` | [U] [H] | Saltos/quedas e `alturaNoPonto` ainda usam (id-1)*3 [pend] |
+| Escuridão | Overlay antigo deixava luz residual | `mesa-escuridao.js`: preto sem fonte; fontes = lâmpada acesa, tocha/lanterna/espada de energia EMPUNHADAS, abertura real; raios contra sólidos do mesmo nível | `js/mesa-escuridao.js`, `js/mesa-equip-visual.js` (letras L/T/N) | `tests/v205-escuridao.test.mjs`; subsolo [H]: alfa 169 junto da abertura, 255 no fundo; lanterna acende; guardar apaga | [U] [H] | Memória de área explorada não existe (de propósito) |
+| Água: profundidade | Só textura | Estados visuais seco→vadeando→nadando (profundidade ÷ altura do corpo, histerese), ondas/tinta/rastro/gotas; **sem dano, rolagem ou morte** | `js/mesa-agua-visual.js` | `tests/v205-agua-visual.test.mjs`, `tests/v205-agua-browser.cjs` (saúde e histórico inalterados) | [U] [H] | Máscara real da parte submersa em Blender não foi feita |
+| Lava sem efeito | Nunca existiu efeito de lava | Dados por região (`perigoLavaV205`), núcleo, margem de calor, ponte firme, altura de voo; queimadura **pelo mestre, 1× a cada 3 s por personagem**, perigo crescente ×1→×3 | `js/mesa-lava.js`, `js/mesa-masmorra.js` | `tests/v205-lava.test.mjs`, `tests/v205-lava-browser.cjs` | [U] [H] (mestre simulado) | Durabilidade de equipamento não foi tocada (regra existente) |
+| "46 criaturas" não provava ecossistema | Habitat/necessidades não observáveis | Habitat gravado no token, sede/água, atividades (💧🍃💤 + 🍎🪨🕳️ do motor), diagnóstico do mestre (`mesaVidaDiagV205`) | `js/mesa-nichos.js`, `js/mesa-vida.js` | `tests/v205-ecossistema-browser.cjs` + `docs/diagnostico-ecossistema.json` | [H] 120 s (não horas) | Ciclo caça→comer: vistos 🍎/🪨 do motor; caça entre espécies = luta em tempo real |
+| Quatro braços sobrepostos | O 2º par de braços ficava sob o 1º vistos de cima | 2º par mais baixo, para trás e aberto para fora | `scripts/blender/criaturas_cima.py` | render de `insetoide_predador` (quatro mãos distintas) | render | Rig com 4 cadeias e pesos reais |
+
+## Em aberto (com o motivo)
+| Pendência | Motivo / hipótese | Próximo passo |
+|---|---|---|
+| Sessão autenticada e **duas sessões independentes** (jogador + mestre) | O emulador do Firestore exige **Java**; não há Java nesta máquina e instalar é mudança no PC do Yuri | Instalar JRE 21 (ou autorizar baixar um portátil) e seguir o roteiro do guia (projeto `demo-…`, Auth 9099, Firestore 8080) |
+| Ataque do jogador (Espaço/A) e equipar pela ficha real | `disparar()` exige `estado().sheet` (ficha completa via `novaFicha_`); o Firestore falso não tem | Mesma solução do emulador, com ficha criada pela fábrica do projeto |
+| Controle **físico** | Sem controle nesta máquina | O Yuri testa; o emulado já passou (stick, B fechando balões) |
+| Armadilha às vezes não dispara ao andar até a laje | Detecção por ponto; o teste reposiciona sobre o centro quando falha | Interseção do **segmento** com a laje (guia §4) — não feito |
+| Rampa com ~1 m | Geometria do gerador | Alargar o corredor — não feito |
+| Sentar/deitar/embarque/montar com IK de mãos e pés | Não implementado (só posição/andar) | Poses por alvo do móvel no rig |
+| Pequenos voadores decorativos, filhotes, fauna aquática própria, enxame como partículas | Fora do núcleo estável | Extensão depois do núcleo |
+| Percurso próprio de bosque e lagoa por entrada normal | Só cobertos pelos testes de água/colisão | Percurso com copa/tronco |
+| Rig mínimo por família (hexápode, aracnomorfo, primata) | As criaturas procedurais andam por ciclo de pose e têm as 5 ações, sem pesos | Rigs reutilizáveis por família |
+| Desempenho real | 114 fps em Edge sem cabeça (Intel UHD) com 2 tokens na tela | Medir no PC do Yuri com a cena cheia |
+| `serpente_sanguessuga` e `vampiro_psiquico` sem escala física | Sem receita procedural nova | Receita + medida |
+| Combate entre espécies muito rápido (7 inconscientes + 3 mortos em 2 min no harness) | Luta em tempo real do motor existente | Ajustar facções/territórios; conferir com o Yuri |
+
+## Ambiente (herdado)
+- Sem Python no PC: patches em Node; o Blender usa o Python embutido. Scripts longos: ferramenta Write (heredocs truncam; crases em `node -e` viram comando).
+- Playwright antigo não abre o Chrome 155: usa Edge.
+- O teste de assinaturas varia com o dia do mês (preexistente, não relacionado).
+
+## Correções pedidas pelo Yuri após a publicação (v205, mesma data)
+- **Miniaturas**: o vídeo anterior mostrou o insetoide como "bola azul" porque um comentário meu quebrou o módulo `mesa-arte3d.js` na hora de gravar (arte 3D desligada). Corrigido; o teste do passeio agora exige `data-arte3d = cima_insetoide_predador`.
+- **Dragão-trombeta aprovado**: a reforma tinha trocado a arte dos corredores (domesticado/selvagem) por versões procedurais. Restaurada por `scripts/arte-aprovada.mjs` (alias para `blender_dragao_trombeta_cima`), tamanho de quadro mantido. Os alados continuam procedurais (a arte aprovada é só do corredor). Backup: `arte-fonte/backup-catalogo/mesa-sprites-3d-dados.pre-arte-aprovada-v205.js`.
+- **Escadas/rampas**: removidas as setas e o escurecimento direcional; sobem ou descem conforme o nível de onde se entra.
+- **"Saltos" do personagem no vídeo**: eram teleportes do teste entre lugares, não salvamento. O passeio agora anda de verdade; ressalvas: a armadilha de estacas da soleira da torre foi retirada só para o vídeo e o trecho final da lava para antes da ponte (rochas travam a rota automática). Se houver saltos reais no jogo, o suspeito é dois escritores da posição (vida do mestre × jogador): ainda não investigado.

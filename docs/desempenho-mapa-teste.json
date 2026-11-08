@@ -1,0 +1,11 @@
+{
+ "fps": 120.2,
+ "p95_ms": 8.7,
+ "quadros": 481,
+ "tokens": 2,
+ "objetos": 303,
+ "viewport": "1500x950",
+ "gpu": "ANGLE (Intel, Intel(R) UHD Graphics (0x0000A78B) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+ "quando": "2026-10-23T17:59:12.216Z",
+ "aviso": "Edge headless com GPU por software, papel simulado; não é o PC do Yuri"
+}

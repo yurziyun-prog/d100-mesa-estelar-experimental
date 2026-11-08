@@ -1,0 +1,240 @@
+[
+  {
+    "id": "cavalgante_prismatico",
+    "altura": 1.42,
+    "comp": 1.76,
+    "larg": 4.16,
+    "ortho": 5.6
+  },
+  {
+    "id": "larva_interdimensional",
+    "altura": 0.96,
+    "comp": 1,
+    "larg": 5.29,
+    "ortho": 7.01
+  },
+  {
+    "id": "rastejante_de_cinzas",
+    "altura": 0.6532295434735715,
+    "comp": 2.2573184967041016,
+    "larg": 4.202302932739258,
+    "ortho": 5.4
+  },
+  {
+    "id": "criatura_de_calico_2",
+    "altura": 1.16,
+    "comp": 1.88,
+    "larg": 2.34,
+    "ortho": 4.37
+  },
+  {
+    "id": "criatura_de_calico_1",
+    "altura": 1.82,
+    "comp": 1.7,
+    "larg": 1.62,
+    "ortho": 3.2
+  },
+  {
+    "id": "montariapterodatil",
+    "altura": 1.32,
+    "comp": 5.52,
+    "larg": 4.48,
+    "ortho": 7.3
+  },
+  {
+    "id": "cao_de_sucata",
+    "altura": 1.42,
+    "comp": 1.76,
+    "larg": 3.56,
+    "ortho": 4.85
+  },
+  {
+    "id": "dragao_trombeta_alado_domesticado",
+    "altura": 1.53,
+    "comp": 5.52,
+    "larg": 6.72,
+    "ortho": 8.8
+  },
+  {
+    "id": "dragao_trombeta_corredor_domesticado",
+    "altura": 1.53,
+    "comp": 2.12,
+    "larg": 6.72,
+    "ortho": 8.8
+  },
+  {
+    "id": "predador_de_nevoa",
+    "altura": 1.45,
+    "comp": 1.47,
+    "larg": 4.85,
+    "ortho": 6.46
+  },
+  {
+    "id": "caçador_de_nevoa",
+    "altura": 1.47,
+    "comp": 1.7,
+    "larg": 5.21,
+    "ortho": 6.91
+  },
+  {
+    "id": "predador_couracado",
+    "altura": 1.48,
+    "comp": 2.59,
+    "larg": 5.12,
+    "ortho": 6.8
+  },
+  {
+    "id": "besta_ululante",
+    "altura": 1.45,
+    "comp": 1.94,
+    "larg": 4.8,
+    "ortho": 6.39
+  },
+  {
+    "id": "dragao_trombeta_corredor_selvagem",
+    "altura": 1.53,
+    "comp": 2.12,
+    "larg": 6.72,
+    "ortho": 8.8
+  },
+  {
+    "id": "dragao_trombeta_alado_selvagem",
+    "altura": 1.53,
+    "comp": 5.52,
+    "larg": 6.72,
+    "ortho": 8.8
+  },
+  {
+    "id": "escavador_de_carapaca",
+    "altura": 1.77,
+    "comp": 3.45,
+    "larg": 3.82,
+    "ortho": 5.17
+  },
+  {
+    "id": "cila",
+    "altura": 0.99,
+    "comp": 3.4,
+    "larg": 3.5,
+    "ortho": 6.36
+  },
+  {
+    "id": "carrapato_de_ferro",
+    "altura": 0.97,
+    "comp": 2.62,
+    "larg": 2.28,
+    "ortho": 3.68
+  },
+  {
+    "id": "insetoide_predador",
+    "altura": 2.14,
+    "comp": 2.25,
+    "larg": 1.37,
+    "ortho": 3.21
+  },
+  {
+    "id": "insetoide_predador_1",
+    "altura": 1.2210799157619476,
+    "comp": 2.893998146057129,
+    "larg": 3.435320734977722,
+    "ortho": 4.3
+  },
+  {
+    "id": "parasita_carniceiro",
+    "altura": 0.97,
+    "comp": 2.62,
+    "larg": 2.28,
+    "ortho": 3.68
+  },
+  {
+    "id": "enxame_mordedor",
+    "altura": 0.37,
+    "comp": 3.19,
+    "larg": 3.21,
+    "ortho": 5.85
+  },
+  {
+    "id": "vespa_de_vidro",
+    "altura": 0.96,
+    "comp": 2.33,
+    "larg": 2.76,
+    "ortho": 3.85
+  },
+  {
+    "id": "criatura1",
+    "altura": 1.42,
+    "comp": 1.76,
+    "larg": 3.56,
+    "ortho": 4.85
+  },
+  {
+    "id": "criatura2",
+    "altura": 1.35,
+    "comp": 1.47,
+    "larg": 4.79,
+    "ortho": 6.39
+  },
+  {
+    "id": "criatura3",
+    "altura": 0.84,
+    "comp": 2.12,
+    "larg": 2.36,
+    "ortho": 3.35
+  },
+  {
+    "id": "criatura4",
+    "altura": 0.97,
+    "comp": 2.62,
+    "larg": 2.28,
+    "ortho": 3.68
+  },
+  {
+    "id": "criatura5",
+    "altura": 1.82,
+    "comp": 1.7,
+    "larg": 1.58,
+    "ortho": 3.2
+  },
+  {
+    "id": "criatura6",
+    "altura": 0.96,
+    "comp": 1,
+    "larg": 5.29,
+    "ortho": 7.01
+  },
+  {
+    "id": "criatura7",
+    "altura": 1.32,
+    "comp": 5.52,
+    "larg": 4.48,
+    "ortho": 7.3
+  },
+  {
+    "id": "metamorfo1",
+    "altura": 1.16,
+    "comp": 1.88,
+    "larg": 2.34,
+    "ortho": 4.37
+  },
+  {
+    "id": "metamorfo2",
+    "altura": 1.16,
+    "comp": 1.88,
+    "larg": 2.34,
+    "ortho": 4.37
+  },
+  {
+    "id": "metamorfo3",
+    "altura": 1.82,
+    "comp": 1.92,
+    "larg": 1.2,
+    "ortho": 3.2
+  },
+  {
+    "id": "metamorfo4",
+    "altura": 0.99,
+    "comp": 0.85,
+    "larg": 5.95,
+    "ortho": 7.84
+  }
+]

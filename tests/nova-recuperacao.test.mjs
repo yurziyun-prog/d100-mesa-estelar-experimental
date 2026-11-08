@@ -26,10 +26,10 @@ test('inconsciente mantém iniciativa; falha avança e só pode testar uma vez p
  assert.throws(()=>resolverConsciencia({a,health:{actors:out.actors},map:{combat},info:{resistanceById:{a:30}},roll:()=>1}),/já foi realizado/);
  let next=out.combat;for(let n=0;n<10&&next.round===1;n++)next=acaoIniciativa(next,'spend',next.turnId);assert.equal(next.activeId,'a');assert.equal(next.round,2);
 });
-test('Sorte tem saldo limitado, não acumula preparação e garante um único sucesso comum',()=>{
- const health={actors:{a:{combateLab:st()}}},info={luck:1},out=prepararSorte({a,health,info});assert.equal(out.actors.a.luckRemaining,0);assert.equal(out.sheetPatch.pontosSorte,0);
- assert.throws(()=>prepararSorte({a,health:{actors:out.actors},info}),/já está preparada/);
- const wake=resolverConsciencia({a,health:{actors:out.actors},map:{combat:c()},info:{resistanceById:{a:0}},roll:()=>100});assert.equal(wake.actors.a.combateLab.inconsciente,false);assert.match(wake.message,/Sorte/);assert.equal(wake.actors.a.luckPrepared,false);
- assert.throws(()=>prepararSorte({a,health:{actors:wake.actors},info}),/Sem pontos/);assert.equal(testeComSorte(wake.actors.a,0,()=>100).sucesso,false);
- const actor={luckPrepared:true};assert.equal(testeComSorte(actor,80,()=>1).grau,'Sucesso');assert.equal(actor.luckPrepared,false);
+test('Sorte gasta 1 ponto e liga +50% da perícia para o próximo teste',()=>{
+ const health={actors:{a:{combateLab:st()}}},info={luck:1},out=prepararSorte({a,health,info});
+ assert.equal(out.actors.a.luckRemaining,0);assert.equal(out.sheetPatch.pontosSorte,0);assert.match(out.message,/\+50%/);assert.equal(out.actors.a.luckPrepared,true);
+ assert.throws(()=>prepararSorte({a,health:{actors:out.actors},info}),/já está ativa|Sem pontos/);
+ const actor={luckPrepared:true};const r=testeComSorte(actor,80,()=>100);assert.equal(r.grau,'Fiasco','00 continua Fiasco mesmo com Sorte');assert.equal(actor.luckPrepared,false,'a Sorte vale um teste só');
+ const b={luckPrepared:true},ok=testeComSorte(b,60,()=>85);assert.equal(ok.valor,90);assert.equal(ok.sucesso,true,'85 passa com 90 (60 + 50%)');
 });

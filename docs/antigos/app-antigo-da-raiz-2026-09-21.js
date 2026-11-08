@@ -1,4 +1,8 @@
-import {distanciaObjeto,danoObjeto} from './nova-dano-objetos.js?v=49';
+import {estadoOficinaMesa,prepararPublicacaoOficina,compactarPublicacaoOficina,hidratarReferenciasOficina} from './nova-oficina.js?v=62';
+import {criarRecuperacaoSenha,textosRecuperacao} from './recuperar-senha.js?v=51';
+import {ignicao,apagarFogo} from './nova-fogo.js?v=50';
+import {distanciaObjeto,danoObjeto} from './nova-dano-objetos.js?v=50';
+import {linhaBloqueadaPorObjetos} from './nova-colisao.js?v=59';
 import {colunasObjetos,importarModelos,camadaPadrao,normalizarObjeto} from './nova-objetos.js?v=47';
 // Integração única do protocolo confirmado com as regras existentes.
 // labEstado_ continua atendendo os controles antigos; nunca é a origem de
@@ -37,7 +41,7 @@ import {
 
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, doc, setDoc, getDoc, collection, query, where, getDocs, deleteDoc, writeBatch, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
@@ -75,8 +79,8 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-console.info('[Mesa Estelar] build EXP-SYNC-CONSISTENTE-1 carregado');
-window.__MESA_BUILD__ = 'EXP-SYNC-CONSISTENTE-1';
+console.info('[Mesa Estelar] build MESA-V62 carregado');
+window.__MESA_BUILD__ = 'MESA-V62';
 
 let currentUserUid = null;
 let userData = null;
@@ -814,6 +818,8 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
+for(const [lang,texts] of Object.entries(textosRecuperacao))traducoes[lang].resetPassword= texts.label;
+window.recuperarSenha=criarRecuperacaoSenha({auth,send:sendPasswordResetEmail,language:()=>idiomaAtual});
 window.fazerLogin = async () => {
     const email = document.getElementById('loginEmail').value.trim();
     const password = document.getElementById('loginPassword').value.trim();
@@ -1091,7 +1097,7 @@ async function carregarPersonagens() {
     });
 
     // Não deixa uma seleção antiga apontar para uma ficha que já não está acessível.
-    if (currentCharId && !userCharacters.some(c => c.id === currentCharId)) currentCharId = null;
+    resolverPersonagemAtual_();
 
     renderizarListaPersonagens();
     renderizarDiaCampanhaFicha_();
@@ -1169,7 +1175,11 @@ function renderizarListaPersonagens() {
     }
 }
 window.selecionarPersonagem = async (charId) => {
-    currentCharId = charId;
+    const escolhido=userCharacters.find(c=>String(c.id)===String(charId));if(!escolhido)return;
+    charId=escolhido.id;currentCharId=charId;
+    if(userData)userData.personagemAtivo=charId;
+    // A compra segue a ficha imediatamente, sem esperar a gravação da preferência.
+
 
     // Limpa imediatamente controles que poderiam exibir dados do personagem anterior.
     const skillSelect = document.getElementById('skillSelect');
@@ -1181,6 +1191,10 @@ window.selecionarPersonagem = async (charId) => {
 
     // Renderiza primeiro localmente; salvar a preferência do usuário não deve atrasar a troca visual.
     renderizarListaPersonagens();
+    for(const refresh of [renderizarMercado,window.renderizarVendaMercado_,window.renderizarMercadoLocal_]){
+        try{refresh?.();}catch(erro){console.warn('Atualização do mercado:',erro);}
+    }
+    window.dispatchEvent(new CustomEvent('personagem-selecionado',{detail:charId}));
     const selecionado=userCharacters.find(c=>c.id===charId);
     if(selecionado){renderizarAlvosCombateJogador_(selecionado);renderizarReacaoCombateJogador_(selecionado);renderizarEfeitoEspecialJogador_(selecionado);}
     try {
@@ -3465,6 +3479,15 @@ function renderizarCombateSimplificado_(char) {
     if (hpHeader) hpHeader.style.display = 'none';
     if (armorHeader) armorHeader.style.display = 'none';
 
+    const armorPenaltyInfo = document.getElementById('armorPenaltyInfo');
+    if (armorPenaltyInfo) {
+        const referenciaCombate={id:'__resumo_armadura__',nome:'Combate',categoria:'Combate',__especializacao:true,penalidadeArmadura:1};
+        const pctCombate=penalidadeArmaduraTotal_(char,referenciaCombate);
+        armorPenaltyInfo.innerHTML = pctCombate>0
+            ? `<strong>Penalidade de armadura:</strong> −${pctCombate.toFixed(pctCombate%1?1:0)}% em testes de combate afetados pela armadura.`
+            : `<strong>Penalidade de armadura:</strong> nenhuma.`;
+    }
+
     document.getElementById('fadigaLevel').value = combat.fadiga || 'Fresh';
     document.getElementById('fadigaLevel').disabled = userData?.role!=='mestre';
     renderizarResumoFerimentos_(char);
@@ -3574,6 +3597,15 @@ function renderizarCombate(char) {
             <input type="number" value="${total}" min="0" title="${explicacao}" onchange="salvarPATotal('${loc}', this.value, ${equipamento})">
         </div>`;
     }).join('');
+
+    const armorPenaltyInfo = document.getElementById('armorPenaltyInfo');
+    if (armorPenaltyInfo) {
+        const referenciaCombate={id:'__resumo_armadura__',nome:'Combate',categoria:'Combate',__especializacao:true,penalidadeArmadura:1};
+        const pctCombate=penalidadeArmaduraTotal_(char,referenciaCombate);
+        armorPenaltyInfo.innerHTML = pctCombate>0
+            ? `<strong>Penalidade de armadura:</strong> −${pctCombate.toFixed(pctCombate%1?1:0)}% em testes de combate afetados pela armadura.`
+            : `<strong>Penalidade de armadura:</strong> nenhuma.`;
+    }
 
     document.getElementById('fadigaLevel').value = combat.fadiga || 'Fresh';
     document.getElementById('fadigaLevel').disabled = userData?.role!=='mestre';
@@ -4223,20 +4255,39 @@ const itensPadrao = [
 // ============================================
 // MERCADO
 // ============================================
-function obterPersonagemAtual_() {
-    return userCharacters.find(c => c.id === currentCharId) || null;
+function resolverPersonagemAtual_(){
+    const atual=userCharacters.find(c=>String(c.id)===String(currentCharId));
+    const salvo=userCharacters.find(c=>String(c.id)===String(userData?.personagemAtivo));
+    const escolhido=atual||salvo||(userCharacters.length===1?userCharacters[0]:null);
+    currentCharId=escolhido?.id??null;
+    return escolhido;
 }
+function obterPersonagemAtual_(){return resolverPersonagemAtual_();}
 
+function atualizarCompradorMercado_(){
+    resolverPersonagemAtual_();
+    const select=document.getElementById('marketCharacter');if(!select)return;
+    select.replaceChildren();const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent='Selecione quem vai comprar';select.append(placeholder);
+    for(const char of userCharacters){const option=document.createElement('option');option.value=char.id;option.textContent=char.nome||'Personagem';select.append(option);}
+    select.value=userCharacters.some(c=>c.id===currentCharId)?currentCharId:'';
+}
+window.selecionarCompradorMercado_=async id=>{
+    const escolhido=userCharacters.find(c=>String(c.id)===String(id));if(!escolhido)return;
+    return window.selecionarPersonagem(escolhido.id);
+};
 function atualizarCategoriasMercado_() {
     const select = document.getElementById('marketCategory');
     if (!select) return;
     const atual = select.value;
-    const categorias = [...new Set(itensDB.map(i => String(i.categoria || 'Diversos').trim()).filter(Boolean))].sort((a,b) => a.localeCompare(b));
+    const categorias = [...new Set(itensDB.map(i => (String(i.categoria || '').trim() || 'Diversos')))].sort((a,b) => a.localeCompare(b));
     select.innerHTML = '<option value="" data-i18n="allCategories">Todas as categorias</option>' + categorias.map(c => `<option value="${escaparBanco_(c)}">${escaparBanco_(c)}</option>`).join('');
     if ([...select.options].some(o => o.value === atual)) select.value = atual;
 }
 
 
+function normalizarAcesso_(valor){
+    return String(valor||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[_-]+/g,' ').trim();
+}
 function nivelAcessoNormalizado_(item){
     const raw=String(item?.nivelAcesso||'Livre').trim().toLowerCase()
       .normalize('NFD').replace(/[\u0300-\u036f]/g,'');
@@ -4270,8 +4321,12 @@ function acessoPermitidoItem_(char,item){
     // Autorizações profissionais são específicas: não transformam uma carreira em passe universal para itens Restritos.
     const pessoa=normalizarAcesso_(textoPersonagemAcesso_(char));
     const itemTxt=normalizarAcesso_(`${getNome(item)||''} ${item?.categoria||''} ${item?.tipo||''} ${item?.descricao||''} ${item?.acessoProfissional||item?.acessosProfissionais||''}`);
-    const medico=/\b(medic|medico|medica|cirurg|paramedic|enferm)\b/.test(pessoa);
-    if(medico&&/\b(medic|antidoto|nanogel|farmac|cirurg|kit medico|primeiros socorros)\b/.test(itemTxt)&&rank<=1)return true;
+    const medico=/\b(medic[oa]s?|cirurg|paramedic|enferm)\b/.test(pessoa);
+    // Inclui formas flexionadas/adjetivais: médico, médica, médicos e biomédico.
+    // A categoria “Itens Médicos” deve conceder a mesma autorização profissional
+    // que um nome explicitamente médico, sem transformar a carreira em passe geral.
+    const itemMedico=/\b(medic[oa]s?|antidoto|nanogel|farmac|cirurg|kit medico|primeiros socorros)\b/.test(itemTxt)||/biomedic[oa]s?/.test(itemTxt);
+    if(medico&&itemMedico&&rank<=1)return true;
     const detetive=/\b(detetiv|investigador|investigacao)\b/.test(pessoa);
     if(detetive&&rank<=1){
         const armaCurta=/\b(pistola|revolver|blaster de palma|arma curta|laser leve|incapacit|stun|atordo)\b/.test(itemTxt);
@@ -4962,6 +5017,7 @@ window.venderItemMercadoLocal_=async(comp,index)=>{
 };
 
 window.renderizarMercado = () => {
+    atualizarCompradorMercado_();
     const grid = document.getElementById('marketGrid');
     const notice = document.getElementById('marketNotice');
     const balance = document.getElementById('marketBalance');
@@ -4977,7 +5033,7 @@ window.renderizarMercado = () => {
     const filtrados = itensDB.filter(item => {
         if(item?.disponivelCampanha===false) return false;
         const nomes = `${item.nome || ''} ${item.nome_en || ''} ${item.nome_zh || ''}`.toLowerCase();
-        return (!busca || nomes.includes(busca)) && (!categoria || String(item.categoria || '') === categoria);
+        return (!busca || nomes.includes(busca)) && (!categoria || (String(item.categoria || '').trim() || 'Diversos') === categoria);
     }).sort((a,b) => rankAcesso_(a)-rankAcesso_(b) || getNome(a).localeCompare(getNome(b)));
 
     grid.innerHTML = filtrados.map(item => {
@@ -4989,7 +5045,7 @@ window.renderizarMercado = () => {
         const ehArma = categoriaNormalizada_(item) === 'armas';
         const permitido=char?acessoPermitidoItem_(char,item):false;
         const qualidade = ehArma ? `<label style="display:block;margin:8px 0 4px;color:#aaa;font-size:.88em;">Qualidade</label><select id="marketQuality_${escaparBanco_(item.id)}" onchange="atualizarPrecoQualidadeMercado_('${escaparBanco_(item.id)}')" style="width:100%;padding:7px;border-radius:7px;background:rgba(255,255,255,.10);color:white;border:1px solid rgba(255,255,255,.18);"><option value="Básica">Básica ×1</option><option value="Média">Média ×2</option><option value="Superior">Superior ×4</option></select>` : '';
-        return `<div class="market-card">${imagem}<div><h4>${nome}</h4>${badgeAcesso_(item,permitido)}<div class="market-meta" style="margin-top:5px;">${escaparBanco_(detalhes)}</div>${desc ? `<div class="market-desc">${desc}</div>` : ''}${qualidade}<div style="margin-top:8px;"><strong id="marketPrice_${escaparBanco_(item.id)}">${preco.toLocaleString('pt-BR')}</strong></div><button class="market-buy" ${permitido?'':'disabled'} onclick="comprarItemMercado('${escaparBanco_(item.id)}')">${permitido?'Comprar':'Sem acesso'}</button></div></div>`;
+        return `<div class="market-card">${imagem}<div><h4>${nome}</h4>${badgeAcesso_(item,char?permitido:true)}<div class="market-meta" style="margin-top:5px;">${escaparBanco_(detalhes)}</div>${desc ? `<div class="market-desc">${desc}</div>` : ''}${qualidade}<div style="margin-top:8px;"><strong id="marketPrice_${escaparBanco_(item.id)}">${preco.toLocaleString('pt-BR')}</strong></div><button class="market-buy" ${permitido?'':'disabled'} onclick="comprarItemMercado('${escaparBanco_(item.id)}')">${!char?'Selecione um personagem':permitido?'Comprar':'Sem acesso'}</button></div></div>`;
     }).join('') || '<p style="color:#aaa;">Nenhum item encontrado.</p>';
 };
 
@@ -5075,6 +5131,7 @@ window.mostrarAba = (abaId, btn) => {
     alvo.classList.add('active');
     if (btn) btn.classList.add('active');
     if (abaId === 'mercado') {
+        atualizarCompradorMercado_();
         if(marketSubtabAtual_==='vender')renderizarVendaMercado_();
         else if(marketSubtabAtual_==='local')renderizarMercadoLocal_();
         else renderizarMercado();
@@ -5201,21 +5258,12 @@ window.recarregarBancoMapas_=async function(){
 };
 
 window.abrirMapaDaMesa_=function(){
-    const btn=document.getElementById('laboratorioTabBtn');
-    mostrarAba('laboratorio-combate',btn);
-    setTimeout(()=>{if(typeof labRender_==='function')labRender_();},0);
+    mostrarAba('sincronizacao-nova',document.getElementById('syncLabTabBtn'));
+    return window.novaSyncAbrir_();
 };
-
-window.abrirMapaBancoNaMesa_=function(id){
-    const m=(mapasDB||[]).find(x=>String(x.id)===String(id));
-    if(!m)return;
-    labMapaSelecionado_=String(id);
-    labEstado_.mapaCompartilhadoIdE7=String(id);
-    labEstado_.mapaCompartilhadoRevE7=Date.now();
-    const btn=document.getElementById('laboratorioTabBtn');
-    mostrarAba('laboratorio-combate',btn);
-    if(typeof labAtualizarSelectMapas_==='function')labAtualizarSelectMapas_();
-    setTimeout(()=>{if(typeof labCarregarMapaBanco_==='function')labCarregarMapaBanco_();},0);
+window.abrirMapaBancoNaMesa_=async function(id){
+    try{await window.abrirMapaDaMesa_();await novaSyncController_.openMap(id);}
+    catch(e){notificar_(e.message,'aviso',4500);}
 };
 
 window.renomearMapaBanco_=async function(id){
@@ -6483,7 +6531,7 @@ function labRolarResistenciaFerimento22_(defensor,opcoes={}){
     if(!c)return {passou:false,roll:100,valor:0,grau:'Falha',pericia:'Resistência'};
     if(Number.isFinite(opcoes.valorAtaque)){
         const per=batalhaPericiaPorNomes_(c,['resistência','resistencia','endurance']);
-        const valor=per?novaValorPericia_(c,defensor,per):0,r=testeComSorte(defensor,valor,max=>1+Math.floor(Math.random()*max)),roll=r.die;
+        const valor=per?novaValorPericiaTotal_(c,per):0,r=testeComSorte(defensor,valor,max=>1+Math.floor(Math.random()*max)),roll=r.die;
         return {passou:r.sucesso&&!ataqueSuperaDefesa({grau:opcoes.grauAtaque,valor:opcoes.valorAtaque,die:opcoes.rolagemAtaque},{grau:r.grau,valor,die:roll}),roll,valor,grau:r.grau,sorte:!!r.sorte,pericia:'Resistência'};
     }
     return batalhaRolarResistenciaFerimento_(c,{
@@ -18499,6 +18547,11 @@ familiasArmaCompatV46471_=function(item){
 const penalidadeCompatibilidadeArma481Base_=penalidadeCompatibilidadeArma_;
 penalidadeCompatibilidadeArma_=function(pericia,item){
     const id=String(pericia?.id||'');
+    const nomePericia=normalizarTextoCombate_(`${id} ${getNome(pericia)||''}`);
+    // Especializações amplas de energia exótica cobrem blasters, disruptores,
+    // phasers e demais emissores energéticos experimentais. A regra anterior
+    // não reconhecia estes IDs novos e caía no fallback de +2 graus.
+    if(/energia.*exot|exot.*energia/.test(nomePericia)&&familiasArmaCompatV46471_(item).has('energia'))return 0;
     if(labEhLaminaEnergia481_(item)){
         if(id==='esgrima_plasma_vibro'||id==='laminas_energia'||id==='laminas_energia_vibro')return 0;
         if(id==='armas_brancas_longas')return 1;
@@ -26760,6 +26813,7 @@ setTimeout(()=>{
 (function(){
 'use strict';
 
+let gm2MesaBridge_=null;
 const GM2_KEY='mesa_estelar_oficina2_v1';
 const GM2_CLIP={items:[]};
 const gm2={
@@ -26780,7 +26834,7 @@ const gm2={
 function gm2clone(x){return JSON.parse(JSON.stringify(x));}
 function gm2id(p='e'){return `${p}:${Date.now()}:${Math.random().toString(36).slice(2,8)}`;}
 function gm2esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-function gm2saveLocal(){try{localStorage.setItem(GM2_KEY,JSON.stringify(gm2.st));}catch(e){console.warn(e);}}
+function gm2saveLocal(){if(gm2MesaBridge_){gm2MesaBridge_.dirty=true;return;}try{localStorage.setItem(GM2_KEY,JSON.stringify(gm2.st));}catch(e){console.warn(e);}}
 function gm2loadLocal(){try{const x=JSON.parse(localStorage.getItem(GM2_KEY)||'null');if(x&&Array.isArray(x.elements))gm2.st={...gm2.st,...x};}catch(e){console.warn(e);}}
 gm2loadLocal();
 if(gm2.st.texture==='pedra')gm2.st.texture='rocha';
@@ -28323,7 +28377,7 @@ function gm2render(){
   const primary=gm2el(gm2.primary),handles=primary?gm2handlesSvg(primary):'';
   const marquee=gm2.drag?.kind==='marquee'?(()=>{const d=gm2.drag,b={x:Math.min(d.x0,d.x1)*p,y:Math.min(d.y0,d.y1)*p,w:Math.abs(d.x1-d.x0)*p,h:Math.abs(d.y1-d.y0)*p};return `<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" fill="rgba(103,232,249,.10)" stroke="#67e8f9" stroke-dasharray="5 4"/>`;})():'';
   svg.innerHTML=`<rect id="gm2bg" x="0" y="0" width="${w}" height="${h}" fill="${gm2.st.bg}"/>${gm2textureSvg_(p,w,h)}${grid}<g id="gm2elements">${els}</g><g id="gm2overlay">${handles}${marquee}</g>`;
-  gm2syncControls();gm2updateToolbarState();gm2status();gm2updateCursor_();
+  gm2MesaBridge_?.paintTokens?.(svg);gm2syncControls();gm2updateToolbarState();gm2status();gm2updateCursor_();
  });
 }
 function gm2status(){
@@ -28556,7 +28610,7 @@ function gm2installTab(){
  const tabs=old.parentElement.querySelector('.gm-subtabs');
  const oldBtn=[...tabs.querySelectorAll('button')].find(b=>b.textContent.includes('Oficina de Mapas'));
  const btn=document.createElement('button');btn.className='btn-small gm-subtab-btn';btn.textContent='🧭 Oficina 2';
- btn.onclick=function(){mostrarSubAbaMestre('oficina2',this);setTimeout(()=>{gm2render();gm2populateBank();gm2populateMapSelect();},0)};
+ btn.onclick=function(){window.novaOficinaFechar_?.();mostrarSubAbaMestre('oficina2',this);setTimeout(()=>{gm2render();gm2populateBank();gm2populateMapSelect();},0)};
  oldBtn?.insertAdjacentElement('afterend',btn);
  const panel=document.createElement('div');panel.id='gm-sub-oficina2';panel.className='gm-sub-content hidden';panel.innerHTML=gm2panelHtml();
  old.insertAdjacentElement('afterend',panel);
@@ -28881,7 +28935,18 @@ function gm2Layer(front){
 }
 function gm2duplicate(){
  const a=gm2selectedEls();if(!a.length)return;gm2pushHistory();gm2clearSelection();
- for(const old of a){const e=gm2clone(old);e.id=gm2id(old.type[0]);e.z=gm2zNext();if(e.type==='path')e.points=e.points.map(p=>({x:p.x+.35,y:p.y+.35}));else{e.x+=.35;e.y+=.35;if(e.type==='line'){e.x2+=.35;e.y2+=.35;e.cx+=.35;e.cy+=.35;}}gm2.st.elements.push(e);gm2.selected.add(e.id);gm2.primary=e.id;}
+ for(const old of a){
+  const e=gm2clone(old);
+  e.id=gm2id(old.type[0]);e.z=gm2zNext();
+  // A cópia precisa ser uma nova instância na cena. Manter mesaObjectId faria
+  // o salvamento tratar original e duplicata como o mesmo objeto.
+  delete e.mesaObjectId;delete e.mapObjectId;
+  if(e.pvMax!==undefined)e.pvAtual=Math.max(0,Number(e.pvMax)||0);
+  e.destruido=false;e.pegandoFogo=false;e.pegandoFogoLab=false;e.estadoFogo={};e.fogoUltimaRodadaLab=-1;
+  if(e.type==='path')e.points=e.points.map(p=>({x:p.x+.35,y:p.y+.35}));
+  else{e.x+=.35;e.y+=.35;if(e.type==='line'){e.x2+=.35;e.y2+=.35;e.cx+=.35;e.cy+=.35;}}
+  gm2.st.elements.push(e);gm2.selected.add(e.id);gm2.primary=e.id;
+ }
  gm2saveLocal();gm2render();
 }
 function gm2delete(){if(!gm2.selected.size)return;gm2pushHistory();gm2.st.elements=gm2.st.elements.filter(e=>!gm2.selected.has(e.id));gm2clearSelection();gm2saveLocal();gm2render();}
@@ -28895,11 +28960,19 @@ function gm2copy(cut=false){
 }
 function gm2pasteInternal(){
  if(!GM2_CLIP.items.length)return;gm2pushHistory();gm2clearSelection();
- for(const old of GM2_CLIP.items){const e=gm2clone(old);e.id=gm2id(e.type[0]);e.z=gm2zNext();if(e.type==='path')e.points=e.points.map(p=>({x:p.x+.35,y:p.y+.35}));else{e.x+=.35;e.y+=.35;if(e.type==='line'){e.x2+=.35;e.y2+=.35;e.cx+=.35;e.cy+=.35;}}gm2.st.elements.push(e);gm2.selected.add(e.id);gm2.primary=e.id;}
+ for(const old of GM2_CLIP.items){
+  const e=gm2clone(old);e.id=gm2id(e.type[0]);e.z=gm2zNext();
+  delete e.mesaObjectId;delete e.mapObjectId;
+  if(e.pvMax!==undefined)e.pvAtual=Math.max(0,Number(e.pvMax)||0);
+  e.destruido=false;e.pegandoFogo=false;e.pegandoFogoLab=false;e.estadoFogo={};e.fogoUltimaRodadaLab=-1;
+  if(e.type==='path')e.points=e.points.map(p=>({x:p.x+.35,y:p.y+.35}));
+  else{e.x+=.35;e.y+=.35;if(e.type==='line'){e.x2+=.35;e.y2+=.35;e.cx+=.35;e.cy+=.35;}}
+  gm2.st.elements.push(e);gm2.selected.add(e.id);gm2.primary=e.id;
+ }
  gm2saveLocal();gm2render();
 }
 function gm2keys(ev){
- const panel=document.getElementById('gm-sub-oficina2');if(!panel||panel.classList.contains('hidden'))return;
+ const panel=document.getElementById('gm-sub-oficina2');if(!panel||panel.classList.contains('hidden')||!panel.getClientRects().length)return;
  const tag=ev.target?.tagName?.toLowerCase();if(['input','textarea','select'].includes(tag))return;
  const mod=ev.ctrlKey||ev.metaKey,k=ev.key.toLowerCase();
  if(mod&&k==='z'){ev.preventDefault();ev.shiftKey?gm2redo():gm2undo();}
@@ -28954,27 +29027,34 @@ async function gm2compactarImagensEstado_(){
  return mudou;
 }
 
-function gm2placeObjects(p){
- const ids=gm2.objectIds||[];if(!ids.length)return;gm2pushHistory();let off=0;
- for(const id of ids){
-   const m=(objetosMapaDB||[]).find(o=>String(o.id)===String(id));if(!m)continue;
+function gm2addModelsAt_(models,p={x:null,y:null}){
+ const list=(models||[]).filter(Boolean);if(!list.length)return 0;
+ gm2pushHistory();gm2clearSelection();let off=0,added=0;
+ const cx=Number.isFinite(Number(p.x))?Number(p.x):gm2.st.w/2;
+ const cy=Number.isFinite(Number(p.y))?Number(p.y):gm2.st.h/2;
+ for(const m of list){
    const w=Math.max(.35,Number(m.larguraM||m.largura||1)),h=Math.max(.35,Number(m.alturaM||m.altura||1)),src=m.imagem||m.image||'';
-   // A Oficina 2 preserva os dados funcionais do objeto do banco.
-   // Assim árvore continua sendo inflamável, parede continua bloqueando, etc.
-   const banco=JSON.parse(JSON.stringify(m));
-   gm2.st.elements.push({
-     ...banco,
-     dadosBanco:banco,
+   const banco=JSON.parse(JSON.stringify(m)),pvModelo=Math.max(0,Number(m.pvMax??m.pv??0)||0);
+   const destrutivelModelo=m.destrutivel===undefined?pvModelo>0:!['false','0','não','nao','no'].includes(String(m.destrutivel).toLowerCase());
+   const e={
+     ...banco,dadosBanco:banco,
      id:gm2id('o'),type:'object',modeloId:m.id,objetoBancoId:m.id,nome:getNome(m)||m.nome||m.id,name:getNome(m)||m.nome||m.id,src,
-     x:p.x+off,y:p.y+off,w,h,rot:0,z:gm2zNext(),locked:false,opacity:1,
-     pvMax:Number(m.pvMax||0),pvAtual:Number(m.pvMax||0),dureza:Number(m.dureza||0),pesoKg:Number(m.pesoKg||0),
-     destrutivel:m.destrutivel!==false,inflamavel:!!m.inflamavel,bloqueiaMovimento:m.bloqueiaMovimento!==false,bloqueiaVisao:!!m.bloqueiaVisao,
+     x:Math.max(0,Math.min(gm2.st.w-w,cx-w/2+off)),y:Math.max(0,Math.min(gm2.st.h-h,cy-h/2+off)),w,h,rot:0,z:gm2zNext(),locked:false,opacity:1,
+     pvMax:pvModelo,pvAtual:pvModelo,dureza:Math.max(0,Number(m.dureza??m.pa??0)||0),pesoKg:Math.max(0,Number(m.pesoKg??m.peso??0)||0),
+     destrutivel:destrutivelModelo,
+     inflamavel:!!m.inflamavel,bloqueiaMovimento:!!m.bloqueiaMovimento,bloqueiaVisao:!!m.bloqueiaVisao,
      destruido:false,pegandoFogoLab:false,fogoUltimaRodadaLab:-1,
      shadow:gm2.defaults.shadow,shadowDir:gm2.defaults.shadowDir,shadowDist:gm2.defaults.shadowDist
-   });
-   off+=.25;
+   };
+   gm2.st.elements.push(e);gm2.selected.add(e.id);gm2.primary=e.id;off+=.25;added++;
  }
- gm2saveLocal();gm2render();
+ gm2saveLocal();gm2render();return added;
+}
+
+function gm2placeObjects(p){
+ const ids=gm2.objectIds||[];if(!ids.length)return;
+ const models=ids.map(id=>(objetosMapaDB||[]).find(o=>String(o.id)===String(id))).filter(Boolean);
+ gm2addModelsAt_(models,p);
 }
 
 function gm2objMetaLegacy_(e){
@@ -29240,6 +29320,10 @@ gm2loadLibraryMap=async function(id){
   if(!base)return map803LoadBase_.apply(this,arguments);
   try{
     const m=await labMapaHidratar_(base);
+    if(m?.mesaScene?.oficinaConfig){
+      if(gm2.st.elements?.length&&!confirm('Abrir o mapa salvo na mesa e substituir o rascunho da Oficina?'))return;
+      gm2pushHistory();gm2.st=estadoOficinaMesa(map803HidratarEstado_(m.oficina2State||gm2legacyToState_(m)),m.mesaScene);gm2.st.mapId=String(m.id||id);gm2clearSelection();gm2.tool='select';gm2saveLocal();gm2render();return;
+    }
     if(m?.oficina2State?.formatoObjetos===MAP803_REF_VERSION_){
       if(gm2.st.elements?.length&&!confirm(`Abrir “${base.nome||base.id}” na Oficina 2? O rascunho atual será substituído.`))return;
       gm2pushHistory();gm2.st=map803HidratarEstado_(m.oficina2State);gm2.st.name=String(m.nome||gm2.st.name||'');gm2.st.mapId=String(m.id||id);
@@ -29273,10 +29357,80 @@ gm2saveLibrary=async function(){
 window.gm2saveLibrary=gm2saveLibrary;
 
 // O botão foi criado com uma referência antiga; força o handler final.
-function map803ReligarSalvar_(){const b=document.getElementById('gm2save');if(b)b.onclick=()=>gm2saveLibrary();}
+function map803ReligarSalvar_(){if(gm2MesaBridge_)return;const b=document.getElementById('gm2save');if(b)b.onclick=()=>gm2saveLibrary();}
 const map803InstallBase_=gm2installTab;
 gm2installTab=function(){const r=map803InstallBase_.apply(this,arguments);setTimeout(map803ReligarSalvar_,0);return r;};
 setInterval(map803ReligarSalvar_,1200);
+
+
+// A mesma instância da Oficina 2 é emprestada à mesa: nenhum controlador duplicado.
+function novaOficinaModelo_(o){
+ const raw=String(o?.modeloId||o?.oficinaElement?.modeloId||'');
+ const id=raw.includes(':')?raw.slice(raw.lastIndexOf(':')+1):raw;
+ return map803BancoPorId_(id)||(itensDB||[]).find(m=>String(m.id)===id)||null;
+}
+window.novaOficinaMesa_=function({host,map,scene,draft,tokens=()=>[],onSave}){
+ if(!batalhaEhMestre_())throw Error('Somente o mestre pode editar.');
+ gm2installTab();const panel=document.getElementById('gm-sub-oficina2');if(!panel)throw Error('A Oficina 2 ainda não está disponível.');
+ const marker=document.createComment('Oficina 2'),parent=panel.parentNode;parent.insertBefore(marker,panel);
+ const previous={...gm2,selected:new Set(gm2.selected)},className=panel.className;
+ const local=map803HidratarEstado_(map.oficina2State||gm2legacyToState_(map));
+ const sceneVisual=hidratarReferenciasOficina(scene,{modelFor:novaOficinaModelo_});
+ gm2.st=draft||estadoOficinaMesa(local,sceneVisual);gm2.history=[];gm2.future=[];gm2.selected=new Set();gm2.primary='';gm2.tool='select';gm2.renderQueued=false;
+ const bridge={dirty:false,paintTokens(svg){svg.querySelector('[data-mesa-tokens]')?.remove();const g=document.createElementNS('http://www.w3.org/2000/svg','g');g.dataset.mesaTokens='';g.style.pointerEvents='none';const p=gm2.st.ppm;
+ for(const t of tokens()){const x=t.x/28*gm2.st.w*p,y=t.y/14*gm2.st.h*p,r=(Number(t.diametroM)||1)*p/2;const circle=document.createElementNS(g.namespaceURI,'circle');circle.setAttribute('cx',x);circle.setAttribute('cy',y);circle.setAttribute('r',r);circle.setAttribute('fill','#263d62');circle.setAttribute('stroke','#00d4ff');g.append(circle);if(t.imagem){const image=document.createElementNS(g.namespaceURI,'image');image.setAttribute('href',t.imagem);image.setAttribute('x',x-r);image.setAttribute('y',y-r);image.setAttribute('width',r*2);image.setAttribute('height',r*2);image.style.clipPath='circle(50%)';g.append(image);}const text=document.createElementNS(g.namespaceURI,'text');text.setAttribute('x',x);text.setAttribute('y',y+r+12);text.setAttribute('text-anchor','middle');text.setAttribute('fill','white');text.setAttribute('font-size','11');text.textContent=t.nome;g.append(text);}svg.append(g);
+ }};gm2MesaBridge_=bridge;panel.classList.remove('hidden');host.append(panel);
+ const ids=['gm2new','gm2mapselect','gm2publish','gm2save','gm2size'],saved=ids.map(id=>{const n=document.getElementById(id);return {n,hidden:n.hidden,disabled:n.disabled,onclick:n.onclick,text:n.textContent,title:n.title};});
+ const embeddedBank=document.getElementById('gm2bank'),embeddedBankDisplay=embeddedBank?.style.display||'';
+ if(embeddedBank)embeddedBank.style.display='none';
+ document.getElementById('gm2size').disabled=true;document.getElementById('gm2size').title='O tamanho é mantido durante a edição na mesa para preservar as posições.';
+ document.getElementById('gm2new').hidden=true;document.getElementById('gm2mapselect').hidden=true;
+ const save=async()=>{if(bridge.saving)return;bridge.saving=true;const buttons=['gm2publish','gm2save'].map(id=>document.getElementById(id));buttons.forEach(b=>b.disabled=true);
+  try{
+   const snapshot=gm2clone(gm2.st),cache=new Map(),seq={n:1};
+   const publication=await compactarPublicacaoOficina(prepararPublicacaoOficina(snapshot,scene,gm2bbox),{
+    modelFor:o=>{const id=String(o.modeloId||'').split(':').pop();return map803BancoPorId_(id)||(typeof itensDB!=='undefined'?itensDB:[]).find(i=>String(i.id)===id);},
+    uploadImage:src=>map803UploadImagem_(src,map.id,cache,seq)
+   });
+   await onSave(publication);bridge.dirty=JSON.stringify(gm2.st)!==JSON.stringify(snapshot);
+   notificar_(bridge.dirty?'Mapa salvo. Há novas edições no rascunho; salve novamente para compartilhá-las.':'Mapa salvo e compartilhado com os jogadores.','sucesso',4000);
+  }
+  catch(e){notificar_('Não foi possível salvar: '+e.message,'erro',9000);}
+  finally{bridge.saving=false;buttons.forEach(b=>b.disabled=false);}
+ };
+ for(const id of ['gm2publish','gm2save']){const b=document.getElementById(id);b.onclick=save;b.title='Salvar edições e compartilhar na mesa';}document.getElementById('gm2publish').textContent='💾 Salvar mapa';
+ const layers=document.createElement('div');layers.className='gm2-row';layers.innerHTML='<label>Nível no jogo <select id="gm2mesaLayer"><option value="1">1 · Terreno</option><option value="2">2 · Piso</option><option value="3">3 · Personagens e muros</option><option value="4">4 · Acima dos personagens</option></select></label><label><input id="gm2mesaBlock" type="checkbox"> Bloqueia movimento</label><label>Dureza <input id="gm2mesaHardness" type="number" min="0" step="1" value="0" style="width:64px"></label><label>PV <input id="gm2mesaPV" type="number" min="0" step="1" placeholder="0 = indestrutível" style="width:108px"></label><button id="gm2mesaApply">Aplicar</button><span>Edições locais. Use Salvar mapa para compartilhar.</span>';
+ panel.querySelector('#gm2ribbon').append(layers);
+ layers.querySelector('#gm2mesaApply').onclick=()=>{
+  if(!gm2.selected.size){notificar_('Selecione uma forma ou objeto primeiro.','info');return;}
+  const layer=Number(layers.querySelector('#gm2mesaLayer').value),block=layers.querySelector('#gm2mesaBlock').checked;
+  const hardness=Math.max(0,Number(layers.querySelector('#gm2mesaHardness').value)||0);
+  const pvRaw=String(layers.querySelector('#gm2mesaPV').value||'').trim(),pv=pvRaw===''?0:Math.max(0,Number(pvRaw)||0);
+  gm2pushHistory();
+  for(const e of gm2selectedEls()){
+   e.camada=layer;e.bloqueiaMovimento=block;e.dureza=hardness;
+   if(pv>0){e.pvMax=pv;e.pvAtual=pv;e.destrutivel=true;e.destruido=false;}
+   else{e.pvMax=0;e.pvAtual=0;e.destrutivel=false;e.destruido=false;}
+  }
+  bridge.dirty=true;gm2saveLocal();gm2render();
+ };
+ gm2populateBank();gm2render();
+ return {
+  refresh(){const svg=document.getElementById('gm2svg');if(svg)bridge.paintTokens(svg);},
+  addModels(models){
+   const count=gm2addModelsAt_(models,{x:gm2.st.w/2,y:gm2.st.h/2});
+   if(count){bridge.dirty=true;notificar_(`${count} objeto(s) adicionado(s) ao rascunho da Oficina. Salve o mapa para compartilhar.`,'info',3500);}
+   return count;
+  },
+  getState:()=>gm2clone(gm2.st),get dirty(){return bridge.dirty;},get busy(){return !!bridge.saving;},
+  close(){if(gm2MesaBridge_!==bridge)return;gm2MesaBridge_=null;layers.remove();if(embeddedBank)embeddedBank.style.display=embeddedBankDisplay;for(const item of saved){item.n.hidden=item.hidden;item.n.disabled=item.disabled;item.n.onclick=item.onclick;item.n.textContent=item.text;item.n.title=item.title;}marker.replaceWith(panel);panel.className=className;Object.assign(gm2,previous);gm2.renderQueued=false;gm2render();}
+ };
+};
+window.novaOficinaElemento_=function(o,scene){
+ const previous=gm2.st;try{const visual=hidratarReferenciasOficina({objects:[o]},{modelFor:novaOficinaModelo_}).objects[0]||o;const config=scene.oficinaConfig,p=config?.ppm||32;gm2.st={...config,elements:[]};const b=visual.oficinaBounds,e={...visual.oficinaElement,src:visual.oficinaElement.src||visual.imagem||'',rot:0};
+ return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="'+[b.x*p,b.y*p,b.w*p,b.h*p].join(' ')+'" style="width:100%;height:100%;overflow:visible;pointer-events:none">'+gm2renderWithErasers_(e,scene.oficinaErasers||[],config.w*p,config.h*p,p)+'</svg>';
+ }finally{gm2.st=previous;}
+};
 
 window.gm2render=gm2render;
 setTimeout(gm2installTab,900);
@@ -36490,8 +36644,9 @@ import {slug as novaSlug_,aplicarTreinos,montarTreinos,periciaDoAtaque,migrarTre
 function novaBaseCriatura_(attrs,name,special){const c={atributos:attrs,bonus:{}},q=novaSlug_(name),bank=special?especializacoesDB:periciasDB,reg=(bank||[]).find(p=>[p.id,p.nome,p.nome_en].some(n=>novaSlug_(n)===q));return reg?.formula?Number(calcularFormulaPersonagem_(reg.formula,c))||0:baseNPCPericia_(c,name);}
 
 import {classificarTeste as novaClassificar_,locaisValidos as novaLocaisValidos_,descreverTeste as novaDescreverTeste_} from './nova-regras.js?v=46';
+import {aplicarDanoArma as novaAplicarDanoArma_} from './nova-dano-armas.js?v=60';
 import {criarRelogio as novaCriarRelogio_} from './nova-duracoes.js?v=46';
-import {mountDirectPositionLab} from './nova-direta.js?v=49';
+import {mountDirectPositionLab} from './nova-direta.js?v=62';
 import {tocarEfeito} from './nova-fx.js?v=46';
 import {identificarKit,testeComSorte,prepararSorte,resolverConsciencia} from './nova-recuperacao.js?v=46';
 import {resolverSocorros,resolverPsi,ocupado,teste as novaTesteSuporte_,sorteio as novaSorteioSuporte_} from './nova-suporte.js?v=46';
@@ -36501,7 +36656,7 @@ async function novaFicha_(t){
  let c=batalhaCharLocal_(t.id)||legacy?.charLab;
  const source=decodeURIComponent(t.id);
  if(source.startsWith('syncnpc:')){
-  const model=npcBancoPorId_(source.slice(8));c=criarNPCCombateDoBanco_(model);
+  const model=npcBancoPorId_(source.slice(8));c=criarNPCCombateDoBanco_(model,t?.atributosIndividuo?{id:t.id,atributosIndividuo:t.atributosIndividuo}:null);
   if(c&&model){
    const linked=Object.values(mapaPericiaAtaques_(model)).flat();
    c.armasNaturais=(criarCriaturaCombateDoBanco_(model)?.armasNaturais||[]).filter(w=>ataqueNaturalPorNome_(w.nome)||linked.includes(normalizarTextoCombate_(w.nome))||/mordida|garras|cauda|pres[a-z]*|tent[a-z]*|coice/i.test(w.nome));
@@ -36530,17 +36685,72 @@ function novaEquipamentos_(c,per){
  }
  return list.sort((a,b)=>(a.graus||0)-(b.graus||0)||a.rotulo.localeCompare(b.rotulo,'pt-BR'));
 }
-function novaValorPericia_(c,t,per,penalty=0){
- const raw=Math.min(100,obterValorRegistroPericia_(c,per.id,!!per.__especializacao)),arm=valorPericiaComArmadura_(c,per,raw);
+function novaArmaAtivaDefensor_(char,token){
+ if(!char)return null;
+ const explicit=token&&Object.prototype.hasOwnProperty.call(token,'activeWeaponId')?String(token.activeWeaponId||''):'';
+ if(token&&Object.prototype.hasOwnProperty.call(token,'activeWeaponId')){
+  if(!explicit||/^natural:|^(desarmado|nenhum)$/i.test(explicit))return null;
+  const item=encontrarEquipamentoCombateChar_(char,explicit);
+  return item&&itemEhArmaOuEscudo_(item)&&!itemCombateInutilizavel_(item)?item:null;
+ }
+ const legacy=String(batalhaPrefsDefensor_(char)?.equipamento||'');
+ if(legacy&&!/^natural:|^(desarmado|nenhum)$/i.test(legacy)){
+  const item=encontrarEquipamentoCombateChar_(char,legacy);
+  if(item&&itemEhArmaOuEscudo_(item)&&!itemCombateInutilizavel_(item))return item;
+ }
+ return (obterItensEquipados_(char)||[]).find(item=>item&&itemEhArmaOuEscudo_(item)&&!itemCombateInutilizavel_(item))||null;
+}
+function novaValorPericiaTotal_(c,per){
+ if(!c||!per)return 0;
+ // Testes de Resistência que pedem a perícia inteira não sofrem os redutores
+ // situacionais de ferimento, fadiga, queda, armadura ou efeitos temporários.
+ return Math.min(100,Math.max(0,Number(obterValorRegistroPericia_(c,per.id,!!per.__especializacao))||0));
+}
+function novaDetalharValorPericia_(c,t,per,penalty=0){
+ const raw=novaValorPericiaTotal_(c,per),arm=valorPericiaComArmadura_(c,per,raw);
  const escudoEquipado=(obterItensEquipados_(c)||[]).some(item=>/escudo|shield/i.test(getNome(item)));
- const extra=Math.max(batalhaPenalidadeFerimento_(c,per),labPenalidadeFerimentoLab22_(t,per))+batalhaPenalidadeCaido_(c)+batalhaPenalidadeInfeccao_(c)+penalty;
+ const grausFerimento=Math.max(batalhaPenalidadeFerimento_(c,per),labPenalidadeFerimentoLab22_(t,per));
+ const grausCaido=batalhaPenalidadeCaido_(c),grausInfeccao=batalhaPenalidadeInfeccao_(c),grausCompatibilidade=Math.max(0,Number(penalty)||0);
+ const extra=grausFerimento+grausCaido+grausInfeccao+grausCompatibilidade;
  const effects=Object.values(t.psiEffects||{}).filter(e=>e.untilRound>(t.supportRound||0)),debuff=effects.reduce((s,e)=>s+Number(e.penalty||0),0);
  const agile=t.psiEffects?.agilidade_psi,bonus=agile?.untilRound>(t.supportRound||0)&&/atlet|acrob|desarmad/i.test(per.id+' '+getNome(per))?Number(agile.bonus||0):0;
- return Math.min(100,Math.max(0,Number(aplicarDificuldadeEFadiga_(c,arm.valor,'padrao',extra).valor||0)-(escudoEquipado?5:0)-debuff-(periciaCriaturaPodeAtacar_(c,per)?Number(t.combateLab?.armaDanificadaPenalidade||0):0)+bonus+Number(t.psiIntuition||0)));
+ const ajuste=aplicarDificuldadeEFadiga_(c,arm.valor,'padrao',extra),aposDificuldade=Number(ajuste.valor||0);
+ // Campo legado das versões anteriores ao dano estrutural por PV. Ele ainda é
+ // lido para não alterar silenciosamente combates em andamento, mas agora fica
+ // identificado no histórico em vez de desaparecer em “outros modificadores”.
+ const armaDanificadaLegado=periciaCriaturaPodeAtacar_(c,per)?Math.max(0,Number(t.combateLab?.armaDanificadaPenalidade||0)):0;
+ const escudo=escudoEquipado?5:0,intuicao=Number(t.psiIntuition||0);
+ const valor=Math.min(100,Math.max(0,aposDificuldade-escudo-debuff-armaDanificadaLegado+bonus+intuicao));
+ return {valor,raw,armaduraPct:Number(arm.pct||0),armaduraValor:Number(arm.valor||0),ajuste,aposDificuldade,
+  grausFerimento,grausCaido,grausInfeccao,grausCompatibilidade,escudo,debuff,armaDanificadaLegado,
+  bonusAgilidade:bonus,bonusIntuicao:intuicao,fadiga:String(c?.combate?.fadiga||'Fresh')};
+}
+function novaValorPericia_(c,t,per,penalty=0){return novaDetalharValorPericia_(c,t,per,penalty).valor;}
+function novaDescreverTesteAtaque_(d,die){
+ const etapas=[`base ${d.raw}`];let atual=d.raw;
+ if(d.armaduraPct>0&&d.armaduraValor!==atual){atual=d.armaduraValor;etapas.push(`armadura −${Number(d.armaduraPct.toFixed(1))}% → ${atual}`);}
+ if(d.aposDificuldade!==atual){
+  const causas=[];
+  if(Number(d.ajuste?.degrausFadiga||0)>0)causas.push(`fadiga ${traduzirNomeFadiga_(d.fadiga)} → ${d.ajuste?.efetiva?.nome||'dificuldade maior'}`);
+  if(d.grausCompatibilidade>0)causas.push(`compatibilidade +${d.grausCompatibilidade} grau${d.grausCompatibilidade>1?'s':''}`);
+  if(d.grausFerimento>0)causas.push(`ferimento +${d.grausFerimento} grau${d.grausFerimento>1?'s':''}`);
+  if(d.grausCaido>0)causas.push(`caído +${d.grausCaido} graus`);
+  if(d.grausInfeccao>0)causas.push(`infecção +${d.grausInfeccao} grau`);
+  if(Number(d.ajuste?.modificadorMestre||0)!==0)causas.push(`mestre ${Number(d.ajuste.modificadorMestre)>0?'+':''}${d.ajuste.modificadorMestre} grau(s)`);
+  atual=d.aposDificuldade;etapas.push(`${causas.join(', ')||('dificuldade '+(d.ajuste?.efetiva?.nome||''))} → ${atual}`);
+ }
+ const aditivos=[
+  ['escudo',-d.escudo],['efeito psíquico',-d.debuff],['arma danificada (legado)',-d.armaDanificadaLegado],
+  ['Agilidade Psi',d.bonusAgilidade],['Intuição',d.bonusIntuicao]
+ ];
+ for(const [nome,delta] of aditivos){if(!delta)continue;atual=Math.max(0,Math.min(100,atual+delta));etapas.push(`${delta>0?'+':'−'}${Math.abs(delta)} ${nome} → ${atual}`);}
+ etapas.push(`efetiva ${d.valor}`,`${die}/${d.valor}`);return etapas.join(' · ');
 }
 async function novaPrepararAtaque_(a,b,command){
  const objectTarget=command.targetKind==='object';
  const [ca,cb]=await Promise.all([novaFicha_(a),objectTarget?Promise.resolve({}):novaFicha_(b)]);
+ const targetSource=objectTarget?'':decodeURIComponent(String(b.id||''));
+ const targetSheetPath=!objectTarget&&!targetSource.startsWith('sync')&&!targetSource.startsWith('dummy:')?'personagens/'+targetSource:null;
  const psi=command.powerId==='grito_psiquico'?novaInfoSuporte_(ca,a).powers.find(p=>p.id==='grito_psiquico'):null;
  if(command.powerId&&!psi)throw Error('Poder não disponível nesta ficha.');
  const per=psi?{id:'grito_psiquico',nome:'Psiquismo'}:(batalhaListaPericias_(ca)||[]).find(p=>batalhaTokenPericia_(p)===command.skillId);
@@ -36550,9 +36760,10 @@ async function novaPrepararAtaque_(a,b,command){
  const seed=Number.isInteger(command.seed)?command.seed:crypto.getRandomValues(new Uint32Array(1))[0];
  const cone=psi?{range:8,angle:60,centralPenalty:20,name:'Grito Psíquico'}:/eco[ _]da[ _]matilha/i.test(getNome(chosen.item))?{range:15,angle:60,centralPenalty:20}:null;
  if(objectTarget&&cone)throw Error('Este ataque sonoro afeta criaturas, não objetos.');
- const resolve=(a,b,health,map,decision={phase:'resolve',choice:'none'})=>{
+ const resolve=(a,b,health,map,decision={phase:'resolve',choice:'none'},scene=null,freshTargetSheet=null)=>{
+  const defenderChar=!objectTarget&&freshTargetSheet?{...structuredClone(cb),...structuredClone(freshTargetSheet)}:structuredClone(cb);
   const actor={...a,...structuredClone(health[a.id]||{}),charLab:structuredClone(ca),diametroM:/besta\s+ululante/i.test(a.nome)?2.4:1,acoesAtuaisLab:3};
-  const target={...b,...structuredClone(health[b.id]||{}),charLab:structuredClone(cb),diametroM:/besta\s+ululante/i.test(b.nome)?2.4:1,acoesAtuaisLab:3};
+  const target={...b,...structuredClone(health[b.id]||{}),charLab:defenderChar,diametroM:/besta\s+ululante/i.test(b.nome)?2.4:1,acoesAtuaisLab:3};
   actor.supportRound=target.supportRound=map.combat?.round||0;
   for(const t of [actor,target]){t.x*=Number(map.larguraM||28)/28;t.y*=Number(map.alturaM||14)/14;}
   const state={...labEstado_,tokens:[actor,target],objetosLab:[],log:[]};
@@ -36568,16 +36779,21 @@ async function novaPrepararAtaque_(a,b,command){
  const distance=objectTarget?distanciaObjeto(a,b,map):Math.max(0,labDistanciaEntre_(actor,target)-(actor.diametroM+target.diametroM)/2),range=cone?.range||labAlcanceAtaque_(actor,item);
  if(!labAtaqueEhDistancia_(item)&&distance>range+.001)throw Error(`Fora de alcance: ${distance.toFixed(2)} m (alcance ${range.toFixed(2)} m).`);
    if(distance>range+.001)throw Error('Fora de alcance: '+distance.toFixed(1)+' m; alcance '+range.toFixed(1)+' m.');
+   if(!cone&&labAtaqueEhDistancia_(item)&&linhaBloqueadaPorObjetos(a,b,map,scene?.objects||[],{camada:3,ignorarIds:objectTarget?[b.id]:[]}))
+    throw Error('Linha de tiro bloqueada por uma barreira no mesmo nível.');
    if(labEhArmaMuniciada_(item)&&labMunicaoAtual_(actor,item)<=0)throw Error('Arma sem munição.');
    const psiInfo=psi?novaInfoSuporte_(ca,actor):null,psiCost=psi?Number(command.cost??psi.cost):0;
    if(psi&&(!Number.isInteger(psiCost)||psiCost<psi.cost||psiCost>psiInfo.psiMax-Number(actor.psiSpent??psiInfo.psiSpent)))throw Error('PP insuficientes ou custo inválido.');
-   const value=Math.max(0,(psi?psi.value:novaValorPericia_(ca,actor,per,chosen.graus||0))-((healthA.caido||healthA.derrubado)?30:0)),attackRoll=testeComSorte(actor,value,max=>1+Math.floor(Math.random()*max)),die=attackRoll.die,grade=attackRoll;
+   const ataqueDetalhe=psi?null:novaDetalharValorPericia_(ca,actor,per,chosen.graus||0);
+   const value=Math.max(0,(psi?psi.value:ataqueDetalhe.valor)-((healthA.caido||healthA.derrubado)?30:0)),attackRoll=testeComSorte(actor,value,max=>1+Math.floor(Math.random()*max)),die=attackRoll.die,grade=attackRoll;
+   const ataqueDescricao=psi?novaDescreverTeste_(psi.value,value,die):novaDescreverTesteAtaque_({...ataqueDetalhe,valor:value},die);
    if(objectTarget){
     const expr=labExpressaoDano_(actor,item),rolled=grade.sucesso?(grade.grau==='Crítico'?maximizarExpressaoDanoCombate_(expr):rolarExpressaoDanoCombate_(expr)):{total:0};
     if(!rolled||!Number.isFinite(rolled.total))throw Error('Dano inválido no cadastro da arma: '+expr);
-    const damage=danoObjeto(b,rolled.total,obterPenetracaoArma_(item));labConsumirMunicao_(actor,item,1);
-    const text=actor.nome+' → '+b.nome+': '+getNome(per)+' · '+getNome(item)+' · '+novaDescreverTeste_(Math.min(100,obterValorRegistroPericia_(ca,per.id,!!per.__especializacao)),value,die)+' · '+grade.grau+(grade.sorte?' · 🍀 Sorte':'')+(grade.grau==='Crítico'?' · Crítico: dano máximo':'');
+    const damage=danoObjeto(b,rolled.total,obterPenetracaoArma_(item));if(grade.sucesso)ignicao(damage.object,item,grade.grau==='Crítico',map.combat);labConsumirMunicao_(actor,item,1);
+    const text=actor.nome+' → '+b.nome+': '+getNome(per)+' · '+getNome(item)+' · '+ataqueDescricao+' · '+grade.grau+(grade.sorte?' · 🍀 Sorte':'')+(grade.grau==='Crítico'?' · Crítico: dano máximo':'');
     const message=text+(grade.sucesso?' · dano bruto '+damage.bruto+' · dureza '+damage.dureza+' − penetração '+damage.penetracao+' = '+damage.efetiva+' · dano '+damage.dano+' · PV '+damage.object.pvAtual+'/'+damage.object.pvMax+(damage.object.destruido?' · Objeto destruído':''):' · Não atingiu o objeto');
+    if(damage.object.pegandoFogo)damage.object.estadoFogo=damage.object.estadoFogo||{};
     return {object:damage.object,actors:{[a.id]:{luckPrepared:!!actor.luckPrepared,psiIntuition:0,combateLab:actor.combateLab,municaoLab:actor.municaoLab||{}}},event:{message,attackerMessage:message,damage:damage.dano,grade:grade.grau,hit:grade.sucesso,item:{nome:getNome(item),categoria:item.categoria||'',familia:item.familia||'',tipo:item.tipo||''}}};
    }
    // O ataque em área compartilha o acerto, mas cada vítima rola sua própria defesa e dano.
@@ -36627,23 +36843,46 @@ async function novaPrepararAtaque_(a,b,command){
    const hit=ataqueSuperaDefesa({grau:grade.grau,valor:value,die},defense);
    const critical=grade.grau==='Crítico',melee=!cone&&!labAtaqueEhDistancia_(item),failedDefense=!defense||!defense.sucesso;
    const locations=novaLocaisValidos_(healthB),eligible=hit&&!cone&&failedDefense;
-   const effectOptions=eligible?labEfeitosDisponiveis_({item,grauAtaque:grade.grau,defensorId:b.id,atacanteId:a.id}).filter(e=>e.id!=='escolher_localizacao'):[];
+   // Danificar Arma só é uma escolha válida quando conseguimos identificar uma
+   // arma/escudo realmente empunhado e com PV estrutural. O painel direto
+   // sincroniza activeWeaponId; fichas antigas ainda usam o fallback equipado.
+   const activeDefenderWeapon=novaArmaAtivaDefensor_(defenderChar,b);
+   const damageableDefenderWeapon=activeDefenderWeapon&&Number(activeDefenderWeapon.pv||0)>0?activeDefenderWeapon:null;
+   const effectOptions=eligible?labEfeitosDisponiveis_({item,grauAtaque:grade.grau,defensorId:b.id,atacanteId:a.id}).filter(e=>e.id!=='escolher_localizacao'&&(e.id!=='danificar_arma'||!!damageableDefenderWeapon)):[];
    const chooseLocal=hit&&!cone&&failedDefense&&(critical||melee),maxEffects=Math.min(effectOptions.length,labEfeitosQuantidade_(grade.grau,defense?.grau||'Falha',!defense));
-   if(eligible&&(chooseLocal||effectOptions.length)&&!decision.effectsConfirmed)return {effectsPending:{type:'effects',options:effectOptions,locations:chooseLocal?locations:[],maxEffects,critical,attackText:novaDescreverTeste_((psi?psi.value:Math.min(100,obterValorRegistroPericia_(ca,per.id,!!per.__especializacao))),value,die),defenseText:defense?novaDescreverTeste_(defense.base,defense.valor,defense.die,defense.modifiers):'Sem defesa'}};
+   if(eligible&&(chooseLocal||effectOptions.length)&&!decision.effectsConfirmed)return {effectsPending:{type:'effects',options:effectOptions,locations:chooseLocal?locations:[],maxEffects,critical,attackText:ataqueDescricao,defenseText:defense?novaDescreverTeste_(defense.base,defense.valor,defense.die,defense.modifiers):'Sem defesa'}};
    const especiais=Array.isArray(decision.effects)?decision.effects:[];
    if(new Set(especiais).size!==especiais.length||especiais.length>maxEffects||especiais.some(id=>!effectOptions.some(e=>e.id===id)))throw Error('Efeito especial indisponível para este ataque.');
    if(decision.local&&(!chooseLocal||!locations.includes(decision.local)))throw Error('Localização indisponível para este golpe.');
    labConsumirMunicao_(actor,item,1);
-   let damage=null;
+   let damage=null,weaponDamage=null,targetSheetPatch=null;
    if(hit){
     const eco=!!psi||/eco[ _]da[ _]matilha/i.test(getNome(item));
     if(!eco){
      const expr=labExpressaoDano_(actor,item),rolled=grade.grau==='Crítico'?maximizarExpressaoDanoCombate_(expr):rolarExpressaoDanoCombate_(expr);
      if(!rolled)throw Error('Dano inválido no cadastro da arma: '+expr);
      const absorbed=Math.min(Number(target.psiAbsorption||0),rolled.total);target.psiAbsorption=Math.max(0,Number(target.psiAbsorption||0)-absorbed);
-     if(!locations.length)throw Error('O alvo não possui partes atingíveis.');
-     const randomLocal=labLocalizacaoD20_().local,local=decision.local||(locations.includes(randomLocal)?randomLocal:locations[Math.floor(Math.random()*locations.length)]);
-     damage=labAplicarDanoLocal_(target,rolled.total-absorbed,item,{localForcada:local,ignorarArmadura:especiais.includes('contornar_armadura'),grauAtaque:grade.grau,rolagemAtaque:die,valorAtaque:value});
+     const incoming=Math.max(0,Number(rolled.total||0)-absorbed);
+     if(especiais.includes('danificar_arma')){
+      if(!damageableDefenderWeapon)throw Error('O defensor não possui uma arma empunhada que possa receber este efeito.');
+      const result=novaAplicarDanoArma_(damageableDefenderWeapon,incoming);
+      Object.assign(damageableDefenderWeapon,result.item);
+      weaponDamage={nome:getNome(damageableDefenderWeapon)||'Arma',bruto:result.bruto,pa:result.pa,estrutural:result.estrutural,aplicado:result.aplicado,excesso:result.excesso,pvAntes:result.pvAntes,pvAtual:result.pvAtual,pvMax:result.pvMax,quebrada:result.pvAtual<=0};
+      // Para personagens persistentes, o PV da arma pertence à ficha e precisa
+      // ser salvo na mesma transação que resolve o golpe. Assim não existe um
+      // intervalo em que a interface mostre a arma quebrada mas o Firestore não.
+      if(targetSheetPath)targetSheetPatch={inventario:structuredClone(defenderChar.inventario)};
+      // Só o dano estrutural que ultrapassa os PV restantes da arma chega ao
+      // corpo. Pela regra da Mesa Estelar, esse excedente acerta o Braço Direito.
+      if(result.excesso>0){
+       if(!locations.length)throw Error('O alvo não possui partes atingíveis.');
+       damage=labAplicarDanoLocal_(target,result.excesso,item,{localForcada:'Braço Direito',ignorarArmadura:especiais.includes('contornar_armadura'),grauAtaque:grade.grau,rolagemAtaque:die,valorAtaque:value});
+      }
+     }else{
+      if(!locations.length)throw Error('O alvo não possui partes atingíveis.');
+      const randomLocal=labLocalizacaoD20_().local,local=decision.local||(locations.includes(randomLocal)?randomLocal:locations[Math.floor(Math.random()*locations.length)]);
+      damage=labAplicarDanoLocal_(target,incoming,item,{localForcada:local,ignorarArmadura:especiais.includes('contornar_armadura'),grauAtaque:grade.grau,rolagemAtaque:die,valorAtaque:value});
+     }
     }else{
      target.combateLab=target.combateLab||{};target.combateLab.caido=true;
      const resistencia=labRolarResistenciaFerimento22_(target,{valorAtaque:value,grauAtaque:grade.grau,rolagemAtaque:die});
@@ -36654,15 +36893,16 @@ async function novaPrepararAtaque_(a,b,command){
     const dst=target.combateLab||{};
     if(especiais.includes('sangrar')){dst.sangrando=true;dst.sangramentoAtivo=true;}
     if(especiais.includes('derrubar')){dst.caido=true;dst.derrubado=true;}
-    if(especiais.includes('danificar_arma')){dst.armaDanificada=true;dst.armaDanificadaPenalidade=20;}
     if(/sangr|bleed/.test(props))dst.sangramentoAtivo=true;
     if(/derrubar|knockdown|impacto/.test(props))dst.caido=true;
     if(/infecc|infect/.test(props))dst.infecciosoAtivo=true;
     if(/drenagem|drain/.test(props))actor.combateLab.pontosVidaDrenados=(Number(actor.combateLab.pontosVidaDrenados)||0)+Math.max(0,damage.final||0);
    }
-   const attackText=actor.nome+' → '+target.nome+': '+getNome(per)+' · '+getNome(item)+' · '+novaDescreverTeste_((psi?psi.value:Math.min(100,obterValorRegistroPericia_(ca,per.id,!!per.__especializacao))),value,die)+' · '+grade.grau+(grade.sorte?' · 🍀 Sorte':'');
+   const attackText=actor.nome+' → '+target.nome+': '+getNome(per)+' · '+getNome(item)+' · '+ataqueDescricao+' · '+grade.grau+(grade.sorte?' · 🍀 Sorte':'');
    const defenseText=defense?'Defesa de '+target.nome+': '+defense.nome+' · '+novaDescreverTeste_(defense.base,defense.valor,defense.die,defense.modifiers)+' → '+defense.grau+(defense.sorte?' · 🍀 Sorte':'')+' · '+(hit?'superada':'evitou o ataque'):'';
-   const damageText=damage?damage.local+' · dano rolado '+damage.bruto+' · armadura efetiva '+damage.paEf+' · dano tomado '+damage.final+(damage.ferimento?' · '+damage.ferimento:''):'';
+   const weaponDamageText=weaponDamage?weaponDamage.nome+' · dano na arma '+weaponDamage.aplicado+' · PV '+weaponDamage.pvAtual+'/'+weaponDamage.pvMax+(weaponDamage.quebrada?' · INUTILIZÁVEL':'')+(weaponDamage.excesso>0?' · excesso '+weaponDamage.excesso+' → Braço Direito':''):'';
+   const bodyDamageText=damage?damage.local+' · dano rolado '+damage.bruto+' · armadura efetiva '+damage.paEf+' · dano tomado '+damage.final+(damage.ferimento?' · '+damage.ferimento:''):'';
+   const damageText=[weaponDamageText,bodyDamageText].filter(Boolean).join(' · ');
    const resistances=damage?.resistencia?Object.values(target.combateLab.resistenciaFerimentos?.[damage.local]||{}).filter(v=>v&&typeof v==='object'&&'roll' in v):[];
    if(damage?.resistencia&&!resistances.length)resistances.push(damage.resistencia);
    const resistanceText=resistances.map(r=>'Resistência: '+r.roll+'/'+r.valor+' → '+r.grau+(r.sorte?' · 🍀 Sorte':'')+' · '+(r.passou?'resistiu':'não resistiu')).join(' · ');
@@ -36670,10 +36910,11 @@ async function novaPrepararAtaque_(a,b,command){
    const rearText=fromBack?`Ataque pelas costas${evasionActive?' · Evasão permite Esquiva':(options.some(o=>o.id==='natural:aparar-cauda')?' · Cauda disponível · Esquiva -20':' · Aparar indisponível · Esquiva -20')}`:'';
    const specialText=psi?psiCost+' PP · sem dano físico':especiais.length?'Efeito especial: '+especiais.map(id=>effectOptions.find(e=>e.id===id)?.nome||id).join(', '):critical?'Crítico: dano máximo':'';
    const message=[attackText,defenseText,rearText,specialText,damageText,resistanceText,consequences].filter(Boolean).join(' · ');
-   return JSON.parse(JSON.stringify({defenseSpent:!!defense,actors:{[a.id]:{...(psi?{psiSpent:Number(actor.psiSpent??psiInfo.psiSpent)+psiCost,psiMax:psiInfo.psiMax}:{}),luckPrepared:!!actor.luckPrepared,psiIntuition:0,combateLab:actor.combateLab,municaoLab:actor.municaoLab||{}},[b.id]:{luckPrepared:!!target.luckPrepared,psiAbsorption:target.psiAbsorption||0,combateLab:target.combateLab,municaoLab:target.municaoLab||{}}},facing:actorAttackFacing,event:{message,attackerMessage:[attackText,hit?'Atingiu o alvo':'Não atingiu',rearText,specialText,damageText].filter(Boolean).join(' · '),defenderMessage:[attackText,defenseText,rearText,specialText,damageText,resistanceText,consequences].filter(Boolean).join(' · '),specialEffects:especiais,damage:damage?.final||0,grade:grade.grau,hit,fromBack,defense,resistances,item:{nome:getNome(item),categoria:item.categoria||'',familia:item.familia||'',tipo:item.tipo||''}}}));
+   return JSON.parse(JSON.stringify({defenseSpent:!!defense,targetSheetPatch,actors:{[a.id]:{...(psi?{psiSpent:Number(actor.psiSpent??psiInfo.psiSpent)+psiCost,psiMax:psiInfo.psiMax}:{}),luckPrepared:!!actor.luckPrepared,psiIntuition:0,combateLab:actor.combateLab,municaoLab:actor.municaoLab||{}},[b.id]:{luckPrepared:!!target.luckPrepared,psiAbsorption:target.psiAbsorption||0,combateLab:target.combateLab,municaoLab:target.municaoLab||{}}},facing:actorAttackFacing,event:{message,attackerMessage:[attackText,hit?'Atingiu o alvo':'Não atingiu',rearText,specialText,damageText].filter(Boolean).join(' · '),defenderMessage:[attackText,defenseText,rearText,specialText,damageText,resistanceText,consequences].filter(Boolean).join(' · '),specialEffects:especiais,weaponDamage,damage:damage?.final||0,grade:grade.grau,hit,fromBack,defense,resistances,item:{nome:getNome(item),categoria:item.categoria||'',familia:item.familia||'',tipo:item.tipo||''}}}));
   });}finally{Math.random=originalRandom;}
  };
  resolve.area=cone;
+ resolve.targetSheetPath=targetSheetPath;
  return resolve;
 }
 async function novaDadosAcoes_(t){
@@ -36702,12 +36943,13 @@ async function novaPrepararSuporte_(a,b,tokens){
  return {sheetPath,resolve:args=>{
   const {health,map,cmd}=args,sourceChar=args.sheet||ca,info=novaInfoSuporte_(sourceChar,{...a,...health.actors?.[a.id]}),targetInfo=novaInfoSuporte_(cb,{...b,...health.actors?.[b.id]});
   info.targetHealth=targetInfo.health;info.healthById={};info.willById={};info.dodgeById={};info.resistanceById={};
-  for(const t of tokens){const c=chars.get(t.id),snap={...t,...structuredClone(health.actors?.[t.id]||{}),charLab:c},per=batalhaPericiaPorNomes_(c,['força de vontade','vontade','willpower']);info.healthById[t.id]=labGarantirSnapshotCombate_(snap);info.willById[t.id]=per?novaValorPericia_(c,snap,per):0;for(const [key,names]of [["dodgeById",["esquiva"]],["resistanceById",["resistência","resistencia"]]]){const p=batalhaPericiaPorNomes_(c,names);info[key][t.id]=p?novaValorPericia_(c,snap,p):0;}}
+  for(const t of tokens){const c=chars.get(t.id),snap={...t,...structuredClone(health.actors?.[t.id]||{}),charLab:c},per=batalhaPericiaPorNomes_(c,['força de vontade','vontade','willpower']);info.healthById[t.id]=labGarantirSnapshotCombate_(snap);info.willById[t.id]=per?novaValorPericia_(c,snap,per):0;for(const [key,names]of [["dodgeById",["esquiva"]],["resistanceById",["resistência","resistencia"]]]){const p=batalhaPericiaPorNomes_(c,names);info[key][t.id]=p?(key==='resistanceById'?novaValorPericiaTotal_(c,p):novaValorPericia_(c,snap,p)):0;}}
   if(cmd.kind==='direct-inventory'){
    if(!args.sheet)throw Error('Ficha persistente não encontrada.');
    const result=moverInventario({...args,actor:health.actors?.[a.id],validarPeso:(inv,comp)=>validarPesoCompartimento_(sourceChar,inv,comp,false)});
    return {...result,actors:{...health.actors,[a.id]:{...health.actors?.[a.id],inventoryRevision:Number(health.actors?.[a.id]?.inventoryRevision||0)+1}}};
   }
+  if(cmd.kind==='direct-extinguish')return apagarFogo({...args,info});
   if(cmd.kind==='direct-luck')return prepararSorte({...args,info});
   if(cmd.kind==='direct-consciousness')return resolverConsciencia({...args,info,roll:novaSorteioSuporte_(args.seed)});
   if(cmd.kind==='direct-psi-review'){
@@ -36736,9 +36978,28 @@ async function novaPrepararSuporte_(a,b,tokens){
  }};
 }
 import {acaoIniciativa as novaAcaoSuporte_} from './nova-turnos.js?v=46';
+async function novaPrepararFogo_(tokens){
+ const chars=new Map(await Promise.all(tokens.map(async t=>[t.id,await novaFicha_(t)])));
+ return (positions,actors,exposures,map,random)=>{
+  const messages=[],oldRandom=Math.random;Math.random=random;
+  try{for(const e of exposures){const p=positions.find(t=>t.id===e.id);if(!p||!chars.has(p.id))continue;
+   const a=actors[p.id]||={},t={...p,...structuredClone(a),charLab:structuredClone(chars.get(p.id)),supportRound:map.combat?.round||0};
+   const state={...labEstado_,tokens:[t],objetosLab:[],log:[]};
+   labComContextoLocal_(state,false,()=>{const st=labGarantirSnapshotCombate_(t);if(st.morto)return;
+    const locs=Object.keys(st.hitMax||{}).filter(l=>Number(st.hit?.[l]??st.hitMax[l])>-Number(st.hitMax[l]));if(!locs.length)return;
+    const local=locs[Math.floor(random()*locs.length)],d=labAplicarDanoLocal_(t,e.damage,{nome:'Incêndio'},{localForcada:local,ignorarArmadura:true});
+    actors[p.id]={...a,combateLab:t.combateLab};messages.push({actorUid:p.donoUid||'',message:p.nome+' · Calor/incêndio: −'+d.final+' PV · '+local+(d.ferimento?' · '+d.ferimento:'')});
+   });
+  }}finally{Math.random=oldRandom;}return messages;
+ };
+}
 const novaSyncController_=mountDirectPositionLab({
+ workshop:options=>window.novaOficinaMesa_(options),
+ renderSceneObject:(o,scene)=>window.novaOficinaElemento_(o,scene),
+ prepareFire:novaPrepararFogo_,
  user:()=>currentUserUid?{uid:String(currentUserUid),master:batalhaEhMestre_()}:null,
- characters:()=>labEstado_?.tokens?.length?labEstado_.tokens:(userCharacters||[]),
+ characters:()=>userCharacters||[],
+ activeCharacter:()=>currentCharId,
  catalog:()=>[
   ...(userCharacters||[]).map(t=>({...t,catalogType:(t.donoUid||t.dono)===currentUserUid?'pm':'pj'})),
   ...(npcsDB||[]).filter(t=>t.selecionavelCombate!==false).map(t=>({...t,id:'syncnpc:'+t.id,catalogType:'npc',donoUid:'',dono:'',nome:'NPC · '+t.nome})),
@@ -36764,7 +37025,7 @@ const novaSyncController_=mountDirectPositionLab({
   const c=await novaFicha_(t);
   const fatigue=obterRegraFadiga_(c);
   const int=(c.atributos?.INT||10)+(c.bonus?.INT||0),dex=(c.atributos?.DES||10)+(c.bonus?.DES||0);
-  return {...t,movementMax:Number(c.deslocamento??c.movimentoTerrestre)||(/besta\s+ululante/i.test(t.nome)?8:6),initiative:Math.max(0,Math.ceil((int+dex)/2)+(fatigue.iniciativa||0)),actions:obterPAMaxCombate_(c)};
+  return {...t,...(c.__npcTemporario?{atributosIndividuo:structuredClone(c.atributos||{})}:{}),movementMax:Number(c.deslocamento??c.movimentoTerrestre)||(/besta\s+ululante/i.test(t.nome)?8:6),initiative:Math.max(0,Math.ceil((int+dex)/2)+(fatigue.iniciativa||0)),actions:obterPAMaxCombate_(c)};
  })),
  renderMap:(map,options)=>window.novaSyncRenderMap_(map,options),
  loadMap:async id=>{
@@ -36822,3 +37083,247 @@ window.importarObjetosMapaCSV=async function(input){
   }catch(e){notificar_('Não foi possível importar: '+e.message,'erro',7000);}finally{input.value='';}
  },error:e=>{input.value='';notificar_('Não foi possível ler o CSV: '+e.message,'erro');}});
 };
+
+// ============================================================
+// V63 — Rádio da Mesa independente do mapa
+// Restaura o player flutuante para jogadores e desacopla a
+// música compartilhada do protocolo de sincronização do mapa.
+// ============================================================
+const AUDIO_MESA_LIVE_V63_PATH_='configuracoes/audio_mesa_ao_vivo_v1';
+let audioMesaLiveV63Unsub_=null;
+
+function audioMesaLiveV63Ref_(){
+    return doc(db,...AUDIO_MESA_LIVE_V63_PATH_.split('/'));
+}
+function audioMesaLiveV63Normalizar_(st){
+    const x=st&&typeof st==='object'?st:{};
+    const playlist=Array.isArray(x.playlist)?x.playlist.map(t=>({
+        id:String(t?.id||''),nome:String(t?.nome||''),url:String(t?.url||''),
+        categoria:String(t?.categoria||''),ordem:Number(t?.ordem||0)
+    })).filter(t=>t.url):[];
+    return {
+        schema:1,
+        id:String(x.id||''),
+        nome:String(x.nome||''),
+        url:String(x.url||''),
+        categoria:String(x.categoria||''),
+        mode:String(x.mode||'single'),
+        momento:String(x.momento||''),
+        playlist,
+        playlistIndex:Math.max(0,Number(x.playlistIndex||0)),
+        playing:!!x.playing,
+        inicioTs:Number(x.inicioTs||Date.now()),
+        atualizadoEm:Number(x.atualizadoEm||Date.now())
+    };
+}
+async function audioMesaLiveV63Publicar_(st){
+    if(!batalhaEhMestre_()||!currentUserUid)return;
+    const payload=audioMesaLiveV63Normalizar_({...st,atualizadoEm:Date.now()});
+    try{
+        await setDoc(audioMesaLiveV63Ref_(),payload,{merge:false});
+    }catch(e){
+        console.warn('Rádio da Mesa: não foi possível publicar o estado',e);
+        notificar_('Não foi possível sincronizar a música com os jogadores.','erro',4500);
+    }
+}
+function audioMesaLiveV63Aplicar_(data){
+    const remoto=audioMesaLiveV63Normalizar_(data||{playing:false,inicioTs:Date.now()});
+    labEstado_.audioMesaLab=remoto;
+    // Força o player a reconsiderar a faixa quando o mestre troca ou para.
+    labAudioUltimaChave490_='';
+    try{labAudioAplicar490_();}catch(e){console.warn('Rádio da Mesa: reprodução',e);}
+    try{labAudioFloat490_();}catch(e){console.warn('Rádio da Mesa: painel',e);}
+    try{gmMusicaSelectorRender510_();}catch(_){}
+}
+function iniciarAudioMesaAoVivoV63_(){
+    audioMesaLiveV63Unsub_?.();audioMesaLiveV63Unsub_=null;
+    if(!auth.currentUser)return;
+    // O ícone deve existir mesmo antes de haver uma música em execução.
+    try{labAudioFloat490_();}catch(_){}
+    audioMesaLiveV63Unsub_=onSnapshot(audioMesaLiveV63Ref_(),snap=>{
+        audioMesaLiveV63Aplicar_(snap.exists()?snap.data():{playing:false,inicioTs:Date.now()});
+    },e=>{
+        console.warn('Rádio da Mesa indisponível',e);
+        try{labAudioFloat490_();}catch(_){}
+    });
+}
+function pararAudioMesaAoVivoV63_(){
+    audioMesaLiveV63Unsub_?.();audioMesaLiveV63Unsub_=null;
+    try{labAudioParar500_();}catch(_){try{labAudioParar490_();}catch(__){}}
+    document.getElementById('labAudioMesaFloat')?.remove();
+}
+
+// Espelha no documento leve de áudio as ações do mestre. O rádio continua
+// funcionando mesmo quando o Mapa da Mesa usa outro protocolo de sincronização.
+const gmMusicaTocarIdV63Base_=window.gmMusicaTocarId510_;
+window.gmMusicaTocarId510_=function(id){
+    const r=gmMusicaTocarIdV63Base_?.(id);
+    queueMicrotask(()=>audioMesaLiveV63Publicar_(labEstado_.audioMesaLab));
+    return r;
+};
+const gmMusicaTocarMomentoV63Base_=window.gmMusicaTocarMomento510_;
+window.gmMusicaTocarMomento510_=function(moment){
+    const r=gmMusicaTocarMomentoV63Base_?.(moment);
+    queueMicrotask(()=>audioMesaLiveV63Publicar_(labEstado_.audioMesaLab));
+    return r;
+};
+const gmMusicaTocarLegadoV63Base_=window.gmMusicaTocar490_;
+window.gmMusicaTocar490_=function(i){
+    const r=gmMusicaTocarLegadoV63Base_?.(i);
+    queueMicrotask(()=>audioMesaLiveV63Publicar_(labEstado_.audioMesaLab));
+    return r;
+};
+const gmMusicaPararV63Base_=window.gmMusicaParar490_;
+window.gmMusicaParar490_=function(){
+    const r=gmMusicaPararV63Base_?.();
+    queueMicrotask(()=>audioMesaLiveV63Publicar_(labEstado_.audioMesaLab));
+    return r;
+};
+
+// Se uma playlist avança no navegador do mestre, publica a nova faixa para
+// que os jogadores saltem para o mesmo item e para o mesmo ponto temporal.
+if(typeof labAudioAvancar510_==='function'){
+    const labAudioAvancarV63Base_=labAudioAvancar510_;
+    labAudioAvancar510_=function(){
+        const r=labAudioAvancarV63Base_();
+        if(batalhaEhMestre_())queueMicrotask(()=>audioMesaLiveV63Publicar_(labEstado_.audioMesaLab));
+        return r;
+    };
+}
+
+// O rádio existe para qualquer usuário autenticado, em qualquer aba do site.
+if(typeof onAuthStateChanged==='function'&&typeof auth!=='undefined')onAuthStateChanged(auth,user=>{
+    if(user)setTimeout(iniciarAudioMesaAoVivoV63_,0);
+    else pararAudioMesaAoVivoV63_();
+});
+
+console.info('[Mesa Estelar] v63 rádio compartilhado carregado');
+window.__MESA_PATCH__='v63-radio-compartilhado';
+
+// ===== v64 · objetos de mapa: corte de margens + rótulos X/Y =====
+function objMapaCropAlphaCanvasV64_(canvas,minAlpha=6){
+    try{
+        const ctx=canvas.getContext('2d',{willReadFrequently:true});
+        const w=canvas.width|0,h=canvas.height|0;
+        if(!w||!h)return canvas;
+        const img=ctx.getImageData(0,0,w,h),d=img.data;
+        let minX=w,minY=h,maxX=-1,maxY=-1;
+        for(let y=0;y<h;y++){
+            for(let x=0;x<w;x++){
+                const a=d[(y*w+x)*4+3]||0;
+                if(a>minAlpha){if(x<minX)minX=x;if(y<minY)minY=y;if(x>maxX)maxX=x;if(y>maxY)maxY=y;}
+            }
+        }
+        if(maxX<0||maxY<0)return canvas;
+        if(minX===0&&minY===0&&maxX===w-1&&maxY===h-1)return canvas;
+        const ow=maxX-minX+1,oh=maxY-minY+1;
+        const out=document.createElement('canvas');
+        out.width=Math.max(1,ow);out.height=Math.max(1,oh);
+        out.getContext('2d').drawImage(canvas,minX,minY,ow,oh,0,0,ow,oh);
+        return out;
+    }catch(_){return canvas;}
+}
+function objMapaArquivoParaDataV64Carregar_(src){
+    return new Promise((resolve,reject)=>{
+        const im=new Image();
+        im.onload=()=>resolve(im);
+        im.onerror=reject;
+        im.src=src;
+    });
+}
+function objMapaGerarDataURLV64_(im,opt={}){
+    const max=Number(opt.max||320),trim=opt.trim!==false;
+    let scale=Math.min(1,max/Math.max(im.width||1,im.height||1)),data='';
+    for(let tentativa=0;tentativa<4;tentativa++){
+        let c=document.createElement('canvas');
+        c.width=Math.max(1,Math.round((im.width||1)*scale));
+        c.height=Math.max(1,Math.round((im.height||1)*scale));
+        const ctx=c.getContext('2d');
+        ctx.clearRect(0,0,c.width,c.height);
+        ctx.drawImage(im,0,0,c.width,c.height);
+        if(trim)c=objMapaCropAlphaCanvasV64_(c,6);
+        try{data=c.toDataURL('image/webp',Math.max(.55,.82-tentativa*.09));}
+        catch(_){data=c.toDataURL('image/png');}
+        if(data.length<95000)break;
+        scale*=.78;
+    }
+    return data;
+}
+const objMapaArquivoParaDataV64Base_=(typeof objMapaArquivoParaData_==='function')?objMapaArquivoParaData_:null;
+objMapaArquivoParaData_=function(f){
+    return new Promise((resolve,reject)=>{
+        if(!f||!String(f.type||'').startsWith('image/'))return reject(new Error('Arquivo inválido'));
+        const rd=new FileReader();
+        rd.onerror=reject;
+        rd.onload=async()=>{
+            try{const im=await objMapaArquivoParaDataV64Carregar_(rd.result);resolve(objMapaGerarDataURLV64_(im,{trim:true}));}
+            catch(e){
+                if(objMapaArquivoParaDataV64Base_)objMapaArquivoParaDataV64Base_(f).then(resolve,reject);
+                else reject(e);
+            }
+        };
+        rd.readAsDataURL(f);
+    });
+};
+window.objMapaLerImagem_=function(ev){
+    const f=ev?.target?.files?.[0];if(!f||!f.type.startsWith('image/'))return;
+    objMapaArquivoParaData_(f).then(data=>{
+        const p=document.getElementById('objMapaImagemPreview');
+        if(!p)return;
+        p.src=data;p.dataset.imagem=data;
+        const url=document.getElementById('objMapaImagemUrl');if(url)url.value='';
+        notificar_('Imagem carregada. Margens transparentes foram ajustadas automaticamente quando detectadas.','sucesso',3200);
+    }).catch(e=>{console.error('objMapaLerImagem v64',e);notificar_('Não foi possível carregar a imagem.','erro',4000);});
+};
+window.objMapaCortarMargensTransparentes_=function(){
+    const p=document.getElementById('objMapaImagemPreview');
+    if(!p)return;
+    const src=String(p.dataset?.imagem||p.src||'').trim();
+    if(!src){notificar_('Carregue uma imagem primeiro.','aviso');return;}
+    objMapaArquivoParaDataV64Carregar_(src).then(im=>{
+        const antesW=im.naturalWidth||im.width||0,antesH=im.naturalHeight||im.height||0;
+        let c=document.createElement('canvas');c.width=antesW;c.height=antesH;c.getContext('2d').drawImage(im,0,0,antesW,antesH);
+        const cortado=objMapaCropAlphaCanvasV64_(c,6);
+        if(cortado.width===c.width&&cortado.height===c.height){notificar_('Não encontrei margens transparentes relevantes para cortar.','aviso',2800);return;}
+        const data=cortado.toDataURL('image/png');
+        p.src=data;p.dataset.imagem=data;
+        const url=document.getElementById('objMapaImagemUrl');if(url)url.value='';
+        notificar_(`Margens transparentes cortadas (${antesW}×${antesH} → ${cortado.width}×${cortado.height}).`,'sucesso',3800);
+    }).catch(e=>{console.error('Cortar margens transparentes',e);notificar_('Não foi possível cortar as margens desta imagem.','erro',4000);});
+};
+function objMapaAprimorarEditorV64_(){
+    try{
+        const campoX=document.getElementById('objMapaLargura');
+        const campoY=document.getElementById('objMapaAltura');
+        if(campoX?.parentElement){
+            const label=campoX.parentElement;
+            if(!label.dataset.v64xy){label.dataset.v64xy='1';if(label.firstChild&&label.firstChild.nodeType===3)label.firstChild.nodeValue='Comprimento (X, m)';}
+        }
+        if(campoY?.parentElement){
+            const label=campoY.parentElement;
+            if(!label.dataset.v64xy){label.dataset.v64xy='1';if(label.firstChild&&label.firstChild.nodeType===3)label.firstChild.nodeValue='Largura (Y, m)';}
+        }
+        const bloco=document.querySelector('#editorObjetoMapaBanco div[style*="background:rgba(0,0,0,.12)"]');
+        if(bloco&&!document.getElementById('objMapaTrimBtnV64')){
+            const btn=document.createElement('button');
+            btn.type='button';btn.id='objMapaTrimBtnV64';btn.className='btn-small';
+            btn.textContent='📐 Cortar margens transparentes';
+            btn.onclick=()=>window.objMapaCortarMargensTransparentes_();
+            bloco.insertBefore(btn,bloco.children[1]||null);
+            const dica=document.createElement('small');
+            dica.id='objMapaTrimHintV64';
+            dica.style.color='#8ea7c8';
+            dica.textContent='Use este botão quando a imagem parecer pequena demais dentro do espaço em metros por causa de bordas transparentes.';
+            bloco.appendChild(dica);
+        }
+    }catch(e){console.warn('objMapaAprimorarEditorV64',e);}
+}
+const preencherEditorObjetoMapaV64Base_=(typeof preencherEditorObjetoMapa_==='function')?preencherEditorObjetoMapa_:null;
+if(preencherEditorObjetoMapaV64Base_)preencherEditorObjetoMapa_=function(){
+    const r=preencherEditorObjetoMapaV64Base_.apply(this,arguments);
+    setTimeout(objMapaAprimorarEditorV64_,0);
+    return r;
+};
+setTimeout(objMapaAprimorarEditorV64_,0);
+console.info('[Mesa Estelar] v64 objetos de mapa: corte de margens carregado');
+window.__MESA_PATCH__='v64-objetos-margens';

@@ -1,0 +1,354 @@
+{
+ "cavalgante_prismatico": {
+  "corpo": "quadrupede",
+  "cor": "#7a6ad0",
+  "cor2": "#6fe0d0",
+  "padrao": "listras",
+  "cabecaCriatura": "canina",
+  "porte": 1.15,
+  "tracos": {
+   "antenas": true,
+   "cauda": true,
+   "pescocoLongo": true
+  },
+  "chifres": false
+ },
+ "larva_interdimensional": {
+  "corpo": "larva",
+  "cor": "#c9b8e6",
+  "cor2": "#6f5aa6",
+  "padrao": "manchas",
+  "porte": 0.95
+ },
+ "rastejante_de_cinzas": {
+  "corpo": "inseto",
+  "cor": "#5a5550",
+  "cor2": "#9a948a",
+  "porte": 0.85,
+  "padrao": "manchas"
+ },
+ "criatura_de_calico_2": {
+  "corpo": "amorfo",
+  "cor": "#6fbf73",
+  "porte": 1,
+  "tracos": {
+   "translucido": true
+  }
+ },
+ "criatura_de_calico_1": {
+  "corpo": "primata",
+  "cor": "#7a5a3a",
+  "cor2": "#c9a27a",
+  "porte": 1.25,
+  "tracos": {
+   "olhosBrilho": false
+  }
+ },
+ "montariapterodatil": {
+  "corpo": "alado",
+  "cor": "#6a8a6a",
+  "cor2": "#d6c98a",
+  "padrao": "escamas",
+  "cabecaCriatura": "pterodatil",
+  "porte": 1,
+  "tracos": {
+   "cauda": true
+  }
+ },
+ "cao_de_sucata": {
+  "corpo": "quadrupede",
+  "cor": "#6a6258",
+  "cor2": "#9aa3ad",
+  "padrao": "placas",
+  "cabecaCriatura": "canina",
+  "porte": 0.85,
+  "tracos": {
+   "cauda": true,
+   "olhosBrilho": true
+  },
+  "corOlhos": "#ff5a3b"
+ },
+ "dragao_trombeta_alado_domesticado": {
+  "corpo": "alado",
+  "cor": "#8a6a3a",
+  "cor2": "#d9b36a",
+  "cabecaCriatura": "trombeta",
+  "porte": 1,
+  "padrao": "escamas"
+ },
+ "dragao_trombeta_corredor_domesticado": {
+  "corpo": "bipede",
+  "cor": "#7a7a4a",
+  "cor2": "#d9cf8a",
+  "cabecaCriatura": "trombeta",
+  "porte": 0.95,
+  "padrao": "escamas"
+ },
+ "predador_de_nevoa": {
+  "corpo": "quadrupede",
+  "cor": "#3e4a54",
+  "cor2": "#9fb4c4",
+  "padrao": "listras",
+  "cabecaCriatura": "felina",
+  "porte": 1.2,
+  "tracos": {
+   "cauda": true,
+   "olhosBrilho": true
+  },
+  "corOlhos": "#bff6ff",
+  "juba": true,
+  "crista": true
+ },
+ "caçador_de_nevoa": {
+  "corpo": "quadrupede",
+  "cor": "#9aa8b2",
+  "cor2": "#eef3f6",
+  "padrao": "manchas",
+  "cabecaCriatura": "felina",
+  "porte": 0.9,
+  "tracos": {
+   "cauda": true,
+   "olhosBrilho": true
+  },
+  "corOlhos": "#9fe8ff",
+  "magro": true,
+  "orelhasGrandes": true,
+  "cauda": [
+   2.3,
+   0.11,
+   "curva"
+  ]
+ },
+ "predador_couracado": {
+  "corpo": "quadrupede",
+  "cor": "#585a46",
+  "cor2": "#a6a68a",
+  "padrao": "placas",
+  "cabecaCriatura": "reptil",
+  "porte": 1.2,
+  "tracos": {
+   "cauda": true,
+   "espinhos": true
+  },
+  "caudaClava": true,
+  "crista": true
+ },
+ "besta_ululante": {
+  "corpo": "quadrupede",
+  "cor": "#6b5a48",
+  "cor2": "#c9a27a",
+  "padrao": "listras",
+  "cabecaCriatura": "serpente",
+  "porte": 1.15,
+  "tracos": {
+   "pescocoLongo": true,
+   "cauda": true,
+   "espinhos": true,
+   "olhosBrilho": true
+  },
+  "corOlhos": "#ffcf6b"
+ },
+ "dragao_trombeta_corredor_selvagem": {
+  "corpo": "bipede",
+  "cor": "#5a6a3a",
+  "cor2": "#c9a63a",
+  "cabecaCriatura": "trombeta",
+  "porte": 1.1,
+  "padrao": "listras",
+  "tracos": {
+   "espinhos": true
+  }
+ },
+ "dragao_trombeta_alado_selvagem": {
+  "corpo": "alado",
+  "cor": "#5a4a3a",
+  "cor2": "#c96a3a",
+  "cabecaCriatura": "trombeta",
+  "porte": 1.2,
+  "padrao": "escamas",
+  "tracos": {
+   "espinhos": true,
+   "olhosBrilho": true
+  },
+  "corOlhos": "#ffcf6b"
+ },
+ "escavador_de_carapaca": {
+  "corpo": "quadrupede",
+  "cor": "#6e5236",
+  "cor2": "#b08a5a",
+  "padrao": "placas",
+  "cabecaCriatura": "reptil",
+  "porte": 1.1,
+  "tracos": {
+   "mandibulas": true,
+   "espinhos": true,
+   "cauda": true
+  },
+  "largo": true,
+  "garrasGrandes": true,
+  "cauda": [
+   0.9,
+   0.28,
+   "onda"
+  ]
+ },
+ "cila": {
+  "corpo": "sessil",
+  "cor": "#a35a5a",
+  "cor2": "#e3a0a0",
+  "padrao": "manchas",
+  "pescocos": 6,
+  "porte": 1.1
+ },
+ "carrapato_de_ferro": {
+  "corpo": "aracnideo",
+  "cor": "#5a5f66",
+  "cor2": "#9aa3ad",
+  "padrao": "placas",
+  "porte": 0.9
+ },
+ "insetoide_predador": {
+  "corpo": "humanoide",
+  "porte": 1.1,
+  "pele": "#3a4a2e",
+  "roupa": "#2e3a24",
+  "roupa2": "#55663a",
+  "cabelo": "careca",
+  "maoD": "nenhuma",
+  "maoE": "nenhuma",
+  "tracos": {
+   "carapaca": true,
+   "antenas": true,
+   "mandibulas": true,
+   "quatroBracos": true
+  }
+ },
+ "insetoide_predador_1": {
+  "corpo": "inseto",
+  "cor": "#23262e",
+  "cor2": "#5a6070",
+  "porte": 1.15,
+  "tracos": {
+   "ferrao": true,
+   "olhosBrilho": true
+  },
+  "corOlhos": "#ff5a3b"
+ },
+ "parasita_carniceiro": {
+  "corpo": "aracnideo",
+  "cor": "#7a5a4a",
+  "cor2": "#c99a7a",
+  "padrao": "listras",
+  "porte": 0.85
+ },
+ "enxame_mordedor": {
+  "corpo": "enxame",
+  "cor": "#4a3a2e",
+  "quantidade": 22
+ },
+ "vespa_de_vidro": {
+  "corpo": "inseto",
+  "cor": "#bfe6ff",
+  "cor2": "#e9f7ff",
+  "porte": 0.9,
+  "tracos": {
+   "translucido": true,
+   "asas": true,
+   "ferrao": true
+  }
+ },
+ "criatura1": {
+  "corpo": "quadrupede",
+  "cor": "#8a6a4a",
+  "cor2": "#d8c39a",
+  "padrao": "manchas",
+  "cabecaCriatura": "canina",
+  "porte": 1,
+  "tracos": {
+   "cauda": true
+  }
+ },
+ "criatura2": {
+  "corpo": "quadrupede",
+  "cor": "#3f5a3a",
+  "cor2": "#b8c47a",
+  "padrao": "listras",
+  "cabecaCriatura": "felina",
+  "porte": 1.05,
+  "tracos": {
+   "cauda": true
+  }
+ },
+ "criatura3": {
+  "corpo": "inseto",
+  "cor": "#3d5a2a",
+  "cor2": "#b6c45a",
+  "padrao": "manchas",
+  "porte": 1
+ },
+ "criatura4": {
+  "corpo": "aracnideo",
+  "cor": "#2e2a33",
+  "cor2": "#9a3a4a",
+  "padrao": "manchas",
+  "porte": 1
+ },
+ "criatura5": {
+  "corpo": "primata",
+  "cor": "#5a6a7a",
+  "cor2": "#c9b8a0",
+  "porte": 1.1,
+  "tracos": {
+   "olhosBrilho": false
+  }
+ },
+ "criatura6": {
+  "corpo": "larva",
+  "cor": "#a8c07a",
+  "cor2": "#5a7a3a",
+  "padrao": "manchas",
+  "porte": 1
+ },
+ "criatura7": {
+  "corpo": "alado",
+  "cor": "#7a4a5a",
+  "cor2": "#e0c27a",
+  "padrao": "escamas",
+  "cabecaCriatura": "pterodatil",
+  "porte": 1,
+  "tracos": {
+   "cauda": true
+  }
+ },
+ "metamorfo1": {
+  "corpo": "amorfo",
+  "cor": "#8a6fd0",
+  "porte": 1,
+  "tracos": {
+   "translucido": true
+  }
+ },
+ "metamorfo2": {
+  "corpo": "amorfo",
+  "cor": "#6a5a40",
+  "porte": 1.1
+ },
+ "metamorfo3": {
+  "corpo": "humanoide",
+  "porte": 1.05,
+  "pele": "#c9c2b8",
+  "roupa": "#4a4a52",
+  "roupa2": "#8a8a96",
+  "cabelo": "careca",
+  "maoD": "nenhuma",
+  "maoE": "nenhuma",
+  "tracos": {}
+ },
+ "metamorfo4": {
+  "corpo": "serpente",
+  "cor": "#4a6a5a",
+  "cor2": "#c8d89a",
+  "padrao": "escamas",
+  "porte": 1
+ }
+}

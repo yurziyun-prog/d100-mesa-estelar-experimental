@@ -1,0 +1,1318 @@
+(node:16084) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/nova-ataques.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ envio sem confirmação também expira e não repete o comando (8.1477ms)
+✔ fechar a sessão libera um envio cuja escrita não terminou (0.5452ms)
+✔ erro do banco preserva código e encerra a espera (0.8588ms)
+✔ resposta anterior à confirmação chega no snapshot inicial sem ler documento inexistente (0.6014ms)
+✔ envio confirmado sem mestre tem limite e resultado explicitamente incerto (0.9293ms)
+(node:21300) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-ataques-por-arma.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ a arma usa perícia exata, sem duplicar opções por perícia (1.391ms)
+✔ alternativas aparecem somente sem perícia exata e podem ser selecionadas (0.2269ms)
+✔ defesa preferida é respeitada; indisponível usa a melhor possível (0.5652ms)
+(node:34152) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-equip-visual.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ arma ativa muda só o que está na mão, mantendo armadura e acessórios (3.5357ms)
+✔ arma da mochila não aparece; fallback de fichas antigas mantém equipamento (0.2452ms)
+✔ energia tem cor própria e trocar para pistola oculta a espada (0.5914ms)
+(node:12448) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-arte3d.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ combatente aprovado substitui apenas a arte correspondente e respeita a escolha do mestre (1.8826ms)
+✔ combatente tem arte real de frente, costas e lado nas ações do jogo (7.364ms)
+(node:24732) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-tempo-real.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ tempo contínuo migra pausa antiga e mapa antigo sem perder configurações (1.5453ms)
+✔ pausa explícita de emergência permanece mesmo ao trocar mapa (0.3016ms)
+✔ mesmo mapa conserva início e recarga; repetir não cria outra sessão (0.2117ms)
+✔ documento ausente começa ativo e sem pausa (0.1601ms)
+✔ carreira médica pode comprar Analisador Biomédico restrito sem liberar restritos alheios (2.3718ms)
+✔ app.js vem só das partes em js/app/ (sem arquivo solto) (19.4274ms)
+✔ publicação: todo import existe, um endereço por módulo e pré-carregamento (182.1024ms)
+✔ import para arquivo inexistente cancela a publicação (0.8139ms)
+✔ cache: js longo (endereço muda com o conteúdo), página sempre conferida (4.6736ms)
+(node:30736) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/nova-area.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ cone métrico exclui retaguarda e fora do alcance; inclui as duas bordas (2.7852ms)
+✔ ataques naturais e phaser têm efeitos distintos (0.8344ms)
+(node:23208) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/nova-dano-objetos.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ suporte entre mestre/jogador persiste etapa e kit, rejeita impostor e só cura na rodada seguinte (23.0489ms)
+✔ ataque do jogador resolvido uma vez pelo mestre, com dano e gasto atômicos (15.178ms)
+✔ Sorte ativa: gasta 1 ponto, liga +50% no próximo teste e não liga duas vezes (33.0407ms)
+✔ patch da ficha do defensor é salvo atomicamente com a resolução do ataque (1.7962ms)
+✔ alcance e controle inválidos não gastam Ação nem alteram PV (1.9305ms)
+✔ mestre assume PJ na sua vez sem dispensar munição, ações e turno (2.0917ms)
+✔ defesa pendente bloqueia avanço, pertence ao defensor e gasta reserva separada uma só vez (3.3254ms)
+✔ cone inclui aliado, aguarda cada defesa e gasta somente uma ação e uma carga (6.1964ms)
+✔ ataque orienta a miniatura também ao gastar a última ação (41.2556ms)
+✔ margem, perícia e empate absoluto determinam oposição; mortos saem da renovação (1.0015ms)
+✔ defesa, escolha de efeitos e dano formam uma única resolução com autoria e gasto único (2.9212ms)
+✔ Sorte ativa é usada no teste seguinte e some (um teste só) (30.8977ms)
+✔ transferência compartilhada salva kit e ação juntos, sem repetir gasto ou aceitar casa (13.6239ms)
+✔ objeto: PV, ação e munição juntos; duplicata e alvo destruído não cobram de novo (9.7843ms)
+✔ mestre ataca objeto com ficha de jogador e cobra ação e munição uma vez (1.1939ms)
+(node:11492) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/nova-colisao.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ parede bloqueia caminho inteiro pela borda, mesmo alvo muito distante (1.846ms)
+✔ camadas diferentes, passável e destruído permitem atravessar (1.0264ms)
+✔ rotação, escala e raio da criatura são usados no bloqueio (0.4268ms)
+✔ cantos arredondados pelo raio deixam contornar sem colisão quadrada artificial (0.2207ms)
+✔ sobreposição antiga permite sair sem atravessar o miolo (0.1957ms)
+✔ ordenação numérica extensível: pisos, obstáculos, personagens e copas (0.2404ms)
+(node:23728) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/nova-colisao.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ para antes da miniatura mesmo apontando para além dela (1.7916ms)
+✔ permite contornar e sair de sobreposição antiga (1.3684ms)
+✔ usa escala do mapa e ignora a própria miniatura (0.4875ms)
+✔ borda usa o raio real da miniatura em vez de uma margem fixa maior (0.3077ms)
+✔ barreira sólida da camada 3 bloqueia linha reta de tiro, mas outras camadas e objetos não sólidos não (0.5468ms)
+✔ v205: dois corpos de 1 m passam um pelo outro num corredor largo (só o espaço do corpo bloqueia) (0.2031ms)
+✔ Armas de Energia Exóticas reconhece Blaster de Palma como compatível sem +2 graus (2.1928ms)
+✔ correção de energia exótica não libera uma perícia não energética (1.1108ms)
+(node:24020) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/nova-criaturas.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ migração preserva total legado e não soma a base duas vezes nem migra duas vezes (2.5512ms)
+✔ vínculos próprios e formato inverso são respeitados; padrão é desarmado (0.3848ms)
+✔ equipar qualquer item custa uma ação e preserva usos; operação inválida não altera fonte (1.302ms)
+(node:14992) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/nova-dano-armas.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Danificar Arma absorve o golpe na arma e só transfere o excesso (1.0885ms)
+✔ Danificar Arma não causa excesso enquanto restarem PV estruturais (3.3166ms)
+(node:30960) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/nova-dano-objetos.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ dureza absorve dano, destruição conserva restos e restauração repõe bloqueios (1.4475ms)
+✔ alcance usa borda retangular girada e raio real em escala métrica (0.4628ms)
+(node:23604) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/nova-duracoes.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ crítico é estritamente abaixo de dez por cento da perícia efetiva (1.9366ms)
+✔ local totalmente inutilizado não recebe novos golpes; histórico discrimina base e efetiva (1.191ms)
+✔ três rodadas deixam 42 segundos; exploração e novo combate preservam frações (0.8101ms)
+✔ magias expiram fora de combate e estados legados órfãos são limpos (0.3752ms)
+(node:34380) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/nova-editor-estado.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ salvar preserva dano, fogo e efeitos recebidos durante a edição (2.8134ms)
+✔ remover elemento nativo, objeto e traço não remove vizinhos (0.8377ms)
+✔ retângulo guarda dimensões métricas e camada de colisão (5.7934ms)
+(node:26720) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/nova-fogo.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ ignição usa calor, inflamabilidade e crítico; zero explícito não queima (1.4791ms)
+✔ fogo processa uma vez por rodada; destrói sem descontar dureza; restaurar apaga (0.9366ms)
+✔ transição para exploração preserva segundos e propaga somente na camada; calor usa bordas (2.6078ms)
+✔ extintor consome carga, acumula 100kg, exige equipamento e borda a 1,5m (2.2686ms)
+(node:13488) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/nova-criaturas.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ atributos da criatura são persistidos uma vez e reutilizados entre leituras (31.8836ms)
+✔ CSV antigo preserva fórmulas e total; CSV novo preserva treino sem migrar duas vezes (18.0902ms)
+✔ histórico explica 53 → 30 como armadura de 15% mais fadiga Difícil (3.0671ms)
+✔ histórico explica 58 → 32 pelo mesmo caminho sem inventar incompatibilidade (1.1424ms)
+(node:30032) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/nova-objetos.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ importação CSV usa transação, mantém registros ausentes e não apaga imagem de campo vazio (21.5966ms)
+(node:33504) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/nova-objetos.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ catálogo preserva propriedades, cria estados separados e não duplica imagem do modelo (2.6342ms)
+✔ hidratação preserva zero, false e campos próprios da instância mesmo com modelo alterado (0.5118ms)
+✔ mapa salvo usa centros e escala, deduplica referências da oficina e migra uma só vez (1.157ms)
+✔ CSV atualiza por ID, preserva imagens/campos ausentes e aceita vírgula, zero e false (1.7694ms)
+✔ camadas antigas dependem de propriedades, sem adivinhar pelo nome (0.4897ms)
+✔ renderizador real remove só objetos migrados, mantendo pincéis e fundo sem alterar mapa (30.571ms)
+(node:34752) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/nova-oficina.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Oficina reaproveita objetos existentes e converte desenho antigo em pincel editável (1.5096ms)
+✔ publicação preserva dano, fogo, movimento recente e objetos criados durante edição (2.3318ms)
+✔ muro mantém pincel, opacidade e camada ao reabrir (0.5769ms)
+✔ mapa com imagens repetidas de 500 KB salva referências e remoções, sem snapshots antigos (204.6131ms)
+✔ imagem importada é enviada uma vez; URL e desenho sobrevivem ao salvamento (39.5475ms)
+✔ referência do banco recupera a imagem só para exibição, sem inflar o cenário salvo (0.6076ms)
+✔ formas da Oficina preservam PV, dureza e estado destrutível quando publicados (0.6232ms)
+(node:7756) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/nova-sync.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ nova aba: propriedade verificada pela autoridade, inclusive identidade falsificada (1.0862ms)
+✔ nova aba: mouse respeita limites; coordenada inválida não muda posição (1.1686ms)
+✔ fila aguarda escrita local ser confirmada antes de processar (0.4413ms)
+(node:25752) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/nova-primeiros-socorros.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ primeiros socorros exige alcance de 1,5 m (0.9901ms)
+✔ continuação soma dificuldade e consome um kit (2.4309ms)
+✔ sucesso recupera pouco e crítico pode recuperar mais (0.3733ms)
+✔ seleciona automaticamente uma parte e exige escolha para várias (0.2767ms)
+(node:13532) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/nova-recuperacao.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ kits do cadastro em português/inglês são reconhecidos, sem confundir armas (1.7746ms)
+✔ socorros usa bordas da miniatura, escala do mapa e desconta uma carga (2.0513ms)
+✔ cura soma cinco por PV apenas nas rodadas seguintes, até despertar (0.8137ms)
+✔ inconsciente mantém iniciativa; falha avança e só pode testar uma vez por rodada (1.6705ms)
+✔ Sorte gasta 1 ponto e liga +50% da perícia para o próximo teste (0.5786ms)
+(node:33736) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/nova-fogo.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ crítico permite defesa; sucesso defensivo não libera especiais; dano máximo quando atinge (9.768ms)
+✔ falha defensiva libera escolhas; membro destruído é excluído do golpe escolhido e aleatório (4.3189ms)
+✔ cauda apara pelas costas somente corpo a corpo; penalidade e base aparecem separadas (3.3439ms)
+✔ Danificar Arma consome PV da arma e só manda o excesso ao Braço Direito (4.6042ms)
+✔ Grito Psíquico usa poder, consome PP e derruba sem dano nem arma equipada (2.2199ms)
+✔ Sorte ativa (+50%) não transforma Fiasco em sucesso automático no ataque (1.9426ms)
+✔ Esquiva ausente da lista ofensiva mantém base real no cone, sem bônus fantasma (1.666ms)
+✔ objeto: crítico aplica máximo menos dureza/penetração, sem defesa ou escolha corporal (2.8992ms)
+✔ objeto: falha gasta munição sem dano; alcance inválido não resolve (2.9968ms)
+✔ ataque à distância é interrompido por barreira sólida da camada 3 em linha reta (2.0599ms)
+✔ valor integral de Resistência ignora redutores situacionais quando a regra pede a perícia inteira (2.4544ms)
+✔ v183: agachado contra tiro soma +10 de verdade; Defesa total +40 em todas as defesas; Ataque total −25 (6.3047ms)
+(node:17556) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/nova-suporte.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Ilusão copia objeto em separado; Mimetismo altera só o usuário; mantém e encerra com PP (4.4514ms)
+✔ Guerreiro Zen devolve a ativação e bônus pela margem, sem perder última ação nem repetir na rodada (1.7174ms)
+✔ falha de poder gasta PP e ação sem efeito (0.355ms)
+✔ teletransporte produz posição persistível sem id interno ou dados de ficha (0.711ms)
+✔ socorros: kit gasto uma vez; início não cura; exige próxima rodada; conclui e preserva infecção (1.6266ms)
+✔ continuação: +5 por turno, máximo três; sem kit metade da perícia (0.8092ms)
+✔ alvo, consciência, distância, várias partes e autotratamento (0.5393ms)
+✔ psi valida treino, PP, cura por local, não cura infecção; repetição determinística (1.9843ms)
+✔ poder resistido produz teste por vítima e efeito expira; narrativa vai ao mestre (0.8712ms)
+✔ Grito fora de combate atinge só cone de oito metros e não remove PV (0.7147ms)
+(node:19896) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/nova-turnos.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ distância diagonal usa a escala real, preservando pontos de ação (1.6906ms)
+✔ movimentos sucessivos somam o caminho, inclusive na volta (0.3316ms)
+✔ saldo persistido prevalece para outra aba e só renova no novo turno (0.4773ms)
+✔ personagem fora do turno não move; fora de combate não há limite (0.2656ms)
+✔ rola uma vez e ordena por total; empate usa iniciativa da ficha (1.7663ms)
+✔ primeira passagem conserva ações; segunda encerra só o ator (0.4187ms)
+✔ movimento não renova na segunda oportunidade do mesmo turno (0.3654ms)
+✔ ação duplicada da mesma oportunidade é rejeitada (0.3427ms)
+✔ três NPCs que passam uma vez voltam antes de renovar o turno (0.5479ms)
+✔ seleção atualiza cartão e ficha mesmo se mercado falhar e preferência não salvar (52.3767ms)
+(node:33264) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-sync-core.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ duas sessões: liderança exclusiva e fencing após expiração (2.1112ms)
+✔ 3 ataques, nenhuma quarta ação, Darek exatamente uma vez (0.7964ms)
+✔ recibo e consequência atômicos; retry não desconta de novo (0.2293ms)
+✔ comando de outra coleção não invalida comando anterior distinto (0.1839ms)
+✔ snapshots antigos, duplicados e sem revisão são rejeitados (0.2447ms)
+✔ arraste e contínuo: mesma posição final e mesmo consumo (0.581ms)
+✔ movimento fora de ordem e repetido não faz posição regredir (0.2316ms)
+✔ sequência não zera ao iniciar outro gesto da mesma sessão (0.1708ms)
+✔ curvas cobram caminho acumulado e limite não fica negativo (0.1677ms)
+✔ Passar é grátis; segundo passe encerra participação na rodada (0.3594ms)
+✔ timer/operação da oportunidade anterior não avança a nova (0.1643ms)
+✔ dano pendente bloqueia avanço; caído continua na iniciativa (0.1566ms)
+✔ falha de validação descarta toda mutação parcial (0.2121ms)
+✔ transporte separa documento de movimento e ataque (1.1366ms)
+✔ renovação e comando não abrem transações simultâneas (47.6521ms)
+(node:26340) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-travessia.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[Andares] Patamar ocupado ou sem piso. Libere a saída antes de usar a escada.
+[Andares] Pedido de quem não controla o personagem.
+✔ mestre salta com personagem de jogador e grava posição, saúde e histórico juntos (5.9893ms)
+✔ salto em combate consome exatamente uma ação e distância percorrida (2.2441ms)
+✔ tempo real só roda o teste, sem gastar ação, movimento de turno ou recarga (2.1803ms)
+✔ pausa do tempo real impede salto e preserva posição (1.2963ms)
+✔ parede impede salto sem consumir movimento ou ações (1.4159ms)
+✔ falha na gravação não muda posição nem andar (1.2305ms)
+✔ pedido de outro jogador é recusado mesmo usando id com prefixo local (0.8004ms)
+✔ pedido repetido não consome segunda ação (1.6598ms)
+✔ origem não finita e pedido vencido são recusados (0.6833ms)
+✔ patamar fechado não altera andar; mestre pode usar escada com personagem alheio quando livre (5.1465ms)
+✔ escada também recusa prefixo local forjado por jogador (2.5579ms)
+(node:32624) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-travessia-dados.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ patamar rejeita coordenadas nulas, fora do mapa, paredes giradas e outra miniatura (1.9643ms)
+✔ patamar esgotado retorna null, sem inventar destino dentro de parede (2.4964ms)
+✔ patamar superior exige piso e mantém coordenadas válidas do projeto (1.7261ms)
+✔ escada com destino nulo encontra local próximo válido, sem transformar null em zero (0.2868ms)
+✔ salto usa Atletismo, distância e desnivel; não aceita atravessar parede ou aterrissar sem piso (1.7103ms)
+✔ objeto baixo pode ser saltado, mas destino ocupado permanece bloqueado (0.6879ms)
+✔ descer 3 m causa dano de queda e registra o andar de destino (0.3706ms)
+✔ raio do corpo acompanha tamanho da criatura e escala física do mapa (0.3532ms)
+✔ perícia zero não concede sucesso automático e dados inválidos são rejeitados (0.3877ms)
+✔ subir um andar inteiro exige escada e não permite salto comum de 3 m (0.4898ms)
+✔ todo cenário recebe mapa próprio sem apagar mapas antigos (7.6296ms)
+✔ vínculo é conservador: explícito, backref ou nome exato (1.7171ms)
+✔ nome do mapa acompanha nome do cenário e backref é gravado (3.3135ms)
+✔ cenário oferece trazer jogadores ativos e abrir mapa (5.5477ms)
+✔ mudança de mapa reconcilia cenário individual sem mover por câmera do mestre (6.9219ms)
+✔ há gancho para futuras portas mapa → cenário (2.2802ms)
+✔ v101 inclui Avaliação entre perícias de negociação (2.6175ms)
+✔ v101 separa objetivo de compra e venda com NPC comerciante (3.9197ms)
+✔ v101 persiste modificadores da negociação diária (2.9691ms)
+✔ Cenário Atual e Mapa da Mesa ficam adjacentes (1.4546ms)
+✔ barra principal usa ícones compactos e remove Preparar personagens visível (1.9876ms)
+✔ troca do mapa emite sincronização de cenário e pull grava ambos (3.8307ms)
+✔ jogador sem localização usa último destino coletivo e não câmera do mestre (2.351ms)
+✔ desenho colaborativo é por mapa e jogador, sincronizado e sem liberar edição do mapa (0.497ms)
+✔ Oficina do Mapa recebe barra compacta de ações (0.3094ms)
+✔ mestre pode inativar personagem sem apagar a ficha e grupo ignora inativos (1.1118ms)
+✔ personagens inativos têm filtro próprio e ação do mestre (0.4119ms)
+(node:1772) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-visual.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v103 cache e carregamento isolado da camada visual (3.2865ms)
+✔ configuração padrão não muda nada no mapa (1.256ms)
+✔ visão é bloqueada por parede e não passa através dela (1.3957ms)
+✔ raio limita a luz e bloqueio que contém a origem é ignorado (0.3858ms)
+✔ fontes de luz automáticas (0.6784ms)
+✔ classificação de ataques, tipos e PV (1.0782ms)
+(node:24152) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-imagens.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v104 cache e carregamento isolado da biblioteca (5.2649ms)
+✔ objetos de mapa são lidos em paralelo (0.3162ms)
+✔ ferramentas de recorte pedem CORS ao carregar imagens remotas (2.0452ms)
+✔ só imagens raster pesadas são migradas (2.0882ms)
+(node:29724) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-miniaturas.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v105 cache e carregamento isolado das miniaturas (5.2876ms)
+✔ tokens usam a miniatura quando existir (1.3249ms)
+✔ regra: dono troca só a imagem do próprio token (0.2747ms)
+✔ miniatura realista: sem ficha redonda e girando com a direção (0.2839ms)
+✔ todos os corpos geram SVG válido (10.0724ms)
+✔ receitas automáticas (13.7849ms)
+(node:27384) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-miniaturas.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v106 cache (3.736ms)
+✔ miniaturas prontas dos jogadores pelo nome (4.9621ms)
+✔ CSV de criaturas novas no formato do banco (4.3687ms)
+(node:34996) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-arte-objetos.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v107 carrega a arte dos objetos à parte (5.3434ms)
+✔ todos os desenhos geram SVG válido na proporção do objeto (115.2344ms)
+✔ receitas cobrem os objetos do banco e o pacote novo é consistente (0.7458ms)
+✔ mesmo objeto gera sempre o mesmo desenho (58.1384ms)
+(node:30552) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-diretor-dados.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v108 carrega diretor e conteúdo à parte (site segue jogável sem eles) (9.9607ms)
+✔ instâncias ~k encontram o modelo do banco (1.5331ms)
+✔ tensão e chance crescem com o tempo e ficam limitadas (0.664ms)
+✔ eventos sorteados são coerentes e respeitam o banco (5.0061ms)
+✔ catástrofes do esgoto só com tensão alta (0.3717ms)
+✔ clima e NPC gerados (2.7631ms)
+✔ pacotes de conteúdo têm ids únicos (0.4885ms)
+(node:1964) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-interacoes.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v109 carrega as interações no mapa à parte (6.6566ms)
+✔ ponte usa as mesmas regras do Cenário Atual (1.1701ms)
+✔ ponto encontra a ação pelo id ou pelo título (0.4378ms)
+✔ linha de ação no formato do cenário, sem quebrar colunas (0.4342ms)
+✔ distância em metros respeita o tamanho do mapa (0.2746ms)
+✔ encontros podem surgir na borda ou num ponto escolhido (0.1882ms)
+✔ miniatura realista esconde a bolinha de girar (0.2391ms)
+(node:3564) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-gerador-mapas.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v110 carrega arte e gerador de mapas à parte (10.5901ms)
+✔ todos os tipos geram mapas válidos, jogáveis e repetíveis (63.2377ms)
+✔ sugestão de tipo pelo nome (0.9259ms)
+✔ retângulos cobrem exatamente as células sólidas (1.3732ms)
+✔ formas ganham material sem quebrar o desenho original (1.1608ms)
+(node:26808) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-tempo-real-ia.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ tempo real carrega à parte e o ataque valida o estado antes de resolver (7.0026ms)
+✔ facções e hostilidade (0.382ms)
+✔ mais ações = age e anda mais rápido; velocidade do jogo acelera (0.2204ms)
+✔ alvo é o inimigo vivo mais próximo (0.8837ms)
+✔ escolha de ataque respeita alcance, linha de tiro e munição (0.4046ms)
+✔ caminho desvia de parede (4.8571ms)
+✔ fim de combate e escolhas automáticas (3.8034ms)
+(node:24464) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-tamanhos.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v112 carrega a barra do mestre à parte (5.8148ms)
+✔ rascunho do editor salva sozinho e pode ser desligado (0.2479ms)
+✔ regras aceitam o tamanho da miniatura e os atributos do NPC (0.2374ms)
+✔ tamanho das miniaturas pela ficha (0.9935ms)
+✔ Cila não se move; deslocamento vazio não vira zero (1.8353ms)
+✔ móveis: só corrige quem está com a medida antiga (1.5178ms)
+(node:34128) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-tempo-real-ia.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ jeito de lutar pela ficha (2.8375ms)
+✔ vida, alvo e fuga (2.1016ms)
+✔ tempo real: deslize suave, ponte com inteligência e deslocamento do banco (3.2239ms)
+(node:25764) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-miniaturas.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ insetoides são bípedes de quatro braços (5.2772ms)
+✔ miniaturas ocupam o espaço real e têm sombra de chão (0.2736ms)
+✔ miniaturas automáticas para todos (inclusive personagens) (1.1822ms)
+(node:27548) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-sessao-dados.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v115 carrega o preparo da sessão à parte (2.6898ms)
+✔ há testes prontos para todo tipo de mapa, no formato do cenário (0.5995ms)
+✔ testes sugeridos do cenário viram ações (2.2782ms)
+✔ pontos ficam em chão livre, espalhados e perto do que combina (19.3104ms)
+✔ pessoas variam em volta de 1 m pela ficha (0.9219ms)
+✔ ＋ com fantasma, 🎭 atuar como e edição na lateral (1.1437ms)
+✔ controlador expõe a seleção e o tempo real libera a criatura (0.3854ms)
+(node:28696) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-mestre.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ PDM vira NPC de ficha avançada e o NPC duplicado some (2.3371ms)
+✔ testes escritos para os cenários só usam perícias do banco (1.2124ms)
+✔ mulheres pela ficha (sexo Feminino ou "Dra.") (1.9586ms)
+✔ v117 carrega a conta do mestre à parte (2.9877ms)
+(node:34688) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-cenario-mapa.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ blocos do mestre: ler em voz alta primeiro e só campos preenchidos (2.592ms)
+✔ segredos só na conta do mestre; aba volta se o módulo falhar (2.3957ms)
+✔ bancos carregam em paralelo (1.3199ms)
+✔ leituras repetidas viram uma só (3.9461ms)
+(node:26220) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/nova-colisao.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ passa por um vão de 1 m entre parede e objeto (2.2368ms)
+✔ deslizar na parede e histórico sempre visível (0.3918ms)
+✔ cadeiras de adulto e controles na barra (2.2335ms)
+✔ v121: ficha rápida fica numa gaveta logo depois do mapa e antes do histórico (1.4629ms)
+✔ v121: Oficina em abas e recolhível (0.4628ms)
+(node:29692) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-acoes-mapa.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v122: ataques numerados para 1–9 e perícias separadas (1.5419ms)
+✔ v122: partes do corpo em ordem e com estado (0.2097ms)
+✔ v122: monstros com foto antiga ganham miniatura desenhada; arte dos jogadores fica (0.1707ms)
+✔ v122: painel envia ataque no tempo real e expõe o estado para o balão (0.6913ms)
+(node:35728) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-tempo-real-ia.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v123: rodada de 5 s; 3 ações = um ataque a cada ~1,7 s (0.6885ms)
+✔ v123: fila com prioridade, uma ação por criatura, cancelada ao pausar (0.243ms)
+✔ jogo contínuo: crítico resolve efeitos automaticamente sem pausa coletiva (0.1078ms)
+(node:34308) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-objetos.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v124: tipos pelo nome e pelo mestre (2.7326ms)
+✔ v124: porta trancada pede teste; Força Bruta arromba e libera a passagem (1.6822ms)
+✔ v124: luz liga/desliga; máquina travada pede teste; dificuldade e alcance (1.314ms)
+(node:18128) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-objetos.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v125: pegar item de dentro do armário aberto (2.8093ms)
+✔ v125: item solto no chão (inclusive item do catálogo) (0.1826ms)
+✔ v125: mesas voltam ao tamanho registrado (1,5 m) (0.3176ms)
+✔ v125: efeito Desarmar e arma no chão bloqueando o ataque (2.1904ms)
+(node:29420) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-ligacoes.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v126: regiões e mapas intermediários (1.0169ms)
+✔ v126: ligações pelos destinos dos cenários, sem repetir (1.0594ms)
+✔ v126: ordem por acesso e pontos de chegada (10.3841ms)
+(node:12996) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-companheiros.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v127: dono pelo nome e modelo de companheiro (1.2969ms)
+✔ v127: fica atrás do dono; companheiro é do grupo no tempo real (0.4992ms)
+(node:15600) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-efeitos.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v128: tipo de efeito pela arma (0.9726ms)
+✔ v128: voz de cada criatura (0.547ms)
+✔ v128: raios da tempestade iguais para todos (pelo relógio), ~1 a cada 7 s (0.8168ms)
+(node:31472) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-gerador-mapas.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v129: móveis dos três estilos desenham e alguns são interativos (10.538ms)
+✔ v129: gerador com estilo usa cores e móveis do estilo (4.6238ms)
+✔ v129: bilhete a partir do cenário e itens prováveis (0.7996ms)
+(node:5684) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-tempo-real-ia.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v131: troca de alvo para quem atacou — mais provável se for ameaça maior (1.1313ms)
+✔ v131: o tamanho da miniatura não se perde quando ela ataca no tempo real (0.5272ms)
+(node:29104) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-elenco.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v132: elenco do cenário (sem duplicar PM e NPC do banco; quem está em outro mapa não entra) (3.4601ms)
+(node:26620) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-efeitos.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v132: raio ≠ relâmpago; grandes e metálicos atraem mais (2.593ms)
+✔ v132: abrigo, tempestade de areia e meteoros (1.1068ms)
+✔ v132: NPC com nome tem uma miniatura só (1.4106ms)
+✔ v132: taverna do UR-17 com quartos-cápsula (29.768ms)
+✔ v132: Cila — seis cabeças independentes, não sai do lugar; Trombeta em cone a partir do atacante (20.7075ms)
+(node:30696) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-tempo-real-tatica.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v133: recuperação — consciência com Resistência + 5 por PV curado; relógio respeitado (1.7262ms)
+✔ v133: socorro — médico prefere curar; ameaçado se protege (0.6283ms)
+✔ v133: papéis — fraco no corpo a corpo fica atrás, atira, usa psi ou se esconde (0.2779ms)
+✔ v133: manobras — ninguém estaciona (0.9401ms)
+(node:12048) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/nova-coma.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v134: desmaio × coma × morte (28.2305ms)
+✔ v134: chave do quarto e aluguel com o UR-17 (1.2203ms)
+✔ v134: bilhetes sem notas do mestre; mapas panorâmicos (10.179ms)
+(node:2736) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-relogio.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v135: relógio do jogo (24 h = 1 h real por padrão) e luz pela hora (1.2819ms)
+✔ v135: sono recupera Fadiga; cápsula cura PV e tira do coma (2.7763ms)
+✔ v135: lanterna, machado, picareta, extintor e kit (30.2178ms)
+(node:14056) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-arrastar.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v136: arrastar — peso, Força e velocidade (31.4331ms)
+(node:24580) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-vida.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v137: papéis de vida fora do combate (3.3452ms)
+✔ v137: pernas interpoladas e ronda dentro do mapa (1.2702ms)
+✔ v137: leitura do controle (zona morta e borda de botão) (0.7741ms)
+✔ v137: módulos ligados (45.7449ms)
+(node:16884) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-ligacoes.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v138: saídas coerentes (direita ↔ esquerda, cima ↔ baixo) (2.407ms)
+✔ v138: pedágio de Denzel (0.7133ms)
+✔ v138: mapas de Véspera (21.7047ms)
+✔ v138: veículos retrofuturistas, fantasmas e giro (54.6593ms)
+(node:15428) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-cenarios-mapas.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v139: mapa pela descrição do cenário (7.4425ms)
+✔ v139: Última Bateria com andar de cima e escadas pareadas; armários na parede (10.7768ms)
+✔ v139: sentar, sono e consumo (29.2405ms)
+✔ v139: telhados, PMs e mesas sem cadeiras (3.2517ms)
+(node:19992) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-posturas.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v140: posturas (36.0644ms)
+✔ v140: berro sonoro empurra, derruba e ensurdece (1.879ms)
+✔ v140: psi no tempo real, entrada no mapa 1 e sem menus para o jogador (3.9722ms)
+(node:33788) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-comerciantes.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v141: chão de deserto com pincéis de textura (sem elipses coloridas) (9.2238ms)
+✔ v141: naves por dentro e terraços com escadarias (12.7561ms)
+✔ v141: comerciantes genéricos com nome descoberto (41.7703ms)
+✔ v142: Kael recomeça no mapa 1 e a viagem atualiza a ficha (4.6127ms)
+(node:25396) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-fixos.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v143: objeto movido pelo mestre volta para onde ele deixou mesmo com outro id (2.6382ms)
+✔ v143: retirado continua retirado; acrescentado volta (1.3178ms)
+✔ v143: mesa em cima da cápsula sai; armário solto vai para a parede (2.9005ms)
+✔ v143: ganchos — editor, oficina e salvar do gerador (92.3729ms)
+✔ jogo contínuo: opções de turnos ficam fora da interface padrão (2.5958ms)
+✔ v143: setas do mestre e legendas de saída só perto (12.9481ms)
+✔ v143: rotinas de dia e noite (4.2252ms)
+(node:24868) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-andares.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v144: andar de cima cobre o térreo; vão da escada aparece (4.2579ms)
+✔ v144: câmera centraliza e para nas bordas (0.358ms)
+✔ v144: trabalhadores e casas noturnas (1.2588ms)
+✔ v144: ganchos — colisão por andar, PV retrátil, foco removido, caminho sem cortar parede (40.0496ms)
+(node:6528) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-cidade-alta-mapas.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v145: mapas da Cidade Alta são gerados com saídas (13.1842ms)
+✔ v145: névoa — parede corta a visão, porta aberta não (4.3792ms)
+✔ v145: portão — carta, chances e testes com perícias do jogo (1.8917ms)
+✔ v145: ganchos — dormitórios, passar a noite, fome/sede, instalação (40.5316ms)
+✔ v145: Casa Vaelkor — arte, carteira e convite (31.1467ms)
+(node:24476) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-limpeza.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v146: Última Bateria 28×14 com escada vertical, beliches e ladrilhos (13.9026ms)
+✔ v146: escada e corredor não viram cama (1.3137ms)
+✔ v146: faxina tira móveis de outro mapa e cópias de NPC único (3.094ms)
+✔ v146: registro do mestre não traz móvel gerado para outro mapa (1.5383ms)
+✔ v146: zoom até 4×, posturas recolhíveis, Denzel e guardas abrem conversa (35.2316ms)
+(node:12272) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-conversas.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v147: testes de conversa dos NPCs de nome (4.8139ms)
+✔ v147: instalado, só fora de combate, ocultos em doc do mestre (37.667ms)
+(node:28296) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-retratos.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v148: retrato de perfil gerado para NPC sem imagem (5.2092ms)
+(node:35732) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-limpeza.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v149: faxina pega móveis de taverna e cópias por nome (4.5884ms)
+✔ v149: menu de ações recolhível e fora do mapa; Denzel pelo nome (2.0645ms)
+✔ v154: mapa sem cenário vira local próprio (mapa:<id>) (5.2932ms)
+✔ v154: migração não apaga mapa definido sem cenário; chegada pela ligação (3.6195ms)
+(node:11912) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-camera.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v158 jogador vê na escala de 1 m por quadrado; panorâmico só se o mestre ligar (3.1336ms)
+✔ v158 módulos usam o mapa que a tela mostra (não o do mestre) (3.2165ms)
+✔ v158 fome e sede acima do mapa, zzZ e NPCs dormem em casa (1.514ms)
+(node:29124) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-barras.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v159 menus fixos ficam em faixas fora do mapa (4.0447ms)
+✔ v159 controle: alavanca direita escolhe (não rola a moldura) e janelas são navegáveis (1.0899ms)
+(node:16940) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-gerador-mapas.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v160 barracas em que se entra no Portão, com comerciantes alien/robô e caravanas (2.8699ms)
+✔ v160 Restaurar do mestre também zera fome/sede/sono e devolve Sorte e PP de quem está no mapa (1.5206ms)
+(node:20752) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-gerador-mapas.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v161 Portão pintado: arte, casas bloqueadas, 4 lojas com porta e balcão, portão no lugar (4.8141ms)
+✔ v161 comerciante: clique abre a loja (não o menu de armas), fica atrás do balcão, sem barra de rolagem para jogador (3.27ms)
+(node:28488) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-gerador-mapas.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v162 kit do deserto: desenhos novos, exportados e com detalhes (pedras, sulcos, rachaduras) (20.9309ms)
+✔ v162 Portão (nossa arte): mapa separado, lojas com vendedor e porta, pintura de chão própria (5.137ms)
+(node:24364) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-lojas.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v163 lojas: ramos puxam os itens certos (água, comida, armas sem militar, sem indisponíveis) (3.4788ms)
+✔ v163 lojas: padrão por loja do portão, caravana e rodízio (comida e água primeiro); o mestre manda (0.7283ms)
+✔ v163 integração: loja por token, Denzel abre o pedágio (não a loja) e avisa quando o mestre não responde (4.6803ms)
+✔ v163 marcas: paredes viram retângulos invisíveis, porta abre, por cima vira uma imagem só, teto abre (2.9395ms)
+✔ v163 varinha: pega a área de cor parecida, com alcance; células compactas (3.1008ms)
+✔ v163 mapa da imagem IA: arte no lugar, primeiro reconhecimento, portão, Denzel e 7 vendedores (19.6801ms)
+(node:25524) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-marcas.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v164 terraço: casa barra a rua, em cima só se anda no terraço, escada de fora liga rua e terraço (5.0483ms)
+✔ v164 andares: quem está num terraço aberto é visto da rua; paredes da rua não barram o terraço (0.909ms)
+✔ v164 Cidade Baixa da imagem: arte, casas com terraço, escadas que sobem, feira, interior pelo marcador (37.7538ms)
+✔ v165: o portão da imagem IA vira o Portão de Véspera (mesmo id), com cópia, Denzel, saídas e sem mapa duplicado (1.4068ms)
+(node:29628) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-mapa-ia.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v166 Portão com a imagem nova: arte, casas com terraço, escadas, vendedores fora das paredes (27.2194ms)
+✔ v166 andar de cima não barra quem chega/anda no térreo (chegada, sono, posturas, combate) (2.8093ms)
+✔ v166 marcador: marcas num documento próprio, marcas tiradas do mapa e "Ver colisão" (0.9917ms)
+✔ v167 marcador: colisões do mapa viram marcas selecionáveis; arrastar move e cantos mudam o tamanho (1.3346ms)
+(node:9628) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-marcas.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v168 pedágio: portão pela cena, pelo mapa (se fizer sentido) ou pelo Denzel; balão não fecha sozinho (1.8012ms)
+✔ v168 marcas com nome de portão viram ponto "Portão de Véspera" (não barra); fixos ignora objetos do Marcador (5.3676ms)
+✔ v169: mesa parada no mapa "imagem IA" (apagado) é reaberta no Portão de Véspera (1.0417ms)
+(node:26704) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-pecas-dados.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v170 peças: imagens existem, tamanhos reais, sem veículos ainda (53.7166ms)
+✔ v170 plantas pequenas não barram; decorador não fecha corredor estreito (7.4765ms)
+(node:23304) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-concessionaria.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v171 catálogo: 16 veículos e 16 naves com imagem, preço e medida; ramos de vitrine (21.4197ms)
+(node:30884) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-naves-cena.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v172 troca: carro antigo vira o novo no tamanho real; casco de nave cobre o interior, deitado, com id novo (2.6683ms)
+✔ v172 nave do grupo: casco 18×13, banheiro, cozinha, 3 beliches, arsenal, armas, para 6 (9.9617ms)
+(node:28040) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-naves-cena.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v173 carros antigos quaisquer viram os novos; carroça, sucata e peças novas ficam (4.2386ms)
+✔ v173 casa redonda barra em faixas que seguem a curva (não um quadrado) (1.8512ms)
+✔ v173 caixa leve é empurrada 1 m; pilha pesada e baixa: pula por cima (2.2346ms)
+✔ v173 Cidade Baixa: portas para os mapas da cidade, ligação antiga das Ruas vai para uma boca de rua (2.3327ms)
+✔ v173 apagar mapas: jogadores saem, NPCs somem, saídas para o mapa somem; grade 1 m (0.6629ms)
+✔ v173 ligado no site: módulos instalados, NPC controlado não volta, movimento barrado chama o empurrão, rótulo marcado (3.299ms)
+(node:34212) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-marcador.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v174 marcador abre (linha de código não pode estar presa num comentário) (1.88ms)
+✔ v174 parede apagada no 🛠️: marca sem cobertura sai; pedaço apagado vira passagem (1.7405ms)
+✔ v174 o que o mestre apagou não volta: carro trocado não é reposto; apagar mata os registros do mesmo objeto (1.8214ms)
+✔ v174 paredes invisíveis só aparecem no modo editar (1.4793ms)
+(node:29616) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-oficina3.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v175 oficina 3.0: parede reta encaixada na grade; cômodo = 4 paredes por dentro (3.5524ms)
+✔ v175 porta abre vão na parede e é porta de verdade; teto some ao entrar (1.4563ms)
+✔ v175 pincel, apagar e objetos do banco (21.5793ms)
+✔ v175 ligada no site: só o mestre vê as ferramentas, texturas nos objetos, faixa fora do mapa (2.1317ms)
+✔ v176 guardar mapas: fica o que o mestre usa, onde há jogadores, interiores e trajetos entre eles (1.4612ms)
+✔ v177 construção por módulos: materiais com as 6 partes; parede com porta tem porta de verdade; casas prontas completas (20.4472ms)
+(node:11416) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-gpt-mapas.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v178 modelos dos mapas do GPT existem como arquivo; imagem embutida grande é aliviada (13.9762ms)
+✔ v178 água do oásis de Therion barra quem tenta atravessar o lago (1.1546ms)
+✔ v178 ligado no site: leveza instalada; migração dos mapas do GPT; bloqueio em linha na Oficina 3.0 (2.5614ms)
+(node:31668) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-viagem.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v179 viagem: só usa perícias que existem no jogo (2.6676ms)
+✔ v179 viagem: tarefas por posto e "todos" geram uma por tripulante (0.4666ms)
+✔ v179 viagem: a queda sempre acontece e o casco fica entre 15 e 70 (1.7815ms)
+✔ v179 viagem: d100 com graus (0.6322ms)
+✔ v179 viagem: destroços caem num espaço livre do mapa (2.9293ms)
+✔ v179 ligado no site: módulo de viagem instalado e botão na barra (1.6516ms)
+(node:29732) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-construcao.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v180 construtor: a peça aparece à frente e a parede fica de frente para quem constrói (2.4649ms)
+✔ v180 construtor: quebrar/levar pega a peça inteira (com os blocos invisíveis) e não pega o chão do mapa (4.5603ms)
+✔ v180 construtor: levar desloca em metros e o centro acompanha (0.5763ms)
+✔ v180 construtor: pintar troca a textura pela do material certo, ou põe cor lisa; imagem do banco não se pinta (47.1028ms)
+✔ v180 construtor: encostar numa saída leva ao outro mapa, chegando um pouco para dentro (0.5211ms)
+✔ v180 ligado no site: modo construtor na Oficina 3.0, câmera segue o construtor, controle passa a vez (2.098ms)
+(node:30532) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-roteiros-dados.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v181 condições: mapa, perto da beirada de um objeto, hora que vira a noite, marca, missão, sem inimigos (3.0547ms)
+✔ v181 diálogos: só o que pode aparecer; acertar/errar levam a falas diferentes; achar pelo nome do NPC (1.5246ms)
+✔ v181 missões e diário; sorteio; próxima hora (0.745ms)
+✔ v181 história pronta: tudo o que ela cita existe e as perícias são do jogo (5.3724ms)
+✔ v181 ligado no site; roteiros só o mestre lê; mesa automática responde logo nas conversas (2.7447ms)
+(node:20748) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-atitudes-dados.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v183: quatro atitudes exclusivas do tempo real (Normal, Defesa total, Ataque total, Recuo) (2.2185ms)
+✔ v183: fora do tempo real (turnos ou desligado) a atitude é sempre Normal (0.3771ms)
+✔ v183: Defesa total e Recuo bloqueiam ataques e psi ofensivo; cura psi continua livre (0.7089ms)
+✔ v183: trocar de atitude só no tempo real, consciente e sem spam (0.5549ms)
+✔ v183: o resolvedor da mesa aplica a atitude no ataque e em todas as defesas, e o histórico explica (32.8256ms)
+✔ v183: tempo real respeita a atitude (recarga, reserva de defesas, velocidade, IA recua sem atacar) e o arrasto também (3.5609ms)
+(node:26960) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-tempo-real-tatica.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v185: toda atitude escolhida existe; sem mente só usa Normal (5.3503ms)
+✔ v185: fugindo → Recuo; encurralada volta ao Normal e luta; imóvel que "foge" se defende (0.3118ms)
+✔ v185: em choque → Defesa total (menos sem mente); quase morta e destemida → chefe ataca, inteligente se defende (0.2804ms)
+✔ v185: predador com vida alta e alvo colado → Ataque total, mantido até 50%; longe ou ferido → Normal (0.478ms)
+✔ v185: a IA troca pela transação do módulo de atitudes, com intervalo, e avisa na gaveta e no histórico (2.5318ms)
+(node:35276) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-tempo-real-tatica.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v186: parede e porta fechada escondem; grade, porta aberta, parede destruída e telhado não (1.8193ms)
+✔ v186: a criatura só conta com quem vê; reage depois do tempo do perfil; lembra por 20 s; atacada sabe na hora (0.652ms)
+✔ v186: tempo de reação por perfil (1.4249ms)
+✔ v186: IA filtra inimigos pela visão, aprende pela luta (e vizinhos a 10 m ouvem), neutro atacado vira "cada um por si" (2.1574ms)
+(node:19848) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-masmorra.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v189: planta copiada da referência: 30×18 quadros de 2 m, caverna com abismo e duas pontes, 11 salas, escada de entrada e de saída (12.1173ms)
+✔ v189: portas e linhas internas caem em arestas entre dois quadros de chão; 12 portas, duas trancadas (arsenal e cripta) (2.7646ms)
+✔ v189: paredes claras de pedra (como a referência) nos limites das salas, rochas só na caverna, pisos por material, telhado como camada de cima, arandelas que iluminam (4.2407ms)
+✔ v189: mobília da referência nas salas certas, do Banco quando existe; sem o Banco a cena ainda cabe na mesa (72.5737ms)
+✔ v189: celas com grade (arsenal e anfiteatro), alavanca emperrada, armadilha que liberta, armadilhas nos corredores (1.6122ms)
+✔ v189: monstros em facções diferentes, sobre o chão, nas celas; o baú abre e a porta trancada só com teste (regras do módulo de objetos) (2.7336ms)
+✔ v189: da entrada chega-se a todas as salas destrancadas pela caverna e pelas pontes; arsenal e cripta só depois de abrir as portas (418.9887ms)
+✔ v189: regras que não mudaram (armadilha, salto, reconstrução, Kael, miniaturas) e instalação (29.998ms)
+(node:33760) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-estrutura.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v190: ligações quebradas (mapa que não existe, para si mesmo, ponto inválido) são achadas (2.8577ms)
+✔ v190: mapas soltos são ligados ao grupo principal até tudo ficar conexo (qualquer quantidade, qualquer ordem) (2.1009ms)
+✔ v190: a masmorra é ligada às Ruas Escavadas (entrada) e à superfície (saída); nada duplica (1.447ms)
+✔ v190: a masmorra se liga à Cidade Sem Nome por um poço (beira do poço da Sala do poço ↔ poço da cidade) (52.8454ms)
+✔ v190: pontos de saída da masmorra caem no corredor da planta (não dentro de parede), e pontoLivre tira ponta de dentro de objeto (13.0342ms)
+✔ v190: cada item do Banco com efeito é reconhecido (cura, antídoto, estanque, fadiga, proteção, luz) e o resto não (2.3375ms)
+✔ v190: usos: kits gastam um por vez e somem ao acabar; nanogel é de uso único; lanterna não gasta (0.642ms)
+✔ v190: curar devolve PV à parte mais ferida, sem passar do máximo, e fecha a ferida (0.5559ms)
+✔ v190: efeitos aplicados: cura+estanque, antídoto, espuma, fadiga com espera, proteção por tempo, luz liga e desliga (1.3739ms)
+✔ v190: montaria só se for domesticada ou de montar; veículo terrestre e espacial pelo nome do Banco; plataforma e torre não (1.4669ms)
+✔ v190: candidatos perto de quem controla, ocupados saem da lista, mais perto primeiro (1.4653ms)
+✔ v190: o conduzido vai debaixo do condutor (veículo vira para onde ele olha); rastro fica atrás; movimento detectado (0.4256ms)
+✔ v190: módulos instalados, velocidade do transporte entra no arrasto e no tempo real, fila de pedidos coberta pelas regras (40.5063ms)
+(node:33124) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-masmorra.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v191: Kael começa sozinho no Quarto: nenhum monstro na sala (nem nas vizinhas imediatas), só ele e os itens (1.2328ms)
+✔ v191: no Quarto há itens para pegar: Pistola Laser e Sabre de energia (Espada de Força), com munição, armadura e kit (2.3448ms)
+✔ v191: com a COLISÃO REAL do jogo, do Quarto chega-se a todas as salas e monstros (portas abertas); só arsenal, cripta e celas ficam fechados (916.3453ms)
+✔ v191: portas vedam o vão inteiro (sem fresta ao lado) e continuam interativas (1.3433ms)
+✔ v191 viagem: a tripulação é a do mapa de partida; sem ninguém ali, vão todos os jogadores do jogo (0.5506ms)
+(node:11268) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-controles.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v192: padrões: teclado, mouse e controle sem botão repetido; todas as ações trocáveis têm padrão de teclado (1.6834ms)
+✔ v192: botão → ação (e inverso); no controle RT ataca por padrão; ação trocada solta o botão antigo (2.0092ms)
+✔ v192: trocar tecla e botão do mouse; conflitos; ações fixas e de outro aparelho são recusadas; restaurar volta ao padrão (1.9079ms)
+✔ v192: config guardada é lida com segurança (JSON ruim, ação desconhecida) (0.5222ms)
+✔ v192: movimento por WASD/setas: diagonal normalizada, teclas opostas se anulam (0.4016ms)
+✔ v192: próximo/anterior alvo percorre do mais perto ao mais longe e dá a volta (0.252ms)
+✔ v192: rótulos legíveis e ajuda por aparelho (só o que está ligado) (0.9473ms)
+✔ v192: módulo instalado; mesa-controle consulta o remapeamento depois das janelas; controles antigos seguem (33.4141ms)
+(node:28460) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-itens-mini.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v192 miniaturas: todo item do mercado tem desenho e quase nenhum cai na caixa genérica (9.4659ms)
+✔ v192 miniaturas: itens que o Yuri pediu e exemplos do banco têm o desenho certo (0.6833ms)
+✔ v192 miniaturas: SVG bem formado, mesmo traço (contorno escuro e sombra), sem NaN; data URL em cache; bilhete sem miniatura (5.8717ms)
+✔ v192 equipar: mover item entre compartimentos (puro), peso e ações (2.3236ms)
+✔ v192: correção do peso e do painel instaladas; tooltip do inventário cabe na tela (36.401ms)
+✔ v193 miniaturas: lê a descrição (abrigo, kits, aparelhos) e desenha os animais da loja (0.7112ms)
+(node:16516) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-concessionaria.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v193 montarias: catálogo usa os mesmos modelos de companheiros da ficha (2.9445ms)
+✔ v193 montarias: instância na ficha tem o formato do vínculo do Banco; ramo de comerciante e botão do Mercado (5.2042ms)
+✔ v193 montarias: compra de ponta a ponta com banco simulado (desconta, entrega o animal, recusa sem dinheiro) (22.1974ms)
+(node:32428) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-bairro.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v195 bairro: acha os três mapas pelo nome e não confunde com a imagem IA nem o Porto (1.5998ms)
+✔ v195 bairro: estado vazio, pequeno, sem imagem nem grade (1.0655ms)
+✔ v195 bairro: só duas ligações — Portão↔Cidade e Cidade↔Escadaria; o resto da Cidade Baixa é desfeito, o que não toca nela fica (0.7682ms)
+✔ v195 bairro: a estrutura automática não religa mapas soltos quando o mestre cuida das ligações (2.1113ms)
+✔ v195 bairro: executar de ponta a ponta com banco simulado — backup, mapa novo sem imagem, ligações e confirmação (6.259ms)
+✔ v195 bairro: sem os três mapas não muda nada; cancelar não muda nada (0.5721ms)
+✔ v195 construtor: miniatura própria, do tamanho dos outros, aba própria (1.9457ms)
+✔ v196 bairro: roda SOZINHO uma vez para o mestre (sem confirmação), não repete, e a cópia de segurança original nunca é sobrescrita (2.1052ms)
+✔ v196 bairro: jogador não dispara a mudança (0.483ms)
+(node:4632) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-editor-rapido.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v197 geometria: tirar um retângulo de outro deixa só o que sobra, sem sobrepor (1.7993ms)
+✔ v197 paredes são finas: linha reta com espessura fixa, nas linhas da grade, cantos sem fresta (1.9912ms)
+✔ v197 geometria: arrastar vira quadrados inteiros dentro do mapa; pincel livre junta vizinhos; contorno grosso de caverna (0.6328ms)
+✔ v197 rascunho: diferença entre listas vira add/properties/remove (0.7177ms)
+✔ v197 modelos e paleta: modelos cabem, paredes são linhas na grade, e a paleta tem as ferramentas do RPG Map (0.7505ms)
+✔ v197: instalado no app, com mapa novo do zero, zoom, e sem o zzZ fantasma; NPCs enxergam o rascunho (10.5535ms)
+(node:3280) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-mapforge-plano.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v199 rasterizar: polígono vira retângulos de 1 m sem sobrar nem faltar (2.2021ms)
+✔ v199 faixas: corredor reto vira retângulos exatos (2.2293ms)
+✔ v199 plano masmorra/medieval: tudo dentro do mapa, só texturas que existem, dentro do orçamento (89.4595ms)
+✔ v199 plano masmorra/futurista: tudo dentro do mapa, só texturas que existem, dentro do orçamento (35.0636ms)
+✔ v199 plano cidade/hibrido: tudo dentro do mapa, só texturas que existem, dentro do orçamento (10.3491ms)
+✔ v199 plano cidade/hiboriano: tudo dentro do mapa, só texturas que existem, dentro do orçamento (6.9762ms)
+✔ v199 plano exterior/medieval/floresta: tudo dentro do mapa, só texturas que existem, dentro do orçamento (14.2329ms)
+✔ v199 plano exterior/retrofuturista/penhasco: tudo dentro do mapa, só texturas que existem, dentro do orçamento (10.7167ms)
+✔ v199 plano exterior/hibrido/mina: tudo dentro do mapa, só texturas que existem, dentro do orçamento (11.8912ms)
+✔ v199 plano exterior/medieval/campo: tudo dentro do mapa, só texturas que existem, dentro do orçamento (6.6316ms)
+✔ v199 plano: mesma semente = mesmo plano; semente diferente = plano diferente; orçamento corta só adereços (120.0694ms)
+✔ v199 integração: botão 🗺️ no Editor rápido, motor fora do carregamento inicial, texturas novas do gerador existem (3.0685ms)
+(node:30904) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-npc-motor.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v199 motor: dados reais do jogo e semente repetível (9.4675ms)
+✔ v199 ficha de NPC vira modelo do banco do site (formato de perícias, atributos e arte) (2.1023ms)
+✔ v199 miniaturas: papéis, espécies, apelidos, tokens do mapa e arquivos de verdade (47.9947ms)
+✔ v199 animações e sons: CSS das miniaturas, sons de golpe e passos, nada de gerador antigo pendurado no laboratório (2.3063ms)
+✔ v199 cache (1.2777ms)
+✔ imagem de fundo: estado, render, salvamento e publicação (0.7402ms)
+(node:16072) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-arte3d.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ direção do desenho pelo movimento: lado (espelha para a direita), costas ao subir, frente ao descer (2.3219ms)
+✔ folhas 3D: ação/direção com queda para o lado (1.1148ms)
+(node:18912) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-atitudes-ia.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ atitude: padrão da espécie, ajuste do token e NPC defensivo (4.8074ms)
+✔ facção da atitude: aliada usa o grupo; as outras, cada um por si (0.2815ms)
+✔ engajamento: sanguinária ataca todos; defensiva só revida; aliada nunca ataca aliado (0.8694ms)
+✔ agressiva: só quem entra no território (0.3683ms)
+✔ vida simples: partes do corpo viram um PV só (0.7006ms)
+✔ separar: empurra miniatura sobreposta (0.4502ms)
+✔ Skyrim: Confiança e Ajuda vêm do token, da espécie ou do padrão (0.4873ms)
+✔ Agressão pacífica: nunca ataca, nem revidando (0.2671ms)
+✔ Ajuda: defensiva com ajuda socorre o bando; sem ajuda não (0.4785ms)
+✔ mesma espécie: com Ajuda ligada não se atacam (nem sanguinária), mesmo sendo modelos diferentes (0.7758ms)
+✔ gravar no token usa a revisão ATUAL do servidor e tenta de novo (evita permission-denied quando a vida/tempo real mexem no token) (231.9294ms)
+(node:29908) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-chao.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ chão (v205): só o fundo do mapa é chão; pisos, pontes e calçadas menores são peças comuns (1.5819ms)
+(node:4652) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-exploracao.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ personalidade → papel de vida (1.4829ms)
+✔ porta: só fechada e destrancada (1.1027ms)
+✔ recursos para a toca: pedra e árvore soltas (0.6183ms)
+✔ toca: objeto e ponto de refúgio (1.3587ms)
+✔ exploradora vai até a porta fechada e depois passa (3.6594ms)
+✔ covarde corre para a toca ou atrás de obstáculo quando há ameaça (1.8913ms)
+✔ construtora junta pedras e constrói a toca (0.6759ms)
+✔ fome: faminta caça ou procura frutos conforme a dieta (0.2713ms)
+✔ abrigo em casa: o lado de dentro é o mais longe da ameaça; quem já está dentro não precisa (0.5306ms)
+✔ caçadora persegue, mata e come; frugívora come na árvore (43.0976ms)
+✔ abrigo: NPC abre a porta, entra, fecha e espera (1.3328ms)
+✔ bando: quem tem Ajuda anda junto com a mesma espécie (0.5673ms)
+✔ v200 cache (1.6141ms)
+✔ kit do mestre: import dinâmico, conversão e gancho de colocação (0.536ms)
+✔ kit do mestre: UI (carimbos de construção, giro e material) (0.7601ms)
+(node:23608) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-mapforge-plano.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ menosRetangulo: corta o vão e deixa as pontas (2.0915ms)
+✔ abrirVaos: nenhuma parede cruza o vão de uma porta (0.565ms)
+✔ masmorra gerada: portas passáveis, salas fechadas com porta fechada e ligadas com porta aberta (999.4259ms)
+(node:30128) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/nova-recuperacao.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Sorte ativa: +50% do valor da perícia só no próximo teste (1.3495ms)
+✔ Sorte pode passar de 100 e arredonda (0.2659ms)
+✔ Gastar Sorte: 1 ponto, liga a Sorte, não liga duas vezes (1.0534ms)
+(node:35132) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-galeria3d.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ galeria 3D: agrupa todos os modelos por tipo, sem perder nenhum (13.3542ms)
+✔ galeria 3D: lista exportada diz quem gostou e no lugar de quem; limpa marcas vazias (1.7882ms)
+(node:8796) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-icones-itens.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ ícone pelo nome do item (sem acento, plural, palavra mais longa vence) (1.663ms)
+✔ todos os ícones existem em disco e o equipamento rápido aponta para ícones reais (67.0886ms)
+✔ v201 cache (3.3232ms)
+✔ publicação leva bloqueiaVisao e o roundtrip preserva (1.6738ms)
+✔ import de nova-oficina atualizado em todos os consumidores vivos (5.0412ms)
+✔ app/17 expõe estado para testes de pipeline (0.561ms)
+(node:35656) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-terreno-natural.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ caverna natural: borda de rocha, uma só região aberta, mesma semente = mesma caverna (18.8678ms)
+✔ caverna natural: mais rocha inicial deixa menos espaço aberto (2.9307ms)
+✔ contorno orgânico: uma região só, ocupa boa parte do retângulo, beirada irregular (3.2401ms)
+✔ pontas: quanto mais pontas, mais perímetro (beirada recortada) para a mesma área (5.395ms)
+✔ cordilheira SEM pontas = planalto: paredão em volta, topo plano dentro, rampas abertas no paredão (7.2993ms)
+✔ cordilheira MUITO pontiaguda = colinas escarpadas (sem topo plano, com fendas ligadas) (4.4937ms)
+✔ retangulosDeCelulas cobre exatamente os quadrados, com poucos retângulos (1.7169ms)
+✔ contornos suaves: laço fechado com área próxima à dos quadrados, buraco vira laço com sinal contrário (3.1002ms)
+✔ contornos suaves: sem degraus (quinas arredondadas) e sem pontos repetidos; mais suavização = mais pontos (0.873ms)
+✔ picos 3D: dentro da massa, afastados entre si, ordenados de cima para baixo, mais pontas = mais picos (17.8544ms)
+✔ gerador: tipo Caverna (massa de rocha + chão + entradas, tudo dentro do mapa) (44.656ms)
+✔ gerador: grossura das paredes — padrão da masmorra, ou o valor escolhido (Fina a Fortaleza) (86.8246ms)
+✔ ataques de som e de sopro têm visual próprio (cone), sem confundir com arma de fogo (0.9726ms)
+(node:28180) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-nevoa.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v202 cache (1.3058ms)
+✔ sem direção: visão continua círculo inteiro (comportamento antigo) (2.7094ms)
+✔ com direção (lanterna): cone longo à frente, só proximidade atrás (2.3388ms)
+✔ luz do cone não ultrapassa parede (7.5108ms)
+✔ temLanterna: equipado e bolso contam, mochila guardada não (1.009ms)
+✔ porta aberta continua não cortando a visão (0.2499ms)
+✔ névoa usa facing do token e recebe fichaDe; app/22 liga userCharacters e sobe o ?v= (0.2505ms)
+✔ v203 cache (1.375ms)
+✔ pointerup do editor tem zona morta e devolve o elemento ao lugar (1.7419ms)
+✔ arrasto de verdade continua comitando (0.2905ms)
+✔ import do editor atualizado (0.1619ms)
+(node:31812) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-transporte.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ dragão-trombeta domesticado (alado e corredor) vira montaria; selvagem não (1.7502ms)
+✔ só a montaria alada voa e é mais rápida (0.5935ms)
+✔ quem voa atravessa paredes; quem não voa é barrado (0.7836ms)
+(node:17072) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-tempo-real-ia.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v203: muro barra quem anda, mas o voador (grade só com telhados) passa por cima (21.7825ms)
+✔ v203: telhado cobre o alvo — o voador não tem caminho até dentro (precisa quebrar o telhado) (14.831ms)
+✔ v203: copa fica transparente só para quem está embaixo; copa cai junto com o tronco (1.7589ms)
+✔ v203: capacidade dos veículos por tamanho; contagem de passageiros (0.5585ms)
+(node:19856) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-ecossistema.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ início seguro: nenhuma criatura hostil nasce a menos de 14 m do acampamento nem de 10 m da casa (25.6783ms)
+✔ as montarias domesticadas e os pacíficos ficam perto do acampamento/campo, sem hostis misturados (12.1113ms)
+✔ a reforma tem as regiões pedidas (casa com telhado, cachoeira, ponte, gruta, torre com escada, armadilhas e alavancas) (10.1959ms)
+(node:8700) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-nevoa.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v204 cache (1.3142ms)
+✔ paramsLuz: escuro ~5 m, penumbra ~10 m, claro ~16 m (1.0848ms)
+✔ penumbra sem lanterna: vê ~8 m, não vê ~12 m (1.9836ms)
+✔ escuro sem lanterna: vê ~4 m, não vê ~8 m (0.6865ms)
+✔ escuro com lanterna: cone projeta pelo menos 12 m na direção olhada (4.9988ms)
+✔ névoa aplica paramsLuz, luz do mapa, modo AUTOMÁTICO (v205) e ciclo do mestre (0.3224ms)
+(node:28916) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-arte3d.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ visual da pessoa: calça, ida e volta do texto e limite de 160 caracteres (2.2767ms)
+✔ estilos prontos definem calça e cores realistas (sem amarelo/azul de desenho) (0.2692ms)
+✔ camadas: calça sempre aparece; capa só com capa; cabelo só o escolhido (0.3104ms)
+✔ catálogo da pessoa com esqueleto: todas as camadas e vistas do editor existem (0.6896ms)
+✔ equipamento da ficha vira acessório da miniatura (mochila, capacete, capa, armadura) (13.0992ms)
+✔ de costas a capa e a mochila ficam por cima do corpo; nas outras vistas, atrás (0.5211ms)
+(node:33428) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-agua-visual.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ lava não entra no módulo de água; água tem material (2.3205ms)
+✔ profundidade é gradual: zero fora, cresce da margem ao miolo, fundo é mais fundo (0.7916ms)
+✔ mesma profundidade, corpos diferentes: humano 1,8 m vs cão 0,9 m (0.2643ms)
+✔ histerese: não oscila na borda entre vadear e nadar (0.2528ms)
+(node:29620) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-andares.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ ID positivo, elevação negativa: o subsolo fica abaixo do térreo (2.3039ms)
+✔ superfície não vê o subsolo (só os vãos); quem está no subsolo não vê a superfície (0.7441ms)
+✔ mapas antigos seguem iguais: 2º andar cobre o térreo e é invisível de baixo (0.2852ms)
+✔ destino explícito entre superfície e subsolo; subir não é somar 1 (0.2404ms)
+(node:9908) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-sprites-3d-dados.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ a arte aprovada do dragão-trombeta corredor (Blender) continua sendo a das duas espécies do mapa (1.6004ms)
+(node:11524) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-atuar-aba.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ atuar como: só personagens abrem aba (não "Mestre" nem automático) (1.1538ms)
+✔ URL preserva ID de criatura codificado no contrato do modo diretor (1.2672ms)
+(node:32564) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-vida.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ v205 cache (1.0851ms)
+✔ papelComFaccao: neutros viram território; feridos fogem; parado/montaria preservados (0.5124ms)
+✔ facção neutra não briga com ninguém (regra de hostilidade existente) (0.4428ms)
+✔ papelVida (texto) continua igual — a facção ajusta por cima (0.8092ms)
+✔ mesa-vida: wiring da facção e comportamentos neutro/foge (0.3334ms)
+(node:26632) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-correr.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ correr: mais rápido, mas sem fôlego não corre (1.3004ms)
+✔ correr: gasta fadiga só se andou; atacar (6) custa menos que correr alguns segundos (1.3121ms)
+(node:29796) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-escuridao.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ só o EQUIPADO acende: lanterna/tocha/espada de energia viram letras; mochila não (4.8344ms)
+✔ luz do token vem da letra gravada no visual (1.6927ms)
+✔ fontes: lâmpada ligada, apagada, entrada de luz e lanterna do token (só no nível certo) (1.2467ms)
+✔ paredes cortam a luz: nada ilumina através de rocha/porta fechada (1.4117ms)
+(node:3808) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-espaco.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ voador alto passa por cima de quem está no chão; voo baixo (0,5 m) não é intangível (1.3629ms)
+✔ altura do objeto decide quem passa por cima (1.6944ms)
+✔ colisão: o corpo voando atravessa outro corpo e a rocha, mas não a parede baixa em voo natural (1.4022ms)
+✔ criaturas que voam por natureza ficam a 3 m (0.3472ms)
+(node:33516) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-lava.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ lava exposta queima; núcleo mais forte; fora da forma irregular não há contato (3.1061ms)
+✔ voo: alto não queima; muito baixo só calor; no chão queima (0.3188ms)
+✔ ponte firme sustenta quem está em cima; fora dela queima (0.2642ms)
+✔ perigo crescente: 1, 1,5, 2, 2,5, 3 e para em 3; poça antiga sem dados vira lava comum (1.1571ms)
+(node:15424) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-treino-sessao.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ rotaDe: só redireciona fichas da sessão; criaturas, NPCs e outros caminhos ficam como estão (2.4529ms)
+✔ regras: treinoSessoes só para o mestre; combate lê o caminho roteado pelos mesmos pontos de gravação da ficha (4.4052ms)
+✔ v206 cache (1.7128ms)
+✔ núcleo: qualquer verComo vira sessão de jogador; id vira token diretor (0.3601ms)
+✔ sincronização: ator efetivo é o token diretor; controle fora de combate (0.1948ms)
+✔ véspera: botão 🎬, painel de escolha e aba com verComo=<token> (0.2301ms)
+✔ véspera: faixa mostra quem você está atuando; recomeçar só no Kael (0.193ms)
+✔ v207 cache (1.3731ms)
+✔ automatico: token do diretor é manual nesta aba; regra antiga preservada (0.2945ms)
+✔ comandos de ataque/psi do diretor saem da aba dele, sem ser mestre local (0.4258ms)
+✔ IA solta o token do diretor em todas as abas (auto=false, uma vez) (0.362ms)
+✔ escolhas de crítico/consciência e barra de recarga são do diretor (0.3733ms)
+✔ v208 cache (1.5637ms)
+✔ clique para mover: pathfinding e detecção de toque (0.6953ms)
+✔ tempo real automático: iniciarRT reutilizável e gancho no ataque (0.3366ms)
+✔ interação: 2º clique no alvo abre as ações (0.2715ms)
+✔ v209 cache (1.0876ms)
+✔ mesa sem grade de batalha (nem o editor mostra, v193) (0.364ms)
+✔ tokens sem aura: miniatura limpa, nome só no toque/hover (0.2944ms)
+✔ objetos: ação contextual ao perto, item no chão sem brilho (0.3683ms)
+(node:24832) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/mesa-latido.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ canal acorda apenas mestre oculto da mesma conta e valida IDs (2.7968ms)
+✔ arrasto rejeita criatura viva e caída, permite cadáver e socorro humano (0.519ms)
+✔ duplicar na Oficina cria nova instância da cena (3.9679ms)
+✔ Oficina embutida oculta banco antigo e oferece PV, dureza e Aplicar (3.4013ms)
+✔ catálogo inferior preserva prévias e permite marcar objetos para a edição (0.3562ms)
+✔ alvo de cenário omite objetos indestrutíveis (0.2191ms)
+✔ HTML usa favicon PNG e ICO da v62 (0.1536ms)
+✔ v63 usa documento independente para o radio compartilhado (3.0012ms)
+✔ v63 instala e remove o player conforme autenticacao (5.3328ms)
+✔ v63 publica tocar, playlist e parar do mestre (3.895ms)
+✔ v63 sincroniza avancos de playlist (4.5615ms)
+✔ index mantém cache-busting do app em build posterior à v63 (6.1843ms)
+✔ v65 oferece limpeza manual de imagem com apagar e restaurar (5.9926ms)
+✔ v65 mantém cache-busting atualizado (0.4344ms)
+✔ v66 publica a nova versão do app (2.3609ms)
+✔ v66 preserva abas horizontais e cria contexto persistente de personagem (7.7854ms)
+✔ v66 não substitui os controles existentes da ficha (0.4702ms)
+✔ v67 move as abas internas da ficha para a lateral do personagem (3.5505ms)
+✔ v67 remove a foto duplicada do cabeçalho da aba Personagem (1.0479ms)
+✔ cache-busting do app acompanha a versão atual (0.3907ms)
+✔ v68 compacta o painel superior do Mapa da Mesa (4.3744ms)
+✔ v68 oferece indicador explícito de sincronização (2.7178ms)
+✔ v68 usa cache-busting próprio (0.4063ms)
+✔ tests\v69-static.test.mjs (198.7272ms)
+✔ tests\v70-inspecao.test.mjs (199.2267ms)
+✔ tests\v71-inspecao-inline.test.mjs (198.3609ms)
+✔ v72 adiciona resumo rápido do personagem na lateral (3.6301ms)
+✔ v72 reorganiza o Escudo do Mestre sem remover as subabas (3.8862ms)
+✔ v72 não contém as tentativas experimentais de inspeção v69-v71 (6.6022ms)
+✔ v72 usa cache-busting próprio (0.4858ms)
+✔ v73 cadastra NPC comerciante com estoque e barganha (2.5183ms)
+✔ v73 publica comerciantes visíveis no Cenário Atual sem depender do mapa (5.3624ms)
+✔ v73 permite compra, venda e barganha no comerciante do cenário (2.7966ms)
+✔ v73 permanece em build com cache-busting (0.3801ms)
+✔ v74 adiciona serviços de NPC e mercado negro (3.7364ms)
+✔ v74 amplia descrições na tabela de cenários (1.8426ms)
+✔ v74 mantém cache-busting do app (0.432ms)
+✔ v75 separa salvar atual, salvar como novo e excluir na Oficina embutida (9.4463ms)
+✔ v75 não usa o pequeno botão duplicado de salvar durante edição na mesa (2.1611ms)
+✔ v75 mantém cache-busting do app (0.5492ms)
+✔ v76 adiciona interações genéricas ao Cenário Atual (3.523ms)
+✔ v76 compacta resumo lateral e remove inglês dos rótulos PT de fadiga (2.132ms)
+✔ v76 mantém ações do banco de cenários empilhadas (2.1222ms)
+✔ v76 mantém cache-busting do app (0.4046ms)
+✔ v77 continua incorporada no build atual (2.3459ms)
+✔ barganha diária e falha crítica existem (2.6499ms)
+✔ construtor guiado de interações existe (3.4413ms)
+✔ fechar modal recebe estilo destacado (2.36ms)
+✔ v78 continua incorporada no build atual (2.7754ms)
+✔ banco de mapas possui CSV (1.5741ms)
+✔ seletor direto da Mesa é repopulado pelo banco (1.4704ms)
+✔ perícias do construtor são repopuladas do banco (1.1289ms)
+(node:11896) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/yurzi/Documents/Codex/2026-09-09/referenced-chatgpt-conversation-this-is-an/work/mesa-sync/js/nova-objetos.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\yurzi\Documents\Codex\2026-09-09\referenced-chatgpt-conversation-this-is-an\work\mesa-sync\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ src vazio de referência não mascara imagem do modelo (1.6844ms)
+✔ mapa importado preserva metadados visuais da Oficina e migra arquivo antigo (2.6448ms)
+✔ v80 publica vínculo opcional cenário mapa (4.4601ms)
+✔ v80 evita geometria indefinida em objetos importados (1.3507ms)
+✔ v80 força cache novo dos módulos de mapa (2.1574ms)
+✔ v81 adiciona modo foco e controle de histórico da Mesa (2.4316ms)
+✔ v81 torna histórico visualmente classificável sem alterar mensagem (0.4455ms)
+✔ v82 cria banco administrativo de companheiros com CSV (4.7862ms)
+✔ v82 inclui modelos básicos animal, robô e montaria (3.9621ms)
+✔ v82 vincula instância persistente a uma única ficha (4.2993ms)
+✔ v82 só mostra vínculos na lateral quando existem (5.3346ms)
+✔ v82 banco de modelos continua privado ao mestre (0.3509ms)
+✔ v83 companion edit duplicate link robust (5.4857ms)
+✔ v83 vehicle bank and owned instances (4.4522ms)
+✔ v83 firestore collections (0.2824ms)
+✔ v84 dynamic companion and vehicle dialogs use real modal overlay (5.3153ms)
+✔ v84 companions expose edit duplicate and link through explicit listeners (4.2677ms)
+✔ v84 shared vehicle cargo exists in owned vehicle sheet (8.2164ms)
+✔ v84 linked players may only update shared cargo fields (0.2148ms)
+✔ v84 hides legacy hybrid personal inventory vehicle compartment (2.2608ms)
+✔ v85 has separate shared vehicle and future ship inventory blocks (1.4121ms)
+✔ v85 shared vehicle cargo supports drag both ways (4.2537ms)
+✔ v85 vehicle links update live for other linked players (2.4016ms)
+✔ v85 entity sidebar wraps and vehicle cards share site styling (2.1212ms)
+✔ v85 entity modal close is conspicuous red top-right control (3.715ms)
+✔ v85 owned vehicle sheet points cargo management to Inventory (4.4649ms)
+✔ v86 adds ships database and owned ship collections (5.6863ms)
+✔ v86 ship models have type class and core ship fields (9.0025ms)
+✔ v86 crew roles include command flight gunnery and engineering (9.1939ms)
+✔ v86 shared ship hold integrates with inventory drag both ways (4.7288ms)
+✔ v86 ship inventory block remains separate from vehicle block (0.658ms)
+✔ v86 linked players can update only shared cargo fields in rules (0.202ms)
+✔ v86 ships update live and appear in character sidebar (6.0575ms)
+✔ v87 sidebar follows natural page scroll (3.0366ms)
+✔ v87 compacts character identity and background fields (2.8511ms)
+✔ v87 ship models gain module slots and special characteristics (4.7813ms)
+✔ v87 owned ships can edit crew roles after creation (9.3587ms)
+✔ v87 owned ships support individual image and current stats (6.3354ms)
+✔ v87 separates installed weapons and modules from cargo (5.5364ms)
+✔ v88 remonta vínculos laterais (4.706ms)
+✔ v88 leitura de naves permite recuperar vínculos antigos (0.4611ms)
+✔ v89 limita interação por perícia/dia e permite rerrolar com Sorte (6.0385ms)
+✔ v89 aceita múltiplas perícias do banco (2.9593ms)
+✔ v89 registra interação no histórico geral/mestre (1.1064ms)
+✔ v89 mantém imagem de carga contida e badge sobreposto (3.797ms)
+✔ v90 persiste localização em personagens e NPCs e reconcilia cenários (3.8649ms)
+✔ v90 publica somente catálogo público de cenários (6.8984ms)
+✔ v90 oferece viagem por destinos cadastrados (7.8997ms)
+✔ v90 mestre move entidade e grupo (3.2898ms)
+✔ v90 sincroniza mapa vinculado fora de combate (4.2275ms)
+✔ v91 grupo pode mover personagens e NPCs selecionados (4.9761ms)
+✔ v91 filtra destinos inexistentes e avisa o mestre (3.0548ms)
+✔ v91 mantém histórico de localização e permite voltar (3.4022ms)
+✔ v91 mostra cenário local completo e interações contextuais (3.9917ms)
+✔ v92 persiste mapa da localização e move miniatura no destino (4.9635ms)
+✔ v92 mapa do mestre não vira localização global dos jogadores (0.356ms)
+✔ v92 traz personagens ativos somente por comando explícito (2.2692ms)
+✔ v92 tokens têm mapa e filtros de desenho por mapa (0.561ms)
+✔ v92 regras permitem mapaId sem liberar mapa arbitrário para jogador (0.3097ms)
+✔ v93 mapa ausente da miniatura não segue câmera do mestre em exploração (1.1536ms)
+✔ v93 migração usa cenário da entidade e não câmera do mestre para personagens (4.5106ms)
+✔ v93 vínculo automático mapa-cenário nasce desligado (1.1797ms)
+✔ v94 mapa remoto do jogador não herda combate do mapa do mestre (1.0761ms)
+✔ v94 movimento salva usando o mapa do próprio cliente (0.3237ms)
+✔ v94 regras limitam combate ao mapa onde ele ocorre (0.1944ms)
+✔ v95 separa visualmente PJ PM e NPCs no editor de cenário (1.8675ms)
+✔ v95 mantém vínculos NPC compatíveis com personagensCena legado (1.0684ms)
+✔ v95 banco mostra apenas idioma ativo sem apagar traduções (1.2923ms)
+✔ v96 ficha completa vira pendente, não bloqueada automaticamente (2.3861ms)
+✔ v96 mestre tem fila, aprovação e reabertura (1.4825ms)
+✔ v96 migra bloqueios automáticos antigos para aprovação pendente (0.7562ms)
+✔ v96 bloqueia estrutura aprovada mas permite fluxo explícito de XP (0.1253ms)
+✔ v97 mestre pode revisar e aprovar qualquer PJ ainda não aprovado (1.3875ms)
+✔ v97 mantém proteção contra aprovação acidental de ficha incompleta (1.0654ms)
+✔ v97 compacta botões dos cartões do mestre sem estourar o card (0.1954ms)
+✔ v99 Sorte não converte mais rolagem em sucesso automático (1.8826ms)
+✔ painel mostra a Sorte (+50% no próximo teste) e a deixa ativa (0.1409ms)
+✔ v99 restaura checkpoint e reproduz teste com nova semente (0.1364ms)
+✔ v99 regra publicada descreve substituição imediata do último teste (0.4164ms)
+ℹ tests 788
+ℹ suites 0
+ℹ pass 788
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 26086.036

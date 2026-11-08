@@ -1,0 +1,11 @@
+import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
+import {lerApp} from './_app.mjs';
+const app=lerApp();
+const direct=fs.readFileSync(new URL('../js/nova-direta.js',import.meta.url),'utf8');
+const panel=fs.readFileSync(new URL('../js/nova-painel.js',import.meta.url),'utf8');
+const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+test('duplicar na Oficina cria nova instância da cena',()=>{assert.match(app,/delete e\.mesaObjectId;delete e\.mapObjectId/);});
+test('Oficina embutida oculta banco antigo e oferece PV, dureza e Aplicar',()=>{assert.match(app,/embeddedBank\.style\.display='none'/);assert.match(app,/gm2mesaHardness/);assert.match(app,/gm2mesaPV/);assert.match(app,/>Aplicar<\/button>/);});
+test('catálogo inferior preserva prévias e permite marcar objetos para a edição',()=>{assert.match(direct,/nova-catalog-check/);assert.match(direct,/Adicionar marcados à edição/);assert.match(direct,/workshopHandle\.addModels/);assert.match(html,/novaSyncAdicionarMarcados/);});
+test('alvo de cenário omite objetos indestrutíveis',()=>{assert.match(panel,/targetableObjects=.*o\.destrutivel===true&&Number\(o\.pvMax\|\|0\)>0&&!o\.destruido/);});
+test('HTML usa favicon PNG e ICO da v62',()=>{assert.match(html,/favicon-32\.png\?v=62/);assert.match(html,/favicon\.ico\?v=62/);assert.match(html,/apple-touch-icon\.png\?v=62/);});

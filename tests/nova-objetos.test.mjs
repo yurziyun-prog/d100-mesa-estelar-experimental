@@ -1,4 +1,5 @@
 import fs from 'node:fs';import vm from 'node:vm';
+import {lerApp} from './_app.mjs';
 import test from 'node:test';import assert from 'node:assert/strict';
 import {normalizarObjeto,criarObjeto,objetosDoMapa,prepararCena,importarModelos} from '../js/nova-objetos.js';
 const model={id:'arvore',nome:'Árvore',pvMax:40,dureza:5,material:'madeira',pesoKg:600,inflamabilidade:3,inflamavel:true,destrutivel:true,camada:4,bloqueiaMovimento:false,bloqueiaVisao:true,imagem:'data:image/svg+xml,x'};
@@ -22,7 +23,7 @@ test('camadas antigas dependem de propriedades, sem adivinhar pelo nome',()=>{
 });
 
 test('renderizador real remove só objetos migrados, mantendo pincéis e fundo sem alterar mapa',()=>{
- const file=fs.readFileSync(new URL('../js/app.js',import.meta.url),'utf8'),block=file.slice(file.indexOf('window.novaSyncRenderMap_=function'),file.indexOf('function map803LegacyRefs_'));
+ const file=lerApp(),block=file.slice(file.indexOf('window.novaSyncRenderMap_=function'),file.indexOf('function map803LegacyRefs_'));
  const c={window:{},map803HidratarEstado_:x=>structuredClone(x),gm2staticMesaSvg_:x=>x};vm.createContext(c);vm.runInContext(block,c);
  const map={oficina2State:{elements:[{id:'tree',type:'object'},{id:'ink',type:'path'}]}};const result=c.window.novaSyncRenderMap_(map,{separateObjects:true});assert.equal(result.elements.length,1);assert.equal(result.elements[0].id,'ink');assert.equal(map.oficina2State.elements.length,2);assert.equal(c.window.novaSyncRenderMap_(map).elements.length,2);
 });

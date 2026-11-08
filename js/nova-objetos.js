@@ -6,7 +6,12 @@ const pick=(o,m,keys,d)=>{for(const src of [o,m])for(const k of keys)if(present(
 export function camadaPadrao(o={}){return ['terreno','terrain'].includes(o.tipo)?1:o.bloqueiaMovimento===false?2:3;}
 export function normalizarObjeto(o={},m={}){
  const get=(keys,d)=>pick(o,m,keys,d),pv=Math.max(0,number(get(['pvMax','pv'],0))),infl=Math.min(5,Math.max(0,number(get(['inflamabilidade'],bool(get(['inflamavel'],false))?3:0))));
- return {...structuredClone(o),objetoSchema:1,id:String(o.id||''),modeloId:String(get(['modeloId','objetoBancoId'],m.id||'')),tipo:String(get(['tipo'],'objeto')),nome:String(get(['nome'],'Objeto')),imagem:String(get(['imagem','src'],'')),
+ // Para imagens, string vazia NÃO é um valor explícito: mapas refs-v1 removem
+ // deliberadamente o src para não duplicar data URLs. Se tratarmos src:'' como
+ // soberano, ele mascara a imagem existente no modelo e o objeto vira um bloco
+ // após a sincronização da cena. A primeira fonte visual não vazia é a válida.
+ const imagem=[o.imagem,o.src,m.imagem,m.image,m.src].find(v=>v!==undefined&&v!==null&&String(v).trim()!=='')||'';
+ return {...structuredClone(o),objetoSchema:1,id:String(o.id||''),modeloId:String(get(['modeloId','objetoBancoId'],m.id||'')),tipo:String(get(['tipo'],'objeto')),nome:String(get(['nome'],'Objeto')),imagem:String(imagem),
  x:number(o.x),y:number(o.y),larguraM:Math.max(.1,number(get(['larguraM','largura','w'],1),1)),alturaM:Math.max(.1,number(get(['alturaM','altura','h'],1),1)),angulo:number(get(['angulo','rot'],0)),camada:Math.trunc(number(get(['camada'],camadaPadrao({...m,...o})),3)),material:String(get(['material'],'')),pesoKg:Math.max(0,number(get(['pesoKg','peso'],0))),
  pvMax:pv,pvAtual:number(get(['pvAtual'],pv),pv),dureza:Math.max(0,number(get(['dureza','pa'],0))),destrutivel:bool(get(['destrutivel'],pv>0)),destruido:bool(get(['destruido'],false)),inflamabilidade:infl,inflamavel:bool(get(['inflamavel'],infl>0)),pegandoFogo:bool(get(['pegandoFogo','emChamas'],false)),estadoFogo:structuredClone(get(['estadoFogo','fogo'],{})),bloqueiaMovimento:bool(get(['bloqueiaMovimento'],false)),bloqueiaVisao:bool(get(['bloqueiaVisao'],false)),fixoAoMapa:bool(get(['fixoAoMapa','fixada','locked'],false))};
 }
@@ -21,7 +26,13 @@ export function objetosDoMapa(map){
  for(const [i,o]of (map.objetos||[]).entries()){const id=String(o.id||'objeto-'+i);out.set(id,{...o,id:'map:'+id,mapObjectId:id,tipo:'objeto',modeloId:o.modeloId||o.objetoBancoId||'',x:number(o.x)*28/w,y:number(o.y)*14/h});}
  for(const [i,e]of (map.oficina2State?.elements||[]).entries()){
   if(e.type!=='object')continue;const id=String(e.id||'elemento-'+i),old=out.get(id)||{};
-  out.set(id,{...old,...e,id:'map:'+id,mapObjectId:id,tipo:'objeto',modeloId:e.modeloId||e.objetoBancoId||old.modeloId||'',x:(number(e.x)+number(e.w,1)/2)*28/w,y:(number(e.y)+number(e.h,1)/2)*14/h,larguraM:number(e.w,1),alturaM:number(e.h,1),angulo:number(e.rot),imagem:e.imagem||e.src||old.imagem});
+  // Elementos importados de um CSV/mapa antigo precisam conservar a representação
+  // visual da Oficina. Mapas salvos pela própria Oficina já carregam estes campos
+  // em mesaScene; mapas importados só tinham a referência geométrica. Sem isso,
+  // quando a cena sincronizada substituía a prévia inicial, o objeto virava um
+  // retângulo com o nome apesar de o modelo/imagem existir no Banco de Objetos.
+  const oficinaElement=structuredClone(e),oficinaBounds={x:number(e.x),y:number(e.y),w:number(e.w,1),h:number(e.h,1)};
+  out.set(id,{...old,...e,id:'map:'+id,mapObjectId:id,tipo:'objeto',modeloId:e.modeloId||e.objetoBancoId||old.modeloId||'',x:(number(e.x)+number(e.w,1)/2)*28/w,y:(number(e.y)+number(e.h,1)/2)*14/h,larguraM:number(e.w,1),alturaM:number(e.h,1),angulo:number(e.rot),imagem:e.imagem||e.src||old.imagem,oficinaElement,oficinaBounds});
  }
  return [...out.values()].map(o=>Object.fromEntries(Object.entries(o).filter(([,v])=>v!==undefined)));
 }
@@ -29,9 +40,15 @@ export function prepararCena(scene,map,seeds,models){
  const current=scene?.mapId===map.id?scene:{mapId:map.id,objects:[]};
  const objects=[...(current.objects||[])];
  if(!current.objetosMapaImportados){const ids=new Set(objects.map(o=>o.id));for(const o of seeds)if(!ids.has(o.id))objects.push(o);}
+ // Migração transparente de cenas já arquivadas antes da correção acima.
+ // Mantém posição/PV/estado dinâmico existentes e repõe apenas os metadados
+ // visuais que podem ser reconstruídos do mapa salvo.
+ const seedsById=new Map();for(const s of seeds||[]){seedsById.set(String(s.id),s);if(s.mapObjectId)seedsById.set('map:'+String(s.mapObjectId),s);}
  return {...current,objetoSchema:1,objetosMapaImportados:true,objects:objects.map(o=>{
-  const n=normalizarObjeto(o,models.get(o.modeloId)||{});
-  if(!o.imagem&&o.modeloId)delete n.imagem;
+  const seed=seedsById.get(String(o.id))||seedsById.get('map:'+String(o.mapObjectId||''));
+  const source=seed?{...o,...(!o.oficinaElement&&seed.oficinaElement?{oficinaElement:structuredClone(seed.oficinaElement)}:{}),...(!o.oficinaBounds&&seed.oficinaBounds?{oficinaBounds:structuredClone(seed.oficinaBounds)}:{}),...(!o.modeloId&&seed.modeloId?{modeloId:seed.modeloId}:{}),...(!o.nome&&seed.nome?{nome:seed.nome}:{})}:o;
+  const n=normalizarObjeto(source,models.get(source.modeloId)||{});
+  if(!source.imagem&&source.modeloId)delete n.imagem;
   return n;
  })};
 }

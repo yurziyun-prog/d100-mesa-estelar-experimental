@@ -1,0 +1,4 @@
+﻿id;nome;icone;tipo;classe;porte;cascoMax;blindagem;escudoMax;energiaMax;combustivelMax;movimento;manobra;sensores;capacidadeCargaKg;tripulacaoMin;tripulacaoMax;passageiros;slotsArmas;vendavel;preco;nivelAcesso;disponivelCampanha;descricao;imagem
+lancadeira_orbital;Lançadeira orbital;🛸;Transporte/Exploração;Lançadeira;Pequena;38;2;10;60;100;14;4;3;1200;1;3;8;1;true;145000;Restrito;true;Nave pequena para órbita, pouso planetário e viagens curtas. Pode ser operada por uma tripulação mínima.;
+cargueiro_modular;Cargueiro modular;🚀;Carga/Comercial;Cargueiro;Média;85;5;22;140;180;9;1;4;18000;2;8;12;2;true;480000;Restrito;true;Cargueiro de longo curso com grande porão e módulos intercambiáveis.;
+corveta_patrulha;Corveta de patrulha;🛰️;Militar/Patrulha;Corveta;Média;120;10;45;220;220;12;3;7;6500;5;18;10;6;false;0;Militar;true;Corveta armada para patrulha, escolta e combate. Normalmente indisponível no comércio civil.;

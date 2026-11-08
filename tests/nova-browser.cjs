@@ -2,7 +2,7 @@ const fs=require('fs'),path=require('path'),assert=require('assert/strict');
 const {chromium}=require('C:/Users/yurzi/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
 const dir=path.join(__dirname,'../js');
 (async()=>{
- const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'});
+ const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'});
  const store={},listeners=[],errors=[];let lock=Promise.resolve(),release;
  const statePath='combatesAtivos/mapaMesaSyncNova';
  store[statePath]={protocol:1,revision:0,estado:{tokens:[{id:'pm',nome:'Mestre',donoUid:'master',x:5,y:5},{id:'pj',nome:'Jogador',donoUid:'player',x:10,y:5}]}};

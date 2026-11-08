@@ -1,22 +1,22 @@
 const fs=require('fs'),path=require('path');
 const {chromium}=require('C:/Users/yurzi/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
 (async()=>{
- const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'});
+ const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'});
  const page=await browser.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
- const root=path.resolve('work/mesa-sync');
+ const root=path.resolve(__dirname,'..');
+ const appSrc=require('../scripts/montar.cjs').montarApp(root),importados={};
+ for(const m of appSrc.matchAll(/import\s*\{([^}]*)\}\s*from\s*['"]https:\/\/www\.gstatic\.com\/firebasejs\/[^/]+\/([\w.-]+)['"]/g)){(importados[m[2]]??=[]).push(...m[1].split(',').map(x=>x.trim().split(/\s+as\s+/)[0]).filter(Boolean));}
  await page.route('**/*',async route=>{
   const u=new URL(route.request().url());
   if(u.hostname==='mesa.test'){
    let file=path.join(root,u.pathname==='/'?'index.html':u.pathname);
-   if(!fs.existsSync(file))return route.fulfill({status:404,body:''});
-   let body=fs.readFileSync(file,'utf8');
-   if(file.endsWith('app.js'))body+=`\nwindow.__SYNC_TEST__={ready:true,render:labRender_,state:()=>labEstado_,setState:s=>{labEstado_=s;},packet:p=>labReceberConfirmado_(p),setRole:role=>{userData={role};currentUserUid='test';},reduce:labReduzirComando_,visual:()=>labVisualMovement_,move:labAplicarMovimentoEstadoD2_,handlers:labRuleHandlers_,actions:novaDadosAcoes_,prepare:novaPrepararAtaque_,setNpcs:models=>{npcsDB=models;periciasDB=[{id:'esquiva',nome:'Esquiva',atributos:['DES','DES']},{id:'combate_desarmado',nome:'Combate Desarmado',atributos:['FOR','DES']}];}};`;
+   const ehApp=u.pathname.endsWith('/js/app.js');if(!ehApp&&!fs.existsSync(file))return route.fulfill({status:404,body:''});
+   let body=ehApp?require('../scripts/montar.cjs').montarApp(root):fs.readFileSync(file,'utf8');
+   if(ehApp)body+=`\nwindow.__SYNC_TEST__={ready:true,render:labRender_,state:()=>labEstado_,setState:s=>{labEstado_=s;},packet:p=>labReceberConfirmado_(p),setRole:role=>{userData={role};currentUserUid='test';},reduce:labReduzirComando_,visual:()=>labVisualMovement_,move:labAplicarMovimentoEstadoD2_,handlers:labRuleHandlers_,actions:novaDadosAcoes_,prepare:novaPrepararAtaque_,setNpcs:models=>{npcsDB=models;periciasDB=[{id:'esquiva',nome:'Esquiva',atributos:['DES','DES']},{id:'combate_desarmado',nome:'Combate Desarmado',atributos:['FOR','DES']}];}};`;
    return route.fulfill({contentType:file.endsWith('.js')?'text/javascript':'text/html',body});
   }
   if(u.hostname==='www.gstatic.com'){
-   const names={ 'firebase-app.js':['initializeApp'], 'firebase-auth.js':['getAuth','createUserWithEmailAndPassword','signInWithEmailAndPassword','onAuthStateChanged','signOut'],
-    'firebase-firestore.js':['getFirestore','doc','setDoc','getDoc','collection','query','where','getDocs','deleteDoc','writeBatch','onSnapshot','runTransaction'],
-    'firebase-storage.js':['getStorage','ref','uploadBytes','getDownloadURL']}[u.pathname.split('/').pop()]||[];
+   const names=[...new Set(importados[u.pathname.split('/').pop()]||[])]; // nomes importados de verdade pelo app (muda a cada versão)
    return route.fulfill({contentType:'text/javascript',body:names.map(n=>`export const ${n}=(...args)=>${['onSnapshot','onAuthStateChanged'].includes(n)?'(()=>{})':n==='getDoc'?'Promise.resolve({exists:()=>false})':n==='getDocs'?'Promise.resolve({docs:[]})':'({})'};`).join('\n')});
   }
   return route.fulfill({status:200,contentType:'text/javascript',body:''});
@@ -35,8 +35,10 @@ const {chromium}=require('C:/Users/yurzi/.cache/codex-runtimes/codex-primary-run
   if(!skill)throw Error('Mordida do NPC não foi carregada');
   if(!data.skills.every((s,i)=>!i||data.skills[i-1].valor>=s.valor))throw Error('Perícias fora de ordem');
   const before=JSON.stringify(api.state());let result;
-  for(let i=0;i<10;i++){const resolve=await api.prepare(a,b,{skillId:skill.id,weaponId:skill.weapons.find(w=>w.nome==='Mordida').id});result=resolve(a,b,{},{});if(JSON.stringify(result)!==JSON.stringify(resolve(a,b,{},{})))throw Error('Tentativa repetida mudou a rolagem');if(result.event.hit)break;}
+  for(let i=0;i<10;i++){const resolve=await api.prepare(a,b,{skillId:skill.id,weaponId:skill.weapons.find(w=>w.nome==='Mordida').id});result=resolve(a,b,{},{},{phase:'resolve',choice:'none',effectsConfirmed:true,effects:[],local:''});if(JSON.stringify(result)!==JSON.stringify(resolve(a,b,{},{},{phase:'resolve',choice:'none',effectsConfirmed:true,effects:[],local:''})))throw Error('Tentativa repetida mudou a rolagem');if(result.event.hit)break;}
   if(!result.event.hit||result.event.damage<=0)throw Error('Ataque não aplicou dano');
+  {const p2=await api.prepare(a,b,{skillId:skill.id,weaponId:skill.weapons.find(w=>w.nome==='Mordida').id,seed:7});const base=p2(a,b,{},{},{phase:'resolve',choice:'none',effectsConfirmed:true,effects:[],local:''}),boost=p2(a,b,{[a.id]:{luckPrepared:true}},{},{phase:'resolve',choice:'none',effectsConfirmed:true,effects:[],local:''});
+   if(/Sorte/.test(base.event.attackerMessage))throw Error('Sem Sorte ativa não deveria aparecer 🍀');if(!/🍀 Sorte/.test(boost.event.attackerMessage))throw Error('Sorte ativa não entrou no ataque: '+boost.event.attackerMessage);if(boost.actors[a.id].luckPrepared!==false)throw Error('A Sorte não foi consumida no ataque');} /* v200: Sorte = +50% no próximo teste */
   if(!Object.keys(result.actors[b.id].combateLab.hit).some(loc=>result.actors[b.id].combateLab.hit[loc]<result.actors[b.id].combateLab.hitMax[loc]))throw Error('PV do alvo não mudou');
   if(JSON.stringify(api.state())!==before)throw Error('Ataque alterou a mesa antiga');
   const {iniciarIniciativa,defesasRestantes}=await import('/js/nova-turnos.js?v=36');
@@ -47,9 +49,9 @@ const {chromium}=require('C:/Users/yurzi/.cache/codex-runtimes/codex-primary-run
    preview=resolver(a,b,{},map,{phase:'preview'});if(preview.pending)break;
   }
   if(!preview.pending?.options.some(o=>o.nome==='Esquiva'))throw Error('Defesa não ofereceu Esquiva: '+JSON.stringify({preview,skills:(await api.actions(b)).skills}));
-  const defended=resolver(a,b,{},map,{phase:'resolve',choice:preview.pending.options.find(o=>o.nome==='Esquiva').id});
+  const defended=resolver(a,b,{},map,{phase:'resolve',effectsConfirmed:true,effects:[],local:'',choice:preview.pending.options.find(o=>o.nome==='Esquiva').id});
   if(!defended.defenseSpent||!defended.event.defense)throw Error('Defesa não foi rolada');
-  if(JSON.stringify(defended)!==JSON.stringify(resolver(a,b,{},map,{phase:'resolve',choice:preview.pending.options.find(o=>o.nome==='Esquiva').id})))throw Error('Defesa mudou ao repetir transação');
+  if(JSON.stringify(defended)!==JSON.stringify(resolver(a,b,{},map,{phase:'resolve',effectsConfirmed:true,effects:[],local:'',choice:preview.pending.options.find(o=>o.nome==='Esquiva').id})))throw Error('Defesa mudou ao repetir transação');
   const hurt=structuredClone(result.actors);hurt[a.id]={combateLab:{...data.health,ferimentos:{'Peito':'Sério'}}};
   const wounded=await api.actions({...a,...hurt[a.id]});
   if(wounded.skills.find(s=>s.id===skill.id).valor>=skill.valor)throw Error('Ferimento não penalizou perícia de ataque: '+JSON.stringify({healthy:skill.valor,wounded:wounded.skills,health:wounded.health}));
@@ -68,10 +70,10 @@ const {chromium}=require('C:/Users/yurzi/.cache/codex-runtimes/codex-primary-run
   ]}};
   const before=JSON.stringify(map),markup=window.novaSyncRenderMap_(map);
   if(JSON.stringify(map)!==before)throw Error('Renderer changed saved map');
-  document.body.innerHTML='<div id="novaSyncStatus"></div><button id="novaSyncInit"></button><select id="novaSyncMapa"></select><select id="novaSyncPersonagem"></select><div id="novaSyncBoard" style="position:relative;width:840px;height:420px"></div>';
+  document.body.innerHTML='<div id="novaSyncStatus"></div><div id="novaSyncEditorTools"></div><button id="novaSyncInit"></button><select id="novaSyncMapa"></select><select id="novaSyncPersonagem"></select><div id="novaSyncBoard" style="position:relative;width:840px;height:420px"></div>';
   const {mountDirectPositionLab}=await import('/js/nova-direta.js?v=14');
   let positions,mapListener;
-  const ctl=mountDirectPositionLab({user:()=>({uid:'player',master:false}),characters:()=>[],mapas:()=>[],
+  const ctl=mountDirectPositionLab({user:()=>({uid:'player',master:false}),characters:()=>[{id:'pj',nome:'Jogador',localizacaoMapaId:'fixture'}],activeCharacter:()=>'pj',mapas:()=>[{id:'fixture',nome:'Mapa compartilhado'}],
    loadMap:async()=>map,renderMap:window.novaSyncRenderMap_,
    database:{subscribe:(p,fn)=>{positions=fn;return ()=>{};},subscribeDoc:(p,fn)=>{if(p==='combatesAtivos/mapaMesaSyncDireta')mapListener=fn;return ()=>{};}}});
   window.__positionCtl=ctl;ctl.open();await mapListener({mapId:'fixture',nome:'Mapa compartilhado'});
@@ -84,7 +86,7 @@ const {chromium}=require('C:/Users/yurzi/.cache/codex-runtimes/codex-primary-run
   return {paths:layer.querySelectorAll('path').length,leaves:layer.querySelectorAll('ellipse').length,objects:layer.querySelectorAll('[data-type="object"]').length,backgroundRetained:true,inputUnchanged:true,playerWithoutLibrary:true};
  });
  await page.evaluate(async()=>{
-  window.__positionCtl.close();const board=document.querySelector('#novaSyncBoard');
+  window.mesaEditorImediato=true;window.mesaAutoSalvar=true;window.__positionCtl.close();const board=document.querySelector('#novaSyncBoard');
   const {criarEditorMesa}=await import('/js/nova-editor.js?v=35');
   window.__editorScene={mapId:'fixture',objects:[]};
   const editor=criarEditorMesa({board,root:document,database:{transact:async work=>work({get:async path=>path==='map'?{mapId:'fixture'}:structuredClone(window.__editorScene),set:(path,value)=>{window.__editorScene=value;}})},scenePath:'scene',mapPath:'map',positionPath:'positions',enabled:()=>true,map:()=>({mapId:'fixture'}),scene:()=>window.__editorScene,fail:error=>{throw error;},changed:()=>editor.paint()});
@@ -93,9 +95,10 @@ const {chromium}=require('C:/Users/yurzi/.cache/codex-runtimes/codex-primary-run
  const tree=page.locator('[data-eid="tree"]');await tree.scrollIntoViewIfNeeded();const treeBefore=await tree.boundingBox();
  await page.mouse.move(treeBefore.x+treeBefore.width/2,treeBefore.y+treeBefore.height/2);await page.mouse.down();await page.mouse.move(treeBefore.x+treeBefore.width/2+48,treeBefore.y+treeBefore.height/2,{steps:8});await page.mouse.up();
  const treeAfter=await tree.boundingBox();if(Math.abs(treeAfter.x-treeBefore.x-48)>1)throw Error('Objeto da Oficina não moveu um metro');
- if(!await page.evaluate(()=>Math.abs(window.__editorScene.offsets.tree.x-1)<.01))throw Error('Deslocamento do objeto nativo não foi salvo');
+ await page.waitForTimeout(3200);
+ if(!await page.evaluate(()=>Math.abs(((window.__editorScene.mesaScene||window.__editorScene).offsets.tree.x)-1)<.01))throw Error('Deslocamento do objeto nativo não foi salvo');
  console.log('PASS objeto nativo da Oficina movido sem reconstruir a pintura');
- await page.screenshot({path:'work/map14-test.png'});
+ await page.screenshot({path:path.join(__dirname,'../../../map14-test.png')});
  console.log(JSON.stringify({result,errors},null,2));await browser.close();
  if(errors.length)process.exitCode=1;
 })().catch(e=>{console.error(e);process.exit(1)});

@@ -1,0 +1,10 @@
+# Atualização 60 — remoção sincronizada, Danificar Arma e diagnóstico de modificadores
+
+- Mesa do mestre: `Retirar do mapa` em objetos de cenário agora é uma operação imediata e compartilhada, como o arraste. A remoção atualiza a cena ativa, o arquivo da cena e o `mesaScene` do mapa salvo, evitando que o objeto continue visível/colidível para jogadores ou reapareça ao salvar.
+- Danificar Arma: o efeito especial deixa de aplicar uma penalidade genérica e deixa de causar dano corporal aleatório. Ele identifica a arma/escudo atualmente selecionado pelo defensor, aplica o dano estrutural ao PV do equipamento, marca o item como inutilizável em 0 PV e salva o inventário do defensor na mesma transação do ataque.
+- Danificar Arma: se o dano estrutural ultrapassar os PV restantes da arma, somente o excesso segue para o `Braço Direito`; a armadura corporal continua sendo considerada nesse excesso. Sem excesso, nenhum local do corpo perde PV.
+- Painel de combate: a arma/perícia selecionada é sincronizada na posição compartilhada, inclusive quando não é a vez do personagem, para que efeitos dirigidos ao equipamento saibam o que está sendo empunhado.
+- Histórico: ataques rejeitados antes da resolução, inclusive `Linha de tiro bloqueada por uma barreira no mesmo nível`, passam a gerar uma entrada no histórico sem gastar Ação ou munição.
+- Compatibilidade de armas: `Armas de Energia Exóticas` reconhece armas energéticas como o `Blaster de Palma` sem cair no fallback de `+2 graus`. Isso elimina o falso `-26 outros modificadores` observado em uma base 58. A correção não libera perícias não energéticas.
+- Testes automatizados Node: 121/121 aprovados. Incluem persistência atômica da ficha do defensor, dano/overflow de arma, histórico de ataque rejeitado e compatibilidade de Energia Exótica.
+- Os testes de navegador legados não puderam ser reexecutados neste ambiente porque os arquivos `.cjs` apontam para uma instalação local do Playwright do computador em que foram criados (`C:/Users/...`).

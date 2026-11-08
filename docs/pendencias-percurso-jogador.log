@@ -1,0 +1,101 @@
+preparação (papel mestre): {"criaturas":45,"obj":303,"falhas":0}
+preparação: removidos do mapa para a navegação: 79 tokens (criaturas/NPCs)
+antes (mestre): {"mapa":"ecossistema_teste","tokens":48,"vivo":"ecossistema_teste"}
+depois (jogador): {"mapa":"ecossistema_teste","tokens":1}
+t+1s {"mapa":"ecossistema_teste","tokens":1,"dom":1,"sel":"jogador_teste_1","st":"Mesa 36 · 1 personagem(ns) · 48 px/m"}
+t+2s {"mapa":"ecossistema_teste","tokens":1,"dom":1,"sel":"jogador_teste_1","st":"Mesa 36 · 1 personagem(ns) · 48 px/m"}
+t+3s {"mapa":"ecossistema_teste","tokens":1,"dom":1,"sel":"jogador_teste_1","st":"Mesa 36 · 1 personagem(ns) · 48 px/m"}
+t+4s {"mapa":"ecossistema_teste","tokens":1,"dom":1,"sel":"jogador_teste_1","st":"Mesa 36 · 1 personagem(ns) · 48 px/m"}
+t+5s {"mapa":"ecossistema_teste","tokens":1,"dom":1,"sel":"jogador_teste_1","st":"Mesa 36 · 1 personagem(ns) · 48 px/m"}
+t+6s {"mapa":"ecossistema_teste","tokens":1,"dom":1,"sel":"jogador_teste_1","st":"Mesa 36 · 1 personagem(ns) · 48 px/m"}
+papel: {"atalhos":false,"mestre":false}
+select: {"v":"jogador_teste_1","opts":["jogador_teste_1"],"n":1,"status":"Mesa 36 · 1 personagem(ns) · 48 px/m"}
+ator: {"ator":"jogador_teste_1","controla":true,"tokens":1,"uid":null,"mapa":"ecossistema_teste"}
+início: {"x":46,"y":26,"andar":1}
+teclado W 2,5 s: {"x":46,"y":20.71,"andar":1}
+mouse (segurar em direção ao ponto): {"x":51,"y":20.71,"andar":1}
+perto de onde parou: {"o":["piso:Chão do mapa b=0 80.0x50.0 @40.0,25.0","macicoTopo:Grama b=0 82.0x53.0 @40.0,24.5","macicoTopo:Mato alto b=0 82.0x50.0 @40.0,24.0","macicoTopo:Tufo de grama b=0 9.0x8.0 @50.5,25.0","macicoTopo:Tufo de grama b=0 8.0x7.0 @51.0,18.5","macicoTopo:Terra seca b=0 25.0x19.0 @59.5,27.5","copa:Copa · Palmeiras b=0 5.2x5.2 @50.2,19.6","tronco:Tronco de palmeira b=1 0.8x0.8 @50.2,19.6","copa:Copa · Palmeiras b=0 4.2x4.2 @49.2,24.2"],"t":[]}
+fps do navegador (rAF) com a cena completa: 116.7
+  → acampamento → porta leste da casa: chegou {"x":36.33,"y":25.46,"andar":1} 9 s
+  ícones de interação ao lado da porta: 0 | porta: {"id":"o3_porta_mvl9t2345c","nome":"Porta","aberto":false,"bloq":true,"x":35,"y":25.5}
+  moCamada: [object Object]
+  balão: "sem balão"
+  porta após F: {"id":"o3_porta_mvl9t2345c","nome":"Porta","aberto":true,"bloq":false,"x":35,"y":25.5}
+  toast: undefined|bal=undefined
+  TUDO em x33.6..34.4,y25.1..25.9: ["piso:Chão do mapa 80.0x50.0 b=0 cam=1 and=1 col=0 inv=0","macicoTopo:Grama 82.0x53.0 b=0 cam=1 and=1 col=0 inv=0","macicoTopo:Mato alto 82.0x50.0 b=0 cam=1 and=1 col=0 inv=0","piso:Chão · Madeira 9.0x6.0 b=0 cam=1 and=1 col=0 inv=0","telhado:Telhado · Telha 9.0x6.0 b=0 cam=5 and=1 col=0 inv=0"]
+  tokens perto da porta da casa: []
+  dentro da casa, junto da porta: ["parede:Parede 0.30x1.85@35.00,24.07 and1","parede:Parede 0.30x1.00@35.00,26.50 and1"]
+  → entrando na casa pelo vão (tecla KeyA): chegou {"x":32.45,"y":25.5,"andar":1} 2 s
+  telhado visível/transparente com o jogador dentro: opacidade 0
+--- trechos por feature (preparação: personagem posto no início de cada trecho) ---
+  → cruzando a ponte da cachoeira (leste → oeste): chegou {"x":10.32,"y":17.58,"andar":1} 5 s
+  sólidos perto da ponte: ["macicoTopo:Poça · Água b=0 20.0x13.0@13.0,25.5 and1","macicoTopo:Poça · Água rasa b=0 5.0x12.0@14.5,14.0 and1"]
+  → voltando pela ponte (oeste → leste): chegou {"x":19.63,"y":17.82,"andar":1} 5 s
+  → até o bolsão da gruta: chegou {"x":5.62,"y":6.87,"andar":1} 6 s
+  gruta: entrou no bolsão {"x":5.62,"y":6.87,"andar":1}
+  → rumo à porta da torre: NÃO chegou (parou em 0/2) {"x":40.41,"y":15.03,"andar":1} 12 s
+  → rumo à porta da torre (retomada 1): NÃO chegou (parou em 0/1) {"x":40.4,"y":14.28,"andar":1} 9 s
+  → rumo à porta da torre (retomada 2): chegou {"x":41,"y":14.27,"andar":1} 1 s
+  → alinhando com a porta: chegou {"x":41.62,"y":12.98,"andar":1} 1 s
+  porta da torre: {"id":"o3_porta_mvl9t21c4q","nome":"Porta","aberto":true,"bloq":false,"x":41.5,"y":12}
+  após clicar na porta: {"id":"o3_porta_mvl9t21c4q","nome":"Porta","aberto":true,"bloq":false,"x":41.5,"y":12}
+  perto da porta da torre: {"o":["parede:Parede 3.20x0.40@39.40,12.00 col=0","parede:Parede 2.20x0.40@43.10,12.00 col=0","parede:Parede 6.40x0.40@41.00,12.00 col=0"],"t":[]}
+  → entrando na torre pelo vão (tecla KeyW): chegou {"x":41.5,"y":10.64,"andar":1} 1 s
+  → até a escada: NÃO chegou (parou em 1/2) {"x":38.65,"y":8.3,"andar":1} 10 s
+  botão da escada no térreo: "🪜 Subir"
+  → entrando na escada/rampa (tecla KeyD): chegou {"x":39.25,"y":8.3,"andar":1} 1 s
+  [diag escada] {"x":true,"ultAndou":1792778239786,"agora":1792778240482,"travada":"o3_escada_mvl9t21c4t","ocupado":false,"botao":true,"a":{"x":13.7391119378958,"y":2.3230323952578336}}
+  [pedidos escada] [{"st":"concluido","msg":"Travessia concluída.","t":17360}]
+  andar depois de 🪜 Subir: {"x":39.75,"y":8.5,"andar":2}
+  no andar 2, o jogador vê (peças visíveis): 239 | painel de controle do andar 2 na tela: block op=1
+  sólidos junto de quem chegou ao andar 2: ["parede:Parede 6.40x0.40@41.00,6.00 b=1 and=1","parede:Parede 0.40x1.80@38.00,7.10 b=1 and=1","parede:Parede 0.40x2.80@38.00,10.40 b=1 and=1","janela:Janela 0.40x1.00@38.00,8.50 b=1 and=1","escada:Escada 1.50x3.00@39.75,8.50 b=0 and=1+ambos ESC","parede:Parede 6.40x0.40@41.00,6.00 b=1 and=2","parede:Parede 6.40x0.40@41.00,12.00 b=1 and=2","parede:Parede 0.40x5.60@38.00,9.00 b=1 and=2","objeto:Painel de controle 2.01x0.76@41.00,9.60 b=1 and=2"]
+  → andando no andar de cima: NÃO chegou (parou em 1/2) {"x":40.6,"y":8.82,"andar":2} 10 s
+  → de volta à escada: chegou {"x":39.95,"y":8.47,"andar":2} 1 s
+  botão da escada no andar 2: "🪜 Descer"
+  → entrando na escada/rampa (tecla KeyA): chegou {"x":39.36,"y":8.47,"andar":2} 1 s
+  [diag escada] {"x":true,"ultAndou":1792778258799,"agora":1792778259730,"travada":"o3_escada_mvl9t21c4t","ocupado":false,"botao":true,"a":{"x":13.774519646428923,"y":2.3720443848135555}}
+  [pedidos escada] [{"st":"concluido","msg":"Travessia concluída.","t":36567},{"st":"concluido","msg":"Travessia concluída.","t":16497}]
+  andar depois de 🪜 Descer: {"x":39.75,"y":8.5,"andar":1}
+  rampas do mapa: [{"x":59,"y":3.5,"w":2,"h":1,"a":0,"and":1,"de":1,"para":""},{"x":65,"y":13.5,"w":2,"h":1,"a":0,"and":1,"de":1,"para":""},{"x":16,"y":3.5,"w":2,"h":1,"a":0,"and":1,"de":1,"para":""}]
+  topo(s) do planalto: [{"x":63,"y":7.5,"w":22,"h":13,"and":2}]
+  geometria junto da rampa: ["?:Rocha 1.00x1.00@62.50,12.50 b=1 and=1","?:Rocha 1.00x1.00@63.50,13.50 b=1 and=1","?:Rocha 1.00x1.00@65.50,12.50 b=1 and=1","?:Rocha 2.00x1.00@67.00,11.50 b=1 and=1","rampa:Rampa 2.00x1.00@65.00,13.50 b=0 and=1","?:Rocha 22.00x3.00@66.00,22.50 b=1 and=1"]
+  TUDO em (64.6,14.2): ["piso:Chão do mapa 80.0x50.0 b=0 cam=1 and=1 alt= esc=0","macicoTopo:Grama 82.0x53.0 b=0 cam=1 and=1 alt= esc=0","macicoTopo:Mato alto 82.0x50.0 b=0 cam=1 and=1 alt= esc=0","macico:Paredão · Planalto 28.0x15.0 b=0 cam=3 and=1 alt= esc=0","macico:Rampa de rocha 4.0x3.0 b=0 cam=3 and=1 alt= esc=0"]
+  perto do início da subida: {"o":["?:Rocha 22.0x3.0@66.0,22.5","tronco:Tronco de palmeira 0.8x0.8@63.9,17.9"],"t":[]}
+  → até o pé da rampa (tecla KeyW): chegou {"x":64.5,"y":14.24,"andar":1} 1 s
+  botão junto da rampa: "🪜 Subir | Subir para o 2º andar"
+  → entrando na escada/rampa (tecla KeyW): chegou {"x":64.5,"y":13.63,"andar":1} 1 s
+  [diag escada] {"x":true,"ultAndou":1792778271984,"agora":1792778273030,"travada":"o3_escada_mvl9t1y01j","ocupado":false,"botao":true,"a":{"x":22.575,"y":3.8173240000100512}}
+  [pedidos escada] [{"st":"concluido","msg":"Travessia concluída.","t":29673},{"st":"concluido","msg":"Travessia concluída.","t":8412}]
+  depois de subir pela rampa: {"x":65,"y":13.5,"andar":2}
+  → andando em cima do planalto: chegou {"x":66.82,"y":10.64,"andar":2} 2 s
+  → de volta à rampa: chegou {"x":64.99,"y":13.38,"andar":2} 2 s
+  botão no planalto: "🪜 Descer"
+  → entrando na escada/rampa (tecla KeyS): chegou {"x":64.99,"y":14.05,"andar":2} 1 s
+  [diag escada] {"x":true,"ultAndou":1792778284062,"agora":1792778284931,"travada":"o3_escada_mvl9t1y01j","ocupado":false,"botao":true,"a":{"x":22.746710055702057,"y":3.9332628744100067}}
+  [pedidos escada] [{"st":"concluido","msg":"Travessia concluída.","t":20518},{"st":"concluido","msg":"Travessia concluída.","t":8864}]
+  saúde do jogador agora: "sem registro de morte"
+  avisos ao descer: [] ["🪜 Jogadora de teste desce para o térreo.","🪜 Jogadora de teste sobe para o 2º andar.","🪜 Jogadora de teste desce para o térreo."]
+  depois de descer pela rampa: {"x":65,"y":13.5,"andar":1}
+  armadilhas no mapa: 11 [{"id":"er_esp_mvl9t25f1u","x":11,"y":42.6,"tipo":"","campos":"0,1,2,3,4,5,6"},{"id":"er_esp_mvl9t25f1v","x":17,"y":42.6,"tipo":"","campos":"0,1,2,3,4,5,6"},{"id":"er_esp_mvl9t25f1w","x":23.5,"y":44.8,"tipo":"","campos":"0,1,2,3,4,5,6"}]
+  → andando até a laje da armadilha (tecla KeyD): chegou {"x":22.33,"y":15.5,"andar":1} 2 s
+  jogador sobre a armadilha: {"x":22.33,"y":15.5,"andar":1} | armadilha em 22 15.5
+  mensagens do histórico depois de pisar: ["🪤 Jogadora de teste pisa numa armadilha de estacas · Esquiva 51/5 → Falha · dano 3 (Perna Esquerda)"]
+  alavancas: [{"id":"er_esp_mvl9t25f1p","x":6.8,"y":42.2,"nome":"Alavanca","campos":"alavancaV186,estadoFogo"},{"id":"er_esp_mvl9t25f1r","x":13.3,"y":42.2,"nome":"Alavanca emperrada","campos":"alavancaV186,estadoFogo"},{"id":"er_esp_mvl9t25f1t","x":19.3,"y":42.2,"nome":"Alavanca","campos":"alavancaV186,estadoFogo"}]
+  grades antes: ["Grade da cela@7,41 bloq=1 ","Grade da cela@13,41 bloq=1 ","Grade da cela@19,41 bloq=1 "]
+  botão da alavanca: ["|ma-ic ma-al|maCamada|🕹️ Puxar a alavanca"]
+  avisos: [] | pedidos pendentes: []
+  grades depois de 🕹️ Puxar: ["Grade da cela (aberta)@7,41 bloq=0 abertaV186=true","Grade da cela@13,41 bloq=1 ","Grade da cela@19,41 bloq=1 "]
+  histórico: ["🕹️ Jogadora de teste puxa a alavanca · 🔓 a jaula se abre!"]
+  controle emulado ligado: {"ligado":true}
+  balão de ações aberto antes do controle: true
+  botão B (controle emulado) fechou o balão de ações em 2 toque(s); ainda aberto: false
+  diag controle: {"abertas":[],"mapa":true,"visivel":true,"andarDir":"undefined"}
+  stick esquerdo → direita: de {"x":30,"y":30,"andar":1} para {"x":35.53,"y":30,"andar":1}
+  stick para baixo: {"x":35.53,"y":34.28,"andar":1}
+  zumbi na tela: {"x":854.4073486328125,"y":474.54498291015625,"n":1}
+  alvo marcado: synccriatura%3Azumbi_1
+  histórico do combate: []
+  LIMITE: o ataque do jogador (Espaço) não dispara no harness porque a jogadora de teste não tem ficha de combate (sem perícias/armas no Firestore falso); fica como pendência de teste com ficha real.
+  desempenho: {"fps":120.2,"p95_ms":8.7,"quadros":481,"tokens":2,"objetos":303,"viewport":"1500x950","gpu":"ANGLE (Intel, Intel(R) UHD Graphics (0x0000A78B) Direct3D11 vs_5_0 ps_5_0, D3D11)"}
+erros: nenhum
+PASS percurso do jogador (parte 1: papel, teclado, mouse) [harness local; papel simulado]

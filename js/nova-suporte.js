@@ -1,4 +1,4 @@
-import {distanciaBordas,testeComSorte,registrarCura,despertar} from './nova-recuperacao.js?v=46';
+import {distanciaBordas,testeComSorte,registrarCura,despertar} from './nova-recuperacao.js?v=99';
 import {criarRelogio,atualizarRelogios,RODADA_MS} from './nova-duracoes.js?v=46';
 import {classificarTeste} from './nova-regras.js?v=46';
 import {acaoIniciativa,ataqueSuperaDefesa} from './nova-turnos.js?v=46';

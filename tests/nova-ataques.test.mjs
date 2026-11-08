@@ -1,7 +1,7 @@
 import {danoObjeto} from '../js/nova-dano-objetos.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {conectarAtaques,HEALTH_PATH} from '../js/nova-ataques.js';
+import {conectarAtaques,HEALTH_PATH,HISTORY_PATH} from '../js/nova-ataques.js';
 import {iniciarIniciativa} from '../js/nova-turnos.js';
 import {prepararSorte,resolverConsciencia} from '../js/nova-recuperacao.js';
 import {moverInventario} from '../js/nova-inventario.js';
@@ -9,10 +9,11 @@ import {resolverSocorros,resolverPsi} from '../js/nova-suporte.js';
 import {defesasRestantes,acaoIniciativa,moverNoTurno,ataqueSuperaDefesa,removerMortos} from '../js/nova-turnos.js';
 const MAP='combatesAtivos/mapaMesaSyncDireta',POS=MAP+'/posicoes',CMD=MAP+'/acoes';
 const copy=v=>v===undefined?null:structuredClone(v);
-function fixture({defense=false,area=false,support=false,special=false,object=false}={}){
+function fixture({defense=false,area=false,support=false,special=false,object=false,sheetPatch=false}={}){
  const rows=[{id:'a',nome:'Jogador',donoUid:'player',x:1,y:1,initiative:20,actions:2},{id:'b',nome:'NPC',donoUid:'',x:2.4,y:1,initiative:0,actions:2}];
  const store=new Map([[MAP,{mapId:'map',combat:iniciarIniciativa(rows,'session',()=>1)}],...rows.map(t=>[POS+'/'+t.id,t])]);
  if(object)store.set('combatesAtivos/mapaMesaSyncDiretaCena',{mapId:'map',objects:[{id:'box',nome:'Caixa',x:2,y:1,pvMax:5,pvAtual:5,dureza:2,destrutivel:true,bloqueiaMovimento:true}]});
+ if(sheetPatch)store.set('personagens/b',{nome:'NPC persistente',inventario:{equipado:[{instanciaId:'arma-b',nome:'Pistola',pv:4,pvAtual:4}]}});
  const listeners=new Set();let lock=Promise.resolve();
  const emit=p=>{for(const l of [...listeners])if(l.doc?p===l.path:p.startsWith(l.path+'/'))l.fn(l.doc?copy(store.get(p)):[{id:p.split('/').pop(),data:copy(store.get(p))}]);};
  const subscribe=(path,fn,doc)=>{const l={path,fn,doc};listeners.add(l);if(doc)fn(copy(store.get(path)));else for(const [p,v]of store)if(p.startsWith(path+'/'))fn([{id:p.split('/').pop(),data:copy(v)}]);return()=>listeners.delete(l);};
@@ -21,8 +22,8 @@ function fixture({defense=false,area=false,support=false,special=false,object=fa
  }};
  const healthMaster=[],healthPlayer=[],errors=[];let resolutions=0;
  const prepare=async()=>{
-  const resolve=(a,b,health,map,decision)=>{if(Math.hypot(a.x-b.x,a.y-b.y)>(area?15:3))throw Error('Fora de alcance');if(defense&&decision.phase==='preview')return {pending:{remaining:2,options:[{id:'dodge',nome:'Esquiva',valor:60}]}};if(special&&!decision.effectsConfirmed)return {effectsPending:{type:'effects',options:[{id:'sangrar',nome:'Sangrar'}],locations:['Peito'],maxEffects:1}};resolutions++;if(object){const d=danoObjeto(b,7);return {object:d.object,actors:{[a.id]:{municaoLab:{charge:(health[a.id]?.municaoLab?.charge??10)-1}}},event:{message:'Objeto destruído',damage:d.dano}};}return {defenseSpent:decision.choice==='dodge',actors:{[a.id]:{municaoLab:{charge:(health[a.id]?.municaoLab?.charge??10)-1}},[b.id]:{pv:(health[b.id]?.pv??10)-3}},event:{message:'3 de dano',damage:3}};};
-  if(area)resolve.area={range:15,angle:60,centralPenalty:20};return resolve;
+  const resolve=(a,b,health,map,decision,scene,targetSheet)=>{if(Math.hypot(a.x-b.x,a.y-b.y)>(area?15:3))throw Error('Fora de alcance');if(defense&&decision.phase==='preview')return {pending:{remaining:2,options:[{id:'dodge',nome:'Esquiva',valor:60}]}};if(special&&!decision.effectsConfirmed)return {effectsPending:{type:'effects',options:[{id:'sangrar',nome:'Sangrar'}],locations:['Peito'],maxEffects:1}};resolutions++;if(object){const d=danoObjeto(b,7);return {object:d.object,actors:{[a.id]:{municaoLab:{charge:(health[a.id]?.municaoLab?.charge??10)-1}}},event:{message:'Objeto destruído',damage:d.dano}};}const targetSheetPatch=sheetPatch?{inventario:{...targetSheet.inventario,equipado:[{...targetSheet.inventario.equipado[0],pvAtual:1}]}}:null;return {targetSheetPatch,defenseSpent:decision.choice==='dodge',actors:{[a.id]:{municaoLab:{charge:(health[a.id]?.municaoLab?.charge??10)-1}},[b.id]:{pv:(health[b.id]?.pv??10)-3}},event:{message:'3 de dano',damage:3}};};
+  if(area)resolve.area={range:15,angle:60,centralPenalty:20};if(sheetPatch)resolve.targetSheetPath='personagens/b';return resolve;
  };
  const options={database,tokens:()=>[...store.entries()].filter(([key])=>key.startsWith(POS+'/')).map(([key,t])=>({...t,id:key.split('/').pop()})),prepare,onError:e=>errors.push(e)};
  if(support){store.set('personagens/a',{inventario:{mochila:[{nome:'Kit médico',usosRestantes:5}]}});options.prepareSupport=async()=>({sheetPath:'personagens/a',resolve:args=>{
@@ -60,6 +61,25 @@ test('ataque do jogador resolvido uma vez pelo mestre, com dano e gasto atômico
   assert.deepEqual(f.errors,[]);
  }finally{f.close();}assert.equal(f.listeners.size,0);
 });
+
+
+test('Sorte ativa: gasta 1 ponto, liga +50% no próximo teste e não liga duas vezes',async()=>{
+ const f=fixture({support:true});try{
+  f.store.set('personagens/a',{pontosSorte:2,pontosSorteDerivadoV15:true,inventario:{mochila:[{nome:'Kit médico',usosRestantes:5}]}});
+  await f.player.support({kind:'direct-luck',actorId:'a',targetId:'a',turnId:f.store.get(MAP).combat.turnId});
+  await new Promise(r=>setTimeout(r,25));
+  const h=f.store.get(HEALTH_PATH);assert.equal(h.actors.a.luckPrepared,true);assert.equal(f.store.get('personagens/a').pontosSorte,1);assert.match(h.event.message,/\+50%/);
+  await assert.rejects(f.player.support({kind:'direct-luck',actorId:'a',targetId:'a',turnId:f.store.get(MAP).combat.turnId}),/já está ativa/);assert.equal(f.store.get('personagens/a').pontosSorte,1);
+ }finally{f.close();}
+});
+test('patch da ficha do defensor é salvo atomicamente com a resolução do ataque',async()=>{
+ const f=fixture({sheetPatch:true});try{
+  await f.player.attack(f.payload());
+  assert.equal(f.store.get('personagens/b').inventario.equipado[0].pvAtual,1);
+  assert.equal(f.store.get(HEALTH_PATH).actors.b.pv,7);
+ }finally{f.close();}
+});
+
 test('alcance e controle inválidos não gastam Ação nem alteram PV',async()=>{
  const f=fixture();try{
   f.store.get(POS+'/b').x=20;
@@ -67,15 +87,18 @@ test('alcance e controle inválidos não gastam Ação nem alteram PV',async()=>
   await assert.rejects(f.player.attack({...f.payload(),actorId:'b',targetId:'a'}),/não controla/);
   assert.equal(f.store.get(MAP).combat.actors.a.remaining,2);
   assert.equal(f.store.has(HEALTH_PATH),false);
+  assert.ok(f.store.get(HISTORY_PATH).entries.some(event=>/Ataque de Jogador não realizado: Fora de alcance/.test(event.message)));
   assert.equal(f.resolutions(),0);
  }finally{f.close();}
 });
-test('mestre assume PJ apenas fora do combate',async()=>{
+test('mestre assume PJ na sua vez sem dispensar munição, ações e turno',async()=>{
  const context=fixture();try{
-  await assert.rejects(context.master.attack(context.payload()),/não controla/);
+  assert.equal(await context.master.attack(context.payload()),'3 de dano');
+  assert.equal(context.store.get(MAP).combat.actors.a.remaining,1);
+  await assert.rejects(context.master.attack({...context.payload(),actorId:'b',targetId:'a'}),/sua vez/);
   context.store.get(MAP).combat.active=false;
   assert.equal(await context.master.attack({...context.payload(),turnId:null}),'3 de dano');
-  assert.equal(context.store.get(HEALTH_PATH).actors.b.pv,7);
+  assert.equal(context.store.get(HEALTH_PATH).actors.b.pv,4);
  }finally{context.close();}
 });
 
@@ -141,11 +164,14 @@ test('defesa, escolha de efeitos e dano formam uma única resolução com autori
  }finally{f.close();}
 });
 
-test('Sorte persiste na ficha e teste de consciência aparece no histórico sem gastar ação',async()=>{
- const f=fixture({support:true});try{f.store.set(HEALTH_PATH,{actors:{a:{combateLab:{inconsciente:true,hit:{Peito:0},hitMax:{Peito:7}}}}});
- await f.player.support({kind:'direct-luck',actorId:'a',targetId:'a',turnId:f.store.get(MAP).combat.turnId});assert.equal(f.store.get('personagens/a').pontosSorte,1);
- await assert.rejects(f.player.support({kind:'direct-luck',actorId:'a',targetId:'a',turnId:f.store.get(MAP).combat.turnId}),/já está preparada/);assert.equal(f.store.get('personagens/a').pontosSorte,1);
- await f.player.support({kind:'direct-consciousness',actorId:'a',targetId:'a',turnId:f.store.get(MAP).combat.turnId});assert.equal(f.store.get(HEALTH_PATH).actors.a.combateLab.inconsciente,false);assert.equal(f.store.get(HEALTH_PATH).actors.a.luckPrepared,false);assert.equal(f.store.get(MAP).combat.actors.a.remaining,2);assert.match(f.store.get(HEALTH_PATH).event.message,/Teste de consciência.*Sorte/);
+test('Sorte ativa é usada no teste seguinte e some (um teste só)',async()=>{
+ const f=fixture({support:true});try{
+  f.store.set(HEALTH_PATH,{actors:{a:{combateLab:{inconsciente:true,hit:{Peito:0},hitMax:{Peito:7}}}},revision:0});
+  await f.player.support({kind:'direct-luck',actorId:'a',targetId:'a',turnId:f.store.get(MAP).combat.turnId});
+  await new Promise(r=>setTimeout(r,25));
+  assert.equal(f.store.get(HEALTH_PATH).actors.a.luckPrepared,true);assert.equal(f.store.get('personagens/a').pontosSorte,1);
+  await f.player.support({kind:'direct-consciousness',actorId:'a',targetId:'a',turnId:f.store.get(MAP).combat.turnId});
+  const h=f.store.get(HEALTH_PATH);assert.match(h.event.message,/Teste de consciência/);assert.ok(!h.actors.a.luckPrepared,'a Sorte foi usada neste teste');assert.equal(f.store.get('personagens/a').pontosSorte,1,'só 1 ponto foi gasto');
  }finally{f.close();}
 });
 
@@ -164,4 +190,9 @@ test('objeto: PV, ação e munição juntos; duplicata e alvo destruído não co
  const payload={...f.payload(),targetKind:'object',targetId:'box'};await f.player.attack(payload);const scene=f.store.get('combatesAtivos/mapaMesaSyncDiretaCena');assert.equal(scene.objects[0].pvAtual,0);assert.equal(scene.objects.length,1);assert.equal(f.store.get(MAP).combat.actors.a.remaining,1);assert.equal(f.store.get(HEALTH_PATH).actors.a.municaoLab.charge,9);assert.equal(f.store.get(HEALTH_PATH).pending,null);
  const command=[...f.store.keys()].filter(p=>p.startsWith(CMD+'/')).at(-1);f.emit(command);await new Promise(r=>setTimeout(r,5));assert.equal(f.store.get(MAP).combat.actors.a.remaining,1);
  await assert.rejects(f.player.attack({...payload,turnId:f.store.get(MAP).combat.turnId}),/destruído/);assert.equal(f.store.get(HEALTH_PATH).actors.a.municaoLab.charge,9);assert.equal(f.store.get(MAP).combat.actors.a.remaining,1);
+}finally{f.close();}});
+
+test('mestre ataca objeto com ficha de jogador e cobra ação e munição uma vez',async()=>{const f=fixture({object:true});try{
+ const payload={...f.payload(),targetKind:'object',targetId:'box'};await f.master.attack(payload);assert.equal(f.store.get('combatesAtivos/mapaMesaSyncDiretaCena').objects[0].pvAtual,0);assert.equal(f.store.get(MAP).combat.actors.a.remaining,1);assert.equal(f.store.get(HEALTH_PATH).actors.a.municaoLab.charge,9);
+ const cmd=[...f.store.entries()].find(([p])=>p.startsWith(CMD+'/'))[1];assert.equal(cmd.kind,'v56:direct-attack');
 }finally{f.close();}});

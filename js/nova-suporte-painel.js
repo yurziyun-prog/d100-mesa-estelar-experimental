@@ -7,7 +7,7 @@ export function painelSuporte({root,host,current,sheet,view,combat,allowed,send,
  const store=states.get(root),key=current.id;
  if(!store.has(key)){let power='';try{power=root.defaultView.localStorage.getItem('mesa:psi-power:'+key)||'';}catch(_){}store.set(key,{power,open:{},target:current.id,patient:view.targetId||current.id});}
  const pref=store.get(key),node=(tag,text)=>{const n=root.createElement(tag);if(text)n.textContent=text;return n;};
- const section=(key,title)=>{const d=node('details');d.className='nova-support-panel';d.open=pref.open[key]??true;const s=node('summary',title);s.onclick=e=>{e.preventDefault();d.open=!d.open;pref.open[key]=d.open;};d.append(s);const b=node('div');d.append(b);host.append(d);return b;};
+ const section=(key,title)=>{const d=node('details');d.className='nova-support-panel';d.open=pref.open[key]??false;const s=node('summary',title);s.onclick=e=>{e.preventDefault();d.open=!d.open;pref.open[key]=d.open;};d.append(s);const b=node('div');d.append(b);host.append(d);return b;};
  const field=(body,text,control)=>{const l=node('label',text);l.append(control);body.append(l);return l;};
  let busy=false;const buttons=[],feedback=node('div');
  const run=async payload=>{if(busy)return;busy=true;buttons.forEach(({b})=>b.disabled=true);feedback.textContent='⏳ Enviando…';try{feedback.textContent=await send({actorId:current.id,turnId:combat?.active?combat.turnId:null,...payload});}catch(e){feedback.textContent=e.message;}finally{busy=false;buttons.forEach(({b,disabled})=>b.disabled=!allowed||disabled);}};
@@ -35,11 +35,12 @@ export function painelSuporte({root,host,current,sheet,view,combat,allowed,send,
  }else first.append(node('p','A ficha não possui a perícia Primeiros Socorros.'));
  if(support.powers?.length){
   const psi=section('psi','🔮 Psiquismo · PP '+Math.max(0,support.psiMax-(view.health?.psiSpent??support.psiSpent))+'/'+support.psiMax);
+  psi.className='nova-psi-row';
   const powers=node('select'),cost=node('input'),description=node('p'),text=node('textarea'),target=node('select'),location=node('select'),destination=node('input'),objects=node('select');
   powers.id='novaPsiPower';cost.id='novaPsiCost';cost.type='number';cost.step='1';target.id='novaPsiTarget';location.id='novaPsiLocation';objects.id='novaPsiObject';destination.id='novaPsiDestination';destination.placeholder='2:3';destination.value=pref.destination||`${Math.floor(current.x*width/28)+1}:${Math.floor(current.y*height/14)+1}`;
   text.placeholder='Mensagem ou intenção';text.value=pref.text||'';text.oninput=()=>pref.text=text.value;destination.oninput=()=>pref.destination=destination.value;
   for(const p of support.powers){const o=node('option',p.name+' ('+p.value+'%)');o.value=p.id;powers.append(o);}if(support.powers.some(p=>p.id===pref.power))powers.value=pref.power;
-  field(psi,'Poder',powers);field(psi,'Gasto de PP',cost);const targetLabel=field(psi,'Alvo / forma para copiar',target),locLabel=field(psi,'Parte do corpo para curar',location);psi.append(description);
+  field(psi,'Poder',powers);field(psi,'Gasto de PP',cost).className='nova-psi-cost';cost.max='99';const targetLabel=field(psi,'Alvo / forma para copiar',target),locLabel=field(psi,'Parte do corpo para curar',location);
   const textLabel=field(psi,'Mensagem / intenção',text),destLabel=field(psi,'Destino · coluna:linha (ex.: 2:3)',destination),objLabel=field(psi,'Objeto para mover',objects);
   addOptions(objects,view.objects||[]);if(pref.object)objects.value=pref.object;objects.onchange=()=>pref.object=objects.value;
   const selfIds=new Set(['meditacao_psi','meditacao_batalha','reflexos','fluxo_marcial','aceleracao','salto','teletransporte','teletransporte_caotico','agilidade_psi','ocultar_mente','anoitecer','circulo_protecao','defesa_mental']);
@@ -55,9 +56,10 @@ export function painelSuporte({root,host,current,sheet,view,combat,allowed,send,
    if(p.id==='cura_psi')fillLocations();
   };
   powers.onchange=paint;target.onchange=()=>{pref.target=target.value;pref.psiPart='';if(powers.value==='cura_psi')fillLocations();};location.onchange=()=>pref.psiPart=location.value;paint();
-  button(psi,'🔮 Usar poder',()=>{let x=current.x,y=current.y;if(!destLabel.hidden){const m=/^\s*(\d+)\s*:\s*(\d+)\s*$/.exec(destination.value);if(!m||+m[1]<1||+m[1]>Math.ceil(width)||+m[2]<1||+m[2]>Math.ceil(height)){feedback.textContent='Informe coluna:linha, entre 1:1 e '+Math.ceil(width)+':'+Math.ceil(height)+'.';return;}x=(+m[1]-.5)/width*28;y=(+m[2]-.5)/height*14;}
+  button(psi,'🔮 Usar poder',()=>{if(!cost.reportValidity())return;let x=current.x,y=current.y;if(!destLabel.hidden){const m=/^\s*(\d+)\s*:\s*(\d+)\s*$/.exec(destination.value);if(!m||+m[1]<1||+m[1]>Math.ceil(width)||+m[2]<1||+m[2]>Math.ceil(height)){feedback.textContent='Informe coluna:linha, entre 1:1 e '+Math.ceil(width)+':'+Math.ceil(height)+'.';return;}x=(+m[1]-.5)/width*28;y=(+m[2]-.5)/height*14;}
    const copy=['ilusao','mimetismo_psi'].includes(powers.value);run({kind:'direct-psi',powerId:powers.value,cost:Number(cost.value),targetId:copy||selfIds.has(powers.value)||powers.value==='mover_objeto'?current.id:target.value,sourceId:copy?target.value:'',local:location.value,text:text.value,x,y,objectId:powers.value==='mover_objeto'?objects.value:''});
   },ocupado(view.health,combat));
+  psi.append(description);
  }
  host.append(feedback);
 }

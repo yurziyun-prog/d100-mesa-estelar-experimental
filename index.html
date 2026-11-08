@@ -5,6 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>D100 - Mesa Estelar RPG</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png?v=62">
+    <link rel="shortcut icon" href="/favicon.ico?v=62">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=62">
+    <meta name="theme-color" content="#07090d">
     <!-- Mesa Estelar v29.3: correção da iniciativa inicial -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
@@ -34,6 +38,8 @@
         .stars-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
         .star { position: absolute; background: white; border-radius: 50%; animation: twinkle var(--duration) infinite; animation-delay: var(--delay); }
         @keyframes twinkle { 0%, 100% { opacity: 0.3; transform: scale(1); } 50% { opacity: 1; transform: scale(1.3); } }
+        /* v203: com o Mapa da Mesa aberto as estrelas ficam paradas (200 animações no fundo pesavam no desenho do mapa) */
+        body:has(#sincronizacao-nova.active) .star { animation: none; opacity: .7; }
         
         .container { max-width: 1400px; margin: 0 auto; position: relative; z-index: 2; }
         h1 { text-align: center; color: #fff; margin-bottom: 10px; font-size: 2.2em; }
@@ -57,6 +63,7 @@
         .market-card { display:grid; grid-template-columns:96px 1fr; gap:14px; padding:15px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.12); border-radius:12px; }
         .market-card:hover { border-color:rgba(0,212,255,0.5); background:rgba(0,212,255,0.06); }
         .market-card img { width:96px; height:96px; object-fit:contain; background:rgba(0,0,0,0.25); border-radius:10px; }
+        .item-mini{width:100%;height:100%;object-fit:contain}.market-card-placeholder img.item-mini{width:80px;height:80px}
         .market-card-placeholder { width:96px; height:96px; display:flex; align-items:center; justify-content:center; font-size:2.7em; background:rgba(0,0,0,0.25); border-radius:10px; }
         .market-card h4 { margin:0 0 6px; color:#fff; }
         .market-meta { color:#aaa; font-size:.9em; line-height:1.5; }
@@ -85,7 +92,10 @@
         .char-item-avatar { width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, #00d4ff, #0099cc); margin: 0 auto 10px; display: flex; align-items: center; justify-content: center; font-size: 2em; overflow: hidden; }
         .char-item-avatar img { width: 100%; height: 100%; object-fit: cover; }
         .char-item-name { color: #fff; font-weight: bold; margin-bottom: 5px; }
-        .char-item-actions { display: flex; gap: 5px; margin-top: 10px; justify-content: center; }
+        .char-item-actions { display: flex; gap: 5px; margin-top: 10px; justify-content: center; align-items: center; flex-wrap: wrap; }
+        .char-item-actions.char-item-actions-review { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 6px; width: 100%; }
+        .char-item-actions.char-item-actions-review .btn-small { width: 100%; min-width: 0; padding: 5px 6px; font-size: 0.76em; line-height: 1.15; white-space: normal; }
+        .char-item-actions.char-item-actions-review .btn-delete { grid-column: 1 / -1; width: min(96px, 70%); justify-self: center; }
         .btn-small { padding: 5px 10px; border: none; border-radius: 5px; cursor: pointer; font-size: 0.85em; }
 
         /* v46.35.0 — padronização visual do painel Mapa da Mesa */
@@ -194,7 +204,7 @@
         .db-name-table td:first-child { color:#fff; font-weight:bold; }
         .db-name-table .actions { white-space:nowrap; }
         
-        .item-tooltip { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.95); border: 2px solid #00d4ff; border-radius: 8px; padding: 10px; min-width: 200px; max-width: 300px; z-index: 100; display: none; font-size: 0.9em; pointer-events: none; }
+        .item-tooltip { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.95); border: 2px solid #00d4ff; border-radius: 8px; padding: 10px; min-width: 200px; max-width: min(300px, calc(100vw - 24px)); max-height: 70vh; overflow: hidden; overflow-wrap: anywhere; z-index: 100; display: none; font-size: 0.9em; pointer-events: none; }
         .inventory-slot:hover .item-tooltip { display: block; }
         .item-tooltip h5 { color: #00d4ff; margin-bottom: 5px; }
         .item-tooltip p { color: #aaa; font-size: 0.85em; margin: 3px 0; }
@@ -655,6 +665,270 @@
 #labLiveObjectList770 small{color:#9fb8c9;font-size:.75em}
 </style>
 
+<style id="v190-tema-modo-tatico" media="not all">
+/* ============================================================
+   v190 — Tema "Modo Tático" (estética futurista da Mesa Estelar)
+   Camada visual: só reaparência, sem tocar em lógica de jogo.
+   ============================================================ */
+:root{
+  --mt-fundo:#07090d;
+  --mt-painel:#0e131b;
+  --mt-painel2:#121926;
+  --mt-linha:rgba(126,231,255,.20);
+  --mt-linha-forte:rgba(126,231,255,.48);
+  --mt-acento:#54e6ec;
+  --mt-acento-fraco:rgba(84,230,236,.10);
+  --mt-ambar:#ffb454;
+  --mt-texto:#dce5ee;
+  --mt-texto-dim:#9dabbc;
+}
+
+body{
+  background:var(--mt-fundo);
+  color:var(--mt-texto);
+  font-family:'Segoe UI','Helvetica Neue',Tahoma,Geneva,Verdana,sans-serif;
+  letter-spacing:.015em;
+}
+::selection{background:rgba(84,230,236,.28);color:#fff;}
+
+/* ---- fundo: nebulosa escura + grade tática + vinheta ---- */
+.galaxy-bg{
+  background:
+    radial-gradient(ellipse at 18% 22%, rgba(46,110,140,.34) 0%, transparent 52%),
+    radial-gradient(ellipse at 82% 78%, rgba(70,60,140,.26) 0%, transparent 55%),
+    radial-gradient(ellipse at 55% 45%, rgba(20,40,60,.30) 0%, transparent 60%),
+    linear-gradient(160deg, #06080c 0%, #0a1018 45%, #070a10 100%) !important;
+}
+.galaxy-bg::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background-image:
+    linear-gradient(rgba(126,231,255,.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(126,231,255,.045) 1px, transparent 1px);
+  background-size:44px 44px;
+  mask-image:radial-gradient(ellipse at 50% 42%, rgba(0,0,0,.9) 0%, rgba(0,0,0,.25) 70%, transparent 100%);
+  -webkit-mask-image:radial-gradient(ellipse at 50% 42%, rgba(0,0,0,.9) 0%, rgba(0,0,0,.25) 70%, transparent 100%);
+}
+body::after{
+  content:"";position:fixed;inset:0;z-index:1;pointer-events:none;
+  background:radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(0,0,0,.5) 100%);
+}
+
+/* ---- barras de rolagem ---- */
+* { scrollbar-width:thin; scrollbar-color:rgba(84,230,236,.35) rgba(10,14,20,.6); }
+*::-webkit-scrollbar{width:9px;height:9px;}
+*::-webkit-scrollbar-track{background:rgba(10,14,20,.55);border-radius:6px;}
+*::-webkit-scrollbar-thumb{background:rgba(84,230,236,.30);border-radius:6px;border:2px solid rgba(10,14,20,.55);}
+*::-webkit-scrollbar-thumb:hover{background:rgba(84,230,236,.5);}
+
+/* ---- tela de login: painel HUD com cantoneiras ---- */
+.login-box{
+  position:relative;
+  background:linear-gradient(165deg, rgba(18,25,38,.92), rgba(10,14,21,.94)) !important;
+  border:1px solid var(--mt-linha) !important;
+  border-radius:14px !important;
+  box-shadow:0 0 0 1px rgba(0,0,0,.4), 0 22px 60px rgba(0,0,0,.55), inset 0 0 44px rgba(84,230,236,.05);
+  backdrop-filter:blur(6px);
+  overflow:visible;
+}
+.login-box::before,.login-box::after{
+  content:"";position:absolute;width:26px;height:26px;pointer-events:none;
+}
+.login-box::before{
+  top:-2px;left:-2px;
+  border-top:2px solid var(--mt-acento);border-left:2px solid var(--mt-acento);
+  border-top-left-radius:10px;
+  filter:drop-shadow(0 0 6px rgba(84,230,236,.7));
+}
+.login-box::after{
+  bottom:-2px;right:-2px;
+  border-bottom:2px solid var(--mt-acento);border-right:2px solid var(--mt-acento);
+  border-bottom-right-radius:10px;
+  filter:drop-shadow(0 0 6px rgba(84,230,236,.7));
+}
+.login-box h2{
+  letter-spacing:.14em;text-transform:uppercase;font-weight:700;
+  background:linear-gradient(90deg, #eafcff 20%, var(--mt-acento) 80%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  text-shadow:0 0 26px rgba(84,230,236,.25);
+}
+.login-box p{ color:var(--mt-texto-dim);letter-spacing:.06em; }
+.login-box input{
+  background:rgba(7,11,17,.75) !important;
+  border:1px solid rgba(126,231,255,.22) !important;
+  border-radius:9px !important;
+  color:var(--mt-texto) !important;
+  transition:border-color .18s, box-shadow .18s;
+}
+.login-box input:focus{
+  outline:none;border-color:var(--mt-linha-forte) !important;
+  box-shadow:0 0 0 3px rgba(84,230,236,.14), 0 0 18px rgba(84,230,236,.12);
+}
+#loginMessage div, #resetPasswordMessage{ border-radius:8px; }
+
+/* ---- botões principais ---- */
+.btn-login, .btn-register{
+  background:linear-gradient(135deg, rgba(84,230,236,.20), rgba(46,140,160,.16)) !important;
+  border:1px solid var(--mt-linha-forte) !important;
+  border-radius:9px !important;
+  letter-spacing:.08em;text-transform:uppercase;font-size:.98em !important;
+  transition:box-shadow .18s, background .18s, transform .12s;
+}
+.btn-login:hover, .btn-register:hover{
+  background:linear-gradient(135deg, rgba(84,230,236,.34), rgba(46,140,160,.26)) !important;
+  box-shadow:0 0 20px rgba(84,230,236,.30), inset 0 0 14px rgba(84,230,236,.10);
+}
+.btn-login:active, .btn-register:active{ transform:translateY(1px); }
+.btn-login.btn-secondary, .btn-register.btn-secondary{
+  background:rgba(20,28,40,.55) !important;
+  border-color:rgba(139,152,168,.30) !important;
+  color:var(--mt-texto-dim) !important;
+}
+.btn-login.btn-secondary:hover{
+  color:var(--mt-texto) !important;
+  border-color:var(--mt-linha-forte) !important;
+  box-shadow:0 0 14px rgba(84,230,236,.18);
+}
+
+/* ---- seletor de idioma ---- */
+.lang-btn{
+  background:rgba(14,20,29,.6) !important;
+  border:1px solid rgba(126,231,255,.20) !important;
+  border-radius:7px !important;color:var(--mt-texto-dim) !important;
+  font-size:.82em;letter-spacing:.1em;
+  transition:color .15s, border-color .15s, box-shadow .15s;
+}
+.lang-btn:hover{ color:var(--mt-acento) !important;border-color:var(--mt-linha-forte) !important; }
+.lang-btn.active{
+  background:rgba(84,230,236,.14) !important;
+  border-color:var(--mt-acento) !important;color:#eafcff !important;font-weight:700;
+  box-shadow:0 0 12px rgba(84,230,236,.22);
+}
+
+/* ---- cabeçalho do usuário ---- */
+.user-header{
+  background:linear-gradient(180deg, rgba(18,25,38,.85), rgba(12,17,25,.85)) !important;
+  border:1px solid var(--mt-linha) !important;
+  border-radius:11px !important;
+  box-shadow:0 8px 26px rgba(0,0,0,.35);
+}
+.user-info{ color:var(--mt-texto); }
+.btn-logout{
+  background:rgba(120,30,40,.35) !important;
+  border:1px solid rgba(255,110,110,.40) !important;
+  border-radius:8px !important;letter-spacing:.06em;
+  transition:box-shadow .15s, background .15s;
+}
+.btn-logout:hover{ box-shadow:0 0 14px rgba(255,90,90,.30);background:rgba(140,35,45,.5) !important; }
+
+/* ---- título principal ---- */
+h1{
+  letter-spacing:.18em;text-transform:uppercase;font-weight:800;
+  background:linear-gradient(90deg, #f2feff 15%, var(--mt-acento) 60%, #7fa8ff 100%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  filter:drop-shadow(0 0 22px rgba(84,230,236,.28));
+  margin-bottom:18px;
+}
+
+/* ---- abas: console de comando ---- */
+.tabs{ gap:8px; }
+.tab-btn{
+  background:linear-gradient(180deg, rgba(18,25,38,.75), rgba(11,16,24,.75)) !important;
+  border:1px solid rgba(126,231,255,.18) !important;
+  border-bottom:2px solid rgba(126,231,255,.10) !important;
+  border-radius:9px 9px 4px 4px !important;
+  color:var(--mt-texto-dim) !important;
+  letter-spacing:.05em;
+  transition:color .16s, border-color .16s, box-shadow .16s;
+}
+.tab-btn:hover{ color:var(--mt-texto) !important;border-color:var(--mt-linha-forte) !important; }
+.tab-btn.active{
+  color:#eafcff !important;
+  background:linear-gradient(180deg, rgba(84,230,236,.16), rgba(84,230,236,.05)) !important;
+  border-color:var(--mt-linha-forte) !important;
+  border-bottom-color:var(--mt-acento) !important;
+  box-shadow:0 4px 18px rgba(84,230,236,.18), inset 0 -8px 18px rgba(84,230,236,.06);
+  font-weight:700;
+}
+
+/* ---- seções e cartões ---- */
+.form-section, .char-manager{
+  background:linear-gradient(170deg, rgba(18,25,38,.72), rgba(11,16,24,.78)) !important;
+  border:1px solid var(--mt-linha) !important;
+  border-radius:13px !important;
+  box-shadow:0 10px 30px rgba(0,0,0,.30), inset 0 1px 0 rgba(126,231,255,.06);
+}
+.form-section h2, .char-manager h3{ letter-spacing:.05em;color:#eafcff; }
+.char-item, .market-card{
+  background:rgba(14,20,29,.62) !important;
+  border:1px solid rgba(126,231,255,.14) !important;
+  border-radius:11px !important;
+  transition:transform .15s, border-color .15s, box-shadow .15s;
+}
+.char-item:hover, .market-card:hover{
+  transform:translateY(-3px);
+  border-color:var(--mt-linha-forte) !important;
+  box-shadow:0 8px 24px rgba(84,230,236,.14);
+}
+.char-item.active{
+  border-color:rgba(84,230,236,.75) !important;
+  box-shadow:0 0 18px rgba(84,230,236,.28), inset 0 0 22px rgba(84,230,236,.06) !important;
+}
+.char-item-avatar{
+  background:linear-gradient(135deg, rgba(84,230,236,.5), rgba(64,96,190,.5)) !important;
+  border:1px solid var(--mt-linha);
+}
+
+/* ---- botões pequenos e campos de formulário ---- */
+.btn-small{
+  background:linear-gradient(180deg, rgba(26,36,52,.85), rgba(15,21,31,.85)) !important;
+  border:1px solid rgba(126,231,255,.22) !important;
+  color:var(--mt-texto) !important;
+  border-radius:7px !important;
+  transition:border-color .14s, box-shadow .14s;
+}
+.btn-small:hover{
+  border-color:var(--mt-linha-forte) !important;
+  box-shadow:0 0 12px rgba(84,230,236,.18);
+}
+.btn-delete{ border-color:rgba(255,110,110,.38) !important; }
+input[type="text"], input[type="number"], input[type="email"], input[type="password"], select, textarea{
+  background:rgba(7,11,17,.72);
+  border:1px solid rgba(126,231,255,.20);
+  border-radius:8px;
+  color:var(--mt-texto);
+  transition:border-color .16s, box-shadow .16s;
+}
+input:focus, select:focus, textarea:focus{
+  outline:none;border-color:var(--mt-linha-forte);
+  box-shadow:0 0 0 3px rgba(84,230,236,.12);
+}
+button{ font-family:inherit; }
+
+/* ---- barra de ferramentas do mercado ---- */
+.market-toolbar{
+  background:rgba(84,230,236,.05) !important;
+  border:1px solid var(--mt-linha) !important;
+  border-radius:11px !important;
+}
+.market-balance{
+  background:rgba(84,230,236,.08) !important;
+  border:1px solid var(--mt-linha-forte) !important;
+  color:#c8fbff !important;
+}
+.market-buy{
+  background:linear-gradient(135deg, rgba(84,230,236,.26), rgba(46,140,160,.20)) !important;
+  border:1px solid var(--mt-linha-forte) !important;
+  border-radius:8px !important;
+  transition:box-shadow .15s;
+}
+.market-buy:hover{ box-shadow:0 0 14px rgba(84,230,236,.28);filter:none !important; }
+
+@media (max-width:520px){
+  .login-box{ padding:28px 20px !important; }
+  h1{ font-size:1.55em;letter-spacing:.12em; }
+}
+</style>
+
 <style id="labCompactUiExploracao4">
 /* EXP-EXPLORACAO-4: painel de combate mais compacto e faixas secundárias estáveis */
 #labActionPanel{font-size:.78rem!important;padding:5px 7px!important;margin-bottom:5px!important;}
@@ -687,6 +961,330 @@
 #labZoom:disabled{opacity:.72;cursor:not-allowed;}
 
 </style>
+<style id="v192-tema-retro" media="not all">
+/* ============================================================
+   v192 — Tema "Retrô-futurista": colorido e elegante (roxo profundo, turquesa, rosa, creme e dourado).
+   Gerado a partir das mesmas peças do Modo Tático; só aparência. Ligado pelo botão 🎨.
+   ============================================================ */
+
+:root{
+  --mt-fundo:#1a1040;
+  --mt-painel:#2c1c62;
+  --mt-painel2:#352374;
+  --mt-linha:rgba(255,196,130,.38);
+  --mt-linha-forte:rgba(255,200,110,.72);
+  --mt-acento:#3fe9ca;
+  --mt-acento-fraco:rgba(63,233,202,.16);
+  --mt-ambar:#ffc857;
+  --mt-rosa:#ff7ab8;
+  --mt-texto:#f6eedd;
+  --mt-texto-dim:#cdbdf0;
+}
+
+body{
+  background:var(--mt-fundo);
+  color:var(--mt-texto);
+  font-family:'Avenir Next','Trebuchet MS','Segoe UI',sans-serif;
+  letter-spacing:.015em;
+}
+::selection{background:rgba(53,224,194,.28);color:#fff;}
+
+/* ---- fundo: nebulosa escura + grade tática + vinheta ---- */
+.galaxy-bg{
+  background:
+    radial-gradient(ellipse at 18% 14%, rgba(255,111,174,.34) 0%, transparent 52%),
+    radial-gradient(ellipse at 86% 82%, rgba(53,224,194,.28) 0%, transparent 54%),
+    radial-gradient(ellipse at 52% 48%, rgba(124,84,230,.30) 0%, transparent 66%),
+    linear-gradient(165deg, #1d1148 0%, #2b1662 46%, #12264f 100%) !important;
+}
+.galaxy-bg::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background-image:
+    linear-gradient(rgba(255,196,130,.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,196,130,.045) 1px, transparent 1px);
+  background-size:44px 44px;
+  mask-image:radial-gradient(ellipse at 50% 42%, rgba(0,0,0,.9) 0%, rgba(0,0,0,.25) 70%, transparent 100%);
+  -webkit-mask-image:radial-gradient(ellipse at 50% 42%, rgba(0,0,0,.9) 0%, rgba(0,0,0,.25) 70%, transparent 100%);
+}
+body::after{
+  content:"";position:fixed;inset:0;z-index:1;pointer-events:none;
+  background:radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(0,0,0,.5) 100%);
+}
+
+/* ---- barras de rolagem ---- */
+* { scrollbar-width:thin; scrollbar-color:rgba(53,224,194,.35) rgba(30,22,70,.6); }
+*::-webkit-scrollbar{width:9px;height:9px;}
+*::-webkit-scrollbar-track{background:rgba(30,22,70,.55);border-radius:6px;}
+*::-webkit-scrollbar-thumb{background:rgba(53,224,194,.30);border-radius:6px;border:2px solid rgba(30,22,70,.55);}
+*::-webkit-scrollbar-thumb:hover{background:rgba(53,224,194,.5);}
+
+/* ---- tela de login: painel HUD com cantoneiras ---- */
+.login-box{
+  position:relative;
+  background:linear-gradient(165deg, rgba(58,40,110,.92), rgba(30,22,70,.94)) !important;
+  border:1px solid var(--mt-linha) !important;
+  border-radius:14px !important;
+  box-shadow:0 0 0 1px rgba(0,0,0,.4), 0 22px 60px rgba(0,0,0,.55), inset 0 0 44px rgba(53,224,194,.05);
+  backdrop-filter:blur(6px);
+  overflow:visible;
+}
+.login-box::before,.login-box::after{
+  content:"";position:absolute;width:26px;height:26px;pointer-events:none;
+}
+.login-box::before{
+  top:-2px;left:-2px;
+  border-top:2px solid var(--mt-acento);border-left:2px solid var(--mt-acento);
+  border-top-left-radius:10px;
+  filter:drop-shadow(0 0 6px rgba(53,224,194,.7));
+}
+.login-box::after{
+  bottom:-2px;right:-2px;
+  border-bottom:2px solid var(--mt-acento);border-right:2px solid var(--mt-acento);
+  border-bottom-right-radius:10px;
+  filter:drop-shadow(0 0 6px rgba(53,224,194,.7));
+}
+.login-box h2{
+  letter-spacing:.12em;text-transform:uppercase;font-weight:800;
+  background:linear-gradient(90deg, #fff1d6 10%, #ffc857 45%, #ff7ab8 100%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  text-shadow:0 0 26px rgba(255,111,174,.25);
+}
+.login-box p{ color:var(--mt-texto-dim);letter-spacing:.06em; }
+.login-box input{
+  background:rgba(26,18,62,.75) !important;
+  border:1px solid rgba(255,196,130,.22) !important;
+  border-radius:9px !important;
+  color:var(--mt-texto) !important;
+  transition:border-color .18s, box-shadow .18s;
+}
+.login-box input:focus{
+  outline:none;border-color:var(--mt-linha-forte) !important;
+  box-shadow:0 0 0 3px rgba(53,224,194,.14), 0 0 18px rgba(53,224,194,.12);
+}
+#loginMessage div, #resetPasswordMessage{ border-radius:8px; }
+
+/* ---- botões principais ---- */
+.btn-login, .btn-register{
+  background:linear-gradient(135deg, rgba(53,224,194,.20), rgba(255,111,174,.16)) !important;
+  border:1px solid var(--mt-linha-forte) !important;
+  border-radius:9px !important;
+  letter-spacing:.08em;text-transform:uppercase;font-size:.98em !important;
+  transition:box-shadow .18s, background .18s, transform .12s;
+}
+.btn-login:hover, .btn-register:hover{
+  background:linear-gradient(135deg, rgba(53,224,194,.34), rgba(255,111,174,.26)) !important;
+  box-shadow:0 0 20px rgba(53,224,194,.30), inset 0 0 14px rgba(53,224,194,.10);
+}
+.btn-login:active, .btn-register:active{ transform:translateY(1px); }
+.btn-login.btn-secondary, .btn-register.btn-secondary{
+  background:rgba(60,44,112,.55) !important;
+  border-color:rgba(139,152,168,.30) !important;
+  color:var(--mt-texto-dim) !important;
+}
+.btn-login.btn-secondary:hover{
+  color:var(--mt-texto) !important;
+  border-color:var(--mt-linha-forte) !important;
+  box-shadow:0 0 14px rgba(53,224,194,.18);
+}
+
+/* ---- seletor de idioma ---- */
+.lang-btn{
+  background:rgba(52,38,102,.6) !important;
+  border:1px solid rgba(255,196,130,.20) !important;
+  border-radius:7px !important;color:var(--mt-texto-dim) !important;
+  font-size:.82em;letter-spacing:.1em;
+  transition:color .15s, border-color .15s, box-shadow .15s;
+}
+.lang-btn:hover{ color:var(--mt-acento) !important;border-color:var(--mt-linha-forte) !important; }
+.lang-btn.active{
+  background:rgba(53,224,194,.14) !important;
+  border-color:var(--mt-acento) !important;color:#fff1d6 !important;font-weight:700;
+  box-shadow:0 0 12px rgba(53,224,194,.22);
+}
+
+/* ---- cabeçalho do usuário ---- */
+.user-header{
+  background:linear-gradient(180deg, rgba(58,40,110,.85), rgba(40,30,90,.85)) !important;
+  border:1px solid var(--mt-linha) !important;
+  border-radius:11px !important;
+  box-shadow:0 8px 26px rgba(0,0,0,.35);
+}
+.user-info{ color:var(--mt-texto); }
+.btn-logout{
+  background:rgba(120,30,40,.35) !important;
+  border:1px solid rgba(255,120,120,.40) !important;
+  border-radius:8px !important;letter-spacing:.06em;
+  transition:box-shadow .15s, background .15s;
+}
+.btn-logout:hover{ box-shadow:0 0 14px rgba(255,90,90,.30);background:rgba(140,35,45,.5) !important; }
+
+/* ---- título principal ---- */
+h1{
+  letter-spacing:.18em;text-transform:uppercase;font-weight:800;
+  background:linear-gradient(90deg, #fff6e4 15%, var(--mt-acento) 60%, #ff7ab8 100%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  filter:drop-shadow(0 0 22px rgba(255,111,174,.35));
+  margin-bottom:18px;
+}
+
+/* ---- abas: console de comando ---- */
+.tabs{ gap:8px; }
+.tab-btn{
+  background:linear-gradient(180deg, rgba(58,40,110,.75), rgba(34,24,78,.75)) !important;
+  border:1px solid rgba(255,196,130,.18) !important;
+  border-bottom:2px solid rgba(255,196,130,.10) !important;
+  border-radius:9px 9px 4px 4px !important;
+  color:var(--mt-texto-dim) !important;
+  letter-spacing:.05em;
+  transition:color .16s, border-color .16s, box-shadow .16s;
+}
+.tab-btn:hover{ color:var(--mt-texto) !important;border-color:var(--mt-linha-forte) !important; }
+.tab-btn.active{
+  color:#fff1d6 !important;
+  background:linear-gradient(180deg, rgba(53,224,194,.16), rgba(53,224,194,.05)) !important;
+  border-color:var(--mt-linha-forte) !important;
+  border-bottom-color:var(--mt-acento) !important;
+  box-shadow:0 4px 18px rgba(53,224,194,.18), inset 0 -8px 18px rgba(53,224,194,.06);
+  font-weight:700;
+}
+
+/* ---- seções e cartões ---- */
+.form-section, .char-manager{
+  background:linear-gradient(170deg, rgba(58,40,110,.72), rgba(34,24,78,.78)) !important;
+  border:1px solid var(--mt-linha) !important;
+  border-radius:13px !important;
+  box-shadow:0 10px 30px rgba(0,0,0,.30), inset 0 1px 0 rgba(255,196,130,.06);
+}
+.form-section h2, .char-manager h3{ letter-spacing:.05em;color:#fff1d6; }
+.char-item, .market-card{
+  background:rgba(52,38,102,.62) !important;
+  border:1px solid rgba(255,196,130,.14) !important;
+  border-radius:11px !important;
+  transition:transform .15s, border-color .15s, box-shadow .15s;
+}
+.char-item:hover, .market-card:hover{
+  transform:translateY(-3px);
+  border-color:var(--mt-linha-forte) !important;
+  box-shadow:0 8px 24px rgba(53,224,194,.14);
+}
+.char-item.active{
+  border-color:rgba(53,224,194,.75) !important;
+  box-shadow:0 0 18px rgba(53,224,194,.28), inset 0 0 22px rgba(53,224,194,.06) !important;
+}
+.char-item-avatar{
+  background:linear-gradient(135deg, rgba(53,224,194,.5), rgba(255,111,174,.5)) !important;
+  border:1px solid var(--mt-linha);
+}
+
+/* ---- botões pequenos e campos de formulário ---- */
+.btn-small{
+  background:linear-gradient(180deg, rgba(70,50,122,.85), rgba(44,32,94,.85)) !important;
+  border:1px solid rgba(255,196,130,.22) !important;
+  color:var(--mt-texto) !important;
+  border-radius:7px !important;
+  transition:border-color .14s, box-shadow .14s;
+}
+.btn-small:hover{
+  border-color:var(--mt-linha-forte) !important;
+  box-shadow:0 0 12px rgba(53,224,194,.18);
+}
+.btn-delete{ border-color:rgba(255,120,120,.38) !important; }
+input[type="text"], input[type="number"], input[type="email"], input[type="password"], select, textarea{
+  background:rgba(26,18,62,.72);
+  border:1px solid rgba(255,196,130,.20);
+  border-radius:8px;
+  color:var(--mt-texto);
+  transition:border-color .16s, box-shadow .16s;
+}
+input:focus, select:focus, textarea:focus{
+  outline:none;border-color:var(--mt-linha-forte);
+  box-shadow:0 0 0 3px rgba(53,224,194,.12);
+}
+button{ font-family:inherit; }
+
+/* ---- barra de ferramentas do mercado ---- */
+.market-toolbar{
+  background:rgba(53,224,194,.05) !important;
+  border:1px solid var(--mt-linha) !important;
+  border-radius:11px !important;
+}
+.market-balance{
+  background:rgba(53,224,194,.08) !important;
+  border:1px solid var(--mt-linha-forte) !important;
+  color:#ffe3b0 !important;
+}
+.market-buy{
+  background:linear-gradient(135deg, rgba(53,224,194,.26), rgba(255,111,174,.20)) !important;
+  border:1px solid var(--mt-linha-forte) !important;
+  border-radius:8px !important;
+  transition:box-shadow .15s;
+}
+.market-buy:hover{ box-shadow:0 0 14px rgba(53,224,194,.28);filter:none !important; }
+
+@media (max-width:520px){
+  .login-box{ padding:28px 20px !important; }
+  h1{ font-size:1.55em;letter-spacing:.12em; }
+}
+
+/* extras do retrô: faixa de luz no topo das seções e cantos dourados */
+html[data-tema="retro"] .form-section,html[data-tema="retro"] .char-manager{border-top:2px solid rgba(255,200,87,.55) !important;}
+html[data-tema="retro"] .tab-btn.active{border-bottom-color:#ffc857 !important;box-shadow:0 4px 18px rgba(255,200,87,.22), inset 0 -8px 18px rgba(255,111,174,.08);}
+html[data-tema="retro"] .btn-login,html[data-tema="retro"] .btn-register,html[data-tema="retro"] .market-buy{background:linear-gradient(135deg, rgba(53,224,194,.38), rgba(255,111,174,.30)) !important;}
+/* v193: toques finais — dourado nos subtítulos, rosa nos secundários, placeholder legível */
+html[data-tema="retro"] .form-section h2,html[data-tema="retro"] .char-manager h3{text-shadow:0 0 14px rgba(255,200,87,.30);}
+html[data-tema="retro"] .btn-login.btn-secondary,html[data-tema="retro"] .btn-register.btn-secondary{color:#cdbdf0 !important;}
+html[data-tema="retro"] .btn-login.btn-secondary:hover,html[data-tema="retro"] .btn-register.btn-secondary:hover{color:#ffe9c4 !important;box-shadow:0 0 16px rgba(255,111,174,.24);}
+html[data-tema="retro"] input::placeholder,html[data-tema="retro"] textarea::placeholder{color:#a394cc;}
+html[data-tema="retro"] .market-card:hover{box-shadow:0 8px 26px rgba(255,111,174,.20);}
+</style>
+<style id="v192-tema-seletor">
+#csCaixa{position:fixed;left:50%;top:60px;transform:translateX(-50%);z-index:10002;width:min(380px,calc(100vw - 24px));max-height:calc(100vh - 80px);overflow:auto;padding:12px 14px;border-radius:14px;background:rgba(10,18,32,.98);border:1px solid #6b83a8;color:#e8eefc;font:13px 'Segoe UI',Arial,sans-serif;box-shadow:0 16px 44px rgba(0,0,0,.55)}
+#csCaixa[hidden]{display:none}
+#csCaixa .cs-topo{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;color:#8ee7ff}
+#csCaixa .cs-topo button{border:0;background:none;color:#e8eefc;font-size:16px;cursor:pointer}
+#csCaixa h4{margin:12px 0 6px;color:#8ee7ff;font-size:13px}
+#csCaixa .cs-temas{display:grid;gap:6px}
+#csCaixa .cs-temas button{display:grid;grid-template-columns:28px 1fr;grid-template-rows:auto auto;column-gap:8px;text-align:left;align-items:center;padding:7px 9px;border-radius:10px;border:1px solid #3a4a68;background:#132036;color:#e8eefc;cursor:pointer}
+#csCaixa .cs-temas button span{grid-row:1/3;font-size:20px;text-align:center}#csCaixa .cs-temas small{color:#9fb0cc}
+#csCaixa button[aria-pressed="true"]{border-color:#8ee7ff;background:#1a3350}
+#csCaixa .cs-ling{display:flex;gap:6px}
+#csCaixa .cs-ling button{flex:1;padding:8px 6px;border-radius:10px;border:1px solid #3a4a68;background:#132036;color:#e8eefc;cursor:pointer}
+#csCaixa .cs-em{margin:0 0 6px;word-break:break-all}#csCaixa .cs-av{margin:8px 0 0;color:#9fb0cc;font-size:12px}
+</style>
+<script id="v192-temas">
+(function(){
+ var K='mesa:temaV192',T={classico:{n:'Clássico',i:'🌌',d:'O visual de sempre',c:'#000000'},tatico:{n:'Modo Tático',i:'🛰️',d:'Escuro, grade e ciano',c:'#07090d'},retro:{n:'Retrô-futurista',i:'🌈',d:'Colorido e elegante',c:'#1a1040'}};
+ function ler(){try{return localStorage.getItem(K);}catch(e){return null;}}
+ function aplicar(t,salvar){if(!T[t])t='classico';document.documentElement.setAttribute('data-tema',t);
+  var a=document.getElementById('v190-tema-modo-tatico'),b=document.getElementById('v192-tema-retro');
+  if(a)a.media=t==='tatico'?'all':'not all';if(b)b.media=t==='retro'?'all':'not all';
+  var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',T[t].c);
+  if(salvar){try{localStorage.setItem(K,t);}catch(e){}}return t;}
+ var atual=aplicar(ler()||'retro',false);
+ window.mesaTemas={lista:T,atual:function(){return atual;},definir:function(t){atual=aplicar(t,true);if(window.mesaTemas.redesenhar)window.mesaTemas.redesenhar();return atual;}};
+ var caixa;
+ function idioma(){try{return localStorage.getItem('idiomaPreferido')||'pt';}catch(e){return 'pt';}}
+ function desenhar(){if(!caixa)return;var conta=window.mesaContaV193,em=conta&&conta.email&&conta.email();
+  caixa.querySelector('.cs-corpo').innerHTML='<h4>🎨 Visual do site</h4><div class="cs-temas">'+Object.keys(T).map(function(k){return '<button type="button" data-t="'+k+'" aria-pressed="'+(k===atual)+'"><span>'+T[k].i+'</span><b>'+T[k].n+'</b><small>'+T[k].d+'</small></button>';}).join('')+'</div>'
+  +'<h4>🌐 Idioma</h4><div class="cs-ling">'+[['pt','PT'],['en','EN'],['zh','中文']].map(function(l){return '<button type="button" data-l="'+l[0]+'" aria-pressed="'+(idioma()===l[0])+'">'+l[1]+'</button>';}).join('')+'</div>'
+  +'<h4>👤 Conta</h4>'+(em?'<p class="cs-em">'+em.replace(/</g,'&lt;')+'</p><div class="cs-ling"><button type="button" data-a="senha">🔑 Trocar senha</button><button type="button" data-a="sair">⎋ Sair</button></div><p class="cs-av" id="csAv" aria-live="polite"></p>':'<p class="cs-av">Entre na sua conta para ver e-mail e senha.</p>')
+  +'<p class="cs-av">O visual e o idioma ficam salvos neste navegador.</p>';}
+ function montar(){if(caixa||!document.body)return;caixa=document.createElement('div');caixa.id='csCaixa';caixa.hidden=true;caixa.setAttribute('role','dialog');caixa.setAttribute('aria-label','Configurações do site');
+  caixa.innerHTML='<div class="cs-topo"><b>⚙️ Configurações</b><button type="button" data-a="fechar" aria-label="Fechar">✕</button></div><div class="cs-corpo"></div>';
+  caixa.addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;
+   if(b.dataset.t){window.mesaTemas.definir(b.dataset.t);}
+   else if(b.dataset.l){if(window.mudarIdioma)window.mudarIdioma(b.dataset.l);desenhar();}
+   else if(b.dataset.a==='fechar'){caixa.hidden=true;}
+   else if(b.dataset.a==='sair'){caixa.hidden=true;window.mesaContaV193.sair();}
+   else if(b.dataset.a==='senha'){var av=caixa.querySelector('#csAv');b.disabled=true;window.mesaContaV193.trocarSenha().then(function(m){av.textContent='Enviamos o link para trocar a senha para '+m+'.';}).catch(function(){av.textContent='Não foi possível enviar agora. Tente de novo.';}).then(function(){b.disabled=false;});}});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!caixa.hidden)caixa.hidden=true;});
+  document.addEventListener('pointerdown',function(e){if(!caixa.hidden&&!caixa.contains(e.target)&&!e.target.closest('.cfg-site-btn'))caixa.hidden=true;});
+  document.body.append(caixa);}
+ window.abrirConfigSite=function(){montar();desenhar();caixa.hidden=!caixa.hidden;};
+ window.mesaTemas.redesenhar=desenhar;
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',montar);else montar();
+})();
+</script>
 </head>
 <body>
     <div class="galaxy-bg"></div>
@@ -700,6 +1298,7 @@
                     <button class="lang-btn active" onclick="mudarIdioma('pt')">PT</button>
                     <button class="lang-btn" onclick="mudarIdioma('en')">EN</button>
                     <button class="lang-btn" onclick="mudarIdioma('zh')">中文</button>
+                    <button type="button" class="lang-btn cfg-site-btn" title="Configurações do site" aria-label="Configurações do site" onclick="abrirConfigSite()">⚙️</button>
                 </div>
                 <h2 data-i18n="title">D100 - Mesa Estelar RPG</h2>
                 <p data-i18n="subtitle">Sistema de RPG Sci-Fi d100</p>
@@ -708,6 +1307,8 @@
                 <input type="password" id="loginPassword" data-i18n-placeholder="passwordPlaceholder" placeholder="Senha (mínimo 6 caracteres)">
                 <button class="btn-login" onclick="fazerLogin()" data-i18n="loginBtn">Entrar</button>
                 <button class="btn-login btn-secondary" onclick="fazerRegistro()" data-i18n="registerBtn">Criar Conta</button>
+                <button type="button" class="btn-login btn-secondary" id="resetPasswordButton" onclick="recuperarSenha()" data-i18n="resetPassword">Esqueci minha senha</button>
+                <div id="resetPasswordMessage" role="status" aria-live="polite" aria-atomic="true"></div>
             </div>
         </div>
 
@@ -718,9 +1319,7 @@
                     <span id="userRole"></span> 👤 <strong id="currentUser"></strong>
                 </div>
                 <div class="lang-selector">
-                    <button class="lang-btn" onclick="mudarIdioma('pt')">PT</button>
-                    <button class="lang-btn" onclick="mudarIdioma('en')">EN</button>
-                    <button class="lang-btn" onclick="mudarIdioma('zh')">中文</button>
+                    <button type="button" class="lang-btn cfg-site-btn" title="Configurações do site" aria-label="Configurações do site" onclick="abrirConfigSite()">⚙️</button>
                 </div>
                 <button class="btn-logout" onclick="fazerLogout()" data-i18n="logoutBtn">Sair</button>
             </div>
@@ -731,11 +1330,10 @@
             <div class="tabs">
                 <button class="tab-btn active" onclick="mostrarAba('ficha', this)" data-i18n="tabFicha">📋 Ficha</button>
                 <button class="tab-btn" id="cenarioAtualTabBtn" onclick="mostrarAba('cenario-publico', this)">🪐 Cenário Atual</button>
+                <button class="tab-btn" id="syncLabTabBtn" onclick="mostrarAba('sincronizacao-nova', this); novaSyncAbrir_()">🗺️ Mapa da Mesa</button>
                 <button class="tab-btn" id="mercadoTabBtn" onclick="mostrarAba('mercado', this)" data-i18n="tabMercado">🛒 Mercado</button>
                 <button class="tab-btn hidden" id="batalhaTabBtn" onclick="mostrarAba('batalha', this)">⚔️ Combate antigo</button>
                 <button class="tab-btn" id="regrasTabBtn" onclick="mostrarAba('regras', this)" data-i18n="tabRegras">📖 Regras</button>
-                <button class="tab-btn" id="laboratorioTabBtn" onclick="mostrarAba('laboratorio-combate', this)">🗺️ Mapa da Mesa</button>
-                <button class="tab-btn" id="syncLabTabBtn" onclick="mostrarAba('sincronizacao-nova', this); novaSyncAbrir_()">🔗 Sincronização nova</button>
                 <button class="tab-btn hidden" id="escudoTabBtn" onclick="mostrarAba('escudo', this)" data-i18n="tabGM">🛡️ Escudo do Mestre</button>
             </div>
 
@@ -835,41 +1433,60 @@
 
             <div id="sincronizacao-nova" class="tab-content">
                 <div class="form-section">
-                    <h2 style="margin:0 0 6px;">🔗 Sincronização nova</h2>
-                    <p style="color:#aaa;margin:0 0 16px;">Área experimental isolada. Ela começa apenas com posições compartilhadas entre os navegadores.</p>
-                    <div id="novaSyncStatus" style="padding:10px;border-radius:8px;background:rgba(0,0,0,.2);margin-bottom:12px;">Aguardando conexão.</div>
+                    <h2 style="margin:0 0 6px;">🗺️ Mapa da Mesa</h2>
+                    
+                    <div id="novaSyncStatus" style="padding:10px;border-radius:8px;background:rgba(0,0,0,.2);margin-bottom:8px;">Aguardando conexão.</div>
+                    <div class="nova-view-tools" aria-label="Opções de visualização da mesa">
+                        <button id="novaSyncFocus" class="btn-small" type="button" aria-pressed="false" title="Oculta painéis secundários para dar mais espaço ao mapa">⛶ Foco no mapa</button>
+                        <button id="novaSyncHistoryToggle" class="btn-small" type="button" aria-pressed="true" title="Mostrar ou ocultar o histórico da mesa">📜 Histórico</button>
+                    </div>
                     <div id="novaSyncMasterPanel">
-                        <strong id="novaSyncMasterTitle">Painel do mestre · combate</strong>
-                        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
-                            <button class="btn-small btn-select" id="novaSyncInit" onclick="novaSyncInicializar_()">Preparar personagens</button>
-                            <select id="novaSyncMapa" class="lab-control"><option value="">Mapa padrão</option></select>
-                            <input id="novaSyncQuickSearch" list="novaSyncQuickOptions" placeholder="Digite um nome para adicionar" aria-label="Busca rápida para adicionar" style="width:auto;flex:1;min-width:180px;max-width:360px;margin:0;">
+                        <button id="novaSyncInit" type="button" onclick="novaSyncInicializar_()" hidden aria-hidden="true"></button>
+                        <div class="nova-primary-v102">
+                            <div class="nova-acting-row nova-acting-row-v102">
+                                <label class="nova-acting-label" title="Escolha quem você está controlando">🎭 <select id="novaSyncPersonagem" class="lab-control"><option value="">Escolha um personagem</option></select></label>
+                                <button id="novaSyncPullActiveV92" class="btn-small icon-btn-v102 btn-select" type="button" onclick="trazerPersonagensAtivosMapaV92_()" title="Trazer personagens ativos para este mapa e seu cenário">📍</button>
+                                <button id="novaSyncStart" class="btn-small icon-btn-v102 btn-select" disabled title="Iniciar combate">▶</button>
+                                <button id="novaSyncEnd" class="btn-small icon-btn-v102" disabled title="Encerrar combate">■</button>
+                                <button id="novaSyncRemove" class="btn-small icon-btn-v102" type="button" title="Retirar o selecionado do mapa">✕</button>
+                                <div id="novaSyncEditorTools" hidden>
+                                    <button id="novaSyncEditMove" type="button" title="Mover miniaturas e objetos" aria-pressed="true">➤</button>
+                                    <button id="novaSyncEditDraw" type="button" title="Desenhar no mapa" aria-pressed="false">✎</button>
+                                    <input id="novaSyncInk" type="color" value="#ffd447" aria-label="Cor do desenho">
+                                    <button id="novaSyncEditUndo" type="button" title="Desfazer último desenho">↶</button>
+                                </div>
+                                <label hidden>Personagem para entrar <select id="novaSyncEntrySelect"></select></label>
+                                <button id="novaSyncJoin" class="btn-small icon-btn-v102" disabled title="Entrar ou sair do combate">↪</button>
+                            </div>
+                            <div id="novaSyncTurno" role="status" class="nova-turno-v102">Fora de combate · movimento livre.</div>
+                        </div>
+                        <div class="nova-organize-v102" aria-label="Organizar mesa">
+                            <select id="novaSyncMapa" class="lab-control" title="Mapa que o mestre está visualizando"><option value="">Mapa padrão</option></select>
+                            <input id="novaSyncQuickSearch" list="novaSyncQuickOptions" placeholder="Adicionar personagem / NPC" aria-label="Busca rápida para adicionar">
                             <datalist id="novaSyncQuickOptions"></datalist>
-                            <button id="novaSyncQuickAdd" class="btn-small btn-select" disabled>Adicionar</button>
-                            <button id="novaSyncStart" class="btn-small btn-select" disabled>▶ Iniciar combate</button>
-                            <button id="novaSyncEnd" class="btn-small" disabled>■ Encerrar combate</button>
-                            <button id="novaSyncRandom" class="btn-small" disabled>Posições aleatórias</button>
-                            <button id="novaSyncClear" class="btn-small" disabled>Limpar</button>
-                            <button id="novaSyncRestore" class="btn-small" disabled>Restaurar</button>
+                            <button id="novaSyncQuickAdd" class="btn-small icon-btn-v102 btn-select" disabled title="Adicionar ao mapa">＋</button>
+                            <button id="novaSyncRandom" class="btn-small icon-btn-v102" disabled title="Posições aleatórias">🎲</button>
+                            <button id="novaSyncClear" class="btn-small icon-btn-v102" disabled title="Limpar participantes do mapa">🧹</button>
+                            <button id="novaSyncRestore" class="btn-small icon-btn-v102" disabled title="Restaurar tudo (para testes, só o mestre): vida, munição e fadiga de todos no mapa, e o próprio mapa — fogo, objetos destruídos, armas caídas">♻</button>
+                        </div>
+                        <div class="nova-shared-draw-v102" id="novaSyncSharedDrawTools" aria-label="Desenho compartilhado">
+                            <span title="Desenhos feitos aqui aparecem para todos que estiverem neste mapa">✎</span>
+                            <button id="novaSyncSharedDrawToggle" type="button" class="btn-small icon-btn-v102" aria-pressed="false" title="Desenhar de forma sincronizada no mapa">✎</button>
+                            <input id="novaSyncSharedDrawColor" type="color" value="#ffd447" aria-label="Cor do desenho compartilhado" title="Cor do desenho">
+                            <button id="novaSyncSharedDrawUndo" type="button" class="btn-small icon-btn-v102" title="Desfazer seu último desenho neste mapa">↶</button>
+                            <button id="novaSyncSharedDrawClear" type="button" class="btn-small icon-btn-v102" title="Apagar todos os seus desenhos deste mapa">⌫</button>
+                            <small>desenho compartilhado</small>
                         </div>
                         <div id="novaSyncErro" role="alert" hidden style="margin:10px 0;padding:12px;border:1px solid #ff7474;background:#48242b;color:white;border-radius:8px;"></div>
-                        <div id="novaSyncTurno" role="status" style="margin:8px 0;">Fora de combate · movimento livre.</div>
-                        <div class="nova-acting-row">
-                            <label class="nova-acting-label">🎭 Atuar como <select id="novaSyncPersonagem" class="lab-control"><option value="">Escolha um personagem</option></select></label>
-                            <button id="novaSyncRemove" class="btn-small" type="button" title="Retirar do mapa">🗑️ Retirar do mapa</button>
-                            <div id="novaSyncEditorTools" hidden>
-                                <button id="novaSyncEditMove" type="button" title="Mover miniaturas e objetos" aria-pressed="true">➤</button>
-                                <button id="novaSyncEditDraw" type="button" title="Desenhar no mapa" aria-pressed="false">✎</button>
-                                <input id="novaSyncInk" type="color" value="#ffd447" aria-label="Cor do desenho">
-                                <button id="novaSyncEditUndo" type="button" title="Desfazer último desenho">↶</button>
-                            </div>
-                            <button id="novaSyncJoin" class="btn-small" disabled>Entrar no combate</button>
-                        </div>
                         <div id="novaSyncOrdem"></div>
                     </div>
                     <div id="novaSyncActionParking" hidden><button id="novaSyncNext" class="btn-small" disabled>Passar ação</button></div>
-                    <div id="novaSyncActionPanel"></div>
                     <div class="nova-board-scroll"><div id="novaSyncBoard" style="position:relative;width:1344px;height:672px;background:linear-gradient(135deg,#20314c,#18233a);border:1px solid #49668a;border-radius:10px;overflow:hidden;"></div></div>
+                    <details id="novaSyncFichaGaveta" open ontoggle="try{localStorage.setItem('mesa:fichaRapida',this.open?'1':'0')}catch(e){}">
+                        <summary title="Mostrar ou esconder a ficha rápida do personagem selecionado">🧾 Ficha rápida</summary>
+                        <div id="novaSyncActionPanel"></div>
+                    </details>
+                    <script>try{if(localStorage.getItem('mesa:fichaRapida')==='0')document.getElementById('novaSyncFichaGaveta').open=false}catch(e){}</script>
                     <details id="novaSyncCatalog" hidden style="margin-top:12px;padding:12px;border:1px solid #49668a;border-radius:10px;background:#17172f;">
                         <summary style="cursor:pointer;font-weight:bold;">Adicionar ao mapa · personagens, objetos e itens</summary>
                         <div class="nova-catalog-controls" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px;">
@@ -877,6 +1494,7 @@
                             <input id="novaSyncCatalogSearch" type="search" placeholder="Buscar pelo nome" aria-label="Buscar no catálogo">
                             <select id="novaSyncMestrePersonagem" aria-label="Selecionado"><option value="">Escolher para adicionar</option></select>
                             <button id="novaSyncAdicionar" class="btn-small btn-select" disabled>Adicionar ao mapa</button>
+                            <button id="novaSyncAdicionarMarcados" class="btn-small btn-select" type="button" hidden disabled>Adicionar marcados à edição</button>
                         </div>
                         <div id="novaSyncAdicionarHint" role="status" style="margin:8px 0;"></div>
                         <div id="novaSyncCatalogGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:6px;max-height:360px;overflow:auto;"></div>
@@ -895,7 +1513,7 @@
                         #novaSyncTurno,#novaSyncOrdem{font-size:13px;margin:5px 0;line-height:1.3;}
                         .nova-acting-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;}
                         .nova-acting-label{display:flex;gap:8px;align-items:center;margin:0!important;font-size:14px!important;}
-                        #novaSyncEditorTools{display:flex;gap:6px;align-items:center;}
+                        #novaSyncEditorTools{display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
                         #novaSyncInk{width:38px;height:34px;padding:2px;margin:0;}
                         #novaSyncEditorTools [aria-pressed=true]{outline:2px solid #ffd447;}
                         .nova-action-title{display:block;color:#ffd54a;font-size:14px;margin-bottom:6px;}
@@ -920,11 +1538,34 @@
                         @media(max-width:760px){.nova-action-row{grid-template-columns:1fr 1fr;}.nova-pv-grid{grid-template-columns:repeat(4,minmax(62px,1fr));}}
                         #novaSyncMasterPanel select,#novaSyncPersonagem{width:auto;min-width:160px;flex:1;max-width:420px;margin:0;}
                         .nova-catalog-controls select,.nova-catalog-controls input{width:auto;min-width:130px;flex:1;margin:0;}
-                        #novaSyncMasterPanel [hidden],#novaSyncCatalog [hidden]{display:none!important;}
-                        #novaSyncCatalogGrid button{display:flex;gap:8px;align-items:center;text-align:left;padding:7px;background:#26243e;color:white;border:1px solid #48435e;border-radius:7px;min-width:0;cursor:pointer;}
-                        #novaSyncCatalogGrid button[aria-pressed="true"]{border-color:#00d4ff;background:#263d62;}
+                        #novaOficinaPanel [hidden],#novaSyncMasterPanel [hidden],#novaSyncCatalog [hidden]{display:none!important;}
+                        #novaSyncCatalogGrid .nova-catalog-card{display:flex;gap:8px;align-items:center;text-align:left;padding:7px;background:#26243e;color:white;border:1px solid #48435e;border-radius:7px;min-width:0;cursor:pointer;}
+                        #novaSyncCatalogGrid .nova-catalog-card[aria-pressed="true"]{border-color:#00d4ff;background:#263d62;}
+                        #novaSyncCatalogGrid .nova-catalog-card[aria-disabled="true"]{opacity:.55;cursor:not-allowed;}
+                        #novaSyncCatalogGrid .nova-catalog-check{width:18px;height:18px;min-width:18px;margin:0;accent-color:#00d4ff;}
+                        #novaSyncCatalogGrid .nova-catalog-name{min-width:0;overflow-wrap:anywhere;}
                         #novaSyncCatalogGrid img{width:44px;height:44px;object-fit:contain;flex-shrink:0;}
                         #novaSyncHistorySection:empty{display:none;}
+                        #novaSyncFichaGaveta{margin:8px 0 0;border:1px solid rgba(0,212,255,.28);border-radius:10px;background:rgba(8,12,29,.68);color:#fff;}
+                        #novaSyncFichaGaveta>summary{cursor:pointer;padding:6px 10px;font:700 14px Arial,sans-serif;color:#aee8ff;list-style-position:inside;}
+                        #novaSyncFichaGaveta #novaSyncActionPanel{margin:0!important;border:0!important;border-top:1px solid rgba(0,212,255,.18)!important;border-radius:0 0 10px 10px;}
+                        #novaSyncFichaGaveta:has(#novaSyncActionPanel:empty){display:none;}
+                        .nova-view-tools{display:flex;gap:7px;justify-content:flex-end;align-items:center;margin:-2px 0 8px;flex-wrap:wrap;}
+                        .nova-view-tools button{height:34px!important;padding:5px 10px!important;font-size:13px!important;}
+                        .nova-view-tools button[aria-pressed="true"]{border-color:#00d4ff;box-shadow:0 0 0 1px rgba(0,212,255,.25) inset;}
+                        #sincronizacao-nova.nova-map-focus #novaSyncMasterPanel,
+                        #sincronizacao-nova.nova-map-focus #novaSyncCatalog,
+                        #sincronizacao-nova.nova-map-focus #novaSyncHistorySection{display:none!important;}
+                        #sincronizacao-nova.nova-map-focus .nova-board-scroll{margin-top:4px;}
+                        #sincronizacao-nova.nova-history-hidden #novaSyncHistorySection{display:none!important;}
+                        .nova-history-row{padding:6px 8px;margin:3px 0;border-radius:6px;border-left:3px solid rgba(174,232,255,.35);background:rgba(255,255,255,.025);}
+                        .nova-history-time{display:inline-block;min-width:70px;color:#8197b8;margin-right:7px;font-size:.86em;}
+                        .nova-history-text{color:#ddd;}
+                        .nova-history-success{border-left-color:#56f08a;background:rgba(86,240,138,.055);}
+                        .nova-history-failure{border-left-color:#ff7474;background:rgba(255,116,116,.06);}
+                        .nova-history-critical{border-left-color:#ffd54a;background:rgba(255,213,74,.07);}
+                        .nova-history-damage{border-left-color:#ff9c90;}
+                        .nova-history-psi{border-left-color:#bb83ff;background:rgba(187,131,255,.06);}
                     </style>
                 </div>
             </div>
@@ -975,10 +1616,15 @@
             <div id="mercado" class="tab-content">
                 <div class="form-section">
                     <h2 data-i18n="marketTitle">🛒 Mercado</h2>
+                    <label for="marketCharacter">Personagem que compra ou vende</label>
+                    <select id="marketCharacter" onchange="selecionarCompradorMercado_(this.value)"><option value="">Selecione quem vai comprar</option></select>
                     <div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 15px;">
                         <button id="marketSubtabComprar" class="btn-small btn-select" onclick="mostrarSubAbaMercado_('comprar')">🛒 Comprar</button>
                         <button id="marketSubtabVender" class="btn-small" onclick="mostrarSubAbaMercado_('vender')">💰 Vender</button>
                         <button id="marketSubtabLocal" class="btn-small" onclick="mostrarSubAbaMercado_('local')">🏪 Mercado local</button>
+                        <button type="button" class="btn-small" onclick="(window.mesaConcessionariaV171?window.mesaConcessionariaV171.abrir('veiculos','Concessionária'):alert('A concessionária ainda está carregando. Tente de novo em instantes.'))">🚗 Veículos</button>
+                        <button type="button" class="btn-small" onclick="(window.mesaConcessionariaV171?window.mesaConcessionariaV171.abrir('naves','Estaleiro'):alert('O estaleiro ainda está carregando. Tente de novo em instantes.'))">🚀 Naves</button>
+                        <button type="button" class="btn-small" onclick="(window.mesaConcessionariaV171?window.mesaConcessionariaV171.abrir('montarias','Estábulo e animais'):alert('A loja ainda está carregando. Tente de novo em instantes.'))">🐉 Montarias</button>
                     </div>
 
                     <div id="marketPaneComprar">
@@ -1028,6 +1674,8 @@
                             <select id="masterCharacterFilter" onchange="mudarFiltroPersonagensMestre_(this.value)" style="width:180px;margin:0;">
                                 <option value="pm">PM — meus personagens</option>
                                 <option value="pj">PJ — jogadores</option>
+                                <option value="aprovacao">Aprovação pendente</option>
+                                <option value="inativos">Inativos</option>
                                 <option value="todos">Todos</option>
                             </select>
                         </label>
@@ -1214,10 +1862,21 @@
                                     <div class="capacity" id="capacity-mochila">Mochila</div>
                                     <div class="inventory-slots" id="inv-mochila"></div>
                                 </div>
-                                <div class="inventory-compartment" style="grid-column: span 2;">
-                                    <h4>🚗 Veículo/Nave</h4>
-                                    <div class="capacity" id="capacity-veiculo">50 itens | peso sem limite</div>
+                                <div class="inventory-compartment" id="inventoryVehicleSharedV85" style="grid-column: span 2; display:none;">
+                                    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
+                                        <h4 style="margin:0;">🚙 Veículo</h4>
+                                        <select id="inventoryVehicleSelectV85" onchange="selecionarVeiculoInventarioV85_(this.value)" style="min-width:240px;max-width:520px;flex:1 1 260px;"></select>
+                                    </div>
+                                    <div class="capacity" id="capacity-veiculo-v85">Carga compartilhada do veículo</div>
                                     <div class="inventory-slots" id="inv-veiculo"></div>
+                                </div>
+                                <div class="inventory-compartment" id="inventoryShipSharedV85" style="grid-column: span 2; display:none;">
+                                    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
+                                        <h4 style="margin:0;">🚀 Nave</h4>
+                                        <select id="inventoryShipSelectV85" onchange="selecionarNaveInventarioV86_(this.value)" style="min-width:240px;max-width:520px;flex:1 1 260px;"></select>
+                                    </div>
+                                    <div class="capacity" id="capacity-nave-v85">Carga compartilhada da nave</div>
+                                    <div class="inventory-slots" id="inv-nave"></div>
                                 </div>
                                 <div class="inventory-compartment" style="grid-column: span 2;">
                                     <h4>🏠 Casa/Base</h4>
@@ -1249,6 +1908,7 @@
                                         <span></span>
                                     </div>
                                     <div id="armorLocations"></div>
+                                    <div id="armorPenaltyInfo" style="margin-top:14px;padding:10px 12px;background:rgba(0,0,0,.20);border:1px solid rgba(255,255,255,.10);border-radius:9px;color:#ddd;line-height:1.45;"></div>
                                 </div>
                                 <div class="combat-section">
                                     <h4 data-i18n="fatigueTitle">Fadiga</h4>
@@ -1616,10 +2276,15 @@
                     <div id="banco-mapas" class="tab-content">
                       <h4 style="color:#fff; margin-bottom:8px;">🗺️ Mapas salvos</h4>
                       <p style="color:#aaa; margin-bottom:15px;">Biblioteca privada do mestre. Aqui ficam registrados os mapas salvos no Firestore. A edição do terreno continua sendo feita diretamente no Mapa da Mesa.</p>
-                      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:15px;">
+                      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:15px;align-items:center;">
                         <button class="btn-small btn-select" onclick="abrirMapaDaMesa_()">🗺️ Ir para o Mapa da Mesa</button>
                         <button class="btn-small" onclick="recarregarBancoMapas_()">🔄 Atualizar lista</button>
+                        <input id="importMapasCSVV78" type="file" accept=".csv,text/csv" hidden onchange="importarMapasCSVV78_(this)">
+                        <button class="btn-small" onclick="document.getElementById('importMapasCSVV78').click()">📥 Importar/Atualizar CSV</button>
+                        <button class="btn-small" onclick="exportarMapasCSVV78_()">📤 Exportar CSV</button>
+                        <button class="btn-small" onclick="baixarTemplateMapasCSVV78_()">📄 Template CSV</button>
                       </div>
+                      <small style="display:block;color:#8ea7c8;margin:-6px 0 12px;">O CSV de mapas preserva metadados e o conteúdo do mapa em JSON. A importação atualiza mapas pelo ID sem apagar os demais.</small>
                       <div id="listaBancoMapas"></div>
                     </div>
                 </div>
@@ -1818,6 +2483,10 @@
                                     <button class="btn-small btn-select" onclick="ativarCenarioMestre()">📍 Definir como ativo</button>
                                     <button class="btn-small" onclick="editarCenarioAtivoNoBanco()">✏️ Editar no banco</button>
                                 </div>
+                                <label style="display:flex;align-items:flex-start;gap:7px;margin-top:10px;color:#aebbd2;font-size:.88em;line-height:1.3;">
+                                    <input id="gmScenarioMapAutoV80" type="checkbox" checked onchange="cenarioMapaAutoV80_(this.checked)" style="margin-top:2px;">
+                                    <span>🔗 Sincronizar automaticamente cenário ↔ mapa vinculado</span>
+                                </label>
 
                                 <div style="margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,.09);">
                                     <strong style="color:#ffd166;">Cenário ativo da campanha</strong>
@@ -1918,18 +2587,43 @@
             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
                 <div class="form-group"><label>Testes sugeridos:</label><input id="dbScenarioTestes"></div>
                 <div class="form-group"><label>Estado inicial:</label><input id="dbScenarioEstado"></div>
-                <div class="form-group"><label>NPCs da cena:</label><input id="dbScenarioNPCs"></div>
+                <div class="form-group"><label>NPCs / nomes de referência (texto):</label><input id="dbScenarioNPCs"><small style="display:block;color:#8ea7c8;margin-top:4px;">Campo narrativo legado. Para NPCs cadastrados, use também a área “NPCs do Banco vinculados à cena” abaixo.</small></div>
+            </div>
+
+            <div class="form-group" style="margin-top:10px;">
+                <label>🗺️ Mapa vinculado (opcional):</label>
+                <select id="dbScenarioMapaId"><option value="">— Nenhum mapa vinculado —</option></select>
+                <small style="color:#8ea7c8;display:block;margin-top:5px;">O vínculo é opcional. Com a sincronização automática ligada, ativar o cenário abre este mapa e abrir este mapa ativa o cenário.</small>
+            </div>
+
+            <div id="dbScenarioInteractionsV76" style="margin:14px 0;padding:14px;border-radius:10px;background:rgba(0,212,255,.045);border:1px solid rgba(0,212,255,.18);">
+                <strong style="color:#8feaff;">🧭 Interações do Cenário Atual</strong>
+                <div style="color:#999;font-size:.84em;margin:4px 0 9px;">Uma interação por linha. Formato: <b>Título|Ícone|Perícia|Dificuldade|Descrição evidente|Sucesso|Crítico|Falha</b>. Use “—” na perícia para uma ação sem teste.</div>
+                <textarea id="dbScenarioInteracoesV76" rows="7" placeholder="Examinar o painel|🔎|Percepção|Padrão|O painel está coberto de poeira.|Há marcas recentes perto do fecho.|Você encontra um compartimento oculto.|Nada chama sua atenção.
+Conversar com o atendente|💬|Influência|Padrão|O atendente observa o grupo.|Ele responde algumas perguntas.|Ele revela algo que costuma esconder.|Ele evita o assunto."></textarea>
+                <small style="display:block;color:#829bb3;margin-top:6px;">Essas ações aparecem em Cenário Atual e funcionam sem depender do mapa. Informações reveladas com sucesso ficam registradas na ficha do personagem.</small>
             </div>
 
             <div style="margin:14px 0;padding:14px;border-radius:10px;background:rgba(155,89,182,.08);border:1px solid rgba(155,89,182,.25);">
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
                     <div>
-                        <strong style="color:#d8b4ff;">👥 Personagens vinculados à cena</strong>
-                        <div style="color:#999;font-size:.82em;margin-top:3px;">Vincule PCs ou PMs já existentes. “Visível” define quem poderá aparecer futuramente para os jogadores.</div>
+                        <strong style="color:#d8b4ff;">👥 PJ / PM vinculados à cena</strong>
+                        <div style="color:#999;font-size:.82em;margin-top:3px;">Vincule personagens com ficha completa. “Visível” define quem poderá aparecer para os jogadores no Cenário Atual.</div>
                     </div>
-                    <button type="button" class="btn-small btn-select" onclick="vincularNomesCenarioAutomaticamente()">🔗 Vincular nomes automaticamente</button>
+                    <button type="button" class="btn-small btn-select" onclick="vincularNomesCenarioAutomaticamente()">🔗 Vincular nomes escritos acima</button>
                 </div>
                 <div id="dbScenarioPersonagensVinculados" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:8px;"></div>
+            </div>
+
+            <div style="margin:14px 0;padding:14px;border-radius:10px;background:rgba(255,193,7,.055);border:1px solid rgba(255,193,7,.24);">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
+                    <div>
+                        <strong style="color:#ffd166;">🎭 NPCs do Banco vinculados à cena</strong>
+                        <div style="color:#999;font-size:.82em;margin-top:3px;">Selecione NPCs cadastrados no Banco de NPCs. Eles continuam sendo NPCs, não são convertidos em PJ ou PM.</div>
+                    </div>
+                    <input id="dbScenarioNPCBusca" type="search" placeholder="Buscar NPC..." oninput="renderizarSeletorNPCsCenarioAtual_()" style="min-width:220px;max-width:320px;">
+                </div>
+                <div id="dbScenarioNPCsVinculados" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:8px;"></div>
             </div>
 
 
@@ -2065,6 +2759,33 @@
         <label>Habilidades especiais<textarea id="dbNPCHabilidades" rows="2"></textarea></label>
         <label>Equipamento-base<textarea id="dbNPCEquipBase" rows="2" placeholder="Lança de Choque|Pistola 9 mm|Colete"></textarea></label>
         <label>Inventário narrativo<input id="dbNPCInventario"></label>
+        <div id="dbNPCComercioV73" style="margin:12px 0;padding:12px;border-radius:10px;background:rgba(255,209,102,.045);border:1px solid rgba(255,209,102,.24);">
+          <div style="display:flex;gap:18px;flex-wrap:wrap;margin:0 0 10px;">
+            <label style="display:flex;align-items:center;gap:8px;margin:0;"><input id="dbNPCComerciante" type="checkbox" style="width:auto;" onchange="npcComercioToggleV73_()"> <strong>🛒 Comerciante</strong></label>
+            <label style="display:flex;align-items:center;gap:8px;margin:0;"><input id="dbNPCPrestadorServicos" type="checkbox" style="width:auto;" onchange="npcComercioToggleV73_()"> <strong>🧰 Prestador de serviços</strong></label>
+          </div>
+          <div id="dbNPCComercioCamposV73" style="display:none;">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:9px;">
+              <label>Nome do estabelecimento<input id="dbNPCComercioNome" placeholder="Ex.: Meral-Ti Câmbio e Suprimentos"></label>
+              <label>Preço de venda ao jogador (%)<input id="dbNPCComercioCompraPct" type="number" min="1" step="1" value="100"></label>
+              <label>Preço pago ao comprar do jogador (%)<input id="dbNPCComercioVendaPct" type="number" min="0" step="1" value="50"></label>
+              <label>Resistência à barganha<input id="dbNPCComercioResistencia" type="number" min="1" max="99" step="1" value="50"></label>
+            </div>
+            <div style="display:flex;gap:16px;flex-wrap:wrap;margin:9px 0;">
+              <label style="display:flex;align-items:center;gap:6px;margin:0;"><input id="dbNPCComercioBarganha" type="checkbox" checked> Permite barganha</label>
+              <label style="display:flex;align-items:center;gap:6px;margin:0;"><input id="dbNPCComercioCompraJogador" type="checkbox" checked> Compra itens dos jogadores</label>
+              <label style="display:flex;align-items:center;gap:6px;margin:0;"><input id="dbNPCComercioMercadoNegro" type="checkbox"> Mercado negro: ignora acesso dos itens do estoque</label>
+            </div>
+            <div style="margin:10px 0;padding:10px;border-radius:8px;background:rgba(0,212,255,.045);border:1px solid rgba(0,212,255,.16);">
+              <label>Serviços oferecidos<textarea id="dbNPCServicosComercio" rows="4" placeholder="Hospedagem simples|25|Quarto por noite
+Transporte de carga|80|Entrega dentro de Véspera"></textarea></label>
+              <small style="display:block;color:#999;margin-top:5px;">Um serviço por linha no formato <b>Nome|Preço|Descrição</b>. Serviços não precisam ser itens do banco e podem representar hospedagem, transporte, tratamento, informação, carga, direção etc.</small>
+            </div>
+            <label style="margin-top:8px;">Filtrar estoque<input id="dbNPCComercioBusca" placeholder="Buscar item..." oninput="renderNPCComercioEstoqueV73_()"></label>
+            <div id="dbNPCComercioEstoque" style="max-height:210px;overflow:auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:5px;padding:7px;border-radius:8px;background:rgba(0,0,0,.12);"></div>
+            <small style="display:block;color:#9a9a9a;margin-top:7px;">O estoque define quais itens este NPC oferece. Quantidades finitas poderão ser acrescentadas depois sem alterar esta estrutura.</small>
+          </div>
+        </div>
         <label>Motivação<input id="dbNPCMotivacao"></label><label>Valor da motivação<input id="dbNPCValorMotivacao" type="number"></label>
         <div class="form-group">
           <label>Imagem URL</label>
@@ -2230,18 +2951,19 @@
             fillSlots('inv-equipado', 12, false, 'equipado');
             fillSlots('inv-bolso', 2, false, 'bolso');
             fillSlots('inv-mochila', 20, false, 'mochila');
-            fillSlots('inv-veiculo', 50, false, 'veiculo');
-            fillSlots('inv-casa', 100, false, 'casa');
+                        fillSlots('inv-casa', 100, false, 'casa');
         });
     </script>
 
 <style>
 .nova-support-panel{margin-top:10px;border:1px solid #7562aa;border-radius:8px;padding:10px;background:#17152b;color:#ded6ff}
 .nova-support-panel>summary{cursor:pointer;font-weight:700}.nova-support-panel>div{display:flex;gap:10px;flex-wrap:wrap;align-items:end;padding-top:12px}
+.nova-support-panel .nova-psi-row>label{margin-bottom:0;flex:1 1 190px;min-width:0;max-width:320px}.nova-support-panel .nova-psi-row>.nova-psi-cost{flex:0 0 88px}.nova-support-panel .nova-psi-row select,.nova-support-panel .nova-psi-row input,.nova-support-panel .nova-psi-row textarea{box-sizing:border-box;width:100%;height:44px;min-height:44px}.nova-support-panel .nova-psi-row textarea{resize:vertical}.nova-support-panel .nova-psi-row>button{height:44px;white-space:nowrap}
 .nova-support-panel label{display:flex;flex-direction:column;gap:4px;font-size:13px}.nova-support-panel [hidden]{display:none!important}.nova-support-panel select,.nova-support-panel input,.nova-support-panel textarea{font:inherit;color:white;background:#302c46;border:1px solid #726786;border-radius:6px;padding:7px;max-width:360px}.nova-support-panel p,.nova-support-panel h4{flex-basis:100%;margin:4px 0}.nova-support-panel button:disabled{opacity:.4;cursor:not-allowed}
+.nova-fire{position:absolute;inset:0;display:grid;place-items:center;font-size:clamp(25px,5vw,65px);background:radial-gradient(ellipse at bottom,#ff800080,transparent 70%);filter:drop-shadow(0 -8px 9px #ff5500);animation:nova-fire-pulse .65s infinite alternate;pointer-events:none}@keyframes nova-fire-pulse{to{opacity:.65;transform:scale(.9,1.1)}}
 .nova-psi-inbox{position:fixed;right:16px;bottom:16px;width:min(360px,90vw);max-height:55vh;overflow:auto;z-index:1600;padding:14px;background:#17152b;color:#eee;border:2px solid #bb83ff;border-radius:10px;box-shadow:0 5px 25px #0008}.nova-psi-inbox section+section{margin-top:15px;border-top:1px solid #7562aa;padding-top:12px}.nova-psi-inbox textarea{box-sizing:border-box;width:100%;min-height:75px}.nova-psi-inbox button{margin-top:8px}
 </style>
-<script type="module" src="js/app.js?v=46.90-dano-objetos-49"></script>
+<script type="module" src="js/app.js?v=46.209-v209-mesa"></script>
 <!-- Mesa Estelar v46.38.0: segurança de objetos, XP contextual, tutorial reforçado, PM/PJ, imagem pós-conclusão e sincronização de magia -->
 
 <div id="battleTokenPreview" class="battle-token-preview" aria-hidden="true"></div>

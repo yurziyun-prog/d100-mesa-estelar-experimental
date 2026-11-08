@@ -1,25 +1,25 @@
 const fs=require('fs'),path=require('path'),assert=require('node:assert/strict');
 const {chromium}=require('C:/Users/yurzi/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
 (async()=>{
- const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'});
+ const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'});
  try{
   const page=await browser.newPage();
   await page.route('https://trail.test/**',r=>{
    const file=new URL(r.request().url()).pathname.slice(1);
-   r.fulfill({contentType:file.endsWith('.js')?'text/javascript':'text/html',body:file.endsWith('.js')?fs.readFileSync(path.join(__dirname,'../js',file),'utf8'):'<div id="novaSyncStatus"></div><button id="novaSyncInit"></button><select id="novaSyncPersonagem"></select><div id="novaSyncBoard" style="position:relative;width:840px;height:420px"></div>'});
+   r.fulfill({contentType:file.endsWith('.js')?'text/javascript':'text/html',body:file.endsWith('.js')?fs.readFileSync(path.join(__dirname,'../js',file),'utf8'):'<div id="novaSyncStatus"></div><div id="novaSyncEditorTools"></div><button id="novaSyncInit"></button><select id="novaSyncPersonagem"></select><div id="novaSyncBoard" style="position:relative;width:840px;height:420px"></div>'});
   });
   await page.goto('https://trail.test/');
   const result=await page.evaluate(async()=>{
    const {mountDirectPositionLab,POSITION_PATH,MAP_PATH}=await import('/nova-direta.js');
-   const store={[MAP_PATH]:{},[POSITION_PATH+'/pj']:{nome:'Valery',donoUid:'player',x:10,y:7,revision:0},[POSITION_PATH+'/pm']:{nome:'Mestre',donoUid:'master',x:7,y:7,revision:0}};
+   const store={[MAP_PATH]:{mapId:'m',larguraM:28,alturaM:14},[POSITION_PATH+'/pj']:{nome:'Valery',donoUid:'player',x:10,y:7,revision:0,mapaId:'m'},[POSITION_PATH+'/pm']:{nome:'Mestre',donoUid:'master',x:7,y:7,revision:0,mapaId:'m'}};
    let receive,unblock,frames=new Map(),frameId=0,time=performance.now();
    let gate=new Promise(resolve=>unblock=resolve);
    window.requestAnimationFrame=fn=>{frames.set(++frameId,fn);return frameId;};window.cancelAnimationFrame=id=>frames.delete(id);
-   const db={subscribe:(p,fn)=>{receive=fn;fn(['pj','pm'].map(id=>({id,data:store[POSITION_PATH+'/'+id]})));return()=>{};},subscribeDoc:(p,fn)=>{fn(store[p]||null);return()=>{};},transact:async fn=>{
+   const db={get:async p=>structuredClone(store[p]||null),subscribe:(p,fn)=>{receive=fn;fn(['pj','pm'].map(id=>({id,data:store[POSITION_PATH+'/'+id]})));return()=>{};},subscribeDoc:(p,fn)=>{fn(store[p]||null);return()=>{};},transact:async fn=>{
     await gate;const writes=[];const out=await fn({get:async p=>structuredClone(store[p]||null),set:(p,v)=>writes.push([p,v])});
     for(const [p,v]of writes){store[p]=structuredClone(v);receive([{id:p.split('/').pop(),data:v}]);}return out;
    }};
-   const lab=mountDirectPositionLab({user:()=>({uid:'player',master:false}),characters:()=>[],database:db});lab.open();
+   const lab=mountDirectPositionLab({user:()=>({uid:'player',master:false}),characters:()=>[{id:'pj',nome:'Valery',localizacaoMapaId:'m'}],activeCharacter:()=>'pj',mapas:()=>[{id:'m',nome:'M'}],loadMap:async id=>({id,nome:'M',larguraM:28,alturaM:14}),database:db});await lab.open();await new Promise(r=>setTimeout(r,400));
    const board=document.getElementById('novaSyncBoard'),r=board.getBoundingClientRect();board.setPointerCapture=()=>{};
    function point(type,x,y){board.dispatchEvent(new PointerEvent(type,{bubbles:true,pointerId:1,button:0,buttons:type==='pointerup'?0:1,clientX:r.left+x/28*r.width,clientY:r.top+y/14*r.height}));}
    function advance(count){for(let i=0;i<count;i++){time+=50;const pending=[...frames.values()];frames.clear();for(const fn of pending)fn(time);}}

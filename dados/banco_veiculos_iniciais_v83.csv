@@ -1,0 +1,4 @@
+﻿id;nome;icone;categoria;tamanho;estruturaMax;blindagem;movimento;capacidadeCargaKg;passageiros;energiaMax;combustivelMax;vendavel;preco;nivelAcesso;disponivelCampanha;descricao;imagem
+moto_gravitica_leve;Moto gravítica leve;🏍️;Terrestre/Gravítica;Médio;16;1;18;35;2;40;0;True;6800;Comum;True;Veículo pessoal rápido para deslocamentos urbanos e terrenos relativamente abertos.;
+rover_exploracao;Rover de exploração;🚙;Terrestre;Grande;40;4;12;300;6;80;0;True;18500;Comum;True;Rover fechado para viagens, exploração e transporte de uma pequena equipe.;
+caminhao_carga_calico;Caminhão de carga de Calico;🚚;Terrestre;Enorme;70;5;9;2200;3;0;100;True;32000;Comum;True;Veículo pesado de carga, comum em caravanas e operações de mineração.;

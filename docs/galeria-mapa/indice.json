@@ -1,0 +1,928 @@
+{
+ "grupos": [
+  {
+   "grupo": 1,
+   "especies": [
+    "insetoide_predador",
+    "rastejante_de_cinzas",
+    "escavador_de_carapaca"
+   ],
+   "fotos": [
+    "g1-1-parado.png",
+    "g1-2-andando.png",
+    "g1-3-atacando.png",
+    "g1-4-morta.png"
+   ]
+  },
+  {
+   "grupo": 2,
+   "especies": [
+    "carrapato_de_ferro",
+    "insetoide_predador_1",
+    "parasita_carniceiro"
+   ],
+   "fotos": [
+    "g2-1-parado.png",
+    "g2-2-andando.png",
+    "g2-3-atacando.png",
+    "g2-4-morta.png"
+   ]
+  },
+  {
+   "grupo": 3,
+   "especies": [
+    "enxame_mordedor",
+    "criatura_de_calico_1",
+    "zumbi_1"
+   ],
+   "fotos": [
+    "g3-1-parado.png",
+    "g3-2-andando.png",
+    "g3-3-atacando.png",
+    "g3-4-morta.png"
+   ]
+  },
+  {
+   "grupo": 4,
+   "especies": [
+    "cadaver_de_chefe",
+    "vampiro_generico",
+    "montariapterodatil"
+   ],
+   "fotos": [
+    "g4-1-parado.png",
+    "g4-2-andando.png",
+    "g4-3-atacando.png",
+    "g4-4-morta.png"
+   ]
+  },
+  {
+   "grupo": 5,
+   "especies": [
+    "dragao_trombeta_alado_selvagem",
+    "vespa_de_vidro",
+    "dragao_trombeta_alado_domesticado"
+   ],
+   "fotos": [
+    "g5-1-parado.png",
+    "g5-2-andando.png",
+    "g5-3-atacando.png",
+    "g5-4-morta.png"
+   ]
+  },
+  {
+   "grupo": 6,
+   "especies": [
+    "dragao_trombeta_corredor_domesticado",
+    "cavalgante_prismatico",
+    "larva_interdimensional"
+   ],
+   "fotos": [
+    "g6-1-parado.png",
+    "g6-2-andando.png",
+    "g6-3-atacando.png",
+    "g6-4-morta.png"
+   ]
+  },
+  {
+   "grupo": 7,
+   "especies": [
+    "criatura_de_calico_2",
+    "cao_de_sucata",
+    "predador_de_nevoa"
+   ],
+   "fotos": [
+    "g7-1-parado.png",
+    "g7-2-andando.png",
+    "g7-3-atacando.png",
+    "g7-4-morta.png"
+   ]
+  },
+  {
+   "grupo": 8,
+   "especies": [
+    "caçador_de_nevoa",
+    "besta_ululante",
+    "dragao_trombeta_corredor_selvagem"
+   ],
+   "fotos": [
+    "g8-1-parado.png",
+    "g8-2-andando.png",
+    "g8-3-atacando.png",
+    "g8-4-morta.png"
+   ]
+  },
+  {
+   "grupo": 9,
+   "especies": [
+    "serpente_sanguessuga",
+    "predador_couracado",
+    "cila"
+   ],
+   "fotos": [
+    "g9-1-parado.png",
+    "g9-2-andando.png",
+    "g9-3-atacando.png",
+    "g9-4-morta.png"
+   ]
+  }
+ ],
+ "semToken": [
+  "cao_de_sucata"
+ ],
+ "semArte": [],
+ "resultado": [
+  {
+   "grupo": 1,
+   "id": "synccriatura:insetoide_predador~101",
+   "a3": "cima_insetoide_predador",
+   "acao": "parado"
+  },
+  {
+   "grupo": 1,
+   "id": "synccriatura:rastejante_de_cinzas",
+   "a3": "cima_rastejante_de_cinzas",
+   "acao": "parado"
+  },
+  {
+   "grupo": 1,
+   "id": "synccriatura:escavador_de_carapaca~101",
+   "a3": "cima_escavador_de_carapaca",
+   "acao": "parado"
+  },
+  {
+   "grupo": 2,
+   "id": "synccriatura:insetoide_predador~101",
+   "a3": "cima_insetoide_predador",
+   "acao": "parado"
+  },
+  {
+   "grupo": 2,
+   "id": "synccriatura:rastejante_de_cinzas",
+   "a3": "cima_rastejante_de_cinzas",
+   "acao": "parado"
+  },
+  {
+   "grupo": 2,
+   "id": "synccriatura:escavador_de_carapaca~101",
+   "a3": "cima_escavador_de_carapaca",
+   "acao": "parado"
+  },
+  {
+   "grupo": 2,
+   "id": "synccriatura:carrapato_de_ferro",
+   "a3": "cima_carrapato_de_ferro",
+   "acao": "parado"
+  },
+  {
+   "grupo": 2,
+   "id": "synccriatura:insetoide_predador_1",
+   "a3": "cima_insetoide_predador_1",
+   "acao": "parado"
+  },
+  {
+   "grupo": 2,
+   "id": "synccriatura:parasita_carniceiro~101",
+   "a3": "cima_parasita_carniceiro",
+   "acao": "parado"
+  },
+  {
+   "grupo": 3,
+   "id": "synccriatura:insetoide_predador~101",
+   "a3": "cima_insetoide_predador",
+   "acao": "parado"
+  },
+  {
+   "grupo": 3,
+   "id": "synccriatura:rastejante_de_cinzas",
+   "a3": "cima_rastejante_de_cinzas",
+   "acao": "parado"
+  },
+  {
+   "grupo": 3,
+   "id": "synccriatura:escavador_de_carapaca~101",
+   "a3": "cima_escavador_de_carapaca",
+   "acao": "parado"
+  },
+  {
+   "grupo": 3,
+   "id": "synccriatura:carrapato_de_ferro",
+   "a3": "cima_carrapato_de_ferro",
+   "acao": "parado"
+  },
+  {
+   "grupo": 3,
+   "id": "synccriatura:insetoide_predador_1",
+   "a3": "cima_insetoide_predador_1",
+   "acao": "parado"
+  },
+  {
+   "grupo": 3,
+   "id": "synccriatura:parasita_carniceiro~101",
+   "a3": "cima_parasita_carniceiro",
+   "acao": "parado"
+  },
+  {
+   "grupo": 3,
+   "id": "synccriatura:enxame_mordedor",
+   "a3": "cima_enxame_mordedor",
+   "acao": "parado"
+  },
+  {
+   "grupo": 3,
+   "id": "synccriatura:criatura_de_calico_1~101",
+   "a3": "cima_criatura_de_calico_1",
+   "acao": "parado"
+  },
+  {
+   "grupo": 3,
+   "id": "synccriatura:zumbi_1",
+   "a3": "cima_zumbi_1",
+   "acao": "parado"
+  },
+  {
+   "grupo": 4,
+   "id": "synccriatura:insetoide_predador~101",
+   "a3": "cima_insetoide_predador",
+   "acao": "parado"
+  },
+  {
+   "grupo": 4,
+   "id": "synccriatura:rastejante_de_cinzas",
+   "a3": "cima_rastejante_de_cinzas",
+   "acao": "parado"
+  },
+  {
+   "grupo": 4,
+   "id": "synccriatura:escavador_de_carapaca~101",
+   "a3": "cima_escavador_de_carapaca",
+   "acao": "parado"
+  },
+  {
+   "grupo": 4,
+   "id": "synccriatura:carrapato_de_ferro",
+   "a3": "cima_carrapato_de_ferro",
+   "acao": "parado"
+  },
+  {
+   "grupo": 4,
+   "id": "synccriatura:insetoide_predador_1",
+   "a3": "cima_insetoide_predador_1",
+   "acao": "parado"
+  },
+  {
+   "grupo": 4,
+   "id": "synccriatura:parasita_carniceiro~101",
+   "a3": "cima_parasita_carniceiro",
+   "acao": "parado"
+  },
+  {
+   "grupo": 4,
+   "id": "synccriatura:enxame_mordedor",
+   "a3": "cima_enxame_mordedor",
+   "acao": "parado"
+  },
+  {
+   "grupo": 4,
+   "id": "synccriatura:criatura_de_calico_1~101",
+   "a3": "cima_criatura_de_calico_1",
+   "acao": "parado"
+  },
+  {
+   "grupo": 4,
+   "id": "synccriatura:zumbi_1",
+   "a3": "cima_zumbi_1",
+   "acao": "parado"
+  },
+  {
+   "grupo": 4,
+   "id": "synccriatura:cadaver_de_chefe",
+   "a3": "cima_cadaver_de_chefe",
+   "acao": "parado"
+  },
+  {
+   "grupo": 4,
+   "id": "synccriatura:vampiro_generico",
+   "a3": "cima_vampiro_generico",
+   "acao": "parado"
+  },
+  {
+   "grupo": 4,
+   "id": "synccriatura:montariapterodatil~101",
+   "a3": "cima_montariapterodatil",
+   "acao": "parado"
+  },
+  {
+   "grupo": 5,
+   "id": "synccriatura:insetoide_predador~101",
+   "a3": "cima_insetoide_predador",
+   "acao": "parado"
+  },
+  {
+   "grupo": 5,
+   "id": "synccriatura:rastejante_de_cinzas",
+   "a3": "cima_rastejante_de_cinzas",
+   "acao": "parado"
+  },
+  {
+   "grupo": 5,
+   "id": "synccriatura:escavador_de_carapaca~101",
+   "a3": "cima_escavador_de_carapaca",
+   "acao": "parado"
+  },
+  {
+   "grupo": 5,
+   "id": "synccriatura:carrapato_de_ferro",
+   "a3": "cima_carrapato_de_ferro",
+   "acao": "parado"
+  },
+  {
+   "grupo": 5,
+   "id": "synccriatura:insetoide_predador_1",
+   "a3": "cima_insetoide_predador_1",
+   "acao": "parado"
+  },
+  {
+   "grupo": 5,
+   "id": "synccriatura:parasita_carniceiro~101",
+   "a3": "cima_parasita_carniceiro",
+   "acao": "parado"
+  },
+  {
+   "grupo": 5,
+   "id": "synccriatura:enxame_mordedor",
+   "a3": "cima_enxame_mordedor",
+   "acao": "parado"
+  },
+  {
+   "grupo": 5,
+   "id": "synccriatura:criatura_de_calico_1~101",
+   "a3": "cima_criatura_de_calico_1",
+   "acao": "parado"
+  },
+  {
+   "grupo": 5,
+   "id": "synccriatura:zumbi_1",
+   "a3": "cima_zumbi_1",
+   "acao": "parado"
+  },
+  {
+   "grupo": 5,
+   "id": "synccriatura:cadaver_de_chefe",
+   "a3": "cima_cadaver_de_chefe",
+   "acao": "parado"
+  },
+  {
+   "grupo": 5,
+   "id": "synccriatura:vampiro_generico",
+   "a3": "cima_vampiro_generico",
+   "acao": "parado"
+  },
+  {
+   "grupo": 5,
+   "id": "synccriatura:montariapterodatil~101",
+   "a3": "cima_montariapterodatil",
+   "acao": "parado"
+  },
+  {
+   "grupo": 5,
+   "id": "synccriatura:dragao_trombeta_alado_selvagem~101",
+   "a3": "cima_dragao_trombeta_alado_selvagem",
+   "acao": "parado"
+  },
+  {
+   "grupo": 5,
+   "id": "synccriatura:vespa_de_vidro~101",
+   "a3": "cima_vespa_de_vidro",
+   "acao": "parado"
+  },
+  {
+   "grupo": 5,
+   "id": "synccriatura:dragao_trombeta_alado_domesticado~101",
+   "a3": "cima_dragao_trombeta_alado_domesticado",
+   "acao": "parado"
+  },
+  {
+   "grupo": 6,
+   "id": "synccriatura:insetoide_predador~101",
+   "a3": "cima_insetoide_predador",
+   "acao": "parado"
+  },
+  {
+   "grupo": 6,
+   "id": "synccriatura:rastejante_de_cinzas",
+   "a3": "cima_rastejante_de_cinzas",
+   "acao": "parado"
+  },
+  {
+   "grupo": 6,
+   "id": "synccriatura:escavador_de_carapaca~101",
+   "a3": "cima_escavador_de_carapaca",
+   "acao": "parado"
+  },
+  {
+   "grupo": 6,
+   "id": "synccriatura:carrapato_de_ferro",
+   "a3": "cima_carrapato_de_ferro",
+   "acao": "parado"
+  },
+  {
+   "grupo": 6,
+   "id": "synccriatura:insetoide_predador_1",
+   "a3": "cima_insetoide_predador_1",
+   "acao": "parado"
+  },
+  {
+   "grupo": 6,
+   "id": "synccriatura:parasita_carniceiro~101",
+   "a3": "cima_parasita_carniceiro",
+   "acao": "parado"
+  },
+  {
+   "grupo": 6,
+   "id": "synccriatura:enxame_mordedor",
+   "a3": "cima_enxame_mordedor",
+   "acao": "parado"
+  },
+  {
+   "grupo": 6,
+   "id": "synccriatura:criatura_de_calico_1~101",
+   "a3": "cima_criatura_de_calico_1",
+   "acao": "parado"
+  },
+  {
+   "grupo": 6,
+   "id": "synccriatura:zumbi_1",
+   "a3": "cima_zumbi_1",
+   "acao": "parado"
+  },
+  {
+   "grupo": 6,
+   "id": "synccriatura:cadaver_de_chefe",
+   "a3": "cima_cadaver_de_chefe",
+   "acao": "parado"
+  },
+  {
+   "grupo": 6,
+   "id": "synccriatura:vampiro_generico",
+   "a3": "cima_vampiro_generico",
+   "acao": "parado"
+  },
+  {
+   "grupo": 6,
+   "id": "synccriatura:montariapterodatil~101",
+   "a3": "cima_montariapterodatil",
+   "acao": "parado"
+  },
+  {
+   "grupo": 6,
+   "id": "synccriatura:dragao_trombeta_alado_selvagem~101",
+   "a3": "cima_dragao_trombeta_alado_selvagem",
+   "acao": "parado"
+  },
+  {
+   "grupo": 6,
+   "id": "synccriatura:vespa_de_vidro~101",
+   "a3": "cima_vespa_de_vidro",
+   "acao": "parado"
+  },
+  {
+   "grupo": 6,
+   "id": "synccriatura:dragao_trombeta_alado_domesticado~101",
+   "a3": "cima_dragao_trombeta_alado_domesticado",
+   "acao": "parado"
+  },
+  {
+   "grupo": 6,
+   "id": "synccriatura:dragao_trombeta_corredor_domesticado~101",
+   "a3": "cima_dragao_trombeta_corredor_domesticado",
+   "acao": "parado"
+  },
+  {
+   "grupo": 6,
+   "id": "synccriatura:cavalgante_prismatico~101",
+   "a3": "cima_cavalgante_prismatico",
+   "acao": "parado"
+  },
+  {
+   "grupo": 6,
+   "id": "synccriatura:larva_interdimensional",
+   "a3": "cima_larva_interdimensional",
+   "acao": "parado"
+  },
+  {
+   "grupo": 7,
+   "id": "synccriatura:insetoide_predador~101",
+   "a3": "cima_insetoide_predador",
+   "acao": "parado"
+  },
+  {
+   "grupo": 7,
+   "id": "synccriatura:rastejante_de_cinzas",
+   "a3": "cima_rastejante_de_cinzas",
+   "acao": "parado"
+  },
+  {
+   "grupo": 7,
+   "id": "synccriatura:escavador_de_carapaca~101",
+   "a3": "cima_escavador_de_carapaca",
+   "acao": "parado"
+  },
+  {
+   "grupo": 7,
+   "id": "synccriatura:carrapato_de_ferro",
+   "a3": "cima_carrapato_de_ferro",
+   "acao": "parado"
+  },
+  {
+   "grupo": 7,
+   "id": "synccriatura:insetoide_predador_1",
+   "a3": "cima_insetoide_predador_1",
+   "acao": "parado"
+  },
+  {
+   "grupo": 7,
+   "id": "synccriatura:parasita_carniceiro~101",
+   "a3": "cima_parasita_carniceiro",
+   "acao": "parado"
+  },
+  {
+   "grupo": 7,
+   "id": "synccriatura:enxame_mordedor",
+   "a3": "cima_enxame_mordedor",
+   "acao": "parado"
+  },
+  {
+   "grupo": 7,
+   "id": "synccriatura:criatura_de_calico_1~101",
+   "a3": "cima_criatura_de_calico_1",
+   "acao": "parado"
+  },
+  {
+   "grupo": 7,
+   "id": "synccriatura:zumbi_1",
+   "a3": "cima_zumbi_1",
+   "acao": "parado"
+  },
+  {
+   "grupo": 7,
+   "id": "synccriatura:cadaver_de_chefe",
+   "a3": "cima_cadaver_de_chefe",
+   "acao": "parado"
+  },
+  {
+   "grupo": 7,
+   "id": "synccriatura:vampiro_generico",
+   "a3": "cima_vampiro_generico",
+   "acao": "parado"
+  },
+  {
+   "grupo": 7,
+   "id": "synccriatura:montariapterodatil~101",
+   "a3": "cima_montariapterodatil",
+   "acao": "parado"
+  },
+  {
+   "grupo": 7,
+   "id": "synccriatura:dragao_trombeta_alado_selvagem~101",
+   "a3": "cima_dragao_trombeta_alado_selvagem",
+   "acao": "parado"
+  },
+  {
+   "grupo": 7,
+   "id": "synccriatura:vespa_de_vidro~101",
+   "a3": "cima_vespa_de_vidro",
+   "acao": "parado"
+  },
+  {
+   "grupo": 7,
+   "id": "synccriatura:dragao_trombeta_alado_domesticado~101",
+   "a3": "cima_dragao_trombeta_alado_domesticado",
+   "acao": "parado"
+  },
+  {
+   "grupo": 7,
+   "id": "synccriatura:dragao_trombeta_corredor_domesticado~101",
+   "a3": "cima_dragao_trombeta_corredor_domesticado",
+   "acao": "parado"
+  },
+  {
+   "grupo": 7,
+   "id": "synccriatura:cavalgante_prismatico~101",
+   "a3": "cima_cavalgante_prismatico",
+   "acao": "parado"
+  },
+  {
+   "grupo": 7,
+   "id": "synccriatura:larva_interdimensional",
+   "a3": "cima_larva_interdimensional",
+   "acao": "parado"
+  },
+  {
+   "grupo": 7,
+   "id": "synccriatura:criatura_de_calico_2~101",
+   "a3": "cima_criatura_de_calico_2",
+   "acao": "parado"
+  },
+  {
+   "grupo": 7,
+   "id": "synccriatura:predador_de_nevoa",
+   "a3": "cima_predador_de_nevoa",
+   "acao": "parado"
+  },
+  {
+   "grupo": 8,
+   "id": "synccriatura:insetoide_predador~101",
+   "a3": "cima_insetoide_predador",
+   "acao": "parado"
+  },
+  {
+   "grupo": 8,
+   "id": "synccriatura:rastejante_de_cinzas",
+   "a3": "cima_rastejante_de_cinzas",
+   "acao": "parado"
+  },
+  {
+   "grupo": 8,
+   "id": "synccriatura:escavador_de_carapaca~101",
+   "a3": "cima_escavador_de_carapaca",
+   "acao": "parado"
+  },
+  {
+   "grupo": 8,
+   "id": "synccriatura:carrapato_de_ferro",
+   "a3": "cima_carrapato_de_ferro",
+   "acao": "parado"
+  },
+  {
+   "grupo": 8,
+   "id": "synccriatura:insetoide_predador_1",
+   "a3": "cima_insetoide_predador_1",
+   "acao": "parado"
+  },
+  {
+   "grupo": 8,
+   "id": "synccriatura:parasita_carniceiro~101",
+   "a3": "cima_parasita_carniceiro",
+   "acao": "parado"
+  },
+  {
+   "grupo": 8,
+   "id": "synccriatura:enxame_mordedor",
+   "a3": "cima_enxame_mordedor",
+   "acao": "parado"
+  },
+  {
+   "grupo": 8,
+   "id": "synccriatura:criatura_de_calico_1~101",
+   "a3": "cima_criatura_de_calico_1",
+   "acao": "parado"
+  },
+  {
+   "grupo": 8,
+   "id": "synccriatura:zumbi_1",
+   "a3": "cima_zumbi_1",
+   "acao": "parado"
+  },
+  {
+   "grupo": 8,
+   "id": "synccriatura:cadaver_de_chefe",
+   "a3": "cima_cadaver_de_chefe",
+   "acao": "parado"
+  },
+  {
+   "grupo": 8,
+   "id": "synccriatura:vampiro_generico",
+   "a3": "cima_vampiro_generico",
+   "acao": "parado"
+  },
+  {
+   "grupo": 8,
+   "id": "synccriatura:montariapterodatil~101",
+   "a3": "cima_montariapterodatil",
+   "acao": "parado"
+  },
+  {
+   "grupo": 8,
+   "id": "synccriatura:dragao_trombeta_alado_selvagem~101",
+   "a3": "cima_dragao_trombeta_alado_selvagem",
+   "acao": "parado"
+  },
+  {
+   "grupo": 8,
+   "id": "synccriatura:vespa_de_vidro~101",
+   "a3": "cima_vespa_de_vidro",
+   "acao": "parado"
+  },
+  {
+   "grupo": 8,
+   "id": "synccriatura:dragao_trombeta_alado_domesticado~101",
+   "a3": "cima_dragao_trombeta_alado_domesticado",
+   "acao": "parado"
+  },
+  {
+   "grupo": 8,
+   "id": "synccriatura:dragao_trombeta_corredor_domesticado~101",
+   "a3": "cima_dragao_trombeta_corredor_domesticado",
+   "acao": "parado"
+  },
+  {
+   "grupo": 8,
+   "id": "synccriatura:cavalgante_prismatico~101",
+   "a3": "cima_cavalgante_prismatico",
+   "acao": "parado"
+  },
+  {
+   "grupo": 8,
+   "id": "synccriatura:larva_interdimensional",
+   "a3": "cima_larva_interdimensional",
+   "acao": "parado"
+  },
+  {
+   "grupo": 8,
+   "id": "synccriatura:criatura_de_calico_2~101",
+   "a3": "cima_criatura_de_calico_2",
+   "acao": "parado"
+  },
+  {
+   "grupo": 8,
+   "id": "synccriatura:predador_de_nevoa",
+   "a3": "cima_predador_de_nevoa",
+   "acao": "parado"
+  },
+  {
+   "grupo": 8,
+   "id": "synccriatura:caçador_de_nevoa~101",
+   "a3": "cima_cacador_de_nevoa",
+   "acao": "parado"
+  },
+  {
+   "grupo": 8,
+   "id": "synccriatura:besta_ululante~101",
+   "a3": "cima_besta_ululante",
+   "acao": "parado"
+  },
+  {
+   "grupo": 8,
+   "id": "synccriatura:dragao_trombeta_corredor_selvagem~101",
+   "a3": "cima_dragao_trombeta_corredor_selvagem",
+   "acao": "parado"
+  },
+  {
+   "grupo": 9,
+   "id": "synccriatura:insetoide_predador~101",
+   "a3": "cima_insetoide_predador",
+   "acao": "parado"
+  },
+  {
+   "grupo": 9,
+   "id": "synccriatura:rastejante_de_cinzas",
+   "a3": "cima_rastejante_de_cinzas",
+   "acao": "parado"
+  },
+  {
+   "grupo": 9,
+   "id": "synccriatura:escavador_de_carapaca~101",
+   "a3": "cima_escavador_de_carapaca",
+   "acao": "parado"
+  },
+  {
+   "grupo": 9,
+   "id": "synccriatura:carrapato_de_ferro",
+   "a3": "cima_carrapato_de_ferro",
+   "acao": "parado"
+  },
+  {
+   "grupo": 9,
+   "id": "synccriatura:insetoide_predador_1",
+   "a3": "cima_insetoide_predador_1",
+   "acao": "parado"
+  },
+  {
+   "grupo": 9,
+   "id": "synccriatura:parasita_carniceiro~101",
+   "a3": "cima_parasita_carniceiro",
+   "acao": "parado"
+  },
+  {
+   "grupo": 9,
+   "id": "synccriatura:enxame_mordedor",
+   "a3": "cima_enxame_mordedor",
+   "acao": "parado"
+  },
+  {
+   "grupo": 9,
+   "id": "synccriatura:criatura_de_calico_1~101",
+   "a3": "cima_criatura_de_calico_1",
+   "acao": "parado"
+  },
+  {
+   "grupo": 9,
+   "id": "synccriatura:zumbi_1",
+   "a3": "cima_zumbi_1",
+   "acao": "parado"
+  },
+  {
+   "grupo": 9,
+   "id": "synccriatura:cadaver_de_chefe",
+   "a3": "cima_cadaver_de_chefe",
+   "acao": "parado"
+  },
+  {
+   "grupo": 9,
+   "id": "synccriatura:vampiro_generico",
+   "a3": "cima_vampiro_generico",
+   "acao": "parado"
+  },
+  {
+   "grupo": 9,
+   "id": "synccriatura:montariapterodatil~101",
+   "a3": "cima_montariapterodatil",
+   "acao": "parado"
+  },
+  {
+   "grupo": 9,
+   "id": "synccriatura:dragao_trombeta_alado_selvagem~101",
+   "a3": "cima_dragao_trombeta_alado_selvagem",
+   "acao": "parado"
+  },
+  {
+   "grupo": 9,
+   "id": "synccriatura:vespa_de_vidro~101",
+   "a3": "cima_vespa_de_vidro",
+   "acao": "parado"
+  },
+  {
+   "grupo": 9,
+   "id": "synccriatura:dragao_trombeta_alado_domesticado~101",
+   "a3": "cima_dragao_trombeta_alado_domesticado",
+   "acao": "parado"
+  },
+  {
+   "grupo": 9,
+   "id": "synccriatura:dragao_trombeta_corredor_domesticado~101",
+   "a3": "cima_dragao_trombeta_corredor_domesticado",
+   "acao": "parado"
+  },
+  {
+   "grupo": 9,
+   "id": "synccriatura:cavalgante_prismatico~101",
+   "a3": "cima_cavalgante_prismatico",
+   "acao": "parado"
+  },
+  {
+   "grupo": 9,
+   "id": "synccriatura:larva_interdimensional",
+   "a3": "cima_larva_interdimensional",
+   "acao": "parado"
+  },
+  {
+   "grupo": 9,
+   "id": "synccriatura:criatura_de_calico_2~101",
+   "a3": "cima_criatura_de_calico_2",
+   "acao": "parado"
+  },
+  {
+   "grupo": 9,
+   "id": "synccriatura:predador_de_nevoa",
+   "a3": "cima_predador_de_nevoa",
+   "acao": "parado"
+  },
+  {
+   "grupo": 9,
+   "id": "synccriatura:caçador_de_nevoa~101",
+   "a3": "cima_cacador_de_nevoa",
+   "acao": "parado"
+  },
+  {
+   "grupo": 9,
+   "id": "synccriatura:besta_ululante~101",
+   "a3": "cima_besta_ululante",
+   "acao": "parado"
+  },
+  {
+   "grupo": 9,
+   "id": "synccriatura:dragao_trombeta_corredor_selvagem~101",
+   "a3": "cima_dragao_trombeta_corredor_selvagem",
+   "acao": "parado"
+  },
+  {
+   "grupo": 9,
+   "id": "synccriatura:serpente_sanguessuga",
+   "a3": "cima_serpente_sanguessuga",
+   "acao": "parado"
+  },
+  {
+   "grupo": 9,
+   "id": "synccriatura:predador_couracado~101",
+   "a3": "cima_predador_couracado",
+   "acao": "parado"
+  },
+  {
+   "grupo": 9,
+   "id": "synccriatura:cila~101",
+   "a3": "cima_cila",
+   "acao": "parado"
+  }
+ ]
+}

@@ -1,19 +1,24 @@
 const fs=require('fs'),path=require('path'),assert=require('assert/strict');
 const {chromium}=require('C:/Users/yurzi/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
 const dir=path.join(__dirname,'../js');
+// Contrato entre o payload real do navegador e os campos aceitos nas regras.
+// Não substitui testes de autorização no emulador Firestore.
+const rules=fs.readFileSync(path.join(__dirname,'../firestore.rules'),'utf8');
+const positionFields=[...rules.slice(rules.indexOf('function posicaoValida()')).split('hasOnly([')[1].split(']')[0].matchAll(/'([^']+)'/g)].map(m=>m[1]);
 (async()=>{
- const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'});
+ const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'});
  const store={},listeners=[],errors=[];let lock=Promise.resolve(),release;
  const statePath='combatesAtivos/mapaMesaSyncDireta/posicoes';
- store[statePath+'/pm']={nome:'Mestre',donoUid:'master',x:5,y:5,revision:0};
- store[statePath+'/pj']={nome:'Jogador',donoUid:'player',x:10,y:5,revision:0};
+ store[statePath+'/pm']={nome:'Mestre',donoUid:'master',x:5,y:5,revision:0,mapaId:'a'};
+ store[statePath+'/pj']={nome:'Jogador',donoUid:'player',x:10,y:5,revision:0,mapaId:'a'};
+ store['combatesAtivos/mapaMesaSyncDireta']={mapId:'a',larguraM:28,alturaM:14};
  const emit=async p=>{for(const l of [...listeners])if(l.document?p===l.path:p.startsWith(l.path+'/'))await l.page.evaluate(({id,data})=>window.callbacks[id]?.(data),{id:l.id,data:l.document?(store[p]||null):[{id:p.split('/').pop(),data:store[p]||{},removed:!store[p]}]}).catch(()=>{});};
  async function pageFor(uid,master){
   const context=await browser.newContext({viewport:{width:1800,height:1200}}),page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
   await page.exposeBinding('dbCall',async(_,op,arg)=>{
    if(op==='lock'){const previous=lock;let ownRelease;lock=new Promise(r=>{ownRelease=r;});await previous;release=ownRelease;return;}
    if(op==='get')return store[arg]||null;
-   if(op==='commit'){await new Promise(r=>setTimeout(r,250));for(const [p,v] of arg){if(v===null)delete store[p];else store[p]=v;}release();for(const [p]of arg)await emit(p);return;}
+   if(op==='commit'){await new Promise(r=>setTimeout(r,250));for(const [p,v] of arg){if(v&&p.startsWith(statePath+'/'))for(const key of Object.keys(v))assert.ok(positionFields.includes(key),'Campo de posição recusado pelas regras: '+key);if(v===null)delete store[p];else store[p]=v;}release();for(const [p]of arg)await emit(p);return;}
    if(op==='write'){store[arg.path]=arg.data;await emit(arg.path);return;}
    if(op==='remove'){delete store[arg];return;}
    if(op==='read')return Object.entries(store).filter(([p,d])=>p.startsWith(arg+'/')&&d.status==='new').map(([path,data])=>({path,data}));
@@ -45,7 +50,7 @@ const dir=path.join(__dirname,'../js');
     writeMap:(path,data)=>dbCall('write',{path,data})
    };
    const {mountDirectPositionLab}=await import('/nova-direta.js');const {acaoIniciativa}=await import('/nova-turnos.js');
-   window.lab=mountDirectPositionLab({database:db,user:()=>({uid,master}),characters:()=>[],catalog:()=>[{id:'npc:guarda',nome:'Guarda',donoUid:'',catalogType:'npc'},...['pj','pm','monstro','objeto','item'].map(type=>({id:type+'extra',nome:type,catalogType:type,imagem:'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg"/%3E'}))],loadActions:async()=>({skills:[{id:'per',nome:'Percepção',valor:50,weapons:[],descricao:'Observe o ambiente'},{id:'laser',nome:'Pistolas de Energia',valor:80,attack:true,weapons:[{id:'laser',nome:'Pistola Laser',ammunition:{key:'laser',capacity:6}},{id:'blaster',nome:'Blaster de Palma',ammunition:{key:'blaster',capacity:4}}]}],health:{hitMax:{'Cabeça':6,'Peito':8,'Abdômen':7,'Braço Direito':5,'Braço Esquerdo':5,'Perna Direita':6,'Perna Esquerda':6},hit:{'Cabeça':6,'Peito':8,'Abdômen':7,'Braço Direito':5,'Braço Esquerdo':5,'Perna Direita':6,'Perna Esquerda':6},armor:{}},pvHtml:'<span>PV 5/5 · PA 0</span>'}),prepareSupport:async()=>({resolve:({a,health,map})=>({actors:health.actors||{},combat:map.combat?.active?acaoIniciativa(map.combat,'spend',map.combat.turnId):map.combat,message:a.nome+' · Percepção: 25/50 → Sucesso'})}),prepareAttack:async(actor,target,command)=>(freshActor,freshTarget,health)=>({actors:{[actor.id]:{...health[actor.id],municaoLab:{...health[actor.id]?.municaoLab,[command.weaponId]:(health[actor.id]?.municaoLab?.[command.weaponId]??(command.weaponId==='laser'?6:4))-1}}},event:{message:'Ataque confirmado',hit:true,damage:2,item:{nome:'Pistola Laser'}}}),restoreHealth:async rows=>Object.fromEntries(rows.map(token=>[token.id,{municaoLab:{}}])),rollTest:()=>({die:25,grau:'Sucesso'}),loadCombatants:async rows=>rows.map(t=>({...t,initiative:t.id==='pj'?20:0,actions:t.id==='pj'?2:3}))});
+   window.lab=mountDirectPositionLab({mapas:()=>[{id:'a',nome:'A'}],loadMap:async id=>({id,nome:'A',larguraM:28,alturaM:14}),database:db,user:()=>({uid,master}),characters:()=>window.ownSheets||[{id:'pj',nome:'Jogador',localizacaoMapaId:'a'}],activeCharacter:()=>'pj',catalog:()=>[{id:'npc:guarda',nome:'Guarda',donoUid:'',catalogType:'npc'},...['pj','pm','monstro','objeto','item'].map(type=>({id:type+'extra',nome:type,catalogType:type,imagem:'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg"/%3E'}))],loadActions:async()=>({skills:[{id:'per',nome:'Percepção',valor:50,weapons:[],descricao:'Observe o ambiente'},{id:'laser',nome:'Pistolas de Energia',valor:80,attack:true,weapons:[{id:'laser',nome:'Pistola Laser',ammunition:{key:'laser',capacity:6}},{id:'blaster',nome:'Blaster de Palma',ammunition:{key:'blaster',capacity:4}}]}],health:{hitMax:{'Cabeça':6,'Peito':8,'Abdômen':7,'Braço Direito':5,'Braço Esquerdo':5,'Perna Direita':6,'Perna Esquerda':6},hit:{'Cabeça':6,'Peito':8,'Abdômen':7,'Braço Direito':5,'Braço Esquerdo':5,'Perna Direita':6,'Perna Esquerda':6},armor:{}},pvHtml:'<span>PV 5/5 · PA 0</span>'}),prepareSupport:async()=>({resolve:({a,health,map})=>({actors:health.actors||{},combat:map.combat?.active?acaoIniciativa(map.combat,'spend',map.combat.turnId):map.combat,message:a.nome+' · Percepção: 25/50 → Sucesso'})}),prepareAttack:async(actor,target,command)=>(freshActor,freshTarget,health)=>({actors:{[actor.id]:{...health[actor.id],municaoLab:{...health[actor.id]?.municaoLab,[command.weaponId]:(health[actor.id]?.municaoLab?.[command.weaponId]??(command.weaponId==='laser'?6:4))-1}}},event:{message:'Ataque confirmado',hit:true,damage:2,item:{nome:'Pistola Laser'}}}),restoreHealth:async rows=>Object.fromEntries(rows.map(token=>[token.id,{municaoLab:{}}])),rollTest:()=>({die:25,grau:'Sucesso'}),loadCombatants:async rows=>rows.map(t=>({...t,initiative:t.id==='pj'?20:0,actions:t.id==='pj'?2:3}))});
 
    await lab.open();
   },{uid,master});
@@ -80,7 +85,7 @@ const dir=path.join(__dirname,'../js');
   assert.ok(store[statePath+'/pm'].x>6.9);
   assert.deepEqual(errors,[]);
   console.log('PASS cliques simultâneos convergem em documentos separados, sem setas');
-  await master.locator('#novaSyncStart').click();
+  await master.locator('#novaSyncStart').evaluate(b=>b.click());
   await player.waitForFunction(()=>document.querySelector('#novaSyncTurno').textContent.includes('Sua vez'));
   assert.equal(await master.locator('#novaSyncNext').isDisabled(),true,'mestre não passa pelo jogador');
   const combatPath='combatesAtivos/mapaMesaSyncDireta';
@@ -118,7 +123,7 @@ const dir=path.join(__dirname,'../js');
   assert.equal(JSON.stringify(store[combatPath].combat.rolls),rolls);
   assert.equal(store[combatPath].combat.actors.pj.remaining,2);
   assert.equal(store[combatPath].combat.actors.pm.remaining,3);
-  await master.locator('#novaSyncEnd').click();
+  await master.locator('#novaSyncEnd').evaluate(b=>b.click());
   await player.waitForFunction(()=>document.querySelector('#novaSyncTurno').textContent.includes('Modo explorador'));
   await walkTo(player,26,origin.y);
   await player.waitForFunction(()=>!document.querySelector('#novaSyncStatus').textContent.includes('salvando'));
@@ -149,17 +154,17 @@ const dir=path.join(__dirname,'../js');
   await master.locator('#novaSyncCatalog summary').click();
   await master.locator('#novaSyncMestreTipo').selectOption('objeto');
   await master.waitForFunction(()=>document.querySelectorAll('#novaSyncCatalogGrid img').length===1);
-  await master.locator('#novaSyncCatalogGrid button').click();
+  await master.locator('#novaSyncCatalogGrid .nova-catalog-card').click();
   await master.locator('#novaSyncAdicionar').click();
   await placeAt(master,6,6);
   await player.waitForFunction(()=>document.querySelectorAll('[data-scene-object]').length===1);
   assert.equal(store['combatesAtivos/mapaMesaSyncDiretaCena'].objects[0].tipo,'objeto');
   assert.equal(store[combatPath].scene,undefined,'objetos não pesam no documento usado para movimento');
   assert.equal(Object.keys(store).filter(p=>p.startsWith(statePath+'/')).length,3,'objeto não vira personagem');
-  assert.equal(await master.locator('#novaSyncStart').isVisible(),true);
+  assert.equal(await master.locator('#novaSyncStart').isEnabled(),true); // v143: o botão fica escondido (turnos só pelo balão ⚡), mas continua disponível
   assert.equal(await master.locator('#novaSyncEnd').isVisible(),false);
-  await master.locator('#novaSyncStart').click();
-  await master.waitForFunction(()=>document.querySelector('#novaSyncEnd').hidden===false);
+  await master.locator('#novaSyncStart').evaluate(b=>b.click());
+  await master.waitForFunction(()=>document.querySelector('#novaSyncEnd').disabled===false);
   assert.equal(await master.locator('#novaSyncStart').isVisible(),false);
   const order=[...store[combatPath].combat.order];
   for(const id of order){
@@ -180,7 +185,7 @@ const dir=path.join(__dirname,'../js');
   assert.equal(store[combatPath].combat.actors.pj.remaining,beforeActions-1);
   assert.deepEqual(errors,[]);
   console.log('PASS galeria sob demanda, objeto compartilhado, botão contextual, retorno do NPC e teste gastando Ação');
-  await master.locator('#novaSyncEnd').click();
+  await master.locator('#novaSyncEnd').evaluate(b=>b.click());
   await master.locator('#novaSyncQuickSearch').fill('item · Item');
   await master.locator('#novaSyncQuickAdd').click();
   await player.waitForFunction(()=>document.querySelectorAll('[data-scene-object]').length===2);
@@ -199,10 +204,10 @@ const dir=path.join(__dirname,'../js');
   assert.equal(await player.locator('#novaSyncBoard').evaluate(element=>element.clientWidth),1344);
   assert.equal(await player.locator('#novaSyncBoard').evaluate(element=>element.clientHeight),672);
   assert.equal(await master.locator('#novaSyncMasterPanel #novaSyncPersonagem').count(),1);
-  assert.equal(await player.locator('#novaSyncActionPanel select').count(),3);
+  assert.equal(await player.locator('#novaSyncActionPanel select').count(),2); // perícia e arma; o alvo de cenário só aparece quando há objeto destrutível
   await master.locator('#novaSyncPersonagem').selectOption('pj');
   await master.waitForFunction(()=>document.querySelector('#novaSyncActionPanel').textContent.includes('Ação de Jogador'));
-  await master.locator('#novaSyncStart').click();
+  await master.locator('#novaSyncStart').evaluate(b=>b.click());
   await player.waitForFunction(()=>!document.querySelector('#novaSyncNext').disabled);
   assert.equal(await master.locator('#novaSyncPersonagem').inputValue(),'__automatico__');
   assert.equal(await master.locator('#novaSyncNext').isVisible(),true);
@@ -221,7 +226,7 @@ const dir=path.join(__dirname,'../js');
   assert.equal(store[combatPath].combat.actors.pj.remaining,0);
   await master.waitForFunction(()=>document.querySelector('#novaSyncPersonagem').value!=='__mestre__');
   assert.notEqual(await master.locator('#novaSyncPersonagem').inputValue(),'pj','mestre acompanha somente os seus participantes');
-  await master.locator('#novaSyncEnd').click();
+  await master.locator('#novaSyncEnd').evaluate(b=>b.click());
   await master.locator('#novaSyncRestore').click();
   await player.waitForFunction(()=>document.querySelector('#novaSyncAmmo').textContent==='6 / 6');
   assert.equal(await player.locator('[data-map-action]').count(),0);
@@ -233,12 +238,17 @@ const dir=path.join(__dirname,'../js');
   assert.ok(Math.abs(store[statePath+'/pj'].x-playerBefore+1)<.03,'mestre move PJ um metro');
   const objectBefore=store[scenePath].objects[0].x;
   await drag(master.locator('[data-scene-object]').first(),48,0);
+  assert.equal(store[scenePath].objects[0].x,objectBefore,'edição local não publica antes de salvar');
+  await master.locator('#novaEditSave').click();await master.waitForFunction(()=>!document.querySelector('#novaEditSave').disabled);
   assert.ok(Math.abs(store[scenePath].objects[0].x-objectBefore-1)<.03,'mestre move objeto');
   await master.locator('#novaSyncEditDraw').click();
   const boardRect=await master.locator('#novaSyncBoard').boundingBox();
   await master.mouse.move(boardRect.x+120,boardRect.y+80);await master.mouse.down();await master.mouse.move(boardRect.x+220,boardRect.y+140,{steps:10});await master.mouse.up();
+  assert.equal(await player.locator('[data-ink-layer] polyline').count(),0);
+  await master.locator('#novaEditSave').click();
   await player.waitForFunction(()=>document.querySelectorAll('[data-ink-layer] polyline').length===1);
   await master.locator('#novaSyncEditUndo').click();
+  await master.locator('#novaEditSave').click();
   await player.waitForFunction(()=>document.querySelectorAll('[data-ink-layer] polyline').length===0);
   assert.equal(await player.locator('#novaSyncEditorTools').isVisible(),false);
   await master.locator('#novaSyncPersonagem').selectOption('pj');
@@ -256,6 +266,23 @@ const dir=path.join(__dirname,'../js');
   assert.equal(JSON.stringify(store[scenePath]),sceneBefore,'limpar preserva objetos e cenário');
   assert.deepEqual(store[healthPath].actors,{});
   assert.equal(store[combatPath].combat,undefined);
+  await master.locator('#novaSyncPersonagem').selectOption('__mestre__');
+  await master.locator('#novaSyncShape').selectOption('rect');await master.locator('#novaEditBlock').check();await master.locator('#novaEditLayer').fill('3');
+  await master.locator('#novaSyncBoard').scrollIntoViewIfNeeded();const shapeRect=await master.locator('#novaSyncBoard').boundingBox();
+  const countBefore=store[scenePath].objects.length;
+  await master.mouse.move(shapeRect.x+90,shapeRect.y+90);await master.mouse.down();await master.mouse.move(shapeRect.x+200,shapeRect.y+140,{steps:5});await master.mouse.up();
+  assert.equal(store[scenePath].objects.length,countBefore);
+  await master.waitForFunction(n=>document.querySelectorAll('[data-scene-object]').length===n,countBefore+1);
+  await master.locator('#novaEditSave').click();await player.waitForFunction(n=>document.querySelectorAll('[data-scene-object]').length===n,countBefore+1);
+  const wall=store[scenePath].objects.at(-1);assert.equal(wall.forma,'rect');assert.equal(wall.bloqueiaMovimento,true);assert.equal(wall.camada,3);
+  await master.locator('#novaSyncShape').selectOption('move');await master.locator('#novaSyncObjectEdit').selectOption(wall.id);
+  await master.locator('#novaSyncRemove').click();assert.equal(store[scenePath].objects.length,countBefore+1);
+  await master.locator('#novaEditSave').click();await player.waitForFunction(n=>document.querySelectorAll('[data-scene-object]').length===n,countBefore);
+  store['personagens/newplayer']={nome:'Novo PJ',dono:'player'};
+  await player.evaluate(()=>{window.ownSheets=[{id:'newplayer',nome:'Novo PJ',dono:'player'}];window.dispatchEvent(new CustomEvent('personagem-selecionado',{detail:'newplayer'}));});
+  await player.locator('#novaSyncJoin').evaluate(b=>b.click());await master.waitForFunction(()=>document.querySelector('[data-token="newplayer"]'));
+  assert.equal(store[statePath+'/newplayer'].donoUid,'player');assert.equal(store[combatPath].joined.newplayer,true);
+  console.log('PASS formas e remoção publicadas só ao salvar; jogador entra com a própria ficha');
   assert.deepEqual(errors,[]);
   console.log('PASS posições aleatórias sem sobreposição e limpar preservando cenário nas duas contas');
 

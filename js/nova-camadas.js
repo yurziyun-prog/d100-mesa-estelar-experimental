@@ -1,5 +1,5 @@
 export const camadaEntidade=e=>Number.isFinite(Number(e?.camada))?Number(e.camada):3;
-export function ordenarCamadas(nodes){return [...nodes].sort((a,b)=>camadaEntidade(a)-camadaEntidade(b)||(a.token?1:0)-(b.token?1:0));}
+export function ordenarCamadas(nodes){return [...nodes].sort((a,b)=>camadaEntidade(a)-camadaEntidade(b)||(a.token?1:0)-(b.token?1:0)||(a.alt||0)-(b.alt||0));} // v205: dentro da mesma camada, quem está mais alto (voo) é desenhado por cima
 // Exact sweep of a circle against a rotated rectangular footprint (rounded corners).
 export function impactoObjeto(start,end,radius,o){
  const angle=-(Number(o.angulo)||0)*Math.PI/180,c=Math.cos(angle),s=Math.sin(angle);

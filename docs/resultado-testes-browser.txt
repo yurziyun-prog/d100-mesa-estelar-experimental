@@ -1,0 +1,60 @@
+direta-browser :: PASS jogador move e salva sem nenhuma sessão do mestre; resposta local imediata PASS cliques simultâneos convergem em documentos separados, sem setas 
+map-render-browser :: PASS objeto nativo da Oficina movido sem reconstruir a pintura 
+movimento-trajeto-browser :: PASS jogador contorna personagem com confirmação atrasada, inclusive após o mestre mover, e não volta ao soltar 
+nova-browser :: PASS comando enviado antes do mestre conectar é recuperado e confirmado nas duas telas PASS botões do mestre e arraste do jogador atualizam as mesmas posições nas duas telas 
+nova-camadas-browser :: PASS camadas mestre/jogador: piso abaixo, copa acima, parede bloqueia e mudança para camada superior libera passagem. 
+nova-criaturas-browser :: PASS navegador: tabela de criaturas recalcula Base + Treino e salva somente treino. 
+nova-dano-objetos-browser :: PASS objeto pelo painel: ação/munição, destruição sincronizada, restos visíveis e novo ataque desabilitado. 
+nova-efeitos-browser :: PASS navegador: escolha de efeito/local, gasto único e Anoitecer opaco só para outros jogadores. 
+nova-fogo-browser :: PASS fogo compartilhado e extintor pelo painel: uma ação e uma carga, chama removida nas duas contas. 
+direta-browser :: PASS jogador move e salva sem nenhuma sessão do mestre; resposta local imediata PASS cliques simultâneos convergem em documentos separados, sem setas 
+nova-objetos-browser :: PASS objetos salvos: mestre/jogador, importação única, sem desenho duplicado, troca de mapas conserva PV zero. 
+map-render-browser :: PASS objeto nativo da Oficina movido sem reconstruir a pintura 
+nova-oficina-browser :: PASS Oficina 2 real: pincéis, espessura, forma, camada, salvar e retorno ao painel original 
+movimento-trajeto-browser :: PASS jogador contorna personagem com confirmação atrasada, inclusive após o mestre mover, e não volta ao soltar 
+nova-browser :: PASS comando enviado antes do mestre conectar é recuperado e confirmado nas duas telas PASS botões do mestre e arraste do jogador atualizam as mesmas posições nas duas telas 
+v189-personagem-teste-browser :: PASS armadilha: percebe (Percepção), salta por cima (Atletismo), e quando falha o salto cai nela e leva dano PASS alavanca emperrada: Força Bruta falha e depois destrava; a cela do arsenal abre 
+nova-camadas-browser :: PASS camadas mestre/jogador: piso abaixo, copa acima, parede bloqueia e mudança para camada superior libera passagem. 
+v190-browser :: PASS [1280px] estrutura: ligação quebrada tirada, masmorra (com poço) e 3 mapa(s) ligados, tudo num grupo só, idempotente PASS [1280px] itens: Kit Médico cura e estanca, Café melhora a Fadiga (e
+nova-criaturas-browser :: PASS navegador: tabela de criaturas recalcula Base + Treino e salva somente treino. 
+nova-dano-objetos-browser :: PASS objeto pelo painel: ação/munição, destruição sincronizada, restos visíveis e novo ataque desabilitado. 
+nova-efeitos-browser :: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal: 
+v191-browser :: PASS montou o módulo real de posições com a cena da masmorra (449 objetos) PASS [movimento real] Kael anda para todos os lados no Quarto, a parede o segura e ele continua livre 
+nova-fogo-browser :: PASS fogo compartilhado e extintor pelo painel: uma ação e uma carga, chama removida nas duas contas. 
+nova-objetos-browser :: PASS objetos salvos: mestre/jogador, importação única, sem desenho duplicado, troca de mapas conserva PV zero. 
+v193-rascunho-browser :: PASS rascunho do mapa: edita sem gravar, não salva sozinho, grava só ao clicar em Salvar 
+nova-oficina-browser :: PASS Oficina 2 real: pincéis, espessura, forma, camada, salvar e retorno ao painel original 
+v195-controle-site-browser :: PASS controle no site: foco por setas, A aperta, LB/RB trocam de aba, alavanca direita rola {"p1":"t1","p2":"t2","p3":"b2","fez":"b2","abaRB":"mapa","ativa":"t2","ativa2":"t3","ativa3":"t2","rolou":tr
+v196-browser :: PASS montou o módulo real de posições com a cena do Núcleo v196 (417 objetos) PASS [movimento real] Kael anda nas Docas, a blindagem o segura, porta fechada bloqueia, passagem aberta libera 
+v189-personagem-teste-browser :: PASS armadilha: percebe (Percepção), salta por cima (Atletismo), e quando falha o salto cai nela e leva dano PASS alavanca emperrada: Força Bruta falha e depois destrava; a cela do arsenal abre 
+v196-construtor-browser :: PASS construtor pelo controle: avatar do tamanho dos outros, anda, põe na hora (36 ms), sem duplicar, quebra, paleta com pisos e móveis, gira, salva (2 objetos) 
+v190-browser :: PASS [1280px] estrutura: ligação quebrada tirada, masmorra (com poço) e 3 mapa(s) ligados, tudo num grupo só, idempotente PASS [1280px] itens: Kit Médico cura e estanca, Café melhora a Fadiga (e
+v196-escala-browser :: PASS escala: grade desligada; Kael e Brunel com 1 m; visão ampliada para jogador e construtor 
+v191-browser :: PASS montou o módulo real de posições com a cena da masmorra (449 objetos) PASS [movimento real] Kael anda para todos os lados no Quarto, a parede o segura e ele continua livre 
+v193-rascunho-browser :: PASS rascunho do mapa: edita sem gravar, não salva sozinho, grava só ao clicar em Salvar 
+v195-controle-site-browser :: PASS controle no site: foco por setas, A aperta, LB/RB trocam de aba, alavanca direita rola {"p1":"t1","p2":"t2","p3":"b2","fez":"b2","abaRB":"mapa","ativa":"t2","ativa2":"t3","ativa3":"t2","rolou":tr
+v196-browser :: PASS montou o módulo real de posições com a cena do Núcleo v196 (417 objetos) PASS [movimento real] Kael anda nas Docas, a blindagem o segura, porta fechada bloqueia, passagem aberta libera 
+v196-construtor-browser :: PASS construtor pelo controle: avatar do tamanho dos outros, anda, põe na hora (25 ms), sem duplicar, quebra, paleta com pisos e móveis, gira, salva (2 objetos) 
+v196-escala-browser :: PASS escala: grade desligada; Kael e Brunel com 1 m; visão ampliada para jogador e construtor 
+v197-editor-rapido-browser :: PASS editor rápido: parede fina em linha, diagonal, cerca, caverna, cômodo, porta/janela do tamanho da parede, pisos, poças, móveis, luz, texto, modelos, zoom, NPC não atravessa, mapa novo do zer
+v199-gerador-mapas-browser :: PASS gerador de mapas: masmorra 349 peças, cidade 274, exterior 481; rascunho, semente repetível, desfaz tudo, dentro do mapa, mapa novo 
+v199-gerador-npc-browser :: PASS gerador de NPCs e criaturas: 7 papéis/16 raças/33 carreiras/29 criaturas, semente repetível, ficha completa, salvar no banco, colocar NPC e criaturas com a miniatura artística (corpo inteiro)
+v200-atitudes-browser :: SEM SAÍDA
+v197-editor-rapido-browser :: PASS editor rápido: parede fina em linha, diagonal, cerca, caverna, cômodo, porta/janela do tamanho da parede, pisos, poças, móveis, luz, texto, modelos, zoom, NPC não atravessa, mapa novo do zer
+v200-chao-browser :: PASS chão: arrastar o chão move a tela e não o chão; os outros objetos continuam arrastáveis. 
+v199-gerador-mapas-browser :: PASS gerador de mapas: masmorra 349 peças, cidade 274, exterior 481; rascunho, semente repetível, desfaz tudo, dentro do mapa, mapa novo 
+v199-gerador-npc-browser :: PASS gerador de NPCs e criaturas: 7 papéis/16 raças/33 carreiras/29 criaturas, semente repetível, ficha completa, salvar no banco, colocar NPC e criaturas com a miniatura artística (corpo inteiro)
+v201-terreno-browser :: PASS terreno natural: espessura livre, planalto (rocha + topo elevado + rampas), colinas escarpadas, caverna natural e pincel de rocha. 
+v202-duelo-browser :: duelo sanguinária × agressiva, posições finais: 15.1,6.6 | 12.8,6.5 ataque: ⚡ Carniçal Dominante morde Cadáver de trabalhador e erra erros: [Diretor] criaturas SyntaxError: Unexpected end of i
+v202-zumbi-browser :: PASS zumbi sanguinário caça à distância; sem anel/bolinha; sem sobreposição 
+v200-atitudes-browser :: SEM SAÍDA
+v200-chao-browser :: PASS chão: arrastar o chão move a tela e não o chão; os outros objetos continuam arrastáveis. 
+v201-terreno-browser :: PASS terreno natural: espessura livre, planalto (rocha + topo elevado + rampas), colinas escarpadas, caverna natural e pincel de rocha. 
+v202-duelo-browser :: duelo sanguinária × agressiva, posições finais: 13.0,6.6 | 10.9,6.7 ataque: ⚡ Carniçal Dominante morde Cadáver de trabalhador (3) erros: [Diretor] criaturas SyntaxError: Unexpected end of inpu
+v202-zumbi-browser :: PASS zumbi sanguinário caça à distância; sem anel/bolinha; sem sobreposição 
+v203-ecossistema-browser :: TypeError: Cannot read properties of undefined (reading 'x') 
+v203-pincel-browser :: CONSOLE warning [Gerador de mapas] cena grande demais; salvando só o desenho. Error: O cenário preparado tem 1098 KB e excede o limite seguro de 830 KB. As edições continuam no rascunho. CONSOLE w
+FIM
+v203-ecossistema-browser :: PASS mapa de teste (ecossistema) criado 
+v203-pincel-browser :: CONSOLE warning [Gerador de mapas] cena grande demais; salvando só o desenho. Error: O cenário preparado tem 1003 KB e excede o limite seguro de 830 KB. As edições continuam no rascunho. CONSOLE w
+FIM

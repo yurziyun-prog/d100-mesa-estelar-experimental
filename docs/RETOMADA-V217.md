@@ -1,0 +1,1 @@
+v217 publicada em 28/10/2026. Hosting concluiu e quatro módulos remotos foram comparados byte a byte com a montagem local. 788 testes passaram; testes Edge de interface, IA e sequência clique/J/arrasto/Espaço passaram com banco simulado. Ver docs/atualizacoes/ATUALIZACAO-217.md para limites e teste autenticado ainda necessário.

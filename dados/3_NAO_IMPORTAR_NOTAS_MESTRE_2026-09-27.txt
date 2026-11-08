@@ -1,0 +1,55 @@
+NÃO IMPORTAR ESTE ARQUIVO — NOTAS DO MESTRE / ORDEM DE USO
+
+ARQUIVOS PARA IMPORTAR
+1) 1_CENARIOS_IMPORTAR_ATUALIZAR_2026-09-27.csv
+   - 10 registros de cenário.
+   - Atualiza: C006, C012, C013, C015, C017.
+   - Cria/atualiza: C022, C023, C024, C025, C026.
+   - Já contém os mapaId dos quatro mapas novos onde apropriado.
+
+2) 2_MAPAS_IMPORTAR_ATUALIZAR_2026-09-27.csv
+   - 4 mapas estruturais novos:
+     • v95_terraco_fundadores
+     • v95_tribunal_aberto
+     • v95_residencia_ilu
+     • v95_pavilhao_custodia
+   - São mapas funcionais feitos principalmente com formas da Oficina 2, evitando reutilizar as árvores/rochas antigas que você considerou feias.
+   - O Porto Alto está representado como uma ala do mapa Terraço dos Fundadores e como cenário C026.
+   - O Bosque de Vidro-Pálido NÃO ganhou mapa novo nesta entrega. O cenário C015 foi corrigido conceitualmente, mas mapaId ficou vazio para não vincular novamente o mapa antigo de copas verdes.
+
+CÂNONE CONSOLIDADO
+• A Cidade Superior é mais espaçosa, limpa e bem mantida: parques, chafarizes, jardins, cúpulas de vidro inteligente, monumentos e um porto privilegiado.
+• A iconografia de Maelkor/Vaelkor e de seus ancestrais é mais importante na Cidade Superior do que Vallotton.
+• Vallotton é central na memória popular da Cidade Baixa por ter garantido metade do Conselho a representantes eleitos de baixo.
+• Anos depois, Vallotton retornou como comandante e impediu uma rebelião contra Vaelkor. Provavelmente já estava parasitado.
+• Vaelkor não pode entrar nem aproximar-se pessoalmente de Véspera além da faixa de exclusão definida no acordo com Maelia. Drones e agentes podem entrar.
+• O convite planejado é para um banquete no palácio em sete dias. Não foi fixado transporte: os personagens podem ter de atravessar o deserto de meteoros, encontrar transporte fora da zona protegida ou descobrir outras rotas.
+• Existe uma cota secreta de prisioneiros enviados como alimento aos vampiros. Quando faltam condenados, crimes são fabricados ou penas agravadas, atingindo sobretudo a Cidade Baixa.
+• Maelia sabe e aceita o pacto como um mal que acredita evitar mortes indiscriminadas.
+• Darek Sol e Dra. Ilya Nemer sabem e desejam combater o sistema.
+• Ilü-Mus-Ki sabe, mas é pragmático e neutro; sua grande exceção moral é Vallotton.
+
+PEDRA DE FASE / ILÜ-MUS-KI
+• A Pedra de Fase é um mineral estratégico, NÃO um meteorito parasitado.
+• Vallotton entregou a Ilü uma amostra e informou com precisão a localização de uma jazida em Calico.
+• Ilü conseguiu autorização de Vaelkor para minerar e comercializar.
+• O Império enviou robôs para proteger a jazida; após o colapso, parte deles se dispersou por Calico.
+• A mina foi o capital inicial de Ilü; sua fortuna maior veio depois, do comércio externo.
+• Jazidas de Pedra de Fase têm assinaturas cristalinas/isotópicas particulares.
+• Anos depois, Ilü descobriu que a amostra recebida de Vallotton NÃO veio da jazida de Calico nem do planeta. Ela corresponde a uma antiga fonte de mineração imperial fora de Calico.
+• Qozae, por ter sido minerador, pode reconhecer como plausível que análises minerais identifiquem a origem de uma amostra.
+• Possibilidade de bastidor: Vallotton era agente/investigador imperial. A exploração civil de Ilü pode ter servido de fachada para um interesse imperial prévio em Calico.
+
+VALLotton / VAELKOR / QOZAE — HIPÓTESE DE BASTIDOR
+• O Império reconhecia a casa de Vaelkor, mas isso não significa que tolerasse um parasita capaz de infiltrar a aristocracia.
+• Vallotton pode ter investigado o parasita, a casa de Vaelkor, a jazida estratégica e uma operação imperial relacionada ao bloqueio de Calico.
+• O parasita preservou as memórias de Vallotton, mas pode não conseguir acessá-las integralmente.
+• Vaelkor pode desejar aproximar Qozae de Vallotton para provocar memórias ligadas ao irmão e acessar informações que continuam bloqueadas.
+• A mensagem “não venha me procurar” pode ter sido realmente enviada por Vallotton, manipulada por Vaelkor, ou descoberta por ele apenas depois. Não fechar essa resposta ainda.
+
+PENDÊNCIAS DO SITE — NÃO SÃO BANCOS DE DADOS
+• Criar uma visão/banco unificado de Personagens para PJ + PM, sem duplicar PMs no Banco de NPCs.
+• Permitir vincular PJ/PM diretamente aos cenários.
+• Adicionar botão “Imprimir ficha”.
+• Posteriormente refazer o banco de objetos visuais com mobiliário e natureza top-down de qualidade melhor.
+• Refazer o Bosque de Vidro-Pálido somente quando houver árvores, rochas e troncos realistas aceitáveis.

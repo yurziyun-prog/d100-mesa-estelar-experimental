@@ -1,0 +1,586 @@
+{
+ "duracaoS": 150,
+ "amostras": 1691,
+ "foraDeHabitat": 86,
+ "ativ": {
+  "forragear": 1061,
+  "pastar": 198,
+  "explorar": 239,
+  "nadar": 114,
+  "esconder": 247,
+  "beber": 172,
+  "construir_abrigo": 9
+ },
+ "acoes": {
+  "synccriatura:criatura_de_calico_2~102|🍃": 7,
+  "synccriatura:criatura_de_calico_1~102|🪓": 2,
+  "synccriatura:criatura_de_calico_2~102|🍎": 3,
+  "synccriatura:criatura_de_calico_1~102|🪨": 7,
+  "synccriatura:parasita_carniceiro~101|💧": 1,
+  "synccriatura:criatura_de_calico_1~102|🕳️": 5,
+  "synccriatura:vampiro_generico~101|💧": 2,
+  "synccriatura:criatura_de_calico_1~101|🍃": 14,
+  "synccriatura:criatura_de_calico_1~102|💧": 6,
+  "synccriatura:larva_interdimensional~103|💧": 3,
+  "synccriatura:criatura_de_calico_2~101|💧": 4,
+  "synccriatura:criatura_de_calico_1~101|💧": 5,
+  "synccriatura:larva_interdimensional~102|🍎": 3,
+  "synccriatura:larva_interdimensional~101|💧": 2,
+  "synccriatura:larva_interdimensional~102|💧": 4,
+  "synccriatura:criatura_de_calico_1~101|🍎": 1,
+  "synccriatura:larva_interdimensional~101|🍎": 1,
+  "synccriatura:criatura_de_calico_2~102|💧": 2,
+  "synccriatura:criatura_de_calico_2~101|🍃": 3,
+  "synccriatura:criatura_de_calico_1~102|🍎": 2
+ },
+ "motivos": {
+  "papel parado (sem deslocamento ou séssil)": 24,
+  "dormindo/na toca": 3,
+  "pausa até N s": 11,
+  "inconsciente": 9,
+  "morto": 3,
+  "em luta no tempo real": 14
+ },
+ "diag": [
+  {
+   "id": "syncnpc:comerciante_generico_humano~1",
+   "papel": "parado",
+   "andando": false,
+   "motivoInatividade": "papel parado (sem deslocamento ou séssil)",
+   "ultimaDecisao": "",
+   "ha": null,
+   "atividade": ""
+  },
+  {
+   "id": "syncnpc:comerciante_generico_insetoide~2",
+   "papel": "parado",
+   "andando": false,
+   "motivoInatividade": "papel parado (sem deslocamento ou séssil)",
+   "ultimaDecisao": "",
+   "ha": null,
+   "atividade": ""
+  },
+  {
+   "id": "syncnpc:comerciante_generico_insetoide~3",
+   "papel": "parado",
+   "andando": false,
+   "motivoInatividade": "papel parado (sem deslocamento ou séssil)",
+   "ultimaDecisao": "",
+   "ha": null,
+   "atividade": ""
+  },
+  {
+   "id": "syncnpc:comerciante_generico_humano~4",
+   "papel": "parado",
+   "andando": false,
+   "motivoInatividade": "papel parado (sem deslocamento ou séssil)",
+   "ultimaDecisao": "",
+   "ha": null,
+   "atividade": ""
+  },
+  {
+   "id": "syncnpc:comerciante_generico_zutariano~5",
+   "papel": "parado",
+   "andando": false,
+   "motivoInatividade": "papel parado (sem deslocamento ou séssil)",
+   "ultimaDecisao": "",
+   "ha": null,
+   "atividade": ""
+  },
+  {
+   "id": "syncnpc:comerciante_generico_robo~6",
+   "papel": "parado",
+   "andando": false,
+   "motivoInatividade": "papel parado (sem deslocamento ou séssil)",
+   "ultimaDecisao": "",
+   "ha": null,
+   "atividade": ""
+  },
+  {
+   "id": "syncnpc:comerciante_generico_nymari~7",
+   "papel": "parado",
+   "andando": false,
+   "motivoInatividade": "papel parado (sem deslocamento ou séssil)",
+   "ultimaDecisao": "",
+   "ha": null,
+   "atividade": ""
+  },
+  {
+   "id": "syncnpc:comerciante_generico_zutariano~8",
+   "papel": "parado",
+   "andando": false,
+   "motivoInatividade": "papel parado (sem deslocamento ou séssil)",
+   "ultimaDecisao": "",
+   "ha": null,
+   "atividade": ""
+  },
+  {
+   "id": "syncnpc:comerciante_generico_grey~9",
+   "papel": "parado",
+   "andando": false,
+   "motivoInatividade": "papel parado (sem deslocamento ou séssil)",
+   "ultimaDecisao": "",
+   "ha": null,
+   "atividade": ""
+  },
+  {
+   "id": "syncnpc:comerciante_generico_nymari~10",
+   "papel": "parado",
+   "andando": false,
+   "motivoInatividade": "papel parado (sem deslocamento ou séssil)",
+   "ultimaDecisao": "",
+   "ha": null,
+   "atividade": ""
+  },
+  {
+   "id": "syncnpc:comerciante_generico_robo~11",
+   "papel": "parado",
+   "andando": false,
+   "motivoInatividade": "papel parado (sem deslocamento ou séssil)",
+   "ultimaDecisao": "",
+   "ha": null,
+   "atividade": ""
+  },
+  {
+   "id": "syncnpc:comerciante_generico_grey~12",
+   "papel": "parado",
+   "andando": false,
+   "motivoInatividade": "papel parado (sem deslocamento ou séssil)",
+   "ultimaDecisao": "",
+   "ha": null,
+   "atividade": ""
+  },
+  {
+   "id": "syncnpc:comerciante_generico_reptiliano~13",
+   "papel": "parado",
+   "andando": false,
+   "motivoInatividade": "dormindo/na toca",
+   "ultimaDecisao": "",
+   "ha": null,
+   "atividade": ""
+  },
+  {
+   "id": "syncnpc:guarda_do_portao_1~2",
+   "papel": "parado",
+   "andando": false,
+   "motivoInatividade": "papel parado (sem deslocamento ou séssil)",
+   "ultimaDecisao": "",
+   "ha": null,
+   "atividade": ""
+  },
+  {
+   "id": "synccriatura:insetoide_predador_1",
+   "papel": "predador",
+   "andando": false,
+   "motivoInatividade": "",
+   "ultimaDecisao": "",
+   "ha": null,
+   "atividade": ""
+  },
+  {
+   "id": "synccriatura:carrapato_de_ferro",
+   "papel": "vaga",
+   "andando": false,
+   "motivoInatividade": "",
+   "ultimaDecisao": "",
+   "ha": null,
+   "atividade": ""
+  },
+  {
+   "id": "synccriatura:rastejante_de_cinzas",
+   "papel": "predador",
+   "andando": false,
+   "motivoInatividade": "",
+   "ultimaDecisao": "",
+   "ha": null,
+   "atividade": ""
+  },
+  {
+   "id": "synccriatura:carrapato_de_ferro~2",
+   "papel": "vaga",
+   "andando": false,
+   "motivoInatividade": "",
+   "ultimaDecisao": "",
+   "ha": null,
+   "atividade": ""
+  },
+  {
+   "id": "synccriatura:rastejante_de_cinzas~2",
+   "papel": "predador",
+   "andando": false,
+   "motivoInatividade": "",
+   "ultimaDecisao": "",
+   "ha": null,
+   "atividade": ""
+  },
+  {
+   "id": "synccriatura:cadaver_de_chefe",
+   "papel": "arrasta",
+   "andando": false,
+   "motivoInatividade": "",
+   "ultimaDecisao": "",
+   "ha": null,
+   "atividade": ""
+  },
+  {
+   "id": "synccriatura:zumbi_1",
+   "papel": "arrasta",
+   "andando": false,
+   "motivoInatividade": "",
+   "ultimaDecisao": "",
+   "ha": null,
+   "atividade": ""
+  },
+  {
+   "id": "synccriatura:zumbi_1~2",
+   "papel": "arrasta",
+   "andando": false,
+   "motivoInatividade": "",
+   "ultimaDecisao": "",
+   "ha": null,
+   "atividade": ""
+  },
+  {
+   "id": "synccriatura:larva_interdimensional",
+   "papel": "vaga",
+   "andando": false,
+   "motivoInatividade": "",
+   "ultimaDecisao": "",
+   "ha": null,
+   "atividade": ""
+  },
+  {
+   "id": "synccriatura:enxame_mordedor",
+   "papel": "vaga",
+   "andando": false,
+   "motivoInatividade": "",
+   "ultimaDecisao": "",
+   "ha": null,
+   "atividade": ""
+  },
+  {
+   "id": "synccriatura:serpente_sanguessuga",
+   "papel": "parado",
+   "andando": false,
+   "motivoInatividade": "papel parado (sem deslocamento ou séssil)",
+   "ultimaDecisao": "",
+   "ha": null,
+   "atividade": ""
+  },
+  {
+   "id": "synccriatura:zumbi_1~3",
+   "papel": "arrasta",
+   "andando": false,
+   "motivoInatividade": "",
+   "ultimaDecisao": "",
+   "ha": null,
+   "atividade": ""
+  },
+  {
+   "id": "synccriatura:vampiro_psiquico",
+   "papel": "predador",
+   "andando": false,
+   "motivoInatividade": "",
+   "ultimaDecisao": "",
+   "ha": null,
+   "atividade": ""
+  },
+  {
+   "id": "synccriatura:predador_de_nevoa",
+   "papel": "predador",
+   "andando": false,
+   "motivoInatividade": "",
+   "ultimaDecisao": "",
+   "ha": null,
+   "atividade": ""
+  },
+  {
+   "id": "synccriatura:zumbi_1~4",
+   "papel": "arrasta",
+   "andando": false,
+   "motivoInatividade": "",
+   "ultimaDecisao": "",
+   "ha": null,
+   "atividade": ""
+  },
+  {
+   "id": "synccriatura:insetoide_predador_1~2",
+   "papel": "predador",
+   "andando": false,
+   "motivoInatividade": "",
+   "ultimaDecisao": "",
+   "ha": null,
+   "atividade": ""
+  },
+  {
+   "id": "synccriatura:vampiro_generico",
+   "papel": "predador",
+   "andando": false,
+   "motivoInatividade": "",
+   "ultimaDecisao": "",
+   "ha": null,
+   "atividade": ""
+  },
+  {
+   "id": "synccriatura:cavalgante_prismatico~101",
+   "papel": "montaria",
+   "andando": false,
+   "motivoInatividade": "pausa até 1 s",
+   "ultimaDecisao": "montaria",
+   "ha": 4,
+   "atividade": "forragear"
+  },
+  {
+   "id": "synccriatura:cavalgante_prismatico~102",
+   "papel": "montaria",
+   "andando": false,
+   "motivoInatividade": "",
+   "ultimaDecisao": "montaria",
+   "ha": 7,
+   "atividade": "forragear"
+  },
+  {
+   "id": "synccriatura:cavalgante_prismatico~103",
+   "papel": "montaria",
+   "andando": false,
+   "motivoInatividade": "pausa até 1 s",
+   "ultimaDecisao": "montaria",
+   "ha": 4,
+   "atividade": "forragear"
+  },
+  {
+   "id": "synccriatura:larva_interdimensional~101",
+   "papel": "vaga",
+   "andando": false,
+   "motivoInatividade": "pausa até 3 s",
+   "ultimaDecisao": "fugir",
+   "ha": 8,
+   "atividade": "esconder"
+  },
+  {
+   "id": "synccriatura:larva_interdimensional~102",
+   "papel": "vaga",
+   "andando": false,
+   "motivoInatividade": "pausa até 10 s",
+   "ultimaDecisao": "fugir",
+   "ha": 2,
+   "atividade": "esconder"
+  },
+  {
+   "id": "synccriatura:larva_interdimensional~103",
+   "papel": "vaga",
+   "andando": false,
+   "motivoInatividade": "pausa até 2 s",
+   "ultimaDecisao": "💧",
+   "ha": 8,
+   "atividade": "beber"
+  },
+  {
+   "id": "synccriatura:rastejante_de_cinzas~101",
+   "papel": "predador",
+   "andando": false,
+   "motivoInatividade": "inconsciente",
+   "ultimaDecisao": "fugir",
+   "ha": 121,
+   "atividade": "esconder"
+  },
+  {
+   "id": "synccriatura:rastejante_de_cinzas~102",
+   "papel": "predador",
+   "andando": false,
+   "motivoInatividade": "",
+   "ultimaDecisao": "covarde",
+   "ha": 11,
+   "atividade": "esconder"
+  },
+  {
+   "id": "synccriatura:rastejante_de_cinzas~103",
+   "papel": "predador",
+   "andando": false,
+   "motivoInatividade": "inconsciente",
+   "ultimaDecisao": "fugir",
+   "ha": 107,
+   "atividade": ""
+  },
+  {
+   "id": "synccriatura:criatura_de_calico_2~101",
+   "papel": "vaga",
+   "andando": false,
+   "motivoInatividade": "pausa até 4 s",
+   "ultimaDecisao": "🍃",
+   "ha": 4,
+   "atividade": "pastar"
+  },
+  {
+   "id": "synccriatura:criatura_de_calico_2~102",
+   "papel": "vaga",
+   "andando": false,
+   "motivoInatividade": "pausa até 2 s",
+   "ultimaDecisao": "bando",
+   "ha": 4,
+   "atividade": "forragear"
+  },
+  {
+   "id": "synccriatura:criatura_de_calico_1~101",
+   "papel": "presa",
+   "andando": false,
+   "motivoInatividade": "",
+   "ultimaDecisao": "💧",
+   "ha": 15,
+   "atividade": "beber"
+  },
+  {
+   "id": "synccriatura:criatura_de_calico_1~102",
+   "papel": "presa",
+   "andando": true,
+   "motivoInatividade": "",
+   "ultimaDecisao": "🍃",
+   "ha": 4,
+   "atividade": "pastar"
+  },
+  {
+   "id": "synccriatura:montariapterodatil~101",
+   "papel": "montaria",
+   "andando": false,
+   "motivoInatividade": "",
+   "ultimaDecisao": "montaria",
+   "ha": 4,
+   "atividade": "forragear"
+  },
+  {
+   "id": "synccriatura:dragao_trombeta_alado_domesticado~101",
+   "papel": "montaria",
+   "andando": false,
+   "motivoInatividade": "",
+   "ultimaDecisao": "montaria",
+   "ha": 4,
+   "atividade": "forragear"
+  },
+  {
+   "id": "synccriatura:dragao_trombeta_corredor_domesticado~101",
+   "papel": "montaria",
+   "andando": false,
+   "motivoInatividade": "pausa até 4 s",
+   "ultimaDecisao": "montaria",
+   "ha": 2,
+   "atividade": "forragear"
+  },
+  {
+   "id": "synccriatura:predador_de_nevoa~101",
+   "papel": "predador",
+   "andando": false,
+   "motivoInatividade": "inconsciente",
+   "ultimaDecisao": "bando",
+   "ha": 160,
+   "atividade": "forragear"
+  },
+  {
+   "id": "synccriatura:predador_de_nevoa~102",
+   "papel": "predador",
+   "andando": false,
+   "motivoInatividade": "inconsciente",
+   "ultimaDecisao": "🍃",
+   "ha": 160,
+   "atividade": "pastar"
+  },
+  {
+   "id": "synccriatura:caçador_de_nevoa~101",
+   "papel": "predador",
+   "andando": false,
+   "motivoInatividade": "morto",
+   "ultimaDecisao": "🚪",
+   "ha": 154,
+   "atividade": "explorar"
+  },
+  {
+   "id": "synccriatura:caçador_de_nevoa~102",
+   "papel": "predador",
+   "andando": false,
+   "motivoInatividade": "morto",
+   "ultimaDecisao": "🚪",
+   "ha": 154,
+   "atividade": "explorar"
+  },
+  {
+   "id": "synccriatura:predador_couracado~101",
+   "papel": "predador",
+   "andando": false,
+   "motivoInatividade": "em luta no tempo real",
+   "ultimaDecisao": "bando",
+   "ha": 160,
+   "atividade": "nadar"
+  },
+  {
+   "id": "synccriatura:predador_couracado~102",
+   "papel": "predador",
+   "andando": false,
+   "motivoInatividade": "em luta no tempo real",
+   "ultimaDecisao": "bando",
+   "ha": 160,
+   "atividade": "nadar"
+  },
+  {
+   "id": "synccriatura:besta_ululante~101",
+   "papel": "predador",
+   "andando": false,
+   "motivoInatividade": "inconsciente",
+   "ultimaDecisao": "🍃",
+   "ha": 154,
+   "atividade": "pastar"
+  },
+  {
+   "id": "synccriatura:dragao_trombeta_corredor_selvagem~101",
+   "papel": "predador",
+   "andando": false,
+   "motivoInatividade": "em luta no tempo real",
+   "ultimaDecisao": "bando",
+   "ha": 160,
+   "atividade": "forragear"
+  },
+  {
+   "id": "synccriatura:dragao_trombeta_corredor_selvagem~102",
+   "papel": "predador",
+   "andando": false,
+   "motivoInatividade": "em luta no tempo real",
+   "ultimaDecisao": "fugir",
+   "ha": 160,
+   "atividade": ""
+  },
+  {
+   "id": "synccriatura:dragao_trombeta_alado_selvagem~101",
+   "papel": "predador",
+   "andando": false,
+   "motivoInatividade": "",
+   "ultimaDecisao": "caçar",
+   "ha": 23,
+   "atividade": ""
+  },
+  {
+   "id": "synccriatura:escavador_de_carapaca~101",
+   "papel": "vaga",
+   "andando": false,
+   "motivoInatividade": "pausa até 7 s",
+   "ultimaDecisao": "fugir",
+   "ha": 2,
+   "atividade": ""
+  },
+  {
+   "id": "synccriatura:cila~101",
+   "papel": "parado",
+   "andando": false,
+   "motivoInatividade": "em luta no tempo real",
+   "ultimaDecisao": "",
+   "ha": null,
+   "atividade": ""
+  },
+  {
+   "id": "synccriatura:carrapato_de_ferro~101",
+   "papel": "vaga",
+   "andando": false,
+   "motivoInatividade": "em luta no tempo real",
+   "ultimaDecisao": "bando",
+   "ha": 160,
+   "atividade": "forragear"
+  }
+ ]
+}

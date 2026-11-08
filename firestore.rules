@@ -24,9 +24,19 @@ service cloud.firestore {
     }
 
     match /personagens/{personagemId} {
+      function alteracaoJogadorEmFichaAprovadaValida() {
+        let changed = request.resource.data.diff(resource.data).affectedKeys();
+        let estruturais = ['nome','raca','conceito','sexo','idade','origem','carreira','classeSocial','tipoCorporal','imagem','atributos','bonus','altura','peso','movimentoBase','fichaAprovada','fichaStatus','fichaAprovadaEm','fichaAprovadaPor','fichaReabertaEm','fichaReabertaPor','criacaoConcluida','criacaoConcluidaEm','ativoNaCampanha','ativoNaCampanhaAlteradoEm','ativoNaCampanhaAlteradoPor'];
+        let mudouPericias = changed.hasAny(['pericias','especializacoes']);
+        let xpValido = mudouPericias && changed.hasAny(['xpPendentes']) && changed.hasOnly(['pericias','especializacoes','xpPendentes']);
+        return !changed.hasAny(estruturais) && (!mudouPericias || xpValido);
+      }
       allow read: if donoDoPersonagem() || ehMestre();
       allow create: if donoDoNovoPersonagem() || ehMestre();
-      allow update: if (donoDoPersonagem() && request.resource.data.dono == resource.data.dono) || ehMestre();
+      allow update: if ehMestre() || (
+        donoDoPersonagem() && request.resource.data.dono == resource.data.dono &&
+        (!resource.data.get('fichaAprovada', false) || alteracaoJogadorEmFichaAprovadaValida())
+      );
       allow delete: if donoDoPersonagem() || ehMestre();
     }
 
@@ -39,21 +49,45 @@ service cloud.firestore {
     match /poderesPsi/{documento} { allow read: if autenticado(); allow write: if ehMestre(); }
     match /npcs/{documento} { allow read, write: if ehMestre(); }
     match /criaturas/{documento} { allow read, write: if ehMestre(); }
+    match /companheiros/{documento} { allow read, write: if ehMestre(); }
+    match /veiculos/{documento} { allow read, write: if ehMestre(); }
+    match /veiculosPossuidos/{documento} {
+      allow read: if autenticado();
+      allow create, delete: if ehMestre();
+      allow update: if ehMestre() || (
+        autenticado() &&
+        resource.data.usuariosPermitidos is list &&
+        request.auth.uid in resource.data.usuariosPermitidos &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['cargaItens', 'atualizadoEm'])
+      );
+    }
+    match /naves/{documento} { allow read, write: if ehMestre(); }
+    match /navesPossuidas/{documento} {
+      // Leitura autenticada permite que instâncias antigas ainda sem
+      // usuariosPermitidos sejam descobertas e filtradas localmente pelo
+      // personagem vinculado. Escrita continua limitada à tripulação autorizada.
+      allow read: if autenticado();
+      allow create, delete: if ehMestre();
+      allow update: if ehMestre() || (
+        autenticado() &&
+        resource.data.usuariosPermitidos is list &&
+        request.auth.uid in resource.data.usuariosPermitidos &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['cargaItens', 'atualizadoEm'])
+      );
+    }
     match /cenarios/{documento} { allow read, write: if ehMestre(); }
     match /mapas/{documento} { allow read: if autenticado(); allow write: if ehMestre(); }
 
     match /configuracoes/{documento} {
-      allow read: if autenticado() && documento != 'escudoMestre';
-      allow read: if documento == 'escudoMestre' && ehMestre();
+      allow read: if autenticado() && documento != 'escudoMestre' && documento != 'roteirosV181' && documento != 'roteirosEstadoV181';
+      allow read: if (documento == 'escudoMestre' || documento == 'roteirosV181' || documento == 'roteirosEstadoV181') && ehMestre();
       allow write: if ehMestre();
     }
 
     match /combatesAtivos/{combateId} {
       allow read: if autenticado();
       allow create, delete: if ehMestre();
-      allow update: if ehMestre() && (combateId != 'mapaMesaSyncDireta' ||
-        !resource.data.get('combat', {}).get('active', false) ||
-        request.resource.data.get('combat', {}).get('active', false) == false);
+      allow update: if ehMestre();
 
       // Cada comando usa um ID único de sessão, sem permitir que um jogador
       // escreva em nome de outro personagem. O mestre processa e apaga a fila.
@@ -70,20 +104,37 @@ service cloud.firestore {
       }
     }
 
+    // v205: sessões de TREINO (cópias de fichas usadas pelo duelo de treino). Só o mestre lê/escreve; nunca são fichas de verdade e o combate de partida não lê daqui.
+    match /treinoSessoes/{sessaoId} {
+      allow read, write: if ehMestre();
+      match /fichas/{fichaId} {
+        allow read, write: if ehMestre();
+      }
+    }
+
     // Posições da aba independente. Não autoriza escrita no combate antigo.
     match /combatesAtivos/mapaMesaSyncDireta/posicoes/{tokenId} {
       function posicaoValida() {
         let d = request.resource.data;
-        return d.keys().hasOnly(['nome','imagem','donoUid','x','y','revision','movementTurn','movementUsed','movementMax','teleportNonce','facing']) &&
-          d.nome is string && d.imagem is string && d.donoUid is string &&
+        return d.keys().hasOnly(['nome','imagem','donoUid','x','y','revision','movementTurn','movementUsed','movementMax','teleportNonce','facing','camada','mapaId','diametroM','atributosIndividuo','spriteIdV199','atitudeV200','grupoV200','territorioMV200','casaV200','personalidadeV200','confiancaV200','ajudaV200','dietaV200','bonusAtaqueV200','bonusDefesaV200','arte3dV200','arte3dAjusteV203','visualV203','habitatV205','activeSkillId','activeWeaponId','activeDefenseId']) &&
+          d.get('diametroM',1) is number && d.get('diametroM',1) >= 0.2 && d.get('diametroM',1) <= 12 && d.get('atributosIndividuo',{}) is map &&
+          d.get('activeDefenseId','auto') in ['auto','esquiva','aparar'] && d.get('activeSkillId','') is string && d.get('activeSkillId','').size() <= 200 && d.get('activeWeaponId','') is string && d.get('activeWeaponId','').size() <= 200 &&
+          d.nome is string && d.imagem is string && d.donoUid is string && d.get('mapaId','') is string &&
+          d.get('spriteIdV199','') is string && d.get('atitudeV200','') is string && d.get('grupoV200','') is string && d.get('territorioMV200',0) is number && d.get('personalidadeV200','') is string && (d.get('confiancaV200','') is string || d.get('confiancaV200','') is number) && (d.get('ajudaV200','') is string || d.get('ajudaV200','') is number) && d.get('dietaV200','') is string && d.get('bonusAtaqueV200',0) is number && d.get('bonusDefesaV200',0) is number && d.get('arte3dV200','') is string && d.get('arte3dAjusteV203','') is string && d.get('arte3dAjusteV203','').size() <= 60 && d.get('visualV203','') is string && d.get('visualV203','').size() <= 160 && d.get('casaV200',{}) is map &&
           d.x is number && d.y is number && d.revision is int &&
-          d.x >= 0 && d.x <= 28 && d.y >= 0 && d.y <= 14 && d.get('movementMax',6) is number && d.get('facing',0) is number;
+          d.x >= 0 && d.x <= 28 && d.y >= 0 && d.y <= 14 && d.get('movementMax',6) is number && d.get('facing',0) is number &&
+          d.get('camada',3) is int && d.get('habitatV205',{}) is map;
       }
       function limiteMovimento(c, previous) {
         let hp = /databases/$(database)/documents/combatesAtivos/mapaMesaSyncSaude;
         let state = exists(hp) ? get(hp).data.get('actors', {}).get(tokenId, {}) : {};
         let accelerated = state.get('psiEffects', {}).get('aceleracao', {}).get('untilRound', -1) > c.get('round', 0);
         return accelerated ? 30 : previous.get('movementMax', 6);
+      }
+      function jogoEmPausaEmergencia() {
+        let rtPath = /databases/$(database)/documents/combatesAtivos/mesaTempoReal;
+        let rt = exists(rtPath) ? get(rtPath).data : {};
+        return rt.get('pausaEmergencia', false);
       }
       function movimentoPermitido() {
         let path = /databases/$(database)/documents/combatesAtivos/mapaMesaSyncDireta;
@@ -95,37 +146,57 @@ service cloud.firestore {
         let delta = d.get('movementUsed', 0) - spent;
         let dx = (d.x - previous.x) * map.get('larguraM', 28) / 28;
         let dy = (d.y - previous.y) * map.get('alturaM', 14) / 14;
-        return !c.get('active', false) ?
-          d.diff(previous).affectedKeys().hasOnly(['x','y','revision','facing']) :
+        // v94: um combate só restringe quem está no mapa desse combate.
+        // Personagens em outros mapas continuam em exploração independente.
+        let combatHere = c.get('active', false) && previous.get('mapaId','') == map.get('mapId','');
+        return !jogoEmPausaEmergencia() && (!combatHere ?
+          d.diff(previous).affectedKeys().hasOnly(['x','y','revision','facing','mapaId']) &&
+          (d.get('mapaId','') == previous.get('mapaId','') || d.get('mapaId','') == get(/databases/$(database)/documents/personagens/$(tokenId)).data.get('localizacaoMapaId','')) :
           (c.get('pendingAttack', null) == null && c.activeId == tokenId &&
            d.get('movementTurn', '') == c.get('roundId', c.turnId) &&
            d.get('movementUsed', -1) is number &&
            d.movementUsed >= spent && d.movementUsed <= limiteMovimento(c, previous) &&
-           dx * dx + dy * dy <= delta * delta + 0.00000001);
+           dx * dx + dy * dy <= delta * delta + 0.00000001));
       }
       allow read: if autenticado();
-      allow create: if ehMestre() && posicaoValida() && request.resource.data.revision == 0;
-      allow update: if (ehMestre() || ehDono(resource.data.donoUid)) &&
+      allow create: if posicaoValida() && request.resource.data.revision == 0 && (ehMestre() || (
+        ehDono(request.resource.data.donoUid) &&
+        get(/databases/$(database)/documents/personagens/$(tokenId)).data.dono == request.auth.uid &&
+        !(
+          get(/databases/$(database)/documents/combatesAtivos/mapaMesaSyncDireta).data.get('combat',{}).get('active',false) &&
+          request.resource.data.get('mapaId','') == get(/databases/$(database)/documents/combatesAtivos/mapaMesaSyncDireta).data.get('mapId','')
+        ) &&
+        request.resource.data.keys().hasOnly(['nome','imagem','donoUid','x','y','revision','facing','camada','mapaId']) &&
+        request.resource.data.get('mapaId','') == get(/databases/$(database)/documents/personagens/$(tokenId)).data.get('localizacaoMapaId','') &&
+        request.resource.data.camada == 3
+      ));
+      // O mestre resolve movimento, teletransporte e preparação numa transação.
+      // Validar o mesmo documento uma única vez evita multiplicar o custo das regras
+      // para cada participante ao iniciar o combate.
+      allow update: if ehMestre() && posicaoValida() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nome','imagem','donoUid','x','y','revision','movementTurn','movementUsed','movementMax','facing','teleportNonce','camada','mapaId','diametroM','atributosIndividuo','spriteIdV199','atitudeV200','grupoV200','territorioMV200','casaV200','personalidadeV200','confiancaV200','ajudaV200','dietaV200','bonusAtaqueV200','bonusDefesaV200','arte3dV200','arte3dAjusteV203','visualV203','activeSkillId','activeWeaponId','activeDefenseId','habitatV205']) &&
+        request.resource.data.revision == resource.data.revision + 1 &&
+        request.resource.data.get('teleportNonce','') is string;
+      // v216: o dono seleciona apenas a arma/perícia ativa; não altera ficha, dano, dono ou posição.
+      allow update: if !ehMestre() && ehDono(resource.data.donoUid) && posicaoValida() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['activeSkillId','activeWeaponId','activeDefenseId','revision']) &&
+        request.resource.data.revision == resource.data.revision + 1;
+      // v203: o jogador muda só o visual do próprio personagem (cores, cabelo, capa) e se usa o desenho de cima ou a imagem original
+      allow update: if !ehMestre() && ehDono(resource.data.donoUid) &&
         posicaoValida() &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['x','y','revision','movementTurn','movementUsed','facing']) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['visualV203','arte3dV200','revision']) &&
+        request.resource.data.revision == resource.data.revision + 1;
+      allow update: if !ehMestre() && ehDono(resource.data.donoUid) &&
+        posicaoValida() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['x','y','revision','movementTurn','movementUsed','facing','mapaId']) &&
         request.resource.data.revision == resource.data.revision + 1 &&
         movimentoPermitido();
-      allow update: if ehMestre() &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['facing','revision']) &&
-        request.resource.data.revision == resource.data.revision + 1 &&
-        request.resource.data.facing is number;
-      // Teletransporte e outros deslocamentos psíquicos são resolvidos pelo mestre
-      // dentro da transação do comando, sem serem confundidos com arrastar manual.
-      allow update: if ehMestre() &&
+      // v105: o dono pode trocar só a imagem (miniatura) do próprio token.
+      allow update: if !ehMestre() && ehDono(resource.data.donoUid) &&
         posicaoValida() &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['x','y','revision','teleportNonce']) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['imagem','revision']) &&
         request.resource.data.revision == resource.data.revision + 1 &&
-        request.resource.data.x is number && request.resource.data.y is number &&
-        request.resource.data.teleportNonce is string;
-      // O mestre sincroniza o deslocamento base da ficha ao iniciar o combate.
-      allow update: if ehMestre() && posicaoValida() &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['movementMax','revision']) &&
-        request.resource.data.revision == resource.data.revision + 1;
+        request.resource.data.imagem.size() < 2000;
       allow delete: if ehMestre();
     }
 
@@ -171,13 +242,38 @@ service cloud.firestore {
           n.turnId == c.session + ':' + string(n.sequence) &&
           fluxoValido(c,n);
       }
-      allow update: if acaoValida();
-      // O mestre resolve ataque, defesa, morte e atualização da fila numa transação.
-      allow update: if ehMestre();
+      allow update: if !ehMestre() && acaoValida();
+      // A autorização do mestre já está no bloco geral de combatesAtivos.
       // Antes do combate, cada jogador pode marcar o próprio personagem
       // como participante ou ausente da sessão que o mestre iniciará.
+      function alterarParticipacaoPropria(){
+        let changed = request.resource.data.get('joined',{}).diff(resource.data.get('joined',{})).affectedKeys();
+        let actor = request.resource.data.get('joiningActorId','');
+        return !resource.data.get('combat',{}).get('active',false) && changed.size() == 1 && changed.hasOnly([actor]) &&
+          getAfter(/databases/$(database)/documents/combatesAtivos/mapaMesaSyncDireta/posicoes/$(actor)).data.donoUid == request.auth.uid &&
+          request.resource.data.joined[actor] is bool;
+      }
       allow update: if autenticado() &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['joined']);
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['joined','joiningActorId']) && alterarParticipacaoPropria();
+    }
+
+    // v102: desenhos colaborativos do Mapa da Mesa. Cada usuário só altera
+    // o próprio documento; todos autenticados no mapa podem enxergar os traços.
+    match /mapaDesenhos/{mapaId}/usuarios/{userId} {
+      allow read: if autenticado();
+      allow create, update: if ehMestre() || (ehDono(userId) &&
+        request.resource.data.uid == request.auth.uid &&
+        request.resource.data.mapaId == mapaId &&
+        request.resource.data.keys().hasOnly(['uid','mapaId','strokes','revision','atualizadoEm']) &&
+        request.resource.data.strokes is list &&
+        request.resource.data.revision is int);
+      allow delete: if ehMestre() || ehDono(userId);
+    }
+
+    // v204: backups da reforma do mapa de teste (só o mestre; o texto vai em partes na subcoleção)
+    match /backupsMapa/{backupId} {
+      allow read, write: if ehMestre();
+      match /partes/{parteId} { allow read, write: if ehMestre(); }
     }
 
     match /{document=**} { allow read, write: if false; }

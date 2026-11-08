@@ -1,0 +1,10 @@
+import test from 'node:test';
+import {lerApp} from './_app.mjs';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const app=lerApp();
+const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+test('v78 continua incorporada no build atual',()=>{assert.match(html,/js\/app\.js\?v=[^"']+/);assert.match(app,/v78-mapas-csv/);});
+test('banco de mapas possui CSV',()=>{assert.match(html,/Importar\/Atualizar CSV/);assert.match(app,/exportarMapasCSVV78_/);assert.match(app,/importarMapasCSVV78_/);});
+test('seletor direto da Mesa é repopulado pelo banco',()=>{assert.match(app,/sincronizarSelectMapaDiretoV78_/);assert.match(app,/recarregarMapasSilenciosoV78_/);});
+test('perícias do construtor são repopuladas do banco',()=>{assert.match(app,/atualizarSelectPericiasInteracaoV78_/);assert.match(app,/periciasDB/);});
