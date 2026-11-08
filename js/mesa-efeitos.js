@@ -293,11 +293,11 @@ export function instalarEfeitos(dep){
    return;
   }
   if(ev.source&&ev.target){
-   if(tipo==='explosao')setTimeout(()=>explosao(ev.target),180);
+   if(tipo==='explosao')setTimeout(()=>{if(eventoNoMapa(ev))explosao(ev.target);},180);
    else if(tipo==='raio'){raio(ev.source,ev.target);tocar('raio');}
    else if(tipo==='tiro')tocar('tiro');
    else if(tipo==='laser'&&!/phaser|faser/i.test(nome))tocar('laser');
-   else if(!tipo&&!/psiqu|psychic|grito|trombeta|eco |phaser|faser|sonic|sonor/i.test(sem(nome))){tocar(tipoCorpo(nome));if(ev.hit!==false)setTimeout(()=>tocar('golpe'),90);}
+   else if(!tipo&&!/psiqu|psychic|grito|trombeta|eco |phaser|faser|sonic|sonor/i.test(sem(nome))){tocar(tipoCorpo(nome));if(ev.hit!==false)setTimeout(()=>{if(eventoNoMapa(ev))tocar('golpe');},90);}
    // v193: golpe no atacante, impacto/recuo ou esquiva no alvo
    if(movLivre()){
     if(ev.source.id){const[gdx,gdy]=direcaoPX(ev.source,ev.target);virar(tokenNo(ev.source.id),parseFloat(gdx),parseFloat(gdy));marcarDir(ev.source.id,'ef-golpe',400,gdx,gdy);}
@@ -313,7 +313,7 @@ export function instalarEfeitos(dep){
     else{let v=vozDaCriatura(modeloTexto(sid));if(v==='gemido')v='rosnado';if(v)tocar(v,tamanhoVoz(sid));} // zumbis rosnam ao atacar
    }
    // dor da criatura atingida
-   const tid=ev.target.id;if(tid&&ev.hit!==false&&ehCriatura(tid)){const v=vozDaCriatura(modeloTexto(tid));if(v)setTimeout(()=>tocar(v,tamanhoVoz(tid)*1.35),260);}
+   const tid=ev.target.id;if(tid&&ev.hit!==false&&ehCriatura(tid)){const v=vozDaCriatura(modeloTexto(tid));if(v)setTimeout(()=>{if(eventoNoMapa(ev))tocar(v,tamanhoVoz(tid)*1.35);},260);}
   }
  }
  // mudanças de estado: caiu / morreu
@@ -324,7 +324,7 @@ export function instalarEfeitos(dep){
    if(primeira||!antes)continue;
    const t=ctl()?.token?.(id);if(!t||!mapaAudivel()||String(t.mapaId||'')!==mapaAudivel())continue;
    if(agora.morto&&!antes.morto){marcarToken(id,'ef-morre',1500);pinta('ef-fumaca',t,ppm()*1.6,2700);texto(t,'💀','#e8e8e8');
-    if(ehCriatura(id)){let v=vozDaCriatura(modeloTexto(id));if(v==='rosnado')v='gemido';if(v)tocar(v,tamanhoVoz(id)*.85);}else tocar('morteHumana');setTimeout(()=>tocar('queda'),500);}
+    if(ehCriatura(id)){let v=vozDaCriatura(modeloTexto(id));if(v==='rosnado')v='gemido';if(v)tocar(v,tamanhoVoz(id)*.85);}else tocar('morteHumana');setTimeout(()=>{if(String(t.mapaId||'')===mapaAudivel())tocar('queda');},500);}
    else if(agora.caido&&!antes.caido){marcarToken(id,'ef-cai',650);pinta('ef-poeira',t,ppm()*1.8,850);tocar('queda');}
   }
   primeira=false;
