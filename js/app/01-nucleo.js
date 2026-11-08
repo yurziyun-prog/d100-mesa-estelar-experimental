@@ -785,8 +785,19 @@ onAuthStateChanged(auth, async (user) => {
     if (user) {
         currentUserUid = user.uid;
         document.getElementById('currentUser').textContent = user.email;
-        const userDoc = await getDoc(doc(db, "usuarios", user.uid));
-        if (userDoc.exists()) {
+        // v224: Firebase Auth pode concluir mesmo quando o Firestore estiver lento/indisponível.
+        // Não mantenha o usuário preso na tela de login esperando a leitura de perfil.
+        document.getElementById('loginScreen').classList.add('hidden');
+        document.getElementById('appScreen').classList.remove('hidden');
+        let userDoc;
+        try {
+            userDoc = await getDoc(doc(db, "usuarios", user.uid));
+        } catch (erroPerfil) {
+            console.error('[Mesa Estelar] autenticação concluída, mas perfil inacessível:', erroPerfil);
+            const detalhe = String(erroPerfil?.code || erroPerfil?.message || 'erro de conexão');
+            notificar_('Login realizado. Não foi possível carregar seu perfil: ' + detalhe, 'aviso', 9000);
+        }
+        if (userDoc?.exists?.()) {
             userData = userDoc.data();
             // v138/v206: o mestre pode abrir uma aba "como jogador" (?verComo=jogador → Kael Teste;
             // ?verComo=<id de token> → modo diretor: atua como aquele PJ/NPC/criatura)
@@ -832,8 +843,33 @@ window.fazerLogin = async () => {
     const email = document.getElementById('loginEmail').value.trim();
     const password = document.getElementById('loginPassword').value.trim();
     const msgDiv = document.getElementById('loginMessage'); msgDiv.innerHTML = '';
-    try { await signInWithEmailAndPassword(auth, email, password); }
-    catch (error) { msgDiv.innerHTML = `<div class="message error">${traducoes[idiomaAtual].loginError}</div>`; }
+    if (!email || !password) {
+        msgDiv.textContent = 'Preencha o e-mail e a senha.';
+        return;
+    }
+    const botao = document.querySelector('#loginScreen .btn-login');
+    if (botao) botao.disabled = true;
+    msgDiv.textContent = 'Conectando ao Firebase…';
+    try {
+        await signInWithEmailAndPassword(auth, email, password);
+        msgDiv.textContent = '';
+    } catch (error) {
+        console.error('[Mesa Estelar] falha no login:', error);
+        const code = String(error?.code || '');
+        const mensagens = {
+            'auth/invalid-credential': 'E-mail ou senha incorretos.',
+            'auth/wrong-password': 'E-mail ou senha incorretos.',
+            'auth/user-not-found': 'E-mail ou senha incorretos.',
+            'auth/invalid-email': 'E-mail inválido.',
+            'auth/too-many-requests': 'Muitas tentativas. Aguarde antes de tentar novamente.',
+            'auth/network-request-failed': 'Falha de rede ao acessar o Firebase. Verifique sua conexão e eventuais bloqueios.',
+            'auth/operation-not-allowed': 'Login por e-mail e senha não está habilitado no Firebase.'
+        };
+        msgDiv.textContent = (mensagens[code] || 'Não foi possível entrar. Código: ' + (code || 'erro desconhecido'));
+        msgDiv.classList.add('message', 'error');
+    } finally {
+        if (botao) botao.disabled = false;
+    }
 };
 
 window.fazerRegistro = async () => {
