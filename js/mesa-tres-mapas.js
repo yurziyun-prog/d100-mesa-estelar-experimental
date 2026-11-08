@@ -7,6 +7,8 @@
 import {MATERIAIS,oChao,oParede,oPorta,montarPeca} from './mesa-construcao.js?v=180';
 import {instalarLaboratorio25D} from './mesa-lab25d.js';
 const MAPA_T='mesa_laboratorio_v224',MAPA_I='mesa_laboratorio_v224_interior',LIG='combatesAtivos/mesaLigacoes';
+const MAPAS_DESCARTADOS_V224=new Set([MAPA_T,MAPA_I]);
+const MAPAS_REFERENCIA_V225=/^(?:Ecossistema\s*\(teste\)|Casa de teste\s*\(básico\))$/i;
 const POS='combatesAtivos/mapaMesaSyncDireta/posicoes';
 const CSS=`
 /* v224.1: o mundo ocupa a largura da área de trabalho, mantendo proporções do mapa. */
@@ -71,7 +73,7 @@ export function instalarTresMapas(dep={}){
  function atualizarVisual25D(){
   const board=root.getElementById('novaSyncBoard');
   const mapa=String(win.novaSyncController_?.mapaAtual?.()||board?.dataset.mapaVisivel||'');
-  const mostrar=ehMestre()&&mapa===MAPA_T&&(atual==='mapa-mestre'||atual==='mapa-jogo')&&modoLab25D;
+  const mostrar=ehMestre()&&(atual==='mapa-mestre'||atual==='mapa-jogo')&&modoLab25D;
   if(mostrar&&!lab25D){
    const host=root.getElementById(atual)?.querySelector('.mtm-host');
    if(host)lab25D=instalarLaboratorio25D({root,win,host});
@@ -83,11 +85,52 @@ export function instalarTresMapas(dep={}){
   if(lab25D?.el&&host&&!host.contains(lab25D.el))host.prepend(lab25D.el);
   lab25D?.atualizar({visivel:mostrar,token:atorSelecionado});
   for(const btn of root.querySelectorAll('[data-mtm-preview]')){
-   btn.hidden=!(atual==='mapa-mestre'||atual==='mapa-jogo')||mapa!==MAPA_T;
+   btn.hidden=!(atual==='mapa-mestre'||atual==='mapa-jogo');
    btn.textContent=modoLab25D?'🗺️ Usar mapa funcional':'🏠 Ver protótipo 2,5D';
   }
  }
 
+ function filtrarMapasDaArea(){
+  const seletor=root.querySelector('#mbBarra [data-mapa]');
+  if(!seletor)return;
+  const ativo=!!atual;
+  // A lista de cenários permanece intacta no Firebase e no Mapa da Mesa.
+  // Apenas a navegação destes três painéis é simplificada.
+  for(const option of seletor.options){
+   const id=String(option.value||'');
+   const mapa=(dep.mapas?.()||[]).find(m=>String(m.id)===id);
+   const referencia=MAPAS_REFERENCIA_V225.test(String(mapa?.nome||''));
+   const mostrar=(!id)||(!MAPAS_DESCARTADOS_V224.has(id)&&referencia);
+   option.hidden=ativo&&!mostrar;
+   option.disabled=ativo&&!mostrar;
+  }
+ }
+ async function limparLaboratoriosRuins(){
+  if(!ehMestre()||!dep.deleteDoc)throw Error('Exclusão indisponível para esta sessão.');
+  const ids=[...MAPAS_DESCARTADOS_V224],existentes=(dep.mapas?.()||[]).filter(m=>ids.includes(String(m.id)));
+  if(!existentes.length){win.alert('Os dois mapas ruins v224 não aparecem mais na lista. Nada a excluir.');return;}
+  const nomes=existentes.map(m=>m.nome||m.id).join('\\n');
+  if(!win.confirm('Excluir SOMENTE estes mapas ruins do Firebase?\\n\\n'+nomes+'\\n\\nEcossistema (teste), Casa de teste (básico) e mapas da campanha NÃO serão excluídos.'))return;
+  const atualId=String(win.novaSyncController_?.mapaAtual?.()||root.getElementById('novaSyncBoard')?.dataset.mapaVisivel||'');
+  if(ids.includes(atualId)){
+   const ref=(dep.mapas?.()||[]).find(m=>MAPAS_REFERENCIA_V225.test(String(m.nome||'')));
+   if(!ref)throw Error('Selecione um mapa diferente no Mapa da Mesa antes de excluir o laboratório ativo.');
+   await win.novaSyncController_?.openMap?.(String(ref.id));
+  }
+  const erros=[];
+  for(const m of existentes){
+   const id=String(m.id);
+   try{
+    // Documentos de cena criados exclusivamente pela ferramenta v224.
+    await dep.deleteDoc(dep.doc(dep.db,'combatesAtivos','mapaMesaSyncCena_'+id));
+    await dep.deleteDoc(dep.doc(dep.db,'mapas',id));
+   }catch(e){erros.push((m.nome||id)+': '+(e?.code||e?.message||e));}
+  }
+  try{await win.recarregarBancoMapas_?.();}catch(e){console.warn('[Três mapas] atualização',e);}
+  filtrarMapasDaArea();
+  if(erros.length)win.alert('Algumas exclusões falharam:\\n'+erros.join('\\n'));
+  else win.alert('Laboratórios v224 ruins excluídos. Os mapas de referência foram preservados.');
+ }
  function casaExterior(){
   const W=28,H=14;
   const madeira=MATERIAIS.find(m=>m.id==='madeira')||MATERIAIS[0];
@@ -156,8 +199,12 @@ export function instalarTresMapas(dep={}){
   b.hidden=!ehMestre();
   b.addEventListener('click',()=>abrir(id,b));
   tabs.insertBefore(b,ancora?.nextSibling||null);ancora=b;
-  const sec=root.createElement('div');sec.id=id;sec.className='tab-content';sec.innerHTML=`<div class="form-section"><div class="mtm-faixa"><b>${ic} ${nome}</b><span class="mtm-dica">${dica}</span><div class="mtm-controles"><button type="button" data-criar-demo>🏘️ Criar vila v224</button><button type="button" data-mtm-preview hidden>🏠 Ver protótipo 2,5D</button><button type="button" data-editar-casa>🧱 Construir</button><button type="button" data-diretor>🧭 NPCs e criaturas</button><button type="button" data-voltar-mesa>Voltar à Mesa</button></div></div><div class="mtm-mini"><span data-mtm-mapa>Mapa carregado: verificando…</span><label data-mtm-seletor style="display:none">Acompanhar <select data-mtm-ator><option value="">Selecione uma miniatura</option></select></label><span class="mtm-estado" data-mtm-estado></span></div><div class="mtm-host"></div></div>`;
-  sec.querySelector('[data-criar-demo]').addEventListener('click',async e=>{if(!win.confirm('Criar uma vila e um interior de laboratório no banco? Nenhum personagem ou mapa existente será apagado.'))return;const btn=e.currentTarget;btn.disabled=true;try{await garantirMapa();await win.abrirMapaBancoNaMesa_?.(MAPA_T);}catch(err){console.warn('[Três mapas]',err);win.alert('Falha ao criar mapa: '+(err?.message||err)+'\n\nSe a operação for negada em mapas/, confira se está autenticado na conta que o Firebase reconhece como mestre.');}finally{btn.disabled=false;}});
+  const sec=root.createElement('div');sec.id=id;sec.className='tab-content';sec.innerHTML=`<div class="form-section"><div class="mtm-faixa"><b>${ic} ${nome}</b><span class="mtm-dica">${dica}</span><div class="mtm-controles"><button type="button" data-limpar-demo>🗑️ Excluir laboratórios ruins</button><button type="button" data-mtm-preview hidden>🏠 Ver protótipo 2,5D</button><button type="button" data-editar-casa>🧱 Construir</button><button type="button" data-diretor>🧭 NPCs e criaturas</button><button type="button" data-voltar-mesa>Voltar à Mesa</button></div></div><div class="mtm-mini"><span data-mtm-mapa>Mapa carregado: verificando…</span><label data-mtm-seletor style="display:none">Acompanhar <select data-mtm-ator><option value="">Selecione uma miniatura</option></select></label><span class="mtm-estado" data-mtm-estado></span></div><div class="mtm-host"></div></div>`;
+  sec.querySelector('[data-limpar-demo]').addEventListener('click',async e=>{
+   const botao=e.currentTarget;botao.disabled=true;
+   try{await limparLaboratoriosRuins();}catch(err){console.warn('[Três mapas] limpeza',err);win.alert(err?.message||String(err));}
+   finally{botao.disabled=false;}
+  });
   sec.querySelector('[data-mtm-preview]').addEventListener('click',()=>{modoLab25D=!modoLab25D;atualizarVisual25D();});
   const btnConstruir=sec.querySelector('[data-editar-casa]');
   btnConstruir.hidden=id!=='mapa-construtor';
@@ -191,6 +238,7 @@ export function instalarTresMapas(dep={}){
   atual=id;win.mesaVista25D=id!=='mapa-construtor';
   atualizarPainel();
   atualizarVisual25D();
+  filtrarMapasDaArea();
   const cam=win.mesaCameraV144;
   if(id==='mapa-construtor'){cam?.seguirToken?.('');cam?.inclinar?.(0);cam?.definir?.(1);}
   else if(id==='mapa-mestre'){cam?.seguirToken?.('');cam?.inclinar?.(30);cam?.definir?.(1.5);}
@@ -204,6 +252,7 @@ export function instalarTresMapas(dep={}){
   const cam=win.mesaCameraV144;cam?.seguirToken?.('');
   if(vistaAnterior){if(Number.isFinite(vistaAnterior.angulo))cam?.inclinar?.(vistaAnterior.angulo);if(Number.isFinite(vistaAnterior.zoom))cam?.definir?.(vistaAnterior.zoom);}
   atualizarVisual25D();
+  filtrarMapasDaArea();
   vistaAnterior=null;
   for(const id of ['mapa-construtor','mapa-mestre','mapa-jogo'])root.getElementById(id)?.classList.remove('active');
  }
@@ -239,7 +288,7 @@ export function instalarTresMapas(dep={}){
    if(sel.dataset.itens!==cod){const old=sel.value;sel.replaceChildren(new Option('Selecione uma miniatura',''),...options.map(o=>new Option(o.textContent,o.value)));sel.dataset.itens=cod;sel.value=atorSelecionado||old||'';}
   }
   const st=sec?.querySelector('[data-mtm-estado]');
-  if(st)st.textContent=atual==='mapa-construtor'?'Construção: vista superior e câmera livre':atual==='mapa-mestre'?'Direção: botão direito sobre uma miniatura para acompanhá-la':'Jogo: câmera acompanha a miniatura escolhida. Controle/IA depende das permissões atuais.';
+  if(st)st.textContent=atual==='mapa-construtor'?'Construção: vista superior e câmera livre':atual==='mapa-mestre'?'Direção: botão direito sobre uma miniatura para acompanhá-la':'Jogo: protótipo geométrico experimental. Controle de personagens ainda em desenvolvimento.';
  }
  root.querySelectorAll('[data-mtm-ator]').forEach(sel=>sel.addEventListener('change',e=>{
   atorSelecionado=String(e.target.value||'');
@@ -273,6 +322,6 @@ export function instalarTresMapas(dep={}){
   abrir('mapa-jogo',root.querySelector('.mtm-tab[data-mtm="mapa-jogo"]'));
  },true);
  // se a sessão esconder a aba por troca de papel, restaura a seção
- const iv=setInterval(()=>{try{if(!ehMestre()&&atual){voltarMesa();}for(const b of root.querySelectorAll('.mtm-tab'))b.hidden=!ehMestre();if(atual){atualizarPainel();atualizarVisual25D();}else atualizarVisual25D();}catch(_){}},1500);iv.unref?.();
+ const iv=setInterval(()=>{try{if(!ehMestre()&&atual){voltarMesa();}for(const b of root.querySelectorAll('.mtm-tab'))b.hidden=!ehMestre();if(atual){atualizarPainel();atualizarVisual25D();filtrarMapasDaArea();}else atualizarVisual25D();}catch(_){}},1500);iv.unref?.();
  return {abrir,voltarMesa,aba:()=>atual};
 }
