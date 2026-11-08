@@ -170,7 +170,7 @@ export function instalarTempoReal(dep){
    const actors={...atores};for(const [k,v] of Object.entries(r.actors||{}))actors[k]={...actors[k],...v};
    {const S=win.mesaModoSimplesV200;if(S?.ativo?.())for(const k of [A.id,B.id])if(actors[k]?.combateLab)actors[k]={...actors[k],combateLab:S.colapsar(actors[k].combateLab)};} // v200: um PV só (sem partes do corpo)
    const id=info.cmdId||('rt:'+crypto.randomUUID());
-   const event={...r.event,id,ts:Date.now(),actorUid:a.donoUid||'',targetUid:b.donoUid||'',source:{id:A.id,x:a.x,y:a.y},target:{id:B.id,x:b.x,y:b.y},...(Number.isInteger(info.cabeca)?{cabeca:info.cabeca}:{}),message:'⚡ '+String(r.event.message||'')};
+   const event={...r.event,id,ts:Date.now(),mapId:String(map.mapId||''),actorUid:a.donoUid||'',targetUid:b.donoUid||'',source:{id:A.id,x:a.x,y:a.y},target:{id:B.id,x:b.x,y:b.y},...(Number.isInteger(info.cabeca)?{cabeca:info.cabeca}:{}),message:'⚡ '+String(r.event.message||'')};
    tx.set(D(HEALTH),clean({...hp,actors,revision:Number(hp.revision||0)+1,event}));
    tx.set(D(HIST),clean({entries:[...(hist.entries||[]),event].slice(-120),revision:Number(hist.revision||0)+1}));
    if(r.targetSheetPatch&&prep.targetSheetPath&&sheet)tx.set(D(prep.targetSheetPath),clean({...sheet,...r.targetSheetPatch}));
@@ -220,12 +220,12 @@ export function instalarTempoReal(dep){
      for(const [k,v] of Object.entries(r.actors||{}))actors[k]={...actors[k],...v};
      if(r.defenseSpent)gastas.push(B.id);
      if(r.targetSheetPatch&&f.targetSheetPath&&sheet)patches.push([f.targetSheetPath,{...sheet,...r.targetSheetPatch}]);
-     events.push({...r.event,id:(info.cmdId||'rt')+':'+B.id+':'+Date.now().toString(36),ts:Date.now(),actorUid:a.donoUid||'',targetUid:B.donoUid||'',source:{id:A.id,x:a.x,y:a.y},target:{id:B.id,x:B.x,y:B.y},message:'⚡ '+String(r.event.message||'')});
+     events.push({...r.event,id:(info.cmdId||'rt')+':'+B.id+':'+Date.now().toString(36),ts:Date.now(),mapId:String(map.mapId||''),actorUid:a.donoUid||'',targetUid:B.donoUid||'',source:{id:A.id,x:a.x,y:a.y},target:{id:B.id,x:B.x,y:B.y},message:'⚡ '+String(r.event.message||'')});
     }catch(e){console.warn('[Tempo real] área',B.id,e);}
    }
    if(!events.length)throw Error('Ataque em área sem resultado.');
    const id=info.cmdId||('rt:'+crypto.randomUUID());
-   const event={...events[0],id,area:{...shape,source:{x:a.x,y:a.y},aim:{x:aim.x,y:aim.y},width:W,height:H},message:'⚡ 💥 '+(shape.name||'Ataque em área')+' em cone: '+events.map(e=>e.message.replace(/^⚡ /,'')).join(' | ')};
+   const event={...events[0],id,mapId:String(map.mapId||''),area:{...shape,source:{x:a.x,y:a.y},aim:{x:aim.x,y:aim.y},width:W,height:H},message:'⚡ 💥 '+(shape.name||'Ataque em área')+' em cone: '+events.map(e=>e.message.replace(/^⚡ /,'')).join(' | ')};
    tx.set(D(HEALTH),clean({...hp,actors,revision:Number(hp.revision||0)+1,event}));
    tx.set(D(HIST),clean({entries:[...(hist.entries||[]),...events].slice(-120),revision:Number(hist.revision||0)+1}));
    for(const [p,v] of patches)tx.set(D(p),clean(v));
