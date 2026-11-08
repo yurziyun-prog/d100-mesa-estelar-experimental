@@ -70,7 +70,7 @@ window.mesaTempoRealDadosV111_={
  preparar:(a,b,cmd)=>novaPrepararAtaque_(a,b,cmd),
  suporte:(a,b,tokens)=>novaPrepararSuporte_(a,b,tokens)
 };
-import('./mesa-tempo-real.js?v=208').then(m=>{window.mesaTempoReal=m.instalarTempoReal({db,doc,setDoc,getDoc,onSnapshot,collection,runTransaction,
+import('./mesa-tempo-real.js?v=225').then(m=>{window.mesaTempoReal=m.instalarTempoReal({db,doc,setDoc,getDoc,onSnapshot,collection,runTransaction,
  ehMestre:()=>userData?.role==='mestre',uid:()=>currentUserUid,personagemId:()=>currentCharId,api:()=>window.mesaTempoRealDadosV111_,criaturas:()=>criaturasDB||[]});}).catch(e=>console.warn('[Tempo real] indisponível; site segue normal.',e));
 // v112: Barra do Mestre em cima do mapa (trocar mapa, colocar, mover, desenhar, salvar sozinho). Módulo à parte.
 window.mesaControllerV174_=()=>novaSyncController_; // v174: acesso ao controle da mesa (ferramentas e testes)
@@ -122,7 +122,7 @@ import('./mesa-ligacoes.js?v=205').then(m=>{window.mesaLigacoes=m.instalarLigaco
 import('./mesa-companheiros.js?v=144').then(m=>{window.mesaCompanheirosMod=m.instalarCompanheiros({db,doc,setDoc,onSnapshot,runTransaction,
  controller:()=>novaSyncController_,ehMestre:()=>userData?.role==='mestre',uid:()=>currentUserUid,criaturas:()=>criaturasDB||[],npcs:()=>npcsDB||[],personagens:()=>userCharacters||[],mapas:()=>mapasDB||[]});}).catch(e=>console.warn('[Companheiros] indisponível; site segue normal.',e));
 // v128: animações e sons de batalha (explosão, raio, queda, morte, vozes de criaturas) e clima. Módulo à parte.
-import('./mesa-efeitos.js?v=194').then(m=>{window.mesaEfeitos=m.instalarEfeitos({db,doc,setDoc,getDoc,onSnapshot,runTransaction,raio:()=>window.mesaRaioV132_,
+import('./mesa-efeitos.js?v=225').then(m=>{window.mesaEfeitos=m.instalarEfeitos({db,doc,setDoc,getDoc,onSnapshot,runTransaction,raio:()=>window.mesaRaioV132_,
  controller:()=>novaSyncController_,ehMestre:()=>userData?.role==='mestre',uid:()=>currentUserUid,criaturas:()=>criaturasDB||[]});}).catch(e=>console.warn('[Efeitos] indisponível; site segue normal.',e));
 // v129: rechear os mapas dos cenários com armários/baús, itens e bilhetes (botão 🎁 no 🕸️ Mapa geral).
 import('./mesa-recheio.js?v=155').then(m=>{window.mesaRecheioMod=m.instalarRecheio({db,doc,setDoc,getDoc,ehMestre:()=>userData?.role==='mestre',
