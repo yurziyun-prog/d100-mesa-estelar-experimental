@@ -1,12 +1,10 @@
 #!/bin/sh
-# Publica os arquivos do jogo sem os videos de testes que excedem 25 MiB.
-# Nenhum arquivo e removido do repositorio GitHub.
+# v224: usa exatamente o mesmo empacotador do deploy Firebase.
+# O site NAO funciona sem js/app.js: ele e montado a partir de js/app/01-25.
 set -eu
+node scripts/preparar-hosting.cjs
 mkdir -p dist
-tar -cf - \
-  --exclude='./.git' \
-  --exclude='./dist' \
-  --exclude='./docs/video-percurso/percurso-jogador-teste.webm' \
-  . | tar -xf - -C dist
-test -f dist/index.html
-echo "Mesa Estelar: arquivos preparados em dist/ (video de teste pesado excluido)."
+cp -R .firebase-public/. dist/
+test -s dist/index.html
+test -s dist/js/app.js
+echo "Cloudflare Pages: site empacotado, imports validados e js/app.js presente."
