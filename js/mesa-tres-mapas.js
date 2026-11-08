@@ -8,6 +8,17 @@ import {MATERIAIS,oChao,oParede,oPorta,montarPeca} from './mesa-construcao.js?v=
 const MAPA_T='mesa_tres_v223',MAPA_I='mesa_tres_v223_dentro',LIG='combatesAtivos/mesaLigacoes';
 const POS='combatesAtivos/mapaMesaSyncDireta/posicoes';
 const CSS=`
+body.mapa-construtor,body.mapa-mestre,body.mapa-jogo{overflow-y:auto!important;height:auto!important;min-height:100vh!important}
+#mapa-construtor,#mapa-mestre,#mapa-jogo{width:100%;max-width:none!important;box-sizing:border-box}
+#mapa-construtor>.form-section,#mapa-mestre>.form-section,#mapa-jogo>.form-section{width:100%;max-width:none!important;margin:0!important;padding:8px!important;box-sizing:border-box}
+.mtm-host{width:100%;max-width:none;min-height:calc(100dvh - 160px)}
+.mtm-faixa{justify-content:space-between;gap:8px}
+.mtm-controles{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
+.mtm-controles button{border:1px solid #43607d;background:#172a42;color:#e8f4ff;border-radius:7px;padding:5px 9px;cursor:pointer}
+body:is(.mapa-construtor,.mapa-mestre,.mapa-jogo) #sincronizacao-nova{width:100%!important;max-width:none!important}
+body:is(.mapa-construtor,.mapa-mestre,.mapa-jogo) #sincronizacao-nova .nova-view-tools{display:flex!important;flex-wrap:wrap!important;height:auto!important;gap:6px}
+body:is(.mapa-construtor,.mapa-mestre) #mbBarra{display:flex;flex-wrap:wrap;gap:5px;height:auto!important;max-width:100%}
+
 #mapa-construtor,#mapa-mestre,#mapa-jogo{position:relative}
 .mtm-host{min-height:60vh}
 .mtm-host>#sincronizacao-nova{display:block!important}
@@ -17,7 +28,7 @@ body.mapa-construtor #mbBarra [data-a="atuar"],body.mapa-construtor #mbBarra [da
 body.mapa-jogo #mbBarra [data-a="editar"],body.mapa-jogo #mbBarra [data-a="colocar"],body.mapa-jogo #mbBarra [data-a="mover"],body.mapa-jogo #mbBarra [data-a="remover"],body.mapa-jogo #mbBarra [data-a="desenhar"]{display:none!important}
 body.mapa-jogo #mdAtalhos,body.mapa-jogo #mbTopo,body.mapa-jogo #mbBase{display:none!important}
 /* a seção antiga vira só o tabuleiro dentro das abas novas */
-body.mapa-construtor #sincronizacao-nova,body.mapa-mestre #sincronizacao-nova,body.mapa-jogo #sincronizacao-nova{display:flex!important;flex-direction:column;height:calc(100vh - 205px);height:calc(100dvh - 205px);min-height:0;margin:0!important}
+body.mapa-construtor #sincronizacao-nova,body.mapa-mestre #sincronizacao-nova,body.mapa-jogo #sincronizacao-nova{display:flex!important;flex-direction:column;height:calc(100vh - 165px);height:calc(100dvh - 165px);min-height:0;margin:0!important}
 body.mapa-construtor #sincronizacao-nova>.form-section,body.mapa-mestre #sincronizacao-nova>.form-section,body.mapa-jogo #sincronizacao-nova>.form-section{display:flex;flex-direction:column;height:100%;min-height:0;margin:0!important;padding:6px!important}
 body.mapa-construtor #sincronizacao-nova h2,body.mapa-mestre #sincronizacao-nova h2,body.mapa-jogo #sincronizacao-nova h2,
 body.mapa-construtor #novaSyncStatus,body.mapa-mestre #novaSyncStatus,body.mapa-jogo #novaSyncStatus,
@@ -78,14 +89,16 @@ export function instalarTresMapas(dep={}){
   ['mapa-mestre','👑','Mapa do mestre','Direção da sessão; botão direito num NPC abre o jogo'],
   ['mapa-jogo','🎮','Mapa de jogo','A visão do jogador, controlando quem foi escolhido']
  ];
- let atual='';let ancora=btnFicha;let mapaAnterior='';
+ let atual='';let ancora=btnFicha;let atorSelecionado='';let vistaAnterior=null;
  for(const [id,ic,nome,dica] of defs){
   if(root.getElementById(id))continue;
   const b=root.createElement('button');b.type='button';b.className='tab-btn mtm-tab';b.dataset.mtm=id;b.textContent=ic+' '+nome;b.title=dica;
   b.hidden=!ehMestre();
   b.addEventListener('click',()=>abrir(id,b));
   tabs.insertBefore(b,ancora?.nextSibling||null);ancora=b;
-  const sec=root.createElement('div');sec.id=id;sec.className='tab-content';sec.innerHTML=`<div class="form-section"><div class="mtm-faixa"><b>${ic} ${nome}</b><span class="mtm-dica">${dica}</span></div><div class="mtm-host"></div></div>`;
+  const sec=root.createElement('div');sec.id=id;sec.className='tab-content';sec.innerHTML=`<div class="form-section"><div class="mtm-faixa"><b>${ic} ${nome}</b><span class="mtm-dica">${dica}</span><div class="mtm-controles"><button type="button" data-criar-demo>Criar vila de teste</button><button type="button" data-voltar-mesa>Voltar à Mesa</button></div></div><div class="mtm-host"></div></div>`;
+  sec.querySelector('[data-criar-demo]').addEventListener('click',async e=>{if(!win.confirm('Criar vila, interior e personagens de teste no banco compartilhado?'))return;const btn=e.currentTarget;btn.disabled=true;try{await garantirMapa();await win.abrirMapaBancoNaMesa_?.(MAPA_T);}catch(err){console.warn('[Três mapas]',err);win.alert('Falha ao criar mapa: '+(err?.message||err));}finally{btn.disabled=false;}});
+  sec.querySelector('[data-voltar-mesa]').addEventListener('click',()=>voltarMesa(true));
   root.getElementById('appScreen')?.append(sec);
  }
  function escondeTudo(){
@@ -94,37 +107,41 @@ export function instalarTresMapas(dep={}){
  }
  async function abrir(id,btn){
   if(!ehMestre())return;
-  try{const antes=String(win.novaSyncController_?.mapaAtual?.()||'');if(antes&&antes!==MAPA_T&&antes!==MAPA_I)mapaAnterior=antes;await garantirMapa();if(win.novaSyncController_?.mapaAtual?.()!==MAPA_T)await win.abrirMapaBancoNaMesa_?.(MAPA_T);}catch(err){console.warn('[Três mapas] mapa',err);}
-  setTimeout(()=>{try{root.getElementById('mdCartao')?.remove();}catch(_){}},700);
   const alvo=root.getElementById(id),host=alvo?.querySelector('.mtm-host');if(!host)return;
+  if(!atual)vistaAnterior={angulo:win.mesaCameraV144?.angulo?.(),zoom:win.mesaCameraV144?.zoom?.()};
+  // Nenhuma gravação ou troca de mapa acontece ao abrir uma aba.
   escondeTudo();alvo.classList.add('active');btn?.classList.add('active');
   if(sync.parentElement!==host)host.append(sync);
   sync.classList.add('active');
   root.body.classList.remove('mapa-construtor','mapa-mestre','mapa-jogo');root.body.classList.add(id);
-  atual=id;try{win.mesaVista25D=true;}catch(_){}
-  try{
-   const cam=win.mesaCameraV144;
-   if(id==='mapa-construtor'){cam?.inclinar?.(0);cam?.definir?.(1);}
-   else if(id==='mapa-mestre'){cam?.inclinar?.(30);cam?.definir?.(1.5);}
-   else{cam?.inclinar?.(30);cam?.definir?.(2);}
-  }catch(_){}
-  if(id==='mapa-jogo')controleDoSelecionado();
-  if(id==='mapa-construtor'){try{win.mesaOficina3V175?.construtor?.entrar?.();}catch(_){}}
+  atual=id;win.mesaVista25D=id!=='mapa-construtor';
+  const cam=win.mesaCameraV144;
+  if(id==='mapa-construtor'){cam?.seguirToken?.('');cam?.inclinar?.(0);cam?.definir?.(1);}
+  else if(id==='mapa-mestre'){cam?.seguirToken?.('');cam?.inclinar?.(30);cam?.definir?.(1.5);}
+  else{cam?.inclinar?.(35);cam?.definir?.(2);controleDoSelecionado();}
   try{win.dispatchEvent(new CustomEvent('mesa-aba-tres-mapas',{detail:{aba:id}}));}catch(_){}
  }
- function voltarMesa(){
-  root.body.classList.remove('mapa-construtor','mapa-mestre','mapa-jogo');atual='';try{win.mesaVista25D=false;}catch(_){}
-  try{if(mapaAnterior&&win.novaSyncController_?.mapaAtual?.()!==mapaAnterior)void win.abrirMapaBancoNaMesa_?.(mapaAnterior);}catch(_){}mapaAnterior='';
+ function restaurarOrigem(){
   if(sync.parentElement!==paiOriginal)paiOriginal.insertBefore(sync,proximoOriginal||null);
+  root.body.classList.remove('mapa-construtor','mapa-mestre','mapa-jogo');
+  atual='';win.mesaVista25D=false;
+  const cam=win.mesaCameraV144;cam?.seguirToken?.('');
+  if(vistaAnterior){if(Number.isFinite(vistaAnterior.angulo))cam?.inclinar?.(vistaAnterior.angulo);if(Number.isFinite(vistaAnterior.zoom))cam?.definir?.(vistaAnterior.zoom);}
+  vistaAnterior=null;
   for(const id of ['mapa-construtor','mapa-mestre','mapa-jogo'])root.getElementById(id)?.classList.remove('active');
-  try{win.mostrarAba?.('sincronizacao-nova',root.getElementById('syncLabTabBtn'));}catch(_){}
  }
- root.getElementById('syncLabTabBtn')?.addEventListener('click',()=>{setTimeout(voltarMesa,0);});
+ function voltarMesa(navegar=false){
+  restaurarOrigem();
+  if(navegar)win.mostrarAba?.('sincronizacao-nova',root.getElementById('syncLabTabBtn'));
+ }
+ // Restaurar tabuleiro antes de navegar para qualquer outra aba existente.
+ tabs.addEventListener('click',e=>{const bt=e.target.closest?.('.tab-btn');if(bt&&!bt.classList.contains('mtm-tab')&&atual)restaurarOrigem();},true);
  function controleDoSelecionado(){
-  try{const s=root.getElementById('novaSyncPersonagem');let id=s?.value;
-   if(s&&(!id||id.startsWith('__'))){const op=[...s.options].find(o=>o.value&&!o.value.startsWith('__')&&!/fora do mapa/.test(o.textContent||''));if(op){s.value=op.value;s.dispatchEvent(new Event('change',{bubbles:true}));id=op.value;}}
-   if(!id||id.startsWith('__'))return;const rt=win.mesaTempoRealV111;if(rt?.ativo?.()&&rt.automatico?.(id))void rt.assumirControle?.(id);}catch(_){}
+  const s=root.getElementById('novaSyncPersonagem');
+  const id=atorSelecionado||String(s?.value||'');
+  if(id&&!id.startsWith('__'))win.mesaCameraV144?.seguirToken?.(id);
  }
+ root.getElementById('novaSyncPersonagem')?.addEventListener('change',e=>{if(atual==='mapa-jogo'){atorSelecionado=String(e.target.value||'');controleDoSelecionado();}});
  // duplo clique numa casa/porta do mapa: se houver interior ligado, abre o interior ampliado
  root.addEventListener('dblclick',e=>{
   if(!ehMestre()||(atual!=='mapa-construtor'&&atual!=='mapa-mestre'))return;
@@ -146,7 +163,8 @@ export function instalarTresMapas(dep={}){
   const tk=e.target.closest('#novaSyncBoard [data-token]');if(!tk)return;
   e.preventDefault();e.stopPropagation();
   const s=root.getElementById('novaSyncPersonagem');if(!s)return;
-  if([...s.options].some(o=>o.value===tk.dataset.token)){s.value=tk.dataset.token;s.dispatchEvent(new Event('change',{bubbles:true}));}
+  atorSelecionado=String(tk.dataset.token||'');
+  if([...s.options].some(o=>o.value===atorSelecionado)){s.value=atorSelecionado;s.dispatchEvent(new Event('change',{bubbles:true}));}
   abrir('mapa-jogo',root.querySelector('.mtm-tab[data-mtm="mapa-jogo"]'));
  },true);
  // se a sessão esconder a aba por troca de papel, restaura a seção
