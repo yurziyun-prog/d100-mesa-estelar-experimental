@@ -101,7 +101,7 @@ function montarCenaReal(scene,W,H){
  return true; // Cena identificada, mesmo que alguns objetos não tenham equivalente 3D.
 }
 
-export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=()=>null,dimensoes=()=>({W:28,H:14}),mapaAtual=()=>'',ativo=()=>false,modo=()=>'',mapa=()=>'',idMapa=''}={}){
+export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=()=>null,dimensoes=()=>({W:28,H:14}),mapaAtual=()=>'',ativo=()=>false,modo=()=>'',mapa=()=>'',idMapa='',aoCliqueChao=null}={}){
  if(!host)return {atualizar(){},destruir(){}};
  const painel=root.createElement('div');painel.id='mtmLab25D';
  painel.style.cssText='position:relative;width:100%;min-height:580px;height:min(78dvh,900px);overflow:hidden;border:1px solid #516a79;border-radius:12px;background:#a6c2ce;touch-action:none';
@@ -250,6 +250,21 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
   }
   drag.x=e.clientX;drag.y=e.clientY;invalidate();
  });
+ // Cliques no chão usam a inversa da projeção ortográfica z=0.
+ // O destino é entregue ao motor do jogo, que calcula a rota e colisões.
+ canvas.addEventListener('click',e=>{
+  if(modoAtual!=='mapa-jogo'||!mapaAtual()||typeof aoCliqueChao!=='function')return;
+  const rect=canvas.getBoundingClientRect(),width=rect.width,height=rect.height,d=dimValidas();
+  if(width<1||height<1)return;
+  const scale=Math.min(width/(d.W*1.36),height/(d.H*1.85))*zoom;
+  const center=orientar(V(centroCamera[0],centroCamera[1],0));
+  const xx=center[0]+(e.clientX-rect.left-width*.5)/scale;
+  const yy=(center[1]+(e.clientY-rect.top-height*.53)/scale)/Math.max(.15,Math.sin(pitch));
+  const c=Math.cos(yaw),sn=Math.sin(yaw);
+  const x=xx*c+yy*sn,y=-xx*sn+yy*c;
+  if(x<0||y<0||x>d.W||y>d.H)return;
+  aoCliqueChao({x,y,W:d.W,H:d.H});
+ });
  const stop=e=>{if(drag&&e.pointerId===drag.id){drag=null;canvas.style.cursor='grab';}};canvas.addEventListener('pointerup',stop);canvas.addEventListener('pointercancel',stop);
  canvas.addEventListener('wheel',e=>{if(modoAtual==='mapa-jogo')return;e.preventDefault();zoom=clamp(zoom*Math.exp(-e.deltaY*.001),.7,3);invalidate();},{passive:false});
  const resize=typeof ResizeObserver!=='undefined'?new ResizeObserver(invalidate):null;resize?.observe(painel);
@@ -298,14 +313,14 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
    centroCamera=[enq.cx,enq.cy];
    reenquadrar();
   }
-  canvas.style.cursor=modo==='mapa-jogo'?'default':'grab';
+  canvas.style.cursor=modo==='mapa-jogo'?'crosshair':'grab';
   canvas.style.touchAction=modo==='mapa-jogo'?'auto':'none';
   reset.hidden=modo==='mapa-jogo';
   help.textContent=modo==='mapa-construtor'
    ?'CONSTRUTOR · arrastar: girar · Shift+arrastar: deslocar · roda: zoom · edição pelo mapa funcional'
    :modo==='mapa-mestre'
    ?'MESTRE · arrastar: girar · Shift+arrastar: deslocar · roda: zoom'
-   :'JOGO · estilo isométrico clássico · norte fixo · acompanha personagem · rotação e zoom bloqueados';
+   :'JOGO · clique no chão para caminhar · WASD ou setas · câmera acompanha o personagem';
   painel.hidden=!visivel;painel.style.display=visivel?'block':'none';
   if(visivel&&(mudou||mapaMudou||tokenMudou||!raf))invalidate();
  },destruir(){win.clearInterval(acompanhamento);resize?.disconnect();if(raf)win.cancelAnimationFrame(raf);painel.remove();}};
