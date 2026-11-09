@@ -5,7 +5,7 @@
 // Por enquanto as três usam o mesmo tabuleiro (`#sincronizacao-nova`), que é movido para a aba ativa.
 // A aba "Mapa da Mesa" original continua exatamente como era; ao voltar, o tabuleiro volta para lá.
 import {MATERIAIS,oChao,oParede,oPorta,montarPeca} from './mesa-construcao.js?v=180';
-import {instalarLaboratorio25D} from './mesa-lab25d.js?v=233';
+import {instalarLaboratorio25D} from './mesa-lab25d.js?v=234';
 const MAPA_T='mesa_laboratorio_v224',MAPA_I='mesa_laboratorio_v224_interior',LIG='combatesAtivos/mesaLigacoes';
 const MAPAS_DESCARTADOS_V224=new Set([MAPA_T,MAPA_I]);
 const MAPAS_REFERENCIA_V225=/^(?:Ecossistema\s*\(teste\)|Casa de teste\s*\(básico\))$/i;
