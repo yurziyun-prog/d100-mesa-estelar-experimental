@@ -220,8 +220,10 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
  return {el:painel,atualizar({visivel=false,token='',modo='mapa-construtor'}={}){
   const mudou=modoAtual!==modo,tokenMudou=selecionado!==token;
   modoAtual=modo;selecionado=token;
-  const idAtual=String(mapaAtual()||''),mapaMudou=idAtual!==ultimoMapaV230;
-  if(mapaMudou){ultimoMapaV230=idAtual;}
+  const idAtual=String(mapaAtual()||''),cena=enquadramentoCena();
+  const cenaInfo=cena.cx.toFixed(2)+':'+cena.cy.toFixed(2)+':'+cena.zoom.toFixed(2);
+  const mapaMudou=(idAtual+'|'+cenaInfo)!==ultimoMapaV230;
+  if(mapaMudou){ultimoMapaV230=idAtual+'|'+cenaInfo;}
   if(modo==='mapa-jogo'&&tokenMudou){const t=lerTokens().find(t=>t.id===token);if(t)centroCamera=[t.x,t.y];}
   if(mudou||mapaMudou){
    drag=null;
