@@ -252,7 +252,12 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
  roofToggle.style.cssText=reset.style.cssText;
  tools.append(roofToggle);
  tools.append(reset);painel.append(tools);
- const ctx=canvas.getContext('2d');let yaw=-.65,pitch=.62,zoom=1.0,raf=0,drag=null,ultimoModo='',personagem=[18,13,0],selecionado='',modoAtual='mapa-construtor',centroCamera=[14,9],ultimoTokenPos='',ultimoMapaV230='',ultimaCenaRef=null,ultimoVisivel=false;
+ // Compor no buffer e publicar apenas quadros completos.
+ const buffer=root.createElement('canvas'),ctx=buffer.getContext('2d',{alpha:false});
+ const displayCtx=canvas.getContext('2d',{alpha:false});
+ let ultimaCenaValida=null,ultimoIdCenaValida='',ultimoPainelVisivel=null;
+ const publicarQuadro=()=>{displayCtx.setTransform(1,0,0,1,0,0);displayCtx.drawImage(buffer,0,0);};
+ let yaw=-.65,pitch=.62,zoom=1.0,raf=0,drag=null,ultimoModo='',personagem=[18,13,0],selecionado='',modoAtual='mapa-construtor',centroCamera=[14,9],ultimoTokenPos='',ultimoMapaV230='',ultimaCenaRef=null,ultimoVisivel=false;
  let telhadosVisiveis=true;
  roofToggle.addEventListener('click',()=>{telhadosVisiveis=!telhadosVisiveis;roofToggle.textContent=telhadosVisiveis?'🏠 Telhados: visíveis':'🏠 Telhados: ocultos';invalidate();});
  const movimentoVisual=new Map();
@@ -294,7 +299,7 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
  function pintar(){
   raf=0;if(!painel.isConnected)return;
   const r=canvas.getBoundingClientRect(),dpr=clamp(win.devicePixelRatio||1,1,2),W=Math.max(1,Math.round(r.width*dpr)),H=Math.max(1,Math.round(r.height*dpr));
-  if(canvas.width!==W||canvas.height!==H){canvas.width=W;canvas.height=H;}
+  if(buffer.width!==W||buffer.height!==H){buffer.width=W;buffer.height=H;}
   ctx.setTransform(dpr,0,0,dpr,0,0);
   const width=W/dpr,height=H/dpr;
   const grad=ctx.createLinearGradient(0,0,0,height);grad.addColorStop(0,'#9fb8c9');grad.addColorStop(1,'#cad4cf');ctx.fillStyle=grad;ctx.fillRect(0,0,width,height);
@@ -305,7 +310,9 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
    ctx.fillRect(x,y,w,94);ctx.fillStyle='#e6f3ff';ctx.textAlign='center';
    ctx.font='bold 17px Segoe UI,Arial,sans-serif';ctx.fillText('Nenhum mapa selecionado',width/2,y+35);
    ctx.font='13px Segoe UI,Arial,sans-serif';ctx.fillText('Escolha um mapa no seletor acima para carregar a cena.',width/2,y+64);
-   ctx.textAlign='left';return;
+   ctx.textAlign='left';
+   if(canvas.width!==W||canvas.height!==H){canvas.width=W;canvas.height=H;}
+   publicarQuadro();return;
   }
    // No modo de jogo a camera desliza suavemente para seguir a miniatura.
   // O angulo do mundo nunca gira quando a miniatura muda de direcao.
@@ -331,8 +338,15 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
    if(borda){ctx.strokeStyle=borda;ctx.lineWidth=.75;ctx.stroke();}
   };
   const cena=cenaAtual(),mid=String(mapaAtual()||''),real=!!(cena&&mid&&String(cena.mapId||'')===mid);
-  if(real)montarCenaReal(cena,dims.W,dims.H,telhadosVisiveis);
-  else{faces.length=0;face([V(0,0),V(dims.W,0),V(dims.W,dims.H),V(0,dims.H)],'#607b5a','#607b5a');}
+  if(real){
+   ultimaCenaValida=cena;ultimoIdCenaValida=mid;
+   montarCenaReal(cena,dims.W,dims.H,telhadosVisiveis);
+  }else if(ultimaCenaValida&&mid&&ultimoIdCenaValida===mid){
+   // Atualização transitória vazia não deve fazer a vila desaparecer.
+   montarCenaReal(ultimaCenaValida,dims.W,dims.H,telhadosVisiveis);
+  }else{
+   faces.length=0;face([V(0,0),V(dims.W,0),V(dims.W,dims.H),V(0,dims.H)],'#607b5a','#607b5a');
+  }
   // O chão é a base do mundo: nunca deve ocultar paredes ou personagens.
   // Primeiro os planos horizontais baixos; depois as superfícies elevadas.
   // A ordenação completa de faces interseccionadas exige z-buffer, ainda pendente.
@@ -378,7 +392,9 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
    if(parte.tipo==='face')desenharPoligono(parte.face.vs,parte.face.cor,parte.face.borda);
    else desenharPersonagem(parte.token);
   }
-  ctx.fillStyle='#102235bb';ctx.fillRect(10,height-29,Math.min(570,width-20),22);ctx.fillStyle='#edf7ff';ctx.font='12px Segoe UI,Arial';ctx.fillText(real?'Cena compartilhada · objetos reais em visualização 2,5D experimental':'Mapa sem cena 3D carregada · abra uma cena no Construtor',18,height-14);
+  ctx.fillStyle='#102235bb';ctx.fillRect(10,height-29,Math.min(570,width-20),22);ctx.fillStyle='#edf7ff';ctx.font='12px Segoe UI,Arial';ctx.fillText(real||ultimoIdCenaValida===mid&&!!ultimaCenaValida?'Cena compartilhada · objetos reais em visualização 2,5D experimental':'Mapa sem cena 3D carregada · abra uma cena no Construtor',18,height-14);
+  if(canvas.width!==W||canvas.height!==H){canvas.width=W;canvas.height=H;}
+  publicarQuadro();
  }
  const invalidate=()=>{if(!raf)raf=win.requestAnimationFrame(pintar);};
  canvas.addEventListener('pointerdown',e=>{if(modoAtual==='mapa-jogo')return;drag={x:e.clientX,y:e.clientY,id:e.pointerId,pan:e.shiftKey||e.button===2};canvas.setPointerCapture(e.pointerId);canvas.style.cursor='grabbing';});
@@ -472,7 +488,10 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
    :modo==='mapa-mestre'
    ?'MESTRE · arrastar: girar · Shift+arrastar: deslocar · roda: zoom'
    :'JOGO · clique no chão para caminhar · WASD ou setas · câmera acompanha o personagem';
-  painel.hidden=!visivel;painel.style.display=visivel?'block':'none';
+  if(ultimoPainelVisivel!==visivel){
+   painel.hidden=!visivel;painel.style.display=visivel?'block':'none';
+   ultimoPainelVisivel=visivel;
+  }
   // Evitar repintura periódica quando a cena e a câmera não mudaram.
   const cenaRef=cenaAtual(),cenaMudou=cenaRef!==ultimaCenaRef;
   const visibilidadeMudou=visivel!==ultimoVisivel;
