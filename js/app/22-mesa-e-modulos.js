@@ -20,7 +20,7 @@ function novaBaseCriatura_(attrs,name,special){const c={atributos:attrs,bonus:{}
 import {classificarTeste as novaClassificar_,locaisValidos as novaLocaisValidos_,descreverTeste as novaDescreverTeste_} from './nova-regras.js?v=46';
 import {aplicarDanoArma as novaAplicarDanoArma_} from './nova-dano-armas.js?v=60';
 import {criarRelogio as novaCriarRelogio_} from './nova-duracoes.js?v=46';
-import {mountDirectPositionLab} from './nova-direta.js?v=242';
+import {mountDirectPositionLab} from './nova-direta.js?v=243';
 import {tocarEfeito} from './nova-fx.js?v=46';
 import {identificarKit,testeComSorte,prepararSorte,resolverConsciencia} from './nova-recuperacao.js?v=99';
 import {emComa as emComaV134_} from './nova-coma.js?v=134';
@@ -122,7 +122,7 @@ import('./mesa-ligacoes.js?v=205').then(m=>{window.mesaLigacoes=m.instalarLigaco
 import('./mesa-companheiros.js?v=144').then(m=>{window.mesaCompanheirosMod=m.instalarCompanheiros({db,doc,setDoc,onSnapshot,runTransaction,
  controller:()=>novaSyncController_,ehMestre:()=>userData?.role==='mestre',uid:()=>currentUserUid,criaturas:()=>criaturasDB||[],npcs:()=>npcsDB||[],personagens:()=>userCharacters||[],mapas:()=>mapasDB||[]});}).catch(e=>console.warn('[Companheiros] indisponível; site segue normal.',e));
 // v128: animações e sons de batalha (explosão, raio, queda, morte, vozes de criaturas) e clima. Módulo à parte.
-import('./mesa-efeitos.js?v=242').then(m=>{window.mesaEfeitos=m.instalarEfeitos({db,doc,setDoc,getDoc,onSnapshot,runTransaction,raio:()=>window.mesaRaioV132_,
+import('./mesa-efeitos.js?v=243').then(m=>{window.mesaEfeitos=m.instalarEfeitos({db,doc,setDoc,getDoc,onSnapshot,runTransaction,raio:()=>window.mesaRaioV132_,
  controller:()=>novaSyncController_,ehMestre:()=>userData?.role==='mestre',uid:()=>currentUserUid,criaturas:()=>criaturasDB||[]});}).catch(e=>console.warn('[Efeitos] indisponível; site segue normal.',e));
 // v129: rechear os mapas dos cenários com armários/baús, itens e bilhetes (botão 🎁 no 🕸️ Mapa geral).
 import('./mesa-recheio.js?v=155').then(m=>{window.mesaRecheioMod=m.instalarRecheio({db,doc,setDoc,getDoc,ehMestre:()=>userData?.role==='mestre',
@@ -802,7 +802,18 @@ const novaSyncController_=mountDirectPositionLab({
  loadActions:novaDadosAcoes_,
  prepareAttack:novaPrepararAtaque_,
  prepareSupport:novaPrepararSuporte_,
- playAttackSound:event=>{if(!tocarEfeito(obterAudioCtx_(),event.item)){labSomAtaque_(event.item,event.grade);if(event.damage>0)labSomDanoAplicado_(event.item);}},
+ playAttackSound:event=>{
+  // v243: uma última verificação antes de qualquer emissão de som.
+  // Controlador, tabuleiro e evento precisam apontar ao mesmo mapa.
+  const atual=String(novaSyncController_?.mapaAtual?.()||'');
+  const mostrado=String(document.getElementById('novaSyncBoard')?.dataset.mapaVisivel||'');
+  const origem=String(event?.mapId||event?.mapaId||'');
+  if(!atual||!mostrado||atual!==mostrado||origem!==atual)return;
+  if(!tocarEfeito(obterAudioCtx_(),event.item)){
+   labSomAtaque_(event.item,event.grade);
+   if(event.damage>0)labSomDanoAplicado_(event.item);
+  }
+ },
  unlockSound:()=>obterAudioCtx_()?.resume(),
  restoreHealth:async tokens=>Object.fromEntries(await Promise.all(tokens.map(async t=>{const c=await novaFicha_(t),snapshot={...t,charLab:c};return labComContextoLocal_({...labEstado_,tokens:[snapshot]},false,()=>{labRestaurarTokenCompleto490_(snapshot);return [t.id,JSON.parse(JSON.stringify({combateLab:snapshot.combateLab,municaoLab:{}}))];});}))),
  rollTest:valor=>{const die=1+Math.floor(Math.random()*100);return {die,...classificarD100_(valor,die)};},
