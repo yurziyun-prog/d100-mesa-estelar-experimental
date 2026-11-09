@@ -60,5 +60,6 @@ Três interfaces do mestre, para a MESMA cena e objetos, sem abrir automaticamen
 - Registrar continuamente o que foi feito e o que falta, para migração de conversa.
 
 ## Última rodada
+v232 (2026-11-09): Separados os pisos horizontais dos volumes para evitar o terreno cobrindo paredes (limitação do painter's algorithm ainda presente em interseções complexas); Construtor inicia com câmera mais elevada; Mapa de jogo recupera a lista de miniaturas diretamente do tabuleiro quando o seletor original está vazio e seleciona a primeira disponível. Sem teste visual automatizado. Validar com usuário, sobretudo áudio entre mapas.
 v231 (2026-11-09): Construtor e Mestre agora têm botão discreto **Reenquadrar** dentro do viewport 3D; ângulos padrão separados por modo, menor ampliação máxima automática para evitar terreno cortado; Jogo com perspectiva isométrica estável, zoom aumentado e fallback visual para o primeiro token disponível se não houver seleção. Ainda requer validação manual e correção de rastreamento dos tokens pelo estado oficial do controlador.
 v230: Construtor abre com câmera 3D, preservação da aba ativa ao trocar mapa, filtro de sons reforçado em ambos os módulos, enquadramento no conteúdo e cache atualizado. Branch não mesclada. Verificar publicação no Cloudflare antes de pedir testes.
