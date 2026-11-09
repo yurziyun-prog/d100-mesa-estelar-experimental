@@ -46,17 +46,33 @@ function renderizarBancoMapas_(){
       }).join('')}</tbody></table></div>`;
 }
 
-window.recarregarBancoMapas_=async function(){
-    if(!userData||userData.role!=='mestre')return;
+// Estado da leitura, separado da lista: zero mapas NÃO significa necessariamente
+// ausência de dados, especialmente quando Firestore está temporariamente inacessível.
+window.mesaEstadoBancoMapasV235_={status:'aguardando',erro:'',atualizadoEm:0};
+window.recarregarBancoMapas_=async function({silencioso=false}={}){
+    if(!userData||userData.role!=='mestre')return false;
+    const estado=window.mesaEstadoBancoMapasV235_;
+    if(estado.status==='carregando')return false;
+    estado.status='carregando';estado.erro='';
     try{
         const q=await getDocs(collection(db,'mapas'));
-        mapasDB=[];q.forEach(d=>{const x={id:d.id,...d.data()};if(x.tipo!=='mapa-parte')mapasDB.push(x);});
-        mapasDB.sort((a,b)=>String(a.nome||'').localeCompare(String(b.nome||''),'pt-BR',{sensitivity:'base'}));
+        const novos=[];q.forEach(d=>{const x={id:d.id,...d.data()};if(x.tipo!=='mapa-parte')novos.push(x);});
+        novos.sort((a,b)=>String(a.nome||'').localeCompare(String(b.nome||''),'pt-BR',{sensitivity:'base'}));
+        mapasDB=novos;
         if(typeof labMesclarMapasLocais_==='function')labMesclarMapasLocais_();
+        estado.status='pronto';estado.atualizadoEm=Date.now();
         renderizarBancoMapas_();
         if(typeof labAtualizarSelectMapas_==='function')labAtualizarSelectMapas_();
-        notificar_('Banco de mapas atualizado.','info',2500);
-    }catch(e){console.error('Atualizar mapas',e);notificar_('Não foi possível atualizar o banco de mapas.','erro',4500);}
+        if(!silencioso)notificar_('Banco de mapas atualizado.','info',2500);
+        return true;
+    }catch(e){
+        // Preservar a lista anterior; nunca transformar um erro de rede em
+        // suposta exclusão de mapas.
+        console.error('Atualizar mapas',e);
+        estado.status='erro';estado.erro=String(e?.code||e?.message||'Falha de leitura');
+        if(!silencioso)notificar_('Não foi possível ler mapas: '+estado.erro,'erro',4500);
+        return false;
+    }
 };
 
 window.abrirMapaDaMesa_=function(){
