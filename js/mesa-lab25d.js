@@ -59,6 +59,35 @@ function telhadoCasa(box,material){
   face([V(x,y,z),V(x+w,y,z),V(mid,y,z+r)],cor[2],'#493931');
   face([V(x,y+h,z),V(mid,y+h,z+r),V(x+w,y+h,z)],cor[2],'#493931');
  }
+ // Fiadas de telhas adaptadas à inclinação das duas águas, sem alterar colisões.
+ const linha=material==='madeira'?'#554338':'#805447';
+ for(const t of [.24,.48,.72,.91]){
+  if(w>=h){
+   const mid=y+h/2,frente=y-e,tras=y+h+e;
+   const ya=frente+(mid-frente)*t,za=z+r*t+.02;
+   const yb=tras+(mid-tras)*t,zb=z+r*t+.02;
+   face([V(x-e,ya,za),V(x+w+e,ya,za),V(x+w+e,ya+.024,za),V(x-e,ya+.024,za)],linha,null);
+   face([V(x-e,yb,zb),V(x+w+e,yb,zb),V(x+w+e,yb-.024,zb),V(x-e,yb-.024,zb)],linha,null);
+  }else{
+   const mid=x+w/2,esq=x-e,dir=x+w+e;
+   const xa=esq+(mid-esq)*t,xb=dir+(mid-dir)*t,za=z+r*t+.02;
+   face([V(xa,y-e,za),V(xa+.024,y-e,za),V(xa+.024,y+h+e,za),V(xa,y+h+e,za)],linha,null);
+   face([V(xb,y-e,za),V(xb-.024,y-e,za),V(xb-.024,y+h+e,za),V(xb,y+h+e,za)],linha,null);
+  }
+ }
+ if(w>=h){
+  const mid=y+h/2;
+  face([V(x-e,mid-.042,z+r+.045),V(x+w+e,mid-.042,z+r+.045),V(x+w+e,mid+.042,z+r+.045),V(x-e,mid+.042,z+r+.045)],'#71513e',null);
+ }else{
+  const mid=x+w/2;
+  face([V(mid-.042,y-e,z+r+.045),V(mid+.042,y-e,z+r+.045),V(mid+.042,y+h+e,z+r+.045),V(mid-.042,y+h+e,z+r+.045)],'#71513e',null);
+ }
+ // Chaminé apenas nas casas maiores. Fica sobre a água do telhado.
+ if(w>=5.5){
+  const px=x+w*.73,py=y+h*.67,bz=z+r*.58;
+  caixa(px,py,bz,.46,.45,1.08,['#806858','#715547','#af8d78','#735747','#ccaa8e']);
+  caixa(px-.07,py-.07,bz+1.04,.60,.59,.15,['#66605b','#4b4a49','#837b73','#4b4746','#93877c']);
+ }
 }
 // Conversão de objetos reais do mapa. x/y são porcentagens 28x14 do motor;
 // larguraM/alturaM e z são metros. Nenhum dado é alterado aqui.
