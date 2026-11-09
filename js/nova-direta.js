@@ -183,14 +183,9 @@ export function mountDirectPositionLab({user,characters,workshop=null,renderScen
   if(!ev||!visivel)return false;
   const id=String(ev.mapId||ev.mapaId||'');
   if(id)return id===visivel;
-  // Compatibilidade com eventos antigos sem mapa: ambos os participantes
-  // devem ser identificáveis e pertencer à tela aberta, sem inferências.
-  const ids=[ev.source?.id,ev.target?.id].filter(Boolean);
-  if(!ids.length)return false;
-  return ids.every(tid=>{
-   const t=tokens.get(String(tid))||tokens.get(encodeURIComponent(String(tid)));
-   return !!t&&String(t.mapaId||'')===visivel;
-  });
+  // Eventos legados não têm origem espacial verificável. Não reproduzir
+  // som/efeito: personagens podem ter trocado de mapa após o ataque.
+  return false;
  };
 
  function desiredViewMapId(){
