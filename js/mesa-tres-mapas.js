@@ -284,6 +284,7 @@ export function instalarTresMapas(dep={}){
   for(const id of ['mapa-construtor','mapa-mestre','mapa-jogo'])root.getElementById(id)?.classList.remove('active');
  }
  function voltarMesa(navegar=false){
+  try{win.novaSyncController_?.pararAndar?.();}catch(_){}
   restaurarOrigem();
   if(navegar)win.mostrarAba?.('sincronizacao-nova',root.getElementById('syncLabTabBtn'));
  }
@@ -339,14 +340,42 @@ export function instalarTresMapas(dep={}){
    sel.value=atorSelecionado||'';
   }
   const st=sec?.querySelector('[data-mtm-estado]');
-  if(st)st.textContent=atual==='mapa-construtor'?'Construção: câmera 3D livre · Construir abre o editor funcional':atual==='mapa-mestre'?'Direção: botão direito sobre uma miniatura para acompanhá-la':'Jogo: protótipo geométrico experimental. Controle de personagens ainda em desenvolvimento.';
+  if(st)st.textContent=atual==='mapa-construtor'?'Construção: câmera 3D livre · Construir abre o editor funcional':atual==='mapa-mestre'?'Direção: botão direito sobre uma miniatura para acompanhá-la':'Jogo: WASD ou setas para andar com a miniatura selecionada · colisões e permissões do motor original.';
  }
  root.querySelectorAll('[data-mtm-ator]').forEach(sel=>sel.addEventListener('change',e=>{
-  atorSelecionado=String(e.target.value||'');
+  pararMovimento();atorSelecionado=String(e.target.value||'');
   const orig=root.getElementById('novaSyncPersonagem');
   if(orig&&[...orig.options].some(o=>o.value===atorSelecionado)){orig.value=atorSelecionado;orig.dispatchEvent(new Event('change',{bubbles:true}));}
   if(atual==='mapa-jogo')controleDoSelecionado();
  }));
+ // v234: input real no mapa de jogo, usando o movimento oficial do motor.
+ // Não escrever posições diretamente nem ignorar colisões, turnos ou permissões.
+ const teclasJogo=new Set(),dirs={ArrowUp:[0,-1],KeyW:[0,-1],ArrowDown:[0,1],KeyS:[0,1],ArrowLeft:[-1,0],KeyA:[-1,0],ArrowRight:[1,0],KeyD:[1,0]};
+ const ignorarTecla=e=>e.altKey||e.ctrlKey||e.metaKey||/^(INPUT|TEXTAREA|SELECT)$/.test(e.target?.tagName||'')||e.target?.isContentEditable;
+ function pararMovimento(){teclasJogo.clear();try{win.novaSyncController_?.pararAndar?.();}catch(err){console.warn('[Três mapas] parar:',err);}}
+ function moverComTeclas(){
+  if(atual!=='mapa-jogo'||!teclasJogo.size)return;
+  const ctl=win.novaSyncController_,id=String(atorSelecionado||'');
+  if(!ctl||!id||id.startsWith('__')){pararMovimento();return;}
+  const tk=ctl.token?.(id);
+  if(!tk||String(tk.mapaId||'')!==String(ctl.mapaAtual?.()||'')||!ctl.controla?.(tk)){pararMovimento();return;}
+  const sel=root.getElementById('novaSyncPersonagem');
+  if(sel&&sel.value!==id&&[...sel.options].some(o=>o.value===id)){
+   sel.value=id;sel.dispatchEvent(new Event('change',{bubbles:true}));
+  }
+  let dx=0,dy=0;for(const k of teclasJogo){dx+=dirs[k][0];dy+=dirs[k][1];}
+  if(dx||dy)ctl.andarDirecao?.(dx,dy);else ctl.pararAndar?.();
+ }
+ win.addEventListener('keydown',e=>{
+  if(atual!=='mapa-jogo'||ignorarTecla(e)||!Object.hasOwn(dirs,e.code))return;
+  // Sem controle de personagem, não consumir as teclas do navegador.
+  const tk=win.novaSyncController_?.token?.(String(atorSelecionado||''));
+  if(!tk||!win.novaSyncController_?.controla?.(tk))return;
+  e.preventDefault();teclasJogo.add(e.code);moverComTeclas();
+ });
+ win.addEventListener('keyup',e=>{if(teclasJogo.delete(e.code)){if(teclasJogo.size)moverComTeclas();else pararMovimento();}});
+ win.addEventListener('blur',pararMovimento);
+ win.addEventListener('mesa-aba-tres-mapas',e=>{if(e.detail?.aba!=='mapa-jogo')pararMovimento();});
  // duplo clique numa casa/porta do mapa: se houver interior ligado, abre o interior ampliado
  root.addEventListener('dblclick',e=>{
   if(!ehMestre()||(atual!=='mapa-construtor'&&atual!=='mapa-mestre'))return;
