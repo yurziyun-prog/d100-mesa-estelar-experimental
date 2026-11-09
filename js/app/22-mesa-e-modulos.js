@@ -808,7 +808,7 @@ const novaSyncController_=mountDirectPositionLab({
   const atual=String(novaSyncController_?.mapaAtual?.()||'');
   const mostrado=String(document.getElementById('novaSyncBoard')?.dataset.mapaVisivel||'');
   const origem=String(event?.mapId||event?.mapaId||'');
-  if(!atual||!mostrado||atual!==mostrado||origem!==atual)return;
+  if(!atual||(mostrado&&atual!==mostrado)||origem!==atual)return;
   if(!tocarEfeito(obterAudioCtx_(),event.item)){
    labSomAtaque_(event.item,event.grade);
    if(event.damage>0)labSomDanoAplicado_(event.item);
