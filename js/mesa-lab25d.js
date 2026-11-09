@@ -98,6 +98,41 @@ function montarCenaReal(scene,W,H,mostrarTelhados=true){
     for(let yy=y+passo;yy<y+h-.1;yy+=passo)
      face([V(x,yy,.025),V(x+w,yy,.025),V(x+w,yy+.026,.025),V(x,yy+.026,.025)],'#8d8b7b',null);
    }
+  }else if(kind==='arvore_vila'){
+   // Tronco elevado e copa em volumes: ambos participam da ordenação de
+   // profundidade, de modo que ocultem personagens atrás.
+   const cx=x+w/2,cy=y+h/2;
+   caixa(cx-.17,cy-.17,.02,.34,.34,1.65,['#62432f','#503626','#806044','#5a3b29','#806045']);
+   caixa(x+.12,y+.12,1.48,w-.24,h-.24,1.10,['#52783e','#395e34','#78944b','#466b37','#8daa54']);
+   caixa(x+w*.24,y+h*.19,2.38,w*.55,h*.58,.57,['#608c47','#456c3a','#94ab59','#456a39','#a6b966']);
+  }else if(kind==='poco_vila'){
+   // Poço octogonal baixo, com abertura escura e cobertura de madeira.
+   const cx=x+w/2,cy=y+h/2,R=Math.min(w,h)*.43,n=8;
+   const pts=Array.from({length:n},(_,i)=>[cx+Math.cos(Math.PI*i/4)*R,cy+Math.sin(Math.PI*i/4)*R]);
+   for(let i=0;i<n;i++){
+    const a=pts[i],b=pts[(i+1)%n];
+    face([V(a[0],a[1],.06),V(b[0],b[1],.06),V(b[0],b[1],.90),V(a[0],a[1],.90)],i%2?'#78776e':'#9c9788','#57564f');
+   }
+   face(pts.map(p=>V(p[0],p[1],.93)),'#77756b','#5b584e');
+   face(pts.map(p=>V(cx+(p[0]-cx)*.66,cy+(p[1]-cy)*.66,.96)),'#283942','#555b59');
+   caixa(cx-R*.7,cy-.12,.9,.18,.24,1.35,['#68513a','#4e392c','#806046','#59432f','#886c4d']);
+   caixa(cx+R*.54,cy-.12,.9,.18,.24,1.35,['#68513a','#4e392c','#806046','#59432f','#886c4d']);
+   face([V(cx-R*.83,cy-.42,2.2),V(cx+R*.83,cy-.42,2.2),V(cx+R*.83,cy,2.65),V(cx-R*.83,cy,2.65)],'#8d543b','#4b382b');
+   face([V(cx-R*.83,cy,2.65),V(cx+R*.83,cy,2.65),V(cx+R*.83,cy+.42,2.2),V(cx-R*.83,cy+.42,2.2)],'#694c39','#4b382b');
+  }else if(kind==='poste_vila'){
+   const cx=x+w/2,cy=y+h/2;
+   caixa(cx-.1,cy-.1,0,.2,.2,2.35,['#71523a','#533b2b','#94704d','#5c422f','#a78157']);
+   caixa(cx-.28,cy-.24,2.20,.56,.48,.42,['#d4a24f','#ac6d2b','#f2c976','#9a662b','#f6d994']);
+   caixa(cx-.36,cy-.31,2.63,.72,.62,.13,['#4b4033','#4b4033','#6d5b44','#4b4033','#7b6046']);
+  }else if(kind==='barril_vila'||kind==='caixote_vila'){
+   const barril=kind==='barril_vila';
+   caixa(x,y,.02,w,h,barril?.90:.68,barril?
+    ['#886243','#6f4b34','#a17a51','#6a4933','#c29a61']:
+    ['#a77e55','#85613f','#bd9064','#76563a','#be9568']);
+   if(barril){
+    caixa(x-.025,y-.025,.23,w+.05,h+.05,.10,['#555558','#4a4b50','#64666b','#4c4c50','#74757b']);
+    caixa(x-.025,y-.025,.70,w+.05,h+.05,.09,['#555558','#4a4b50','#64666b','#4c4c50','#74757b']);
+   }
   }else if(kind==='parede'||kind==='mureta'){
    const altura=normal(o.alturaParedeM,kind==='mureta'?.9:2.7);
    caixa(x,y,0,w,h,altura,pal);
