@@ -181,15 +181,15 @@ export function instalarTresMapas(dep={}){
   });
   const objs=[
    piso(0,0,W,H,'Solo da vila','#668263','adobe',0),
-   piso(.25,.35,W-.5,1.3,'Terreno do fundo','#617c5d','adobe',1),
-   piso(.25,9.3,W-.5,4.4,'Terreno frontal','#708967','adobe',1),
-   piso(0,5.55,W,2.9,'Rua principal','#b6ac93','pedra-polida',2),
+   piso(1.35,.35,W-2.7,1.3,'Terreno do fundo','#617c5d','adobe',1),
+   piso(.5,9.3,W-1,4.4,'Terreno frontal','#708967','adobe',1),
+   piso(.8,5.55,W-1.6,2.9,'Rua principal','#b6ac93','pedra-polida',2),
    piso(12.3,0,3.4,H,'Travessa central','#b1a58b','pedra-polida',2),
    piso(11.0,5.9,6,4.2,'Praça do povoado','#a49e8e','pedra-rio',3),
    piso(10.9,10.0,6.2,4,'Caminho de acesso frontal','#c0b49b','pedra-polida',2),
    piso(0,13.72,10.9,.28,'Limite frontal esquerdo','#797b68','pedra-rio',4),
    piso(17.1,13.72,10.9,.28,'Limite frontal direito','#797b68','pedra-rio',4),
-   piso(.25,.18,W-.5,.16,'Limite do fundo','#525f4a','pedra-rio',4)
+   piso(1.2,.18,W-2.4,.16,'Limite do fundo','#525f4a','pedra-rio',4)
   ];
   // O desenho ortográfico preserva escala real. Casas médias no fundo e
   // pequenas na frente davam a impressão errada de perspectiva invertida.
