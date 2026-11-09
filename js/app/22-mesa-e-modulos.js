@@ -20,7 +20,7 @@ function novaBaseCriatura_(attrs,name,special){const c={atributos:attrs,bonus:{}
 import {classificarTeste as novaClassificar_,locaisValidos as novaLocaisValidos_,descreverTeste as novaDescreverTeste_} from './nova-regras.js?v=46';
 import {aplicarDanoArma as novaAplicarDanoArma_} from './nova-dano-armas.js?v=60';
 import {criarRelogio as novaCriarRelogio_} from './nova-duracoes.js?v=46';
-import {mountDirectPositionLab} from './nova-direta.js?v=230';
+import {mountDirectPositionLab} from './nova-direta.js?v=238';
 import {tocarEfeito} from './nova-fx.js?v=46';
 import {identificarKit,testeComSorte,prepararSorte,resolverConsciencia} from './nova-recuperacao.js?v=99';
 import {emComa as emComaV134_} from './nova-coma.js?v=134';
@@ -271,7 +271,7 @@ import('./mesa-oficina3.js?v=180').then(m=>{window.mesaOficina3Mod=m.instalarOfi
  controller:()=>novaSyncController_,ehMestre:()=>userData?.role==='mestre',mapas:()=>mapasDB||[],objetos:()=>objetosMapaDB||[],enviarImagem:f=>uploadImagemBanco_(f,'pinceis')});}).catch(e=>console.warn('[Oficina 3] indisponível; site segue normal.',e));
 import('./mesa-camera.js?v=209').then(m=>{window.mesaCameraMod=m.instalarCamera({controller:()=>novaSyncController_,ehMestre:()=>userData?.role==='mestre',db,doc,setDoc,onSnapshot});}).catch(e=>console.warn('[Câmera] indisponível; site segue normal.',e));
 // v222: três abas do mestre em cima do MESMO mapa (construtor, mestre e jogo).
-import('./mesa-tres-mapas.js?v=237').then(m=>{window.mesaTresMapas=m.instalarTresMapas({root:document,ehMestre:()=>userData?.role==='mestre',db,doc,getDoc,setDoc,deleteDoc,mapas:()=>mapasDB||[],uid:()=>currentUserUid});}).catch(e=>console.warn('[Três mapas] indisponível; site segue normal.',e));
+import('./mesa-tres-mapas.js?v=238').then(m=>{window.mesaTresMapas=m.instalarTresMapas({root:document,ehMestre:()=>userData?.role==='mestre',db,doc,getDoc,setDoc,deleteDoc,mapas:()=>mapasDB||[],uid:()=>currentUserUid});}).catch(e=>console.warn('[Três mapas] indisponível; site segue normal.',e));
 import('./mesa-trabalho.js?v=154').then(m=>{window.mesaTrabalhoMod=m.instalarTrabalho({db,doc,setDoc,getDoc,runTransaction,storage,ref,uploadBytes,getDownloadURL,
  controller:()=>novaSyncController_,ehMestre:()=>userData?.role==='mestre',uid:()=>currentUserUid,npcs:()=>npcsDB||[],mapas:()=>mapasDB||[],normalizar:(tipo,bruto)=>normalizarLinhaImportacao_(tipo,bruto)});}).catch(e=>console.warn('[Trabalho] indisponível; site segue normal.',e));
 // v145: névoa de guerra por mapa e a subida para a Cidade Superior (escadaria, praça, Cálice, Câmara, Residência de Ilü-Mus-Ki). Módulos à parte.
