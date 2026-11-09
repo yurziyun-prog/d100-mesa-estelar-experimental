@@ -262,10 +262,13 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
   b.style.cssText=reset.style.cssText;return b;
  };
  const vistaSuperior=criarBotao('⬇ De cima','Ver a distribuição das construções na planta');
+ const vistaFrontal=criarBotao('▣ Frente','Ver fachadas de frente e comparar alturas das construções');
  const zoomMenos=criarBotao('−','Afastar câmera');
  const zoomMais=criarBotao('+','Aproximar câmera');
  const foto=criarBotao('📷 PNG','Exportar a vista atual do mapa como imagem');
- tools.append(roofToggle,vistaSuperior,zoomMenos,zoomMais,foto,reset);painel.append(tools);
+ // Não deixar os controles extravasarem pela borda direita em telas menores.
+ tools.style.maxWidth='calc(100% - 20px)';
+ tools.append(roofToggle,vistaSuperior,vistaFrontal,zoomMenos,zoomMais,foto,reset);painel.append(tools);
  // Compor no buffer e publicar apenas quadros completos.
  const buffer=root.createElement('canvas'),ctx=buffer.getContext('2d',{alpha:false});
  const displayCtx=canvas.getContext('2d',{alpha:false});
@@ -275,6 +278,7 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
  let telhadosVisiveis=true;
  roofToggle.addEventListener('click',()=>{telhadosVisiveis=!telhadosVisiveis;roofToggle.textContent=telhadosVisiveis?'🏠 Telhados: visíveis':'🏠 Telhados: ocultos';invalidate();});
  vistaSuperior.addEventListener('click',()=>{if(modoAtual==='mapa-jogo')return;yaw=0;pitch=Math.PI/2;invalidate();});
+ vistaFrontal.addEventListener('click',()=>{if(modoAtual==='mapa-jogo')return;yaw=0;pitch=.30;invalidate();});
  const alterarZoom=passo=>{if(modoAtual==='mapa-jogo')return;zoom=clamp(zoom*passo,.7,3);invalidate();};
  zoomMenos.addEventListener('click',()=>alterarZoom(1/1.2));
  zoomMais.addEventListener('click',()=>alterarZoom(1.2));
@@ -508,7 +512,7 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
   canvas.style.cursor=modo==='mapa-jogo'?'crosshair':'grab';
   canvas.style.touchAction=modo==='mapa-jogo'?'auto':'none';
   reset.hidden=modo==='mapa-jogo';
-  for(const b of [roofToggle,vistaSuperior,zoomMenos,zoomMais,foto])b.hidden=modo==='mapa-jogo';
+  for(const b of [roofToggle,vistaSuperior,vistaFrontal,zoomMenos,zoomMais,foto])b.hidden=modo==='mapa-jogo';
   help.textContent=modo==='mapa-construtor'
    ?'CONSTRUTOR · arrastar: girar · Shift+arrastar: deslocar · roda: zoom · edição pelo mapa funcional'
    :modo==='mapa-mestre'
