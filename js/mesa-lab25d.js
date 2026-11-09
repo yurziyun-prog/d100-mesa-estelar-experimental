@@ -118,11 +118,15 @@ function montarCenaReal(scene,W,H,mostrarTelhados=true){
   const pal=cores[mat]||cores[mat.includes('pedra')?'pedra':'madeira'];
   if(kind==='chao'||o.camada===1&&kind!=='escada'){
    const estrada=/rua|travessa|praça|calçada|caminho/i.test(String(o.nome||''));
-   const cor=estrada?(mat.includes('rio')?'#a29d89':'#b7ad94'):(/solo|terreno/i.test(String(o.nome||''))?'#668263':pal[4]);
-   // O chão usa ordem semântica: base -> ruas -> praça.
-    // Ordená-los por profundidade média fazia o calçamento sumir em certos ângulos.
-    const planoCamada=/praça/i.test(String(o.nome||''))?3:estrada?2:/solo|terreno/i.test(String(o.nome||''))?0:1;
-    face([V(x,y,.018),V(x+w,y,.018),V(x+w,y+h,.018),V(x,y+h,.018)],cor,null,planoCamada);
+   const nome=String(o.nome||'');
+   const corPadrao=estrada?(mat.includes('rio')?'#a29d89':'#b7ad94'):(/solo|terreno/i.test(nome)?'#668263':pal[4]);
+   // Só cores hexadecimais são aceitas: qualquer mapa legado mantém a paleta atual.
+   const cor=/^#[0-9a-f]{6}$/i.test(String(o.corChaoV253||''))?o.corChaoV253:corPadrao;
+   const ordem=Number(o.ordemChaoV253);
+   const planoCamada=o.pilotoTerrenoV253&&Number.isFinite(ordem)?ordem:
+     /praça/i.test(nome)?3:estrada?2:/solo|terreno/i.test(nome)?0:1;
+   // Ordem de terreno imutável entre ângulos: sem z-fighting de pisos coplanares.
+   face([V(x,y,.018),V(x+w,y,.018),V(x+w,y+h,.018),V(x,y+h,.018)],cor,null,planoCamada);
    // Ruas contínuas sem juntas coplanares sobrepostas que tremulam com a câmera.
   }else if(kind==='arvore_vila'){
    // Tronco elevado e copa em volumes: ambos participam da ordenação de
