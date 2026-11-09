@@ -216,8 +216,11 @@ function montarCenaReal(scene,W,H,mostrarTelhados=true){
     painel(ini+margem,ini+margem+.07,z+.1,z+altura-.12,'#8a6148');
     const puxador=ini+comprimento*.77;
     painel(puxador,puxador+.055,z+.95,z+1.04,'#e4bf72');
-    // Soleira externa na base da porta.
+    // Soleira de pedra com pequena profundidade, em vez de uma faixa solta.
     painel(ini-.10,fim+.10,z,z+.095,'#8d7c68');
+    const degrau=['#8a877d','#737167','#a7a297','#76736b','#b5afa4'];
+    if(horizontal)caixa(x-.12,y+h/2-.27,.015,w+.24,.54,.12,degrau);
+    else caixa(x+w/2-.27,y-.12,.015,.54,h+.24,.12,degrau);
    }
   }else if(kind==='teto'||o.tetoV139){
    if(mostrarTelhados){
