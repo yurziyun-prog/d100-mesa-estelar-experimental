@@ -41,9 +41,28 @@ const casaFaces=()=>{
  face([V(x+w-.02,y+1.4,1.2),V(x+w-.02,y+2.9,1.2),V(x+w-.02,y+2.9,2.4),V(x+w-.02,y+1.4,2.4)],'#65aeb5','#294b52');
 };
 
+// Telhado agrupado pelas peças reais do construtor. Volume com duas águas,
+// cumeeira, empenas e beirais, em vez de placas separadas por módulo.
+function telhadoCasa(box,material){
+ const {x,y,w,h}=box,e=.28,z=2.72,r=Math.max(.85,Math.min(1.35,Math.min(w,h)*.29));
+ const cor=material==='tijolo'?['#824d43','#ab6b52','#70443b']:material==='madeira'?['#57483f','#80604d','#4a3b34']:['#82624b','#a77759','#634c41'];
+ if(w>=h){
+  const mid=y+h/2;
+  face([V(x-e,y-e,z),V(x+w+e,y-e,z),V(x+w+e,mid,z+r),V(x-e,mid,z+r)],cor[0],'#483a34');
+  face([V(x-e,mid,z+r),V(x+w+e,mid,z+r),V(x+w+e,y+h+e,z),V(x-e,y+h+e,z)],cor[1],'#483a34');
+  face([V(x,y,z),V(x,mid,z+r),V(x,y+h,z)],cor[2],'#493931');
+  face([V(x+w,y,z),V(x+w,y+h,z),V(x+w,mid,z+r)],cor[2],'#493931');
+ }else{
+  const mid=x+w/2;
+  face([V(x-e,y-e,z),V(mid,y-e,z+r),V(mid,y+h+e,z+r),V(x-e,y+h+e,z)],cor[0],'#483a34');
+  face([V(mid,y-e,z+r),V(x+w+e,y-e,z),V(x+w+e,y+h+e,z),V(mid,y+h+e,z+r)],cor[1],'#483a34');
+  face([V(x,y,z),V(x+w,y,z),V(mid,y,z+r)],cor[2],'#493931');
+  face([V(x,y+h,z),V(mid,y+h,z+r),V(x+w,y+h,z)],cor[2],'#493931');
+ }
+}
 // Conversão de objetos reais do mapa. x/y são porcentagens 28x14 do motor;
 // larguraM/alturaM e z são metros. Nenhum dado é alterado aqui.
-function montarCenaReal(scene,W,H){
+function montarCenaReal(scene,W,H,mostrarTelhados=true){
  const lista=Array.isArray(scene?.objects)?scene.objects:[];
  if(!lista.length){faces.length=0;face([V(0,0),V(W,0),V(W,H),V(0,H)],'#607b5a','#607b5a');return true;}
  faces.length=0;
@@ -55,6 +74,7 @@ function montarCenaReal(scene,W,H){
   pedra:['#b6b3a9','#858780','#c5c5bc','#8b8982','#b0afa8']
  };
  let visiveis=0;
+ const gruposTelhado=new Map();
  const normal=(n,def)=>Number.isFinite(Number(n))?Number(n):def;
  const objects=lista.filter(o=>o&&!o.destruido&&!o.invisivelV161&&o.opacity!==0).slice(0,1500);
  const prioridade=o=>o.oficina3==='chao'?0:o.oficina3==='teto'?2:1;
@@ -67,8 +87,17 @@ function montarCenaReal(scene,W,H){
   const mat=String(o.materialV177||o.material||'').toLowerCase();
   const pal=cores[mat]||cores[mat.includes('pedra')?'pedra':'madeira'];
   if(kind==='chao'||o.camada===1&&kind!=='escada'){
-   face([V(x,y,.015),V(x+w,y,.015),V(x+w,y+h,.015),V(x,y+h,.015)],
-    kind==='chao'?(mat.includes('pedra')?'#a09d90':pal[4]):'#b9b3a3',null);
+   const estrada=/rua|travessa|praça|calçada|caminho/i.test(String(o.nome||''));
+   const cor=estrada?(mat.includes('rio')?'#a29d89':'#b7ad94'):(/solo|terreno/i.test(String(o.nome||''))?'#668263':pal[4]);
+   face([V(x,y,.018),V(x+w,y,.018),V(x+w,y+h,.018),V(x,y+h,.018)],cor,null);
+   if(estrada){
+    const passo=.95;
+    // Juntas de pedra no mesmo plano, sem criar obstáculos de colisão.
+    for(let xx=x+passo;xx<x+w-.1;xx+=passo)
+     face([V(xx,y,.025),V(xx+.026,y,.025),V(xx+.026,y+h,.025),V(xx,y+h,.025)],'#8d8b7b',null);
+    for(let yy=y+passo;yy<y+h-.1;yy+=passo)
+     face([V(x,yy,.025),V(x+w,yy,.025),V(x+w,yy+.026,.025),V(x,yy+.026,.025)],'#8d8b7b',null);
+   }
   }else if(kind==='parede'||kind==='mureta'){
    const altura=normal(o.alturaParedeM,kind==='mureta'?.9:2.7);
    caixa(x,y,0,w,h,altura,pal);
@@ -90,13 +119,21 @@ function montarCenaReal(scene,W,H){
     if(kind==='janela')face([V(xx-.012,y+h*.5,base),V(xx-.012,y+h*.5,base+altura),V(xx-.012,y+h*.5+.035,base+altura),V(xx-.012,y+h*.5+.035,base)],'#dbeaf0',null);
    }
   }else if(kind==='teto'||o.tetoV139){
-   caixa(x,y,2.7,w,h,.38,['#94543d','#784535','#ac7357','#7b4837','#975d41']);
+   if(mostrarTelhados){
+    const g=String(o.grupoTetoV177||o.id||'telhado');
+    if(!gruposTelhado.has(g))gruposTelhado.set(g,{x,y,x2:x+w,y2:y+h,mat});
+    else{const b=gruposTelhado.get(g);b.x=Math.min(b.x,x);b.y=Math.min(b.y,y);b.x2=Math.max(b.x2,x+w);b.y2=Math.max(b.y2,y+h);}
+   }
   }else if(kind==='escada'){
    caixa(x,y,0,w,h,.35,pal);
   }else if(o.camada>=2&&w<=6&&h<=6){
    caixa(x,y,0,w,h,Math.min(2,Math.max(.35,normal(o.alturaObjetoM,.75))),pal);
   }else continue;
   visiveis++;
+ }
+ if(mostrarTelhados){
+  for(const roof of gruposTelhado.values())
+   telhadoCasa({x:roof.x,y:roof.y,w:roof.x2-roof.x,h:roof.y2-roof.y},roof.mat);
  }
  return true; // Cena identificada, mesmo que alguns objetos não tenham equivalente 3D.
 }
@@ -113,8 +150,14 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
  const reset=root.createElement('button');reset.type='button';reset.textContent='⌖ Reenquadrar';
  reset.title='Voltar ao ângulo e ao centro recomendados para este modo';
  reset.style.cssText='background:#102339e8;border:1px solid #5c748f;color:#e4f1fd;border-radius:7px;padding:6px 9px;cursor:pointer;font:12px Segoe UI,Arial,sans-serif';
+ const roofToggle=root.createElement('button');roofToggle.type='button';roofToggle.textContent='🏠 Telhados: visíveis';
+ roofToggle.title='Alternar telhados para inspecionar o interior sem modificar a cena';
+ roofToggle.style.cssText=reset.style.cssText;
+ tools.append(roofToggle);
  tools.append(reset);painel.append(tools);
  const ctx=canvas.getContext('2d');let yaw=-.65,pitch=.62,zoom=1.0,raf=0,drag=null,ultimoModo='',personagem=[18,13,0],selecionado='',modoAtual='mapa-construtor',centroCamera=[14,9],ultimoTokenPos='',ultimoMapaV230='';
+ let telhadosVisiveis=true;
+ roofToggle.addEventListener('click',()=>{telhadosVisiveis=!telhadosVisiveis;roofToggle.textContent=telhadosVisiveis?'🏠 Telhados: visíveis':'🏠 Telhados: ocultos';invalidate();});
  const movimentoVisual=new Map();
  const lerTokens=()=>{
   const b=root.getElementById('novaSyncBoard'),d=dimensoes(),W=Number(d?.W)||28,H=Number(d?.H)||14;
