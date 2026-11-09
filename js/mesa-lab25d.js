@@ -102,21 +102,32 @@ function montarCenaReal(scene,W,H,mostrarTelhados=true){
    const altura=normal(o.alturaParedeM,kind==='mureta'?.9:2.7);
    caixa(x,y,0,w,h,altura,pal);
   }else if(kind==='porta'||kind==='janela'){
-   const altura=kind==='porta'?2.2:1.05;
-   const base=kind==='porta'?0:1.05;
-   const cor=kind==='porta'?'#593a2b':'#79b4c5';
-   const acc=kind==='porta'?'#a77c50':'#d0e5ea';
-   // Portas e janelas são painéis verticais inseridos na espessura
-   // da parede. Não erguemos um segundo bloco maciço sobre a parede.
-   const vertical=w>=h;
-   if(vertical){
-    const yy=y+h/2;
-    face([V(x,yy,base),V(x+w,yy,base),V(x+w,yy,base+altura),V(x,yy,base+altura)],cor,acc);
-    if(kind==='janela')face([V(x+w*.5,yy-.012,base),V(x+w*.5,yy-.012,base+altura),V(x+w*.5+.035,yy-.012,base+altura),V(x+w*.5+.035,yy-.012,base)],'#dbeaf0',null);
+   const janela=kind==='janela',altura=janela?1.05:2.25,z=janela?1.10:0;
+   const comprimento=Math.max(w,h),gross=.065;
+   const cor=janela?'#74b5c4':'#644430';
+   const borda=janela?'#dfd4b9':'#c19c70';
+   // Vãos existentes no mapa viram esquadrias verticais. As molduras
+   // continuam presas ao objeto original e seguem sua posição.
+   const horizontal=w>=h;
+   const painel=(a,b,lo,hi,color)=>{
+    if(horizontal){const yy=y+h/2;face([V(a,yy,lo),V(b,yy,lo),V(b,yy,hi),V(a,yy,hi)],color,null);}
+    else{const xx=x+w/2;face([V(xx,a,lo),V(xx,b,lo),V(xx,b,hi),V(xx,a,hi)],color,null);}
+   };
+   const ini=horizontal?x:y,fim=ini+comprimento;
+   painel(ini,fim,z,z+altura,borda);
+   const margem=Math.min(.115,comprimento*.12);
+   painel(ini+margem,fim-margem,z+.11,z+altura-.11,cor);
+   if(janela){
+    const mid=(ini+fim)/2;
+    painel(mid-gross/2,mid+gross/2,z+.1,z+altura-.1,'#e6d9bb');
+    painel(ini+margem,fim-margem,z+altura*.49,z+altura*.49+.075,'#e6d9bb');
+    painel(ini-.14,fim+.14,z-.11,z+.045,'#b1a18c');
    }else{
-    const xx=x+w/2;
-    face([V(xx,y,base),V(xx,y+h,base),V(xx,y+h,base+altura),V(xx,y,base+altura)],cor,acc);
-    if(kind==='janela')face([V(xx-.012,y+h*.5,base),V(xx-.012,y+h*.5,base+altura),V(xx-.012,y+h*.5+.035,base+altura),V(xx-.012,y+h*.5+.035,base)],'#dbeaf0',null);
+    painel(ini+margem,ini+margem+.07,z+.1,z+altura-.12,'#8a6148');
+    const puxador=ini+comprimento*.77;
+    painel(puxador,puxador+.055,z+.95,z+1.04,'#e4bf72');
+    // Soleira externa na base da porta.
+    painel(ini-.10,fim+.10,z,z+.095,'#8d7c68');
    }
   }else if(kind==='teto'||o.tetoV139){
    if(mostrarTelhados){
@@ -237,7 +248,7 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
    if(borda){ctx.strokeStyle=borda;ctx.lineWidth=Math.max(.7,scale*.022);ctx.stroke();}
   };
   const cena=cenaAtual(),mid=String(mapaAtual()||''),real=!!(cena&&mid&&String(cena.mapId||'')===mid);
-  if(real)montarCenaReal(cena,dims.W,dims.H);
+  if(real)montarCenaReal(cena,dims.W,dims.H,telhadosVisiveis);
   else{faces.length=0;face([V(0,0),V(dims.W,0),V(dims.W,dims.H),V(0,dims.H)],'#607b5a','#607b5a');}
   // O chão é a base do mundo: nunca deve ocultar paredes ou personagens.
   // Primeiro os planos horizontais baixos; depois as superfícies elevadas.
@@ -371,6 +382,7 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
   canvas.style.cursor=modo==='mapa-jogo'?'crosshair':'grab';
   canvas.style.touchAction=modo==='mapa-jogo'?'auto':'none';
   reset.hidden=modo==='mapa-jogo';
+  roofToggle.hidden=modo==='mapa-jogo';
   help.textContent=modo==='mapa-construtor'
    ?'CONSTRUTOR · arrastar: girar · Shift+arrastar: deslocar · roda: zoom · edição pelo mapa funcional'
    :modo==='mapa-mestre'
