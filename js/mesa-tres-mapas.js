@@ -5,7 +5,7 @@
 // Por enquanto as três usam o mesmo tabuleiro (`#sincronizacao-nova`), que é movido para a aba ativa.
 // A aba "Mapa da Mesa" original continua exatamente como era; ao voltar, o tabuleiro volta para lá.
 import {MATERIAIS,oChao,oParede,oPorta,montarPeca} from './mesa-construcao.js?v=180';
-import {instalarLaboratorio25D} from './mesa-lab25d.js?v=236';
+import {instalarLaboratorio25D} from './mesa-lab25d.js?v=238';
 const MAPA_T='mesa_laboratorio_v224',MAPA_I='mesa_laboratorio_v224_interior',LIG='combatesAtivos/mesaLigacoes';
 const MAPAS_DESCARTADOS_V224=new Set([MAPA_T,MAPA_I]);
 const MAPA_PILOTO_V237=/^Mapa\s*2[.,]?5\s*D\s*[—–-]\s*vila\s+simples$/i;
@@ -85,7 +85,21 @@ export function instalarTresMapas(dep={}){
     root,win,host,
     cenaAtual:()=>win.novaSyncController_?.cenaAtual?.()||null,
     dimensoes:()=>win.novaSyncController_?.dimsAtual?.()||({W:28,H:14}),
-    mapaAtual:()=>String(win.novaSyncController_?.mapaAtual?.()||'')
+    mapaAtual:()=>String(win.novaSyncController_?.mapaAtual?.()||''),
+    aoCliqueChao:({x,y,W,H})=>{
+     if(atual!=='mapa-jogo'||!atorSelecionado)return;
+     const ctl=win.novaSyncController_,id=String(atorSelecionado);
+     const token=ctl?.token?.(id);
+     if(!token||!ctl?.controla?.(token)||String(token.mapaId||'')!==String(ctl.mapaAtual?.()||''))return;
+     const sel=root.getElementById('novaSyncPersonagem');
+     if(sel&&sel.value!==id&&[...sel.options].some(o=>o.value===id)){
+      sel.value=id;sel.dispatchEvent(new Event('change',{bubbles:true}));
+     }
+     ctl?.pararAndar?.();
+     if(!ctl?.andarAteNoMapa?.({x:x*28/W,y:y*14/H})){
+      console.info('[Mapa de jogo] destino bloqueado ou movimento indisponível');
+     }
+    }
    });
   }
   // Quando o laboratório é alternado, o tabuleiro continua montado para as
@@ -353,7 +367,7 @@ export function instalarTresMapas(dep={}){
    sel.value=atorSelecionado||'';
   }
   const st=sec?.querySelector('[data-mtm-estado]');
-  if(st)st.textContent=atual==='mapa-construtor'?'Construção: câmera 3D livre · Construir abre o editor funcional':atual==='mapa-mestre'?'Direção: botão direito sobre uma miniatura para acompanhá-la':'Jogo: WASD ou setas para andar com a miniatura selecionada · colisões e permissões do motor original.';
+  if(st)st.textContent=atual==='mapa-construtor'?'Construção: câmera 3D livre · Construir abre o editor funcional':atual==='mapa-mestre'?'Direção: botão direito sobre uma miniatura para acompanhá-la':'Jogo: clique no chão para caminhar, ou use WASD/setas · colisões e permissões do motor original.';
  }
  root.querySelectorAll('[data-mtm-ator]').forEach(sel=>sel.addEventListener('change',e=>{
   pararMovimento();atorSelecionado=String(e.target.value||'');
