@@ -256,7 +256,10 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
   const planos=faces.filter(f=>f.vs.every(v=>v[2]<=.03));
   const elevados=faces.filter(f=>!f.vs.every(v=>v[2]<=.03));
   const longePrimeiro=(a,b)=>a.vs.reduce((n,v)=>n+orientar(v)[2],0)/a.vs.length-b.vs.reduce((n,v)=>n+orientar(v)[2],0)/b.vs.length;
-  planos.sort(longePrimeiro);elevados.sort(longePrimeiro);
+  // Pintar a base, depois o piso das ruas, depois as juntas do calçamento.
+  // Ordenar só pela distância fazia o terreno cobrir a pavimentação.
+  planos.sort((a,b)=>Math.min(...a.vs.map(v=>v[2]))-Math.min(...b.vs.map(v=>v[2]))||longePrimeiro(a,b));
+  elevados.sort(longePrimeiro);
   for(const f of planos)desenharPoligono(f.vs,f.cor,f.borda);
   // Renderizar os personagens e cada face elevada no mesmo passe,
   // conforme a distância da câmera. Não se trata de opacidade.
