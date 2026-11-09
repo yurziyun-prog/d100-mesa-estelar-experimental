@@ -1015,7 +1015,7 @@ visualSync();
    while(resto>1e-4){
     const dt=Math.min(.05,resto);resto-=dt;
     const distance=Math.hypot((h.target.x-t.x)*w/28,(h.target.y-t.y)*height/14);
-    if(distance<.08){if(h.rota?.length){h.target=h.rota.shift();continue;}break;} // v208: próximo waypoint do clique-para-mover
+    if(distance<.08){if(h.rota?.length){h.target=h.rota.shift();continue;}if(h.pointer==='rota'){release();return;}break;} // v238: encerrar caminho ao chegar
     if(distance<=0)break;
     const ratio=Math.min(1,(h.shift?1.5:3)*vArr*dt/distance);
     const want={x:t.x+(h.target.x-t.x)*ratio,y:t.y+(h.target.y-t.y)*ratio};
@@ -1032,6 +1032,33 @@ visualSync();
     if(now-h.sent>=200){h.sent=now;save(h.id,h.trail.splice(0),h.facing);}}
   }catch(e){release();error=e.message;status();return;}
   frame=requestAnimationFrame(step);
+ }
+ // v238 — clique em chão na visualização isométrica: usar pathfinding
+ // e validações oficiais, sem alterar diretamente posições no banco.
+ function andarAteNoMapa(dest){
+  if(!mapPacket?.mapId||!dest||!Number.isFinite(Number(dest.x))||!Number.isFinite(Number(dest.y)))return false;
+  if(!user()?.master&&globalThis.mesaJogoPausadoV214?.())return false;
+  if(attacking||managing)return false;
+  const id=selectedActor()?.id,t0=id?tokens.get(id):null;
+  if(!t0||!controlled(t0)||String(t0.mapaId||'')!==String(mapPacket.mapId))return false;
+  const state=health.actors?.[id]?.combateLab;
+  if(ocupado(health.actors?.[id],mapPacket?.combat)||state?.morto||state?.inconsciente||state?.incapacitado)return false;
+  const t=previews.get(id)||t0,p=conterTokenNoMapa(t,{
+   x:Math.max(0,Math.min(28,Number(dest.x))),
+   y:Math.max(0,Math.min(14,Number(dest.y)))
+  },mapPacket);
+  try{
+   const turno=mapPacket?.combat?.active?mapPacket.combat.turnId:null;
+   moverNoTurno(t,{x:t.x,y:t.y},mapPacket,turno);
+   const rota=computarRota(t,p);
+   if(!rota.length)return false;
+   release();
+   held={id,target:rota[0],rota:rota.slice(1),turn:turno,pointer:'rota',pad:false,
+    time:performance.now(),sent:performance.now(),trail:[],shift:false,
+    facing:Number.isFinite(t.facing)?t.facing:0};
+   if(!frame)frame=requestAnimationFrame(step);
+   return true;
+  }catch(e){error=String(e?.message||e);status();return false;}
  }
  // v137: andar com controle (gamepad): direção da alavanca analógica; leve = devagar (sem virar), forte = normal.
  function andarDirecao(dx,dy){
@@ -1326,7 +1353,7 @@ visualSync();
   if(!editor.canLeave())return;open();await database.transact(async tx=>{const state=await tx.get(MAP_PATH)||{};if(state.combat?.active)throw Error('Encerre o combate antes de trocar o mapa.');tx.set(MAP_PATH,{...state,mapId:String(m.id),nome:String(m.nome||m.id),fundo:String(m.fundo||''),larguraM:Number(m.larguraM)||28,alturaM:Number(m.alturaM)||14});});
   try{root.defaultView?.dispatchEvent(new CustomEvent('mesa-mapa-aberto-v102',{detail:{mapaId:String(m.id)}}));}catch(_){}
  }
- return {restaurarTudo:()=>manage('restore'),cenaAtual:()=>sceneData,dimsAtual:()=>({W:Number(mapPacket?.larguraM)||28,H:Number(mapPacket?.alturaM)||14}),open,close,initialize,inventoryMove,openMap,refreshView:()=>applyMapView(sharedMapPacket,{force:true}),place:(chosen,p,opts)=>place(chosen,p,opts),mapaAtual:()=>mapPacket?.mapId||'',selecao:()=>{try{return editor.selection;}catch(_){return null;}},emCombate:()=>!!mapPacket?.combat?.active,acoes:()=>updateActions,escolherDefesa,ator:()=>selectedActor()||null,alvo:()=>selectedTarget,controla:t=>{try{return !!controlled(t);}catch(_){return false;}},saude:id=>health.actors?.[id]?.combateLab||null,token:id=>tokens.get(id)||null,tokenVisual:id=>{const t=tokens.get(id)||null,p=previews.get(id);return t&&p?{...t,x:p.x,y:p.y,facing:Number.isFinite(p.facing)?p.facing:t.facing}:t;}, /* v205: posição que a tela está mostrando agora (a prévia do arrasto), para a animação seguir o corpo sem esperar o banco */ mestre:()=>{try{return !!masterMode();}catch(_){return false;}},tokensNoMapa:()=>{try{return tokensOnCurrentMap();}catch(_){return [];}},suporte:p=>{if(!attacks)throw Error('Sessão indisponível.');return attacks.support({...p,mapId:mapPacket?.mapId||''});},todosTokens:()=>[...tokens.values()],gastarAcao:async id=>{const c=mapPacket?.combat;if(!c?.active)return true;if(c.activeId!==id||!controlled(tokens.get(id)))return false;return changeTurn('spend');},andarDirecao,pararAndar,andando:()=>!!held?.pad,marcarAlvo:id=>{selectedTarget=id||'';try{updateActions.setTarget(selectedTarget);}catch(_){}draw();}};
+ return {restaurarTudo:()=>manage('restore'),cenaAtual:()=>sceneData,dimsAtual:()=>({W:Number(mapPacket?.larguraM)||28,H:Number(mapPacket?.alturaM)||14}),open,close,initialize,inventoryMove,openMap,refreshView:()=>applyMapView(sharedMapPacket,{force:true}),place:(chosen,p,opts)=>place(chosen,p,opts),mapaAtual:()=>mapPacket?.mapId||'',selecao:()=>{try{return editor.selection;}catch(_){return null;}},emCombate:()=>!!mapPacket?.combat?.active,acoes:()=>updateActions,escolherDefesa,ator:()=>selectedActor()||null,alvo:()=>selectedTarget,controla:t=>{try{return !!controlled(t);}catch(_){return false;}},saude:id=>health.actors?.[id]?.combateLab||null,token:id=>tokens.get(id)||null,tokenVisual:id=>{const t=tokens.get(id)||null,p=previews.get(id);return t&&p?{...t,x:p.x,y:p.y,facing:Number.isFinite(p.facing)?p.facing:t.facing}:t;}, /* v205: posição que a tela está mostrando agora (a prévia do arrasto), para a animação seguir o corpo sem esperar o banco */ mestre:()=>{try{return !!masterMode();}catch(_){return false;}},tokensNoMapa:()=>{try{return tokensOnCurrentMap();}catch(_){return [];}},suporte:p=>{if(!attacks)throw Error('Sessão indisponível.');return attacks.support({...p,mapId:mapPacket?.mapId||''});},todosTokens:()=>[...tokens.values()],gastarAcao:async id=>{const c=mapPacket?.combat;if(!c?.active)return true;if(c.activeId!==id||!controlled(tokens.get(id)))return false;return changeTurn('spend');},andarDirecao,pararAndar,andarAteNoMapa,andando:()=>!!held,marcarAlvo:id=>{selectedTarget=id||'';try{updateActions.setTarget(selectedTarget);}catch(_){}draw();}};
 }
 
 // Mesa Estelar v102: localização individual + desenhos colaborativos por mapa; mapa do mestre é apenas a visão do mestre.
