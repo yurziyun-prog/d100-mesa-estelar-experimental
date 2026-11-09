@@ -5,7 +5,7 @@
 // Por enquanto as três usam o mesmo tabuleiro (`#sincronizacao-nova`), que é movido para a aba ativa.
 // A aba "Mapa da Mesa" original continua exatamente como era; ao voltar, o tabuleiro volta para lá.
 import {MATERIAIS,oChao,oParede,oPorta,montarPeca} from './mesa-construcao.js?v=180';
-import {instalarLaboratorio25D} from './mesa-lab25d.js?v=231';
+import {instalarLaboratorio25D} from './mesa-lab25d.js?v=232';
 const MAPA_T='mesa_laboratorio_v224',MAPA_I='mesa_laboratorio_v224_interior',LIG='combatesAtivos/mesaLigacoes';
 const MAPAS_DESCARTADOS_V224=new Set([MAPA_T,MAPA_I]);
 const MAPAS_REFERENCIA_V225=/^(?:Ecossistema\s*\(teste\)|Casa de teste\s*\(básico\))$/i;
@@ -293,10 +293,23 @@ export function instalarTresMapas(dep={}){
   const extra=sec?.querySelector('[data-mtm-seletor]');
   if(extra)extra.style.display=atual==='mapa-jogo'?'flex':'none';
   const orig=root.getElementById('novaSyncPersonagem'),sel=sec?.querySelector('[data-mtm-ator]');
-  if(sel&&orig){
-   const options=[...orig.options].filter(o=>o.value&&!o.value.startsWith('__')&&!/fora do mapa/i.test(o.textContent||''));
-   const cod=options.map(o=>o.value+'='+o.textContent).join('|');
-   if(sel.dataset.itens!==cod){const old=sel.value;sel.replaceChildren(new Option('Selecione uma miniatura',''),...options.map(o=>new Option(o.textContent,o.value)));sel.dataset.itens=cod;sel.value=atorSelecionado||old||'';}
+  if(sel){
+   // O seletor original pode estar vazio mesmo quando já há miniaturas no mapa.
+   // Reconstruir a lista também a partir do tabuleiro visível.
+   const itens=new Map();
+   for(const o of [...(orig?.options||[])])if(o.value&&!o.value.startsWith('__')&&!/fora do mapa/i.test(o.textContent||''))itens.set(o.value,o.textContent||o.value);
+   for(const tk of board?.querySelectorAll('[data-token]')||[]){
+    const token=String(tk.dataset.token||'');if(!token)continue;
+    if(!itens.has(token))itens.set(token,tk.dataset.nome||tk.getAttribute('title')||token.replace(/^sync(?:npc|criatura):/,''));
+   }
+   const cod=[...itens].map(([k,v])=>k+'='+v).join('|');
+   if(sel.dataset.itens!==cod){
+    sel.replaceChildren(new Option('Selecione uma miniatura',''),...[...itens].map(([k,v])=>new Option(v,k)));
+    sel.dataset.itens=cod;
+   }
+   if(atorSelecionado&&!itens.has(atorSelecionado))atorSelecionado='';
+   if(!atorSelecionado&&atual==='mapa-jogo'&&itens.size)atorSelecionado=itens.keys().next().value;
+   sel.value=atorSelecionado||'';
   }
   const st=sec?.querySelector('[data-mtm-estado]');
   if(st)st.textContent=atual==='mapa-construtor'?'Construção: câmera 3D livre · Construir abre o editor funcional':atual==='mapa-mestre'?'Direção: botão direito sobre uma miniatura para acompanhá-la':'Jogo: protótipo geométrico experimental. Controle de personagens ainda em desenvolvimento.';
