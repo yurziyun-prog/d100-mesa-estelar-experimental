@@ -165,6 +165,24 @@ function montarCenaReal(scene,W,H,mostrarTelhados=true){
   }else if(kind==='parede'||kind==='mureta'){
    const altura=normal(o.alturaParedeM,kind==='mureta'?.9:2.7);
    caixa(x,y,0,w,h,altura,pal);
+   // v243: embasamento de pedra e montantes aparentes tornam fachadas
+   // identificáveis sem alterar a colisão nem a posição real das paredes.
+   if(kind==='parede'&&altura>=2.3){
+    const pedra=['#777a74','#63655e','#96978c','#64645c','#a7a99b'];
+    caixa(x,y,.03,w,h,.25,pedra);
+    if(['madeira','adobe','bambu'].includes(mat)){
+     const madeira=['#634735','#513b2e','#806049','#4d392d','#9a7759'];
+     if(w>=h){
+      const largura=Math.min(.14,w*.21);
+      caixa(x,y,0,largura,h,altura,madeira);
+      if(w>1.15)caixa(x+w-largura,y,0,largura,h,altura,madeira);
+     }else{
+      const largura=Math.min(.14,h*.21);
+      caixa(x,y,0,w,largura,altura,madeira);
+      if(h>1.15)caixa(x,y+h-largura,0,w,largura,altura,madeira);
+     }
+    }
+   }
   }else if(kind==='porta'||kind==='janela'){
    const janela=kind==='janela',altura=janela?1.05:2.25,z=janela?1.10:0;
    const comprimento=Math.max(w,h),gross=.065;
