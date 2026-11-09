@@ -178,6 +178,17 @@ function montarCenaReal(scene,W,H,mostrarTelhados=true){
    }
   }else if(kind==='porta'||kind==='janela'){
    const janela=kind==='janela',altura=janela?1.05:2.25,z=janela?1.10:0;
+   // A janela substitui um segmento da parede funcional. Completar o volume
+   // desse mesmo segmento acima/abaixo do vão para não deixar faixas vazias.
+   const alturaParede=2.72;
+   if(janela){
+    const peitoril=Math.max(.12,z),verga=z+altura;
+    caixa(x,y,0,w,h,peitoril,pal);
+    if(verga<alturaParede-.02)caixa(x,y,verga,w,h,alturaParede-verga,pal);
+   }else if(altura<alturaParede-.02){
+    // Bandeira de parede acima da porta, mantendo a passagem livre.
+    caixa(x,y,altura,w,h,alturaParede-altura,pal);
+   }
    const comprimento=Math.max(w,h),gross=.065;
    const cor=janela?'#74b5c4':'#644430';
    const borda=janela?'#dfd4b9':'#c19c70';
