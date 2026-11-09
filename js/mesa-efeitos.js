@@ -171,7 +171,7 @@ export function instalarEfeitos(dep){
   const atual=String(ctl()?.mapaAtual?.()||''),visivel=String(board()?.dataset.mapaVisivel||'');
   // v243: não aceitar mapa por fallback enquanto a cena está trocando.
   // Só a concordância entre controlador e tabuleiro libera áudio.
-  if(!atual||!visivel||atual!==visivel)return '';
+  if(!atual||(visivel&&atual!==visivel))return '';
   return atual;
  };
  const tokenMapa=id=>{
