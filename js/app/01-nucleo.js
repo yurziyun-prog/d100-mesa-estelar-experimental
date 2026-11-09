@@ -983,7 +983,7 @@ async function carregarBancosDeDados() {
             const qMapas=await preGetV119_('mapas');
             mapasDB=[];qMapas.forEach(d=>{const x={id:d.id,...d.data()};if(x.tipo!=='mapa-parte')mapasDB.push(x);});
             mapasDB.sort((a,b)=>String(a.nome||'').localeCompare(String(b.nome||''),'pt-BR',{sensitivity:'base'}));
-        }catch(e){console.warn('Banco de mapas indisponível. Verifique as regras Firestore de /mapas.',e);mapasDB=[];}
+        }catch(e){console.warn('Banco de mapas indisponível. Verifique as regras Firestore de /mapas.',e);/* Preserve previous successful map list during transient failures. */window.mesaFalhaInicialMapasV235_=String(e?.code||e?.message||'falha de leitura');}
     }
     if(currentUserUid){
         try{
