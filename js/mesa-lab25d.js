@@ -419,6 +419,20 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
   planos.sort((a,b)=>a.camada-b.camada||a.indice-b.indice);
   // As faces elevadas são ordenadas em um único passe com os personagens.
   for(const f of planos)desenharPoligono(f.vs,f.cor,f.borda);
+  // Grades espaciais de 8 m, visíveis só por solicitação. Não armazenam
+  // nem duplicam objetos e são calculadas a partir das dimensões da cena.
+  if(exibirSetores&&modoAtual!=='mapa-jogo'){
+   ctx.save();ctx.lineWidth=.9;ctx.strokeStyle='rgba(230,247,255,.42)';
+   for(let gx=0;gx<=dims.W;gx+=8){
+    const a=projetar(V(gx,0,.035)),b=projetar(V(gx,dims.H,.035));
+    ctx.beginPath();ctx.moveTo(...a);ctx.lineTo(...b);ctx.stroke();
+   }
+   for(let gy=0;gy<=dims.H;gy+=8){
+    const a=projetar(V(0,gy,.035)),b=projetar(V(dims.W,gy,.035));
+    ctx.beginPath();ctx.moveTo(...a);ctx.lineTo(...b);ctx.stroke();
+   }
+   ctx.restore();
+  }
   // Renderizar os personagens e cada face elevada no mesmo passe,
   // conforme a distância da câmera. Não se trata de opacidade.
   const personagens=lerTokens();
@@ -453,16 +467,35 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
    if(parte.tipo==='face')desenharPoligono(parte.face.vs,parte.face.cor,parte.face.borda);
    else desenharPersonagem(parte.token);
   }
+  // Destaque de seleção, sem modificar a posição do objeto persistido.
+  if(modoAtual==='mapa-construtor'&&objetoSelecionadoId){
+   const fonte=real?cena:ultimaCenaValida;
+   const item=(fonte?.objects||[]).find(o=>String(o.id)===objetoSelecionadoId);
+   if(item){
+    const cx=Number(item.x)*dims.W/28,cy=Number(item.y)*dims.H/14;
+    const w=Number(item.larguraM),h=Number(item.alturaM);
+    if([cx,cy,w,h].every(Number.isFinite)){
+     const vs=[V(cx-w/2,cy-h/2,.04),V(cx+w/2,cy-h/2,.04),V(cx+w/2,cy+h/2,.04),V(cx-w/2,cy+h/2,.04)].map(projetar);
+     ctx.save();ctx.strokeStyle='#ffdc7e';ctx.lineWidth=2.5;ctx.setLineDash([7,4]);ctx.beginPath();
+     vs.forEach((p,i)=>i?ctx.lineTo(...p):ctx.moveTo(...p));ctx.closePath();ctx.stroke();ctx.restore();
+    }
+   }
+  }
   ctx.fillStyle='#102235bb';ctx.fillRect(10,height-29,Math.min(570,width-20),22);ctx.fillStyle='#edf7ff';ctx.font='12px Segoe UI,Arial';ctx.fillText(real||ultimoIdCenaValida===mid&&!!ultimaCenaValida?'Cena compartilhada · objetos reais em visualização 2,5D experimental':'Mapa sem cena 3D carregada · abra uma cena no Construtor',18,height-14);
   if(canvas.width!==W||canvas.height!==H){canvas.width=W;canvas.height=H;}
   publicarQuadro();
  }
  const invalidate=()=>{if(!raf)raf=win.requestAnimationFrame(pintar);};
- canvas.addEventListener('pointerdown',e=>{if(modoAtual==='mapa-jogo')return;drag={x:e.clientX,y:e.clientY,id:e.pointerId,pan:e.shiftKey||e.button===2};canvas.setPointerCapture(e.pointerId);canvas.style.cursor='grabbing';});
+ canvas.addEventListener('pointerdown',e=>{
+  if(modoAtual==='mapa-jogo')return;
+  drag={x:e.clientX,y:e.clientY,id:e.pointerId,pan:e.shiftKey||e.button===2,moved:false};
+  canvas.setPointerCapture(e.pointerId);canvas.style.cursor='grabbing';
+ });
  canvas.addEventListener('contextmenu',e=>{if(modoAtual!=='mapa-jogo')e.preventDefault();});
  canvas.addEventListener('pointermove',e=>{
   if(modoAtual==='mapa-jogo'||!drag||e.pointerId!==drag.id)return;
   const dx=e.clientX-drag.x,dy=e.clientY-drag.y;
+  if(Math.abs(dx)+Math.abs(dy)>2)drag.moved=true;
   if(drag.pan||modoAtual==='mapa-construtor'&&!inspecaoLivre){
    const r=canvas.getBoundingClientRect(),d=dimValidas();
    const factor=Math.min(r.width/(d.W*1.36),r.height/(d.H*1.85))*zoom||1;
@@ -480,6 +513,28 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
  // Cliques no chão usam a inversa da projeção ortográfica z=0.
  // O destino é entregue ao motor do jogo, que calcula a rota e colisões.
  canvas.addEventListener('click',e=>{
+  if(modoAtual==='mapa-construtor'&&!inspecaoLivre&&mapaAtual()){
+   // Seleção 2D pela projeção dos pés: escolha a peça mais próxima.
+   // Apenas inspeciona. Edição da cena será conectada ao motor funcional.
+   const rect=canvas.getBoundingClientRect(),d=dimValidas(),w=rect.width,h=rect.height;
+   const escala=Math.min(w/(d.W*1.36),h/(d.H*1.85))*zoom;
+   const centro=orientar(V(centroCamera[0],centroCamera[1],0));
+   const xx=centro[0]+(e.clientX-rect.left-w*.5)/escala;
+   const yy=(centro[1]+(e.clientY-rect.top-h*.53)/escala)/Math.max(.15,Math.sin(pitch));
+   const c=Math.cos(yaw),sn=Math.sin(yaw),x=xx*c+yy*sn,y=-xx*sn+yy*c;
+   const fonte=cenaAtual()||ultimaCenaValida,lista=Array.isArray(fonte?.objects)?fonte.objects:[];
+   const candidatos=lista.filter(o=>o&&!o.destruido&&!o.invisivelV161&&
+    !['chao','teto'].includes(String(o.oficina3||o.parteV177||'').toLowerCase())&&
+    Number(o.larguraM)>0&&Number(o.alturaM)>0&&Number.isFinite(Number(o.x))&&Number.isFinite(Number(o.y)))
+    .filter(o=>Math.abs(x-Number(o.x)*d.W/28)<=Number(o.larguraM)/2+.15&&
+               Math.abs(y-Number(o.y)*d.H/14)<=Number(o.alturaM)/2+.15);
+   const escolhido=candidatos[candidatos.length-1]||null;
+   objetoSelecionadoId=escolhido?String(escolhido.id):'';
+   infoObjeto.hidden=!escolhido;
+   if(escolhido)infoObjeto.textContent='Selecionado: '+String(escolhido.nome||escolhido.oficina3||'Objeto')+
+    ' · '+Number(escolhido.larguraM).toFixed(1)+' × '+Number(escolhido.alturaM).toFixed(1)+' m · edição no mapa funcional';
+   invalidate();return;
+  }
   if(modoAtual!=='mapa-jogo'||!mapaAtual()||typeof aoCliqueChao!=='function')return;
   const rect=canvas.getBoundingClientRect(),width=rect.width,height=rect.height,d=dimValidas();
   if(width<1||height<1)return;
