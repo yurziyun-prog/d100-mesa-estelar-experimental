@@ -424,7 +424,7 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
  reset.addEventListener('click',reenquadrar);
  const acompanhamento=win.setInterval(()=>{
   if(painel.hidden)return;
-  if(modoAtual!=='mapa-jogo'){invalidate();return;}
+  if(modoAtual!=='mapa-jogo')return; // câmera livre: renderizar só quando houver mudança
   // Renderizar mais um quadro enquanto a caminhada está visível.
   if([...movimentoVisual.values()].some(v=>win.performance.now()<v.ate))invalidate();
   const t=selecionarToken();
@@ -443,15 +443,13 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
  return {el:painel,atualizar({visivel=false,token='',modo='mapa-construtor'}={}){
   const mudou=modoAtual!==modo,tokenMudou=selecionado!==token;
   modoAtual=modo;selecionado=token;
-  const idAtual=String(mapaAtual()||''),cena=enquadramentoCena();
-  const cenaInfo=cena.cx.toFixed(2)+':'+cena.cy.toFixed(2)+':'+cena.zoom.toFixed(2);
-  const mapaMudou=(idAtual+'|'+cenaInfo)!==ultimoMapaV230;
-  if(mapaMudou){ultimoMapaV230=idAtual+'|'+cenaInfo;}
+  const idAtual=String(mapaAtual()||'');
+  const mapaMudou=idAtual!==ultimoMapaV230;
+  // Nunca redefinir a câmera por pequenas mudanças na cena recebida do Firestore.
+  if(mapaMudou)ultimoMapaV230=idAtual;
   if(modo==='mapa-jogo'&&tokenMudou){const t=lerTokens().find(t=>t.id===token);if(t)centroCamera=[t.x,t.y];}
   if(mudou||mapaMudou){
    drag=null;
-   const d=dimValidas(),enq=enquadramentoCena();
-   centroCamera=[enq.cx,enq.cy];
    reenquadrar();
   }
   canvas.style.cursor=modo==='mapa-jogo'?'crosshair':'grab';
