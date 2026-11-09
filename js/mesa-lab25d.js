@@ -151,6 +151,15 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
   ctx.setTransform(dpr,0,0,dpr,0,0);
   const width=W/dpr,height=H/dpr;
   const grad=ctx.createLinearGradient(0,0,0,height);grad.addColorStop(0,'#9fb8c9');grad.addColorStop(1,'#cad4cf');ctx.fillStyle=grad;ctx.fillRect(0,0,width,height);
+  // Sem mapa ativo não há cena. Evitar desenhar terreno fictício como se
+  // o banco tivesse carregado: o mestre pode escolher o mapa na barra acima.
+  if(!String(mapaAtual()||'')){
+   ctx.fillStyle='#1a3044de';const w=Math.min(width-32,540),x=(width-w)/2,y=Math.max(80,height*.32);
+   ctx.fillRect(x,y,w,94);ctx.fillStyle='#e6f3ff';ctx.textAlign='center';
+   ctx.font='bold 17px Segoe UI,Arial,sans-serif';ctx.fillText('Nenhum mapa selecionado',width/2,y+35);
+   ctx.font='13px Segoe UI,Arial,sans-serif';ctx.fillText('Escolha um mapa no seletor acima para carregar a cena.',width/2,y+64);
+   ctx.textAlign='left';return;
+  }
    // No modo de jogo a camera desliza suavemente para seguir a miniatura.
   // O angulo do mundo nunca gira quando a miniatura muda de direcao.
   const dims=dimValidas();
