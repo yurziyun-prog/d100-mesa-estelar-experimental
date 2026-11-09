@@ -179,13 +179,17 @@ export function mountDirectPositionLab({user,characters,workshop=null,renderScen
  // Um documento global de saúde recebe eventos de TODOS os mapas.
  // Nunca reproduzir efeito visual/sonoro de outro mapa.
  const eventoAudivelNesteMapa=ev=>{
-  const visivel=currentMapId();
-  if(!ev||!visivel)return false;
-  const id=String(ev.mapId||ev.mapaId||'');
-  if(id)return id===visivel;
-  // Eventos legados não têm origem espacial verificável. Não reproduzir
-  // som/efeito: personagens podem ter trocado de mapa após o ataque.
-  return false;
+  const visivel=currentMapId(),origem=String(ev?.mapId||ev?.mapaId||'');
+  if(!visivel||!origem||origem!==visivel)return false;
+  // v242: a posição dos participantes também precisa pertencer ao mapa.
+  // Um evento do documento global não pode reproduzir golpe local
+  // se o token de origem ou o alvo está registrado em outro cenário.
+  for(const id of [ev?.source?.id,ev?.target?.id]){
+   if(!id)continue;
+   const t=tokens.get(String(id));
+   if(t&&tokenMapId(t)!==origem)return false;
+  }
+  return true;
  };
 
  function desiredViewMapId(){
