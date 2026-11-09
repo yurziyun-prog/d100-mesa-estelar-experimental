@@ -290,7 +290,7 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
  let ultimaCenaValida=null,ultimoIdCenaValida='',ultimoPainelVisivel=null;
  const publicarQuadro=()=>{displayCtx.setTransform(1,0,0,1,0,0);displayCtx.drawImage(buffer,0,0);};
  let yaw=-.65,pitch=.62,zoom=1.0,raf=0,drag=null,ultimoModo='',personagem=[18,13,0],selecionado='',modoAtual='mapa-construtor',centroCamera=[14,9],ultimoTokenPos='',ultimoMapaV230='',ultimaCenaRef=null,ultimoVisivel=false;
- let telhadosVisiveis=true,inspecaoLivre=false,exibirSetores=false,objetoSelecionadoId='';
+ let telhadosVisiveis=true,inspecaoLivre=false,exibirSetores=false,objetoSelecionadoId='',ignorarCliqueAposArrastar=false;
  const manterNorte=()=>{if(modoAtual==='mapa-construtor'&&!inspecaoLivre){yaw=CONSTRUTOR_YAW;pitch=CONSTRUTOR_PITCH;}};
  const atualizarInspecao=()=>{
   inspecionar.textContent=inspecaoLivre?'🔓 Encerrar inspeção':'🔎 Inspecionar';
@@ -488,6 +488,7 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
  const invalidate=()=>{if(!raf)raf=win.requestAnimationFrame(pintar);};
  canvas.addEventListener('pointerdown',e=>{
   if(modoAtual==='mapa-jogo')return;
+  ignorarCliqueAposArrastar=false;
   drag={x:e.clientX,y:e.clientY,id:e.pointerId,pan:e.shiftKey||e.button===2,moved:false};
   canvas.setPointerCapture(e.pointerId);canvas.style.cursor='grabbing';
  });
@@ -513,6 +514,7 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
  // Cliques no chão usam a inversa da projeção ortográfica z=0.
  // O destino é entregue ao motor do jogo, que calcula a rota e colisões.
  canvas.addEventListener('click',e=>{
+  if(ignorarCliqueAposArrastar){ignorarCliqueAposArrastar=false;return;}
   if(modoAtual==='mapa-construtor'&&!inspecaoLivre&&mapaAtual()){
    // Seleção 2D pela projeção dos pés: escolha a peça mais próxima.
    // Apenas inspeciona. Edição da cena será conectada ao motor funcional.
@@ -547,7 +549,7 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
   if(x<0||y<0||x>d.W||y>d.H)return;
   aoCliqueChao({x,y,W:d.W,H:d.H});
  });
- const stop=e=>{if(drag&&e.pointerId===drag.id){drag=null;canvas.style.cursor='grab';}};canvas.addEventListener('pointerup',stop);canvas.addEventListener('pointercancel',stop);
+ const stop=e=>{if(drag&&e.pointerId===drag.id){ignorarCliqueAposArrastar=!!drag.moved;drag=null;canvas.style.cursor='grab';}};canvas.addEventListener('pointerup',stop);canvas.addEventListener('pointercancel',stop);
  canvas.addEventListener('wheel',e=>{if(modoAtual==='mapa-jogo')return;e.preventDefault();zoom=clamp(zoom*Math.exp(-e.deltaY*.001),.7,3);invalidate();},{passive:false});
  const resize=typeof ResizeObserver!=='undefined'?new ResizeObserver(invalidate):null;resize?.observe(painel);
  const reenquadrar=()=>{
