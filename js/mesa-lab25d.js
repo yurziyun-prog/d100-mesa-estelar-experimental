@@ -254,8 +254,15 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
  const roofToggle=root.createElement('button');roofToggle.type='button';roofToggle.textContent='🏠 Telhados: visíveis';
  roofToggle.title='Alternar telhados para inspecionar o interior sem modificar a cena';
  roofToggle.style.cssText=reset.style.cssText;
- tools.append(roofToggle);
- tools.append(reset);painel.append(tools);
+ const criarBotao=(titulo,dica)=>{
+  const b=root.createElement('button');b.type='button';b.textContent=titulo;b.title=dica;
+  b.style.cssText=reset.style.cssText;return b;
+ };
+ const vistaSuperior=criarBotao('⬇ De cima','Ver a distribuição das construções na planta');
+ const zoomMenos=criarBotao('−','Afastar câmera');
+ const zoomMais=criarBotao('+','Aproximar câmera');
+ const foto=criarBotao('📷 PNG','Exportar a vista atual do mapa como imagem');
+ tools.append(roofToggle,vistaSuperior,zoomMenos,zoomMais,foto,reset);painel.append(tools);
  // Compor no buffer e publicar apenas quadros completos.
  const buffer=root.createElement('canvas'),ctx=buffer.getContext('2d',{alpha:false});
  const displayCtx=canvas.getContext('2d',{alpha:false});
@@ -264,6 +271,16 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
  let yaw=-.65,pitch=.62,zoom=1.0,raf=0,drag=null,ultimoModo='',personagem=[18,13,0],selecionado='',modoAtual='mapa-construtor',centroCamera=[14,9],ultimoTokenPos='',ultimoMapaV230='',ultimaCenaRef=null,ultimoVisivel=false;
  let telhadosVisiveis=true;
  roofToggle.addEventListener('click',()=>{telhadosVisiveis=!telhadosVisiveis;roofToggle.textContent=telhadosVisiveis?'🏠 Telhados: visíveis':'🏠 Telhados: ocultos';invalidate();});
+ vistaSuperior.addEventListener('click',()=>{if(modoAtual==='mapa-jogo')return;yaw=0;pitch=Math.PI/2;invalidate();});
+ const alterarZoom=passo=>{if(modoAtual==='mapa-jogo')return;zoom=clamp(zoom*passo,.7,3);invalidate();};
+ zoomMenos.addEventListener('click',()=>alterarZoom(1/1.2));
+ zoomMais.addEventListener('click',()=>alterarZoom(1.2));
+ foto.addEventListener('click',()=>{
+  if(!mapaAtual())return;
+  const link=root.createElement('a');
+  link.download='mesa-estelar-mapa-'+String(mapaAtual()).replace(/[^a-z0-9_-]/gi,'_')+'.png';
+  link.href=canvas.toDataURL('image/png');link.click();
+ });
  const movimentoVisual=new Map();
  const lerTokens=()=>{
   const b=root.getElementById('novaSyncBoard'),d=dimensoes(),W=Number(d?.W)||28,H=Number(d?.H)||14;
@@ -488,7 +505,7 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
   canvas.style.cursor=modo==='mapa-jogo'?'crosshair':'grab';
   canvas.style.touchAction=modo==='mapa-jogo'?'auto':'none';
   reset.hidden=modo==='mapa-jogo';
-  roofToggle.hidden=modo==='mapa-jogo';
+  for(const b of [roofToggle,vistaSuperior,zoomMenos,zoomMais,foto])b.hidden=modo==='mapa-jogo';
   help.textContent=modo==='mapa-construtor'
    ?'CONSTRUTOR · arrastar: girar · Shift+arrastar: deslocar · roda: zoom · edição pelo mapa funcional'
    :modo==='mapa-mestre'
