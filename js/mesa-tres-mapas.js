@@ -179,10 +179,13 @@ export function instalarTresMapas(dep={}){
    oChao({x:12.2,y:0,w:3.6,h:H},mat('pedra-polida'),W,H,'Travessa central'),
    oChao({x:10.9,y:4.8,w:6.2,h:4.4},mat('pedra-rio'),W,H,'Praça do povoado')
   ];
+  // O desenho ortográfico preserva escala real. Casas médias no fundo e
+  // pequenas na frente davam a impressão errada de perspectiva invertida.
+  // A composição mantém duas casas menores ao norte e duas maiores ao sul.
   const locais=[
-   {tipo:'casa_media',x:5.3,y:2.4,material:'madeira',giro:0},
+   {tipo:'casa_pequena',x:5.3,y:2.4,material:'madeira',giro:0},
    {tipo:'casa_pequena',x:22.4,y:2.7,material:'adobe',giro:0},
-   {tipo:'casa_pequena',x:5.4,y:11.6,material:'tijolo',giro:2},
+   {tipo:'casa_media',x:5.4,y:11.6,material:'tijolo',giro:2},
    {tipo:'casa_media',x:22.0,y:11.4,material:'madeira',giro:2}
   ];
   for(const c of locais)objs.push(...montarPeca(c.tipo,{x:c.x,y:c.y},{M:2,giro:c.giro,mat:c.material,W,H}));
@@ -220,9 +223,10 @@ export function instalarTresMapas(dep={}){
   if(!mapa||id!==String(mapa.id))throw Error('Abra o mapa piloto antes de montar a vila.');
   if(ctl?.emCombate?.())throw Error('Encerre o combate antes de reconstruir o cenário.');
   if(!dep.getDoc||!dep.setDoc||!dep.doc||!dep.db||!dep.runTransaction)throw Error('Firestore ainda não está pronto.');
-  const objetos=vilaPiloto239();
+  // A cena anterior é preservada pela transação/backup já existente.
+ const objetos=vilaPiloto239();
   if(objetos.length<50||objetos.filter(o=>o.pilotoDecoracaoV241).length!==11)throw Error('O gerador não produziu a vila com a cenografia completa.');
-  if(!win.confirm('Montar a vila piloto neste ÚNICO mapa?\\n\\nSerão construídas quatro casas, duas ruas, uma praça, quatro árvores, um poço, postes e objetos de rua. O antigo cenário da casa isolada será substituído, com uma cópia de segurança preservada no banco.\\n\\nOs mapas de campanha e as duas referências NÃO serão alterados.'))return false;
+  if(!win.confirm('Montar a vila piloto neste ÚNICO mapa?\\n\\nSerão construídas duas casas pequenas ao fundo e duas casas médias na frente, duas ruas, uma praça, quatro árvores, um poço, postes e objetos de rua. O antigo cenário da casa isolada será substituído, com uma cópia de segurança preservada no banco.\\n\\nOs mapas de campanha e as duas referências NÃO serão alterados.'))return false;
   const doc=dep.doc,db=dep.db,refMapa=doc(db,'mapas',id);
   const refEstado=doc(db,'combatesAtivos','mapaMesaSyncDireta');
   const refAtivo=doc(db,'combatesAtivos','mapaMesaSyncDiretaCena');
