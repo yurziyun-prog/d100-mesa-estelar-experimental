@@ -204,6 +204,7 @@ export function instalarTresMapas(dep={}){
   b.addEventListener('click',()=>abrir(id,b));
   tabs.insertBefore(b,ancora?.nextSibling||null);ancora=b;
   const sec=root.createElement('div');sec.id=id;sec.className='tab-content';sec.innerHTML=`<div class="form-section"><div class="mtm-faixa"><b>${ic} ${nome}</b><span class="mtm-dica">${dica}</span><div class="mtm-controles"><button type="button" data-limpar-demo>🗑️ Excluir laboratórios ruins</button><button type="button" data-mtm-preview hidden>🏠 Ver protótipo 2,5D</button><button type="button" data-editar-casa>🧱 Construir</button><button type="button" data-diretor>🧭 NPCs e criaturas</button><button type="button" data-voltar-mesa>Voltar à Mesa</button></div></div><div class="mtm-mini"><span data-mtm-mapa>Mapa carregado: verificando…</span><span data-mtm-mapas-disponiveis style="color:#9fb3cc"></span><label data-mtm-seletor style="display:none">Acompanhar <select data-mtm-ator><option value="">Selecione uma miniatura</option></select></label><span class="mtm-estado" data-mtm-estado></span></div><div class="mtm-host"></div></div>`;
+  sec.querySelector('[data-limpar-demo]').hidden=id!=='mapa-construtor';
   sec.querySelector('[data-limpar-demo]').addEventListener('click',async e=>{
    const botao=e.currentTarget;botao.disabled=true;
    try{await limparLaboratoriosRuins();}catch(err){console.warn('[Três mapas] limpeza',err);win.alert(err?.message||String(err));}
@@ -213,6 +214,9 @@ export function instalarTresMapas(dep={}){
   const btnConstruir=sec.querySelector('[data-editar-casa]');
   btnConstruir.hidden=id!=='mapa-construtor';
   btnConstruir.addEventListener('click',()=>{
+   // O editor oficial ainda usa o tabuleiro funcional. Não abri-lo por trás
+   // da câmera 3D, onde seus controles ficariam invisíveis.
+   if(modoLab25D){modoLab25D=false;atualizarVisual25D();}
    const construtor=win.mesaOficina3V175?.construtor;
    if(!construtor?.entrar){win.alert('O editor de construção ainda não carregou. Abra um mapa e tente novamente.');return;}
    try{construtor.entrar();}catch(err){win.alert('Não foi possível abrir o construtor: '+(err?.message||err));}
@@ -295,7 +299,7 @@ export function instalarTresMapas(dep={}){
    if(sel.dataset.itens!==cod){const old=sel.value;sel.replaceChildren(new Option('Selecione uma miniatura',''),...options.map(o=>new Option(o.textContent,o.value)));sel.dataset.itens=cod;sel.value=atorSelecionado||old||'';}
   }
   const st=sec?.querySelector('[data-mtm-estado]');
-  if(st)st.textContent=atual==='mapa-construtor'?'Construção: câmera 3D livre; edição pelo botão de mapa funcional':atual==='mapa-mestre'?'Direção: botão direito sobre uma miniatura para acompanhá-la':'Jogo: protótipo geométrico experimental. Controle de personagens ainda em desenvolvimento.';
+  if(st)st.textContent=atual==='mapa-construtor'?'Construção: câmera 3D livre · Construir abre o editor funcional':atual==='mapa-mestre'?'Direção: botão direito sobre uma miniatura para acompanhá-la':'Jogo: protótipo geométrico experimental. Controle de personagens ainda em desenvolvimento.';
  }
  root.querySelectorAll('[data-mtm-ator]').forEach(sel=>sel.addEventListener('change',e=>{
   atorSelecionado=String(e.target.value||'');
