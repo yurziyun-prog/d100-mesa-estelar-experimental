@@ -183,7 +183,7 @@ export function mountDirectPositionLab({user,characters,workshop=null,renderScen
   // A interface pode atualizar o mapa antes do tabuleiro durante a troca.
   // Não tocar som até os dois concordarem sobre a cena visível.
   const tabuleiro=String(board?.dataset?.mapaVisivel||'');
-  if(!visivel||!tabuleiro||tabuleiro!==visivel||!origem||origem!==visivel)return false;
+  if(!visivel||(tabuleiro&&tabuleiro!==visivel)||!origem||origem!==visivel)return false;
   // v242: a posição dos participantes também precisa pertencer ao mapa.
   // Um evento do documento global não pode reproduzir golpe local
   // se o token de origem ou o alvo está registrado em outro cenário.
