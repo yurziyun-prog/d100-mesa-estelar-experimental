@@ -63,9 +63,23 @@ window.abrirMapaDaMesa_=function(){
     mostrarAba('sincronizacao-nova',document.getElementById('syncLabTabBtn'));
     return window.novaSyncAbrir_();
 };
+// Navegação dos três visualizadores: troca SOMENTE o mapa do controlador,
+// sem abrir a aba Mesa nem alterar o layout da sessão.
+window.abrirMapaNosVisualizadores_=async function(id){
+    if(!id)throw new Error('Selecione um mapa.');
+    await novaSyncController_.openMap(String(id));
+};
 window.abrirMapaBancoNaMesa_=async function(id){
-    try{await window.abrirMapaDaMesa_();await novaSyncController_.openMap(id);}
-    catch(e){notificar_(e.message,'aviso',4500);}
+    try{
+        // Ao abrir uma casa/interior enquanto um dos três visualizadores está ativo,
+        // conservar a perspectiva escolhida e não pular para o Mapa da Mesa.
+        if(window.mesaTresMapas?.aba?.()){
+            await window.abrirMapaNosVisualizadores_(id);
+        }else{
+            await window.abrirMapaDaMesa_();
+            await novaSyncController_.openMap(id);
+        }
+    }catch(e){notificar_(e.message,'aviso',4500);}
 };
 
 window.renomearMapaBanco_=async function(id){
