@@ -165,7 +165,27 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
   const dims=dimValidas();
   const center=orientar(V(centroCamera[0],centroCamera[1],0)),scale=Math.min(width/(dims.W*1.36),height/(dims.H*1.85))*zoom;
   const projetar=v=>{const q=orientar(v);return [width/2+(q[0]-center[0])*scale,height*.53+(q[1]-center[1])*scale];};
-  const desenharPoligono=(vs,cor,borda)=>{ctx.beginPath();vs.forEach((v,i)=>{const [x,y]=projetar(v);if(i)ctx.lineTo(x,y);else ctx.moveTo(x,y);});ctx.closePath();ctx.fillStyle=cor;ctx.fill();if(borda){ctx.strokeStyle=borda;ctx.lineWidth=Math.max(.6,scale*.018);ctx.stroke();}};
+  const desenharPoligono=(vs,cor,borda)=>{
+   const pontos=vs.map(projetar);
+   ctx.beginPath();pontos.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath();
+   ctx.fillStyle=cor;ctx.fill();
+   // Materialidade visual: sombra nas bases e linhas sutis de assentamento,
+   // sem modificar a geometria ou os objetos armazenados no Firebase.
+   const vertical=vs.length>=3&&(Math.max(...vs.map(v=>v[2]))-Math.min(...vs.map(v=>v[2]))>.3);
+   if(vertical&&pontos.length){
+    const xs=pontos.map(p=>p[0]),ys=pontos.map(p=>p[1]);
+    const x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys);
+    ctx.save();ctx.clip();
+    ctx.fillStyle='rgba(22,24,26,.065)';ctx.fillRect(x0,y0+(y1-y0)*.78,x1-x0,(y1-y0)*.22);
+    if((x1-x0)*(y1-y0)>900){
+     const gap=Math.max(9,scale*.5);
+     ctx.strokeStyle='rgba(22,25,28,.10)';ctx.lineWidth=.75;
+     for(let y=y0+gap;y<y1;y+=gap){ctx.beginPath();ctx.moveTo(x0,y);ctx.lineTo(x1,y);ctx.stroke();}
+    }
+    ctx.restore();
+   }
+   if(borda){ctx.strokeStyle=borda;ctx.lineWidth=Math.max(.7,scale*.022);ctx.stroke();}
+  };
   const cena=cenaAtual(),mid=String(mapaAtual()||''),real=!!(cena&&mid&&String(cena.mapId||'')===mid);
   if(real)montarCenaReal(cena,dims.W,dims.H);
   else{faces.length=0;face([V(0,0),V(dims.W,0),V(dims.W,dims.H),V(0,dims.H)],'#607b5a','#607b5a');}
