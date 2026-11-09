@@ -115,11 +115,18 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
  reset.style.cssText='background:#102339e8;border:1px solid #5c748f;color:#e4f1fd;border-radius:7px;padding:6px 9px;cursor:pointer;font:12px Segoe UI,Arial,sans-serif';
  tools.append(reset);painel.append(tools);
  const ctx=canvas.getContext('2d');let yaw=-.65,pitch=.62,zoom=1.0,raf=0,drag=null,ultimoModo='',personagem=[18,13,0],selecionado='',modoAtual='mapa-construtor',centroCamera=[14,9],ultimoTokenPos='',ultimoMapaV230='';
+ const movimentoVisual=new Map();
  const lerTokens=()=>{
   const b=root.getElementById('novaSyncBoard'),d=dimensoes(),W=Number(d?.W)||28,H=Number(d?.H)||14;
-  return [...(b?.querySelectorAll('[data-token]')||[])].map(el=>({
-   id:el.dataset.token,x:parseFloat(el.style.left)*W/100,y:parseFloat(el.style.top)*H/100
-  })).filter(t=>Number.isFinite(t.x)&&Number.isFinite(t.y));
+  const agora=win.performance.now();
+  return [...(b?.querySelectorAll('[data-token]')||[])].map(el=>{
+   const id=el.dataset.token,x=parseFloat(el.style.left)*W/100,y=parseFloat(el.style.top)*H/100;
+   const prev=movimentoVisual.get(id);
+   const mudou=prev&&Math.hypot(x-prev.x,y-prev.y)>.008;
+   const ate=mudou?agora+260:(prev?.ate||0);
+   movimentoVisual.set(id,{x,y,ate});
+   return {id,x,y,andando:agora<ate,passo:agora*.013};
+  }).filter(t=>Number.isFinite(t.x)&&Number.isFinite(t.y));
  };
  const dimValidas=()=>{const d=dimensoes();return {W:Number(d?.W)||28,H:Number(d?.H)||14};};
  const selecionarToken=()=>{const list=lerTokens();return list.find(t=>t.id===selecionado)||list[0]||null;};
@@ -208,9 +215,12 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
    ctx.beginPath();ctx.ellipse(centro[0]+scale*.13,centro[1]+scale*.08,scale*.36,scale*.17,0,0,Math.PI*2);ctx.fill();
    const ponto=z=>projetar(V(x,y,z));
    const quadril=ponto(.78),ombros=ponto(1.40),pe=ponto(.07);
+   // Animação visual independente dos dados: pequeno balanço das pernas
+   // apenas enquanto o personagem se desloca no tabuleiro original.
+   const passo=t.andando?Math.sin(t.passo)*scale*.12:0;
    ctx.lineCap='round';ctx.lineJoin='round';
    ctx.strokeStyle='#273b51';ctx.lineWidth=Math.max(2,scale*.11);
-   ctx.beginPath();ctx.moveTo(quadril[0]-scale*.10,quadril[1]);ctx.lineTo(pe[0]-scale*.14,pe[1]);ctx.moveTo(quadril[0]+scale*.10,quadril[1]);ctx.lineTo(pe[0]+scale*.14,pe[1]);ctx.stroke();
+   ctx.beginPath();ctx.moveTo(quadril[0]-scale*.10,quadril[1]);ctx.lineTo(pe[0]-scale*.14+passo,pe[1]);ctx.moveTo(quadril[0]+scale*.10,quadril[1]);ctx.lineTo(pe[0]+scale*.14-passo,pe[1]);ctx.stroke();
    ctx.strokeStyle=selected?'#b58b39':'#347b9e';ctx.lineWidth=Math.max(5,scale*.35);
    ctx.beginPath();ctx.moveTo(quadril[0],quadril[1]);ctx.lineTo(ombros[0],ombros[1]);ctx.stroke();
    ctx.strokeStyle='#d6a780';ctx.lineWidth=Math.max(2,scale*.105);
@@ -286,6 +296,8 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
  const acompanhamento=win.setInterval(()=>{
   if(painel.hidden)return;
   if(modoAtual!=='mapa-jogo'){invalidate();return;}
+  // Renderizar mais um quadro enquanto a caminhada está visível.
+  if([...movimentoVisual.values()].some(v=>win.performance.now()<v.ate))invalidate();
   const t=selecionarToken();
   if(!t)return;
   centroCamera[0]+=(t.x-centroCamera[0])*.26;
