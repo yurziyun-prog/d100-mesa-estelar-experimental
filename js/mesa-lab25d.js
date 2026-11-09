@@ -3,7 +3,9 @@
 // Apenas visualização experimental; não escreve no Firebase.
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 // Inspirado na leitura isometrica de RPGs classicos: norte estavel, cameras sem rotacao livre no jogo.
-const JOGO_YAW=-Math.PI/4, JOGO_PITCH=.75, JOGO_ZOOM=1.05;
+const JOGO_YAW=-Math.PI/4, JOGO_PITCH=.72, JOGO_ZOOM=1.38;
+const MESTRE_YAW=-Math.PI/4, MESTRE_PITCH=.68;
+const CONSTRUTOR_YAW=-Math.PI/4, CONSTRUTOR_PITCH=.96;
 const V=(x,y,z=0)=>[x,y,z];
 const casa={x:9,y:5,w:7,d:5,h:3.2,telhado:1.7};
 const faces=[];
@@ -106,6 +108,12 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
  const canvas=root.createElement('canvas');canvas.style.cssText='width:100%;height:100%;display:block;cursor:grab;touch-action:none';canvas.setAttribute('aria-label','Protótipo geométrico 2,5D: casa, rua e personagem');
  const help=root.createElement('div');help.style.cssText='position:absolute;left:12px;top:10px;z-index:2;padding:6px 9px;border-radius:7px;background:#0c1b2dda;color:#e8f5ff;font:12px Segoe UI,Arial,sans-serif;pointer-events:none';help.textContent='Laboratório geométrico 2,5D · arraste para girar · roda para aproximar · não edita objetos';
  painel.append(canvas,help);host.prepend(painel);
+ const tools=root.createElement('div');
+ tools.style.cssText='position:absolute;right:10px;top:10px;z-index:3;display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end';
+ const reset=root.createElement('button');reset.type='button';reset.textContent='⌖ Reenquadrar';
+ reset.title='Voltar ao ângulo e ao centro recomendados para este modo';
+ reset.style.cssText='background:#102339e8;border:1px solid #5c748f;color:#e4f1fd;border-radius:7px;padding:6px 9px;cursor:pointer;font:12px Segoe UI,Arial,sans-serif';
+ tools.append(reset);painel.append(tools);
  const ctx=canvas.getContext('2d');let yaw=-.65,pitch=.62,zoom=1.0,raf=0,drag=null,ultimoModo='',personagem=[18,13,0],selecionado='',modoAtual='mapa-construtor',centroCamera=[14,9],ultimoTokenPos='',ultimoMapaV230='';
  const lerTokens=()=>{
   const b=root.getElementById('novaSyncBoard'),d=dimensoes(),W=Number(d?.W)||28,H=Number(d?.H)||14;
@@ -114,6 +122,7 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
   })).filter(t=>Number.isFinite(t.x)&&Number.isFinite(t.y));
  };
  const dimValidas=()=>{const d=dimensoes();return {W:Number(d?.W)||28,H:Number(d?.H)||14};};
+ const selecionarToken=()=>{const list=lerTokens();return list.find(t=>t.id===selecionado)||list[0]||null;};
  // Centraliza no conteúdo construído, evitando que casas pequenas fiquem
  // perdidas num campo vazio muito grande. Não altera objetos nem coordenadas.
  function enquadramentoCena(){
@@ -130,7 +139,7 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
    miny=Math.min(miny,y-h/2);maxy=Math.max(maxy,y+h/2);
   }
   return {cx:(minx+maxx)/2,cy:(miny+maxy)/2,
-   zoom:clamp(Math.min(d.W/Math.max(8,(maxx-minx)*1.65),d.H/Math.max(7,(maxy-miny)*1.65)),1,2.3)};
+   zoom:clamp(Math.min(d.W/Math.max(9,(maxx-minx)*1.8),d.H/Math.max(8,(maxy-miny)*1.8)),.85,1.8)};
  }
 
 
@@ -201,10 +210,25 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
  const stop=e=>{if(drag&&e.pointerId===drag.id){drag=null;canvas.style.cursor='grab';}};canvas.addEventListener('pointerup',stop);canvas.addEventListener('pointercancel',stop);
  canvas.addEventListener('wheel',e=>{if(modoAtual==='mapa-jogo')return;e.preventDefault();zoom=clamp(zoom*Math.exp(-e.deltaY*.001),.7,3);invalidate();},{passive:false});
  const resize=typeof ResizeObserver!=='undefined'?new ResizeObserver(invalidate):null;resize?.observe(painel);
+ const reenquadrar=()=>{
+  const enq=enquadramentoCena(),t=selecionarToken();
+  if(modoAtual==='mapa-construtor'){
+   yaw=CONSTRUTOR_YAW;pitch=CONSTRUTOR_PITCH;zoom=1.05*enq.zoom;
+   centroCamera=[enq.cx,enq.cy];
+  }else if(modoAtual==='mapa-mestre'){
+   yaw=MESTRE_YAW;pitch=MESTRE_PITCH;zoom=enq.zoom;
+   centroCamera=[enq.cx,enq.cy];
+  }else{
+   yaw=JOGO_YAW;pitch=JOGO_PITCH;zoom=JOGO_ZOOM*enq.zoom;
+   centroCamera=t?[t.x,t.y]:[enq.cx,enq.cy];
+  }
+  invalidate();
+ };
+ reset.addEventListener('click',reenquadrar);
  const acompanhamento=win.setInterval(()=>{
   if(painel.hidden)return;
   if(modoAtual!=='mapa-jogo'){invalidate();return;}
-  const t=lerTokens().find(t=>t.id===selecionado);
+  const t=selecionarToken();
   if(!t)return;
   centroCamera[0]+=(t.x-centroCamera[0])*.26;
   centroCamera[1]+=(t.y-centroCamera[1])*.26;
@@ -229,12 +253,11 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
    drag=null;
    const d=dimValidas(),enq=enquadramentoCena();
    centroCamera=[enq.cx,enq.cy];
-   if(modo==='mapa-construtor'){pitch=1.20;zoom=1.15*enq.zoom;}
-   if(modo==='mapa-mestre'){pitch=.68;zoom=enq.zoom;}
-   if(modo==='mapa-jogo'){yaw=JOGO_YAW;pitch=JOGO_PITCH;zoom=JOGO_ZOOM*enq.zoom;const t=lerTokens().find(t=>t.id===selecionado);if(t)centroCamera=[t.x,t.y];}
+   reenquadrar();
   }
   canvas.style.cursor=modo==='mapa-jogo'?'default':'grab';
   canvas.style.touchAction=modo==='mapa-jogo'?'auto':'none';
+  reset.hidden=modo==='mapa-jogo';
   help.textContent=modo==='mapa-construtor'
    ?'CONSTRUTOR · arrastar: girar · Shift+arrastar: deslocar · roda: zoom · edição pelo mapa funcional'
    :modo==='mapa-mestre'
