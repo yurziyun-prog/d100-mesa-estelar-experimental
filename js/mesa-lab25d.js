@@ -119,18 +119,7 @@ function montarCenaReal(scene,W,H,mostrarTelhados=true){
    const estrada=/rua|travessa|praça|calçada|caminho/i.test(String(o.nome||''));
    const cor=estrada?(mat.includes('rio')?'#a29d89':'#b7ad94'):(/solo|terreno/i.test(String(o.nome||''))?'#668263':pal[4]);
    face([V(x,y,.018),V(x+w,y,.018),V(x+w,y+h,.018),V(x,y+h,.018)],cor,null);
-   if(estrada){
-    // Reduzir a grade: juntas cruzadas e sobrepostas piscavam
-    // durante a rotação, especialmente na praça central.
-    const passo=1.85;
-    if(w>=h){
-     for(let xx=x+passo;xx<x+w-.1;xx+=passo)
-      face([V(xx,y,.025),V(xx+.016,y,.025),V(xx+.016,y+h,.025),V(xx,y+h,.025)],'#aaa08c',null);
-    }else{
-     for(let yy=y+passo;yy<y+h-.1;yy+=passo)
-      face([V(x,yy,.025),V(x+w,yy,.025),V(x+w,yy+.016,.025),V(x,yy+.016,.025)],'#aaa08c',null);
-    }
-   }
+   // Ruas contínuas sem juntas coplanares sobrepostas que tremulam com a câmera.
   }else if(kind==='arvore_vila'){
    // Tronco elevado e copa em volumes: ambos participam da ordenação de
    // profundidade, de modo que ocultem personagens atrás.
@@ -328,7 +317,7 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
    // atravessando portas e telhados durante a rotação.
     ctx.restore();
    }
-   if(borda){ctx.strokeStyle=borda;ctx.lineWidth=Math.max(.7,scale*.022);ctx.stroke();}
+   if(borda){ctx.strokeStyle=borda;ctx.lineWidth=.75;ctx.stroke();}
   };
   const cena=cenaAtual(),mid=String(mapaAtual()||''),real=!!(cena&&mid&&String(cena.mapId||'')===mid);
   if(real)montarCenaReal(cena,dims.W,dims.H,telhadosVisiveis);
@@ -373,7 +362,7 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
   const ordem=[
    ...elevados.map(f=>({tipo:'face',d:f.vs.reduce((s,v)=>s+orientar(v)[2],0)/f.vs.length,face:f})),
    ...personagens.map(t=>({tipo:'personagem',d:orientar(V(t.x,t.y,.8))[2],token:t}))
-  ].sort((a,b)=>a.d-b.d);
+  ].map((parte,indice)=>({...parte,indice})).sort((a,b)=>a.d-b.d||a.indice-b.indice);
   for(const parte of ordem){
    if(parte.tipo==='face')desenharPoligono(parte.face.vs,parte.face.cor,parte.face.borda);
    else desenharPersonagem(parte.token);
