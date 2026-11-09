@@ -176,15 +176,18 @@ export function instalarEfeitos(dep){
   if(!id)return '';
   try{return String(ctl()?.token?.(String(id))?.mapaId||'');}catch(_){return '';}
  };
+ // v242: verificar não só o ID do evento, mas também a localização
+ // atual de seus participantes. O documento global de saúde/combate pode
+ // ser atualizado por IA lutando em outros mapas.
  const eventoNoMapa=ev=>{
-  const visivel=mapaAudivel();
-  if(!visivel)return false;
-  const explicito=String(ev?.mapId||ev?.mapaId||'');
-  if(explicito)return explicito===visivel;
-  // Eventos antigos sem mapId não são confiáveis após a troca de mapa:
-  // um token pode ter sido movido desde que o golpe foi registrado.
-  // Preferir perder o som legado a tocar uma luta de outro cenário.
-  return false;
+  const visivel=mapaAudivel(),origem=String(ev?.mapId||ev?.mapaId||'');
+  if(!visivel||!origem||origem!==visivel)return false;
+  for(const id of [ev?.source?.id,ev?.target?.id]){
+   if(!id)continue;
+   const local=tokenMapa(id);
+   if(local&&local!==origem)return false;
+  }
+  return true;
  };
 
 
@@ -346,7 +349,7 @@ export function instalarEfeitos(dep){
    if(primeira||!antes)continue;
    const t=ctl()?.token?.(id);if(!t||!mapaAudivel()||String(t.mapaId||'')!==mapaAudivel())continue;
    if(agora.morto&&!antes.morto){marcarToken(id,'ef-morre',1500);pinta('ef-fumaca',t,ppm()*1.6,2700);texto(t,'💀','#e8e8e8');
-    if(ehCriatura(id)){let v=vozDaCriatura(modeloTexto(id));if(v==='rosnado')v='gemido';if(v)tocar(v,tamanhoVoz(id)*.85);}else tocar('morteHumana');setTimeout(()=>{if(String(t.mapaId||'')===mapaAudivel())tocar('queda');},500);}
+    if(ehCriatura(id)){let v=vozDaCriatura(modeloTexto(id));if(v==='rosnado')v='gemido';if(v)tocar(v,tamanhoVoz(id)*.85);}else tocar('morteHumana');setTimeout(()=>{if(String(t.mapaId||'')===mapaAudivel()&&tokenMapa(id)===String(t.mapaId||''))tocar('queda');},500);}
    else if(agora.caido&&!antes.caido){marcarToken(id,'ef-cai',650);pinta('ef-poeira',t,ppm()*1.8,850);tocar('queda');}
   }
   primeira=false;
