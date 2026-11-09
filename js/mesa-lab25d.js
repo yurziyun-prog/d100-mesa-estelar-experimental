@@ -5,7 +5,7 @@ const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 // Inspirado na leitura isometrica de RPGs classicos: norte estavel, cameras sem rotacao livre no jogo.
 const JOGO_YAW=-Math.PI/4, JOGO_PITCH=.72, JOGO_ZOOM=1.38;
 const MESTRE_YAW=-Math.PI/4, MESTRE_PITCH=.68;
-const CONSTRUTOR_YAW=-Math.PI/4, CONSTRUTOR_PITCH=.96;
+const CONSTRUTOR_YAW=-Math.PI/4, CONSTRUTOR_PITCH=1.14;
 const V=(x,y,z=0)=>[x,y,z];
 const casa={x:9,y:5,w:7,d:5,h:3.2,telhado:1.7};
 const faces=[];
@@ -160,9 +160,15 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
   const cena=cenaAtual(),mid=String(mapaAtual()||''),real=!!(cena&&mid&&String(cena.mapId||'')===mid);
   if(real)montarCenaReal(cena,dims.W,dims.H);
   else{faces.length=0;face([V(0,0),V(dims.W,0),V(dims.W,dims.H),V(0,dims.H)],'#607b5a','#607b5a');}
-  // painter's algorithm em função da profundidade média das faces
-  const sorted=faces.map(f=>({...f,depth:f.vs.reduce((sum,v)=>sum+orientar(v)[2],0)/f.vs.length})).sort((a,b)=>a.depth-b.depth);
-  for(const f of sorted)desenharPoligono(f.vs,f.cor,f.borda);
+  // O chão é a base do mundo: nunca deve ocultar paredes ou personagens.
+  // Primeiro os planos horizontais baixos; depois as superfícies elevadas.
+  // A ordenação completa de faces interseccionadas exige z-buffer, ainda pendente.
+  const planos=faces.filter(f=>f.vs.every(v=>v[2]<=.03));
+  const elevados=faces.filter(f=>!f.vs.every(v=>v[2]<=.03));
+  const longePrimeiro=(a,b)=>a.vs.reduce((n,v)=>n+orientar(v)[2],0)/a.vs.length-b.vs.reduce((n,v)=>n+orientar(v)[2],0)/b.vs.length;
+  planos.sort(longePrimeiro);elevados.sort(longePrimeiro);
+  for(const f of planos)desenharPoligono(f.vs,f.cor,f.borda);
+  for(const f of elevados)desenharPoligono(f.vs,f.cor,f.borda);
   // Renderizar todos os tokens presentes neste mapa, e não apenas o primeiro.
   const personagens=lerTokens();
   for(const t of personagens){
