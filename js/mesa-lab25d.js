@@ -3,7 +3,7 @@
 // Apenas visualização experimental; não escreve no Firebase.
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 // Inspirado na leitura isometrica de RPGs classicos: norte estavel, cameras sem rotacao livre no jogo.
-const JOGO_YAW=-Math.PI/4, JOGO_PITCH=.75, JOGO_ZOOM=1.6;
+const JOGO_YAW=-Math.PI/4, JOGO_PITCH=.75, JOGO_ZOOM=1.05;
 const V=(x,y,z=0)=>[x,y,z];
 const casa={x:9,y:5,w:7,d:5,h:3.2,telhado:1.7};
 const faces=[];
@@ -71,9 +71,22 @@ function montarCenaReal(scene,W,H){
    const altura=normal(o.alturaParedeM,kind==='mureta'?.9:2.7);
    caixa(x,y,0,w,h,altura,pal);
   }else if(kind==='porta'||kind==='janela'){
-   const altura=kind==='porta'?2.25:1.5;
-   const base=kind==='porta'?0:.85;
-   caixa(x,y,base,w,h,altura,[kind==='porta'?'#65432d':'#6da9b5',pal[1],pal[2],pal[3],pal[4]]);
+   const altura=kind==='porta'?2.2:1.05;
+   const base=kind==='porta'?0:1.05;
+   const cor=kind==='porta'?'#593a2b':'#79b4c5';
+   const acc=kind==='porta'?'#a77c50':'#d0e5ea';
+   // Portas e janelas são painéis verticais inseridos na espessura
+   // da parede. Não erguemos um segundo bloco maciço sobre a parede.
+   const vertical=w>=h;
+   if(vertical){
+    const yy=y+h/2;
+    face([V(x,yy,base),V(x+w,yy,base),V(x+w,yy,base+altura),V(x,yy,base+altura)],cor,acc);
+    if(kind==='janela')face([V(x+w*.5,yy-.012,base),V(x+w*.5,yy-.012,base+altura),V(x+w*.5+.035,yy-.012,base+altura),V(x+w*.5+.035,yy-.012,base)],'#dbeaf0',null);
+   }else{
+    const xx=x+w/2;
+    face([V(xx,y,base),V(xx,y+h,base),V(xx,y+h,base+altura),V(xx,y,base+altura)],cor,acc);
+    if(kind==='janela')face([V(xx-.012,y+h*.5,base),V(xx-.012,y+h*.5,base+altura),V(xx-.012,y+h*.5+.035,base+altura),V(xx-.012,y+h*.5+.035,base)],'#dbeaf0',null);
+   }
   }else if(kind==='teto'||o.tetoV139){
    caixa(x,y,2.7,w,h,.38,['#94543d','#784535','#ac7357','#7b4837','#975d41']);
   }else if(kind==='escada'){
@@ -122,16 +135,27 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
   // painter's algorithm em função da profundidade média das faces
   const sorted=faces.map(f=>({...f,depth:f.vs.reduce((sum,v)=>sum+orientar(v)[2],0)/f.vs.length})).sort((a,b)=>a.depth-b.depth);
   for(const f of sorted)desenharPoligono(f.vs,f.cor,f.borda);
-  // Um personagem de 1,75 m, na escala física da casa (3,2 m de paredes).
-  const tok=lerTokens().find(t=>t.id===selecionado)||lerTokens()[0];
-  let p=tok?[tok.x,tok.y,0]:null;
-  // Visão sem token: um demonstrador virtual, sem salvar um jogador no banco.
-  if(p){
-  const a=projetar(V(p[0],p[1],0)),b=projetar(V(p[0],p[1],1.75)),mid=projetar(V(p[0],p[1],.94));
-  ctx.fillStyle='#26343b55';ctx.beginPath();ctx.ellipse(a[0]+scale*.22,a[1]+scale*.07,scale*.42,scale*.17,0,0,Math.PI*2);ctx.fill();
-  ctx.strokeStyle='#1c3342';ctx.lineWidth=Math.max(2,scale*.16);ctx.lineCap='round';ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(mid[0],mid[1]);ctx.stroke();
-  ctx.strokeStyle='#3288ac';ctx.lineWidth=Math.max(5,scale*.48);ctx.beginPath();ctx.moveTo(mid[0],mid[1]);ctx.lineTo(b[0],b[1]+scale*.18);ctx.stroke();
-  ctx.fillStyle='#edbb8b';ctx.beginPath();ctx.arc(b[0],b[1]+scale*.13,Math.max(4,scale*.20),0,Math.PI*2);ctx.fill();
+  // Renderizar todos os tokens presentes neste mapa, e não apenas o primeiro.
+  const personagens=lerTokens();
+  for(const t of personagens){
+   const x=t.x,y=t.y,centro=projetar(V(x,y,0)),cabeca=projetar(V(x,y,1.65));
+   const tamanho=Math.max(2,scale*.21),selected=t.id===selecionado;
+   // Sombras, botas e torso usam as mesmas unidades de comprimento do mundo.
+   ctx.fillStyle='rgba(20,29,33,.28)';
+   ctx.beginPath();ctx.ellipse(centro[0]+scale*.13,centro[1]+scale*.08,scale*.36,scale*.17,0,0,Math.PI*2);ctx.fill();
+   const ponto=z=>projetar(V(x,y,z));
+   const quadril=ponto(.78),ombros=ponto(1.40),pe=ponto(.07);
+   ctx.lineCap='round';ctx.lineJoin='round';
+   ctx.strokeStyle='#273b51';ctx.lineWidth=Math.max(2,scale*.11);
+   ctx.beginPath();ctx.moveTo(quadril[0]-scale*.10,quadril[1]);ctx.lineTo(pe[0]-scale*.14,pe[1]);ctx.moveTo(quadril[0]+scale*.10,quadril[1]);ctx.lineTo(pe[0]+scale*.14,pe[1]);ctx.stroke();
+   ctx.strokeStyle=selected?'#b58b39':'#347b9e';ctx.lineWidth=Math.max(5,scale*.35);
+   ctx.beginPath();ctx.moveTo(quadril[0],quadril[1]);ctx.lineTo(ombros[0],ombros[1]);ctx.stroke();
+   ctx.strokeStyle='#d6a780';ctx.lineWidth=Math.max(2,scale*.105);
+   ctx.beginPath();ctx.moveTo(ombros[0]-scale*.20,ombros[1]);ctx.lineTo(quadril[0]-scale*.24,quadril[1]);
+   ctx.moveTo(ombros[0]+scale*.20,ombros[1]);ctx.lineTo(quadril[0]+scale*.24,quadril[1]);ctx.stroke();
+   ctx.fillStyle='#edc29a';ctx.beginPath();ctx.arc(cabeca[0],cabeca[1]+scale*.08,tamanho,0,Math.PI*2);ctx.fill();
+   ctx.fillStyle='#564536';ctx.beginPath();ctx.arc(cabeca[0],cabeca[1]+scale*.03,tamanho,Math.PI,Math.PI*1.97);ctx.fill();
+   if(selected){ctx.strokeStyle='#f4d27e';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(centro[0],centro[1],scale*.4,scale*.16,0,0,Math.PI*2);ctx.stroke();}
   }
   ctx.fillStyle='#102235bb';ctx.fillRect(10,height-29,Math.min(570,width-20),22);ctx.fillStyle='#edf7ff';ctx.font='12px Segoe UI,Arial';ctx.fillText(real?'Cena compartilhada · objetos reais em visualização 2,5D experimental':'Mapa sem cena 3D carregada · abra uma cena no Construtor',18,height-14);
  }
