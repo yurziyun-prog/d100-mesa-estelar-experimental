@@ -9,7 +9,7 @@ const CONSTRUTOR_YAW=-Math.PI/4, CONSTRUTOR_PITCH=1.14;
 const V=(x,y,z=0)=>[x,y,z];
 const casa={x:9,y:5,w:7,d:5,h:3.2,telhado:1.7};
 const faces=[];
-function face(vs,cor,borda='#24313b'){faces.push({vs,cor,borda});}
+function face(vs,cor,borda='#24313b',camada=0){faces.push({vs,cor,borda,camada,indice:faces.length});}
 function caixa(x,y,z,w,d,h,cores){
  const A=V(x,y,z),B=V(x+w,y,z),C=V(x+w,y+d,z),D=V(x,y+d,z);
  const E=V(x,y,z+h),F=V(x+w,y,z+h),G=V(x+w,y+d,z+h),H=V(x,y+d,z+h);
@@ -59,9 +59,10 @@ function telhadoCasa(box,material){
   face([V(x,y,z),V(x+w,y,z),V(mid,y,z+r)],cor[2],'#493931');
   face([V(x,y+h,z),V(mid,y+h,z+r),V(x+w,y+h,z)],cor[2],'#493931');
  }
- // Fiadas de telhas adaptadas à inclinação das duas águas, sem alterar colisões.
+ // As antigas fiadas eram quadriláteros quase coplanares às águas:
+ // ao girar, alternavam à frente/atrás do telhado. Guardar só a geometria maciça.
  const linha=material==='madeira'?'#554338':'#805447';
- for(const t of [.24,.48,.72,.91]){
+ for(const t of []){
   if(w>=h){
    const mid=y+h/2,frente=y-e,tras=y+h+e;
    const ya=frente+(mid-frente)*t,za=z+r*t+.02;
@@ -93,9 +94,9 @@ function telhadoCasa(box,material){
 // larguraM/alturaM e z são metros. Nenhum dado é alterado aqui.
 function montarCenaReal(scene,W,H,mostrarTelhados=true){
  const lista=Array.isArray(scene?.objects)?scene.objects:[];
- if(!lista.length){faces.length=0;face([V(0,0),V(W,0),V(W,H),V(0,H)],'#607b5a','#607b5a');return true;}
+ if(!lista.length){faces.length=0;face([V(0,0),V(W,0),V(W,H),V(0,H)],'#607b5a',null,-20);return true;}
  faces.length=0;
- face([V(0,0),V(W,0),V(W,H),V(0,H)],'#607b5a','#607b5a');
+ face([V(0,0),V(W,0),V(W,H),V(0,H)],'#607b5a',null,-20);
  const cores={
   madeira:['#a5815e','#825c3c','#c1a17b','#705238','#b69770'],
   tijolo:['#b7684a','#91503a','#cb8667','#8c4d37','#ad6b50'],
@@ -118,7 +119,10 @@ function montarCenaReal(scene,W,H,mostrarTelhados=true){
   if(kind==='chao'||o.camada===1&&kind!=='escada'){
    const estrada=/rua|travessa|praça|calçada|caminho/i.test(String(o.nome||''));
    const cor=estrada?(mat.includes('rio')?'#a29d89':'#b7ad94'):(/solo|terreno/i.test(String(o.nome||''))?'#668263':pal[4]);
-   face([V(x,y,.018),V(x+w,y,.018),V(x+w,y+h,.018),V(x,y+h,.018)],cor,null);
+   // O chão usa ordem semântica: base -> ruas -> praça.
+    // Ordená-los por profundidade média fazia o calçamento sumir em certos ângulos.
+    const planoCamada=/praça/i.test(String(o.nome||''))?3:estrada?2:/solo|terreno/i.test(String(o.nome||''))?0:1;
+    face([V(x,y,.018),V(x+w,y,.018),V(x+w,y+h,.018),V(x,y+h,.018)],cor,null,planoCamada);
    // Ruas contínuas sem juntas coplanares sobrepostas que tremulam com a câmera.
   }else if(kind==='arvore_vila'){
    // Tronco elevado e copa em volumes: ambos participam da ordenação de
@@ -355,8 +359,10 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
   const longePrimeiro=(a,b)=>a.vs.reduce((n,v)=>n+orientar(v)[2],0)/a.vs.length-b.vs.reduce((n,v)=>n+orientar(v)[2],0)/b.vs.length;
   // Pintar a base, depois o piso das ruas, depois as juntas do calçamento.
   // Ordenar só pela distância fazia o terreno cobrir a pavimentação.
-  planos.sort((a,b)=>Math.min(...a.vs.map(v=>v[2]))-Math.min(...b.vs.map(v=>v[2]))||longePrimeiro(a,b));
-  elevados.sort(longePrimeiro);
+  // Nunca usar profundidade para ordenar pisos sobrepostos: a ordem lógica
+  // deve ser invariável ao girar a câmera.
+  planos.sort((a,b)=>a.camada-b.camada||a.indice-b.indice);
+  // As faces elevadas são ordenadas em um único passe com os personagens.
   for(const f of planos)desenharPoligono(f.vs,f.cor,f.borda);
   // Renderizar os personagens e cada face elevada no mesmo passe,
   // conforme a distância da câmera. Não se trata de opacidade.
