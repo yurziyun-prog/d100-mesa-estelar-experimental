@@ -173,11 +173,22 @@ export function instalarTresMapas(dep={}){
  // Nenhuma cena alternativa ou mapa adicional é criado.
  function vilaPiloto239(){
   const W=28,H=14,mat=id=>MATERIAIS.find(m=>m.id===id)||MATERIAIS[0];
+  // Faixa frontal mais marcada e fundo mais contido, sem escala falsa.
+  // Pisos reais do mapa: a visualização 2,5D respeita sua ordem de desenho.
+  const piso=(x,y,w,h,nome,cor,material='adobe',ordem=1)=>({
+   ...oChao({x,y,w,h},mat(material),W,H,nome),
+   corChaoV253:cor,ordemChaoV253:ordem,pilotoTerrenoV253:true
+  });
   const objs=[
-   oChao({x:0,y:0,w:W,h:H},mat('adobe'),W,H,'Solo da vila'),
-   oChao({x:0,y:5.55,w:W,h:2.9},mat('pedra-polida'),W,H,'Rua principal'),
-   oChao({x:12.2,y:0,w:3.6,h:H},mat('pedra-polida'),W,H,'Travessa central'),
-   oChao({x:10.9,y:4.8,w:6.2,h:4.4},mat('pedra-rio'),W,H,'Praça do povoado')
+   piso(0,0,W,H,'Solo da vila','#668263','adobe',0),
+   piso(.25,.35,W-.5,1.3,'Terreno do fundo','#617c5d','adobe',1),
+   piso(.25,9.3,W-.5,4.4,'Terreno frontal','#708967','adobe',1),
+   piso(0,5.55,W,2.9,'Rua principal','#b6ac93','pedra-polida',2),
+   piso(12.3,0,3.4,H,'Travessa central','#b1a58b','pedra-polida',2),
+   piso(11.0,5.9,6,4.2,'Praça do povoado','#a49e8e','pedra-rio',3),
+   piso(10.9,10.0,6.2,4,'Caminho de acesso frontal','#c0b49b','pedra-polida',2),
+   piso(0,13.72,W,.28,'Limite frontal do terreno','#797b68','pedra-rio',4),
+   piso(.25,.18,W-.5,.16,'Limite do fundo','#525f4a','pedra-rio',4)
   ];
   // O desenho ortográfico preserva escala real. Casas médias no fundo e
   // pequenas na frente davam a impressão errada de perspectiva invertida.
@@ -226,12 +237,12 @@ export function instalarTresMapas(dep={}){
   // A cena anterior é preservada pela transação/backup já existente.
  const objetos=vilaPiloto239();
   if(objetos.length<50||objetos.filter(o=>o.pilotoDecoracaoV241).length!==11)throw Error('O gerador não produziu a vila com a cenografia completa.');
-  if(!win.confirm('Montar a vila piloto neste ÚNICO mapa?\\n\\nSerão construídas duas casas pequenas ao fundo e duas casas médias na frente, duas ruas, uma praça, quatro árvores, um poço, postes e objetos de rua. O antigo cenário da casa isolada será substituído, com uma cópia de segurança preservada no banco.\\n\\nOs mapas de campanha e as duas referências NÃO serão alterados.'))return false;
+  if(!win.confirm('Montar a vila piloto neste ÚNICO mapa?\\n\\nO terreno será reequilibrado: faixa frontal destacada, limite ao fundo, praça deslocada para a frente e caminho contínuo de acesso. As quatro casas e a cenografia serão reconstruídas. O antigo cenário da casa isolada será substituído, com uma cópia de segurança preservada no banco.\\n\\nOs mapas de campanha e as duas referências NÃO serão alterados.'))return false;
   const doc=dep.doc,db=dep.db,refMapa=doc(db,'mapas',id);
   const refEstado=doc(db,'combatesAtivos','mapaMesaSyncDireta');
   const refAtivo=doc(db,'combatesAtivos','mapaMesaSyncDiretaCena');
   const refArquivo=doc(db,'combatesAtivos','mapaMesaSyncCena_'+id);
-  const refBackup=doc(db,'combatesAtivos','mapaMesaSyncCenaBackupV239_'+id);
+  const refBackup=doc(db,'combatesAtivos','mapaMesaSyncCenaBackupV253_'+id);
   await dep.runTransaction(db,async tx=>{
    const [st,mp,at,ar,bk]=await Promise.all([
     tx.get(refEstado),tx.get(refMapa),tx.get(refAtivo),tx.get(refArquivo),tx.get(refBackup)
@@ -242,7 +253,7 @@ export function instalarTresMapas(dep={}){
    if(!mp.exists())throw Error('O mapa piloto não foi encontrado no banco.');
    const anterior=ar.exists()?ar.data():(at.data()?.mapId===id?at.data():mp.data()?.mesaScene||{mapId:id,objects:[]});
    if(!bk.exists())tx.set(refBackup,{mapId:id,copiaEm:new Date().toISOString(),scene:anterior});
-   const nova={...anterior,mapId:id,objects:objetos,pilotoVersao:241};
+   const nova={...anterior,mapId:id,objects:objetos,pilotoVersao:253};
    tx.set(refArquivo,nova);
    tx.set(refAtivo,nova);
    tx.update(refMapa,{mesaScene:nova,atualizadoEm:new Date().toISOString()});
