@@ -105,9 +105,8 @@ export function instalarTresMapas(dep={}){
    option.hidden=false;
    option.disabled=false;
   }
-  const quantidade=[...seletor.options].filter(o=>o.value).length;
-  const aviso=root.getElementById(atual)?.querySelector('[data-mtm-mapas-disponiveis]');
-  if(aviso)aviso.textContent=quantidade+' mapa'+(quantidade===1?'':'s')+' '+(quantidade===1?'disponível':'disponíveis')+' · Arquivados no Banco de Mapas';
+  // A mensagem de estado pertence a atualizarPainel(), que conhece
+  // se os dados estão carregando, indisponíveis ou realmente vazios.
  }
  async function limparLaboratoriosRuins(){
   if(!ehMestre()||!dep.deleteDoc)throw Error('Exclusão indisponível para esta sessão.');
