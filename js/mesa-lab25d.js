@@ -120,12 +120,16 @@ function montarCenaReal(scene,W,H,mostrarTelhados=true){
    const cor=estrada?(mat.includes('rio')?'#a29d89':'#b7ad94'):(/solo|terreno/i.test(String(o.nome||''))?'#668263':pal[4]);
    face([V(x,y,.018),V(x+w,y,.018),V(x+w,y+h,.018),V(x,y+h,.018)],cor,null);
    if(estrada){
-    const passo=.95;
-    // Juntas de pedra no mesmo plano, sem criar obstáculos de colisão.
-    for(let xx=x+passo;xx<x+w-.1;xx+=passo)
-     face([V(xx,y,.025),V(xx+.026,y,.025),V(xx+.026,y+h,.025),V(xx,y+h,.025)],'#8d8b7b',null);
-    for(let yy=y+passo;yy<y+h-.1;yy+=passo)
-     face([V(x,yy,.025),V(x+w,yy,.025),V(x+w,yy+.026,.025),V(x,yy+.026,.025)],'#8d8b7b',null);
+    // Reduzir a grade: juntas cruzadas e sobrepostas piscavam
+    // durante a rotação, especialmente na praça central.
+    const passo=1.85;
+    if(w>=h){
+     for(let xx=x+passo;xx<x+w-.1;xx+=passo)
+      face([V(xx,y,.025),V(xx+.016,y,.025),V(xx+.016,y+h,.025),V(xx,y+h,.025)],'#aaa08c',null);
+    }else{
+     for(let yy=y+passo;yy<y+h-.1;yy+=passo)
+      face([V(x,yy,.025),V(x+w,yy,.025),V(x+w,yy+.016,.025),V(x,yy+.016,.025)],'#aaa08c',null);
+    }
    }
   }else if(kind==='arvore_vila'){
    // Tronco elevado e copa em volumes: ambos participam da ordenação de
@@ -248,7 +252,7 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
  roofToggle.style.cssText=reset.style.cssText;
  tools.append(roofToggle);
  tools.append(reset);painel.append(tools);
- const ctx=canvas.getContext('2d');let yaw=-.65,pitch=.62,zoom=1.0,raf=0,drag=null,ultimoModo='',personagem=[18,13,0],selecionado='',modoAtual='mapa-construtor',centroCamera=[14,9],ultimoTokenPos='',ultimoMapaV230='';
+ const ctx=canvas.getContext('2d');let yaw=-.65,pitch=.62,zoom=1.0,raf=0,drag=null,ultimoModo='',personagem=[18,13,0],selecionado='',modoAtual='mapa-construtor',centroCamera=[14,9],ultimoTokenPos='',ultimoMapaV230='',ultimaCenaRef=null,ultimoVisivel=false;
  let telhadosVisiveis=true;
  roofToggle.addEventListener('click',()=>{telhadosVisiveis=!telhadosVisiveis;roofToggle.textContent=telhadosVisiveis?'🏠 Telhados: visíveis':'🏠 Telhados: ocultos';invalidate();});
  const movimentoVisual=new Map();
@@ -320,11 +324,8 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
     const x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys);
     ctx.save();ctx.clip();
     ctx.fillStyle='rgba(22,24,26,.065)';ctx.fillRect(x0,y0+(y1-y0)*.78,x1-x0,(y1-y0)*.22);
-    if((x1-x0)*(y1-y0)>900){
-     const gap=Math.max(9,scale*.5);
-     ctx.strokeStyle='rgba(22,25,28,.10)';ctx.lineWidth=.75;
-     for(let y=y0+gap;y<y1;y+=gap){ctx.beginPath();ctx.moveTo(x0,y);ctx.lineTo(x1,y);ctx.stroke();}
-    }
+    // Sem linhas hachuradas em todas as faces: geravam riscos
+   // atravessando portas e telhados durante a rotação.
     ctx.restore();
    }
    if(borda){ctx.strokeStyle=borda;ctx.lineWidth=Math.max(.7,scale*.022);ctx.stroke();}
@@ -474,6 +475,10 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
    ?'MESTRE · arrastar: girar · Shift+arrastar: deslocar · roda: zoom'
    :'JOGO · clique no chão para caminhar · WASD ou setas · câmera acompanha o personagem';
   painel.hidden=!visivel;painel.style.display=visivel?'block':'none';
-  if(visivel&&(mudou||mapaMudou||tokenMudou||!raf))invalidate();
+  // Evitar repintura periódica quando a cena e a câmera não mudaram.
+  const cenaRef=cenaAtual(),cenaMudou=cenaRef!==ultimaCenaRef;
+  const visibilidadeMudou=visivel!==ultimoVisivel;
+  ultimaCenaRef=cenaRef;ultimoVisivel=visivel;
+  if(visivel&&(mudou||mapaMudou||tokenMudou||cenaMudou||visibilidadeMudou))invalidate();
  },destruir(){win.clearInterval(acompanhamento);resize?.disconnect();if(raf)win.cancelAnimationFrame(raf);painel.remove();}};
 }
