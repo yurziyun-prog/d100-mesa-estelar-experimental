@@ -69,7 +69,7 @@ export function instalarTresMapas(dep={}){
  const root=dep.root||document,win=root.defaultView||window;
  const ehMestre=()=>{try{return !!dep.ehMestre?.();}catch(_){return false;}};
  const uid=()=>{try{return String(dep.uid?.()||'mestre');}catch(_){return 'mestre';}};
- let lab25D=null,modoLab25D=false;
+ let lab25D=null,modoLab25D=true;
  function atualizarVisual25D(){
   const board=root.getElementById('novaSyncBoard');
   const mapa=String(win.novaSyncController_?.mapaAtual?.()||board?.dataset.mapaVisivel||'');
@@ -91,7 +91,7 @@ export function instalarTresMapas(dep={}){
   lab25D?.atualizar({visivel:mostrar,token:atorSelecionado,modo:atual});
   for(const btn of root.querySelectorAll('[data-mtm-preview]')){
    btn.hidden=!atual;
-   btn.textContent=modoLab25D?'🗺️ Editar no mapa funcional':(atual==='mapa-construtor'?'🏗️ Inspecionar em 3D':'🏠 Ver protótipo 2,5D');
+   btn.textContent=modoLab25D?'🗺️ Editar no mapa funcional':(atual==='mapa-construtor'?'🏗️ Voltar à câmera 3D':'🏠 Ver protótipo 2,5D');
   }
  }
 
@@ -192,7 +192,7 @@ export function instalarTresMapas(dep={}){
  const paiOriginal=sync.parentElement,proximoOriginal=sync.nextSibling;
  const btnFicha=[...tabs.querySelectorAll('.tab-btn')].find(b=>/mostrarAba\('ficha'/.test(b.getAttribute('onclick')||''));
  const defs=[
-  ['mapa-construtor','🏗️','Mapa construtor','Visão de cima para construir cidade e casa'],
+  ['mapa-construtor','🏗️','Mapa construtor','Câmera 3D livre para construir e inspecionar ambientes'],
   ['mapa-mestre','👑','Mapa do mestre','Direção da sessão; botão direito num NPC abre o jogo'],
   ['mapa-jogo','🎮','Mapa de jogo','A visão do jogador, controlando quem foi escolhido']
  ];
@@ -240,8 +240,9 @@ export function instalarTresMapas(dep={}){
   sync.classList.add('active');
   root.body.classList.remove('mapa-construtor','mapa-mestre','mapa-jogo');root.body.classList.add(id);
   atual=id;win.mesaVista25D=id!=='mapa-construtor';
-  // Construtor inicia no editor funcional; mestre e jogo, na visualização.
-  modoLab25D=id!=='mapa-construtor';
+  // Os três visualizadores iniciam no 2,5D. No Construtor, a edição 2D
+  // continua acessível por um botão, sem mudar a aba nem abrir Mapa da Mesa.
+  modoLab25D=true;
   atualizarPainel();
   atualizarVisual25D();
   filtrarMapasDaArea();
@@ -294,7 +295,7 @@ export function instalarTresMapas(dep={}){
    if(sel.dataset.itens!==cod){const old=sel.value;sel.replaceChildren(new Option('Selecione uma miniatura',''),...options.map(o=>new Option(o.textContent,o.value)));sel.dataset.itens=cod;sel.value=atorSelecionado||old||'';}
   }
   const st=sec?.querySelector('[data-mtm-estado]');
-  if(st)st.textContent=atual==='mapa-construtor'?'Construção: vista superior e câmera livre':atual==='mapa-mestre'?'Direção: botão direito sobre uma miniatura para acompanhá-la':'Jogo: protótipo geométrico experimental. Controle de personagens ainda em desenvolvimento.';
+  if(st)st.textContent=atual==='mapa-construtor'?'Construção: câmera 3D livre; edição pelo botão de mapa funcional':atual==='mapa-mestre'?'Direção: botão direito sobre uma miniatura para acompanhá-la':'Jogo: protótipo geométrico experimental. Controle de personagens ainda em desenvolvimento.';
  }
  root.querySelectorAll('[data-mtm-ator]').forEach(sel=>sel.addEventListener('change',e=>{
   atorSelecionado=String(e.target.value||'');
@@ -314,7 +315,7 @@ export function instalarTresMapas(dep={}){
   const destino=String(l.a?.mapa)===mapa?String(l.b?.mapa):String(l.a?.mapa);
   if(!destino)return;
   e.preventDefault();e.stopPropagation();
-  try{win.abrirMapaBancoNaMesa_?.(destino);}catch(_){}
+  try{if(typeof win.abrirMapaNosVisualizadores_==='function')void win.abrirMapaNosVisualizadores_(destino);else void win.novaSyncController_?.openMap?.(destino);}catch(err){console.warn('[Três mapas] abrir interior:',err);}
  },true);
  // botão direito numa miniatura, no mapa do mestre, abre o mapa de jogo naquela perspectiva
  root.addEventListener('contextmenu',e=>{
