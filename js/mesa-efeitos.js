@@ -149,6 +149,18 @@ export function instalarEfeitos(dep){
  if(!el('efCssV128')){const st=root.createElement('style');st.id='efCssV128';st.textContent=ESTILO;root.head.append(st);}
  let somLigado=true;try{somLigado=win.localStorage.getItem('mesa:somEfeitos')!=='0';}catch(_){}
  let ctx=null,mestreVol=null,ultimoEvento='',estados=new Map(),clima={modo:'limpo'},mapa=null,parar=[],assinado=null,ultimoSeg=0,primeira=true;
+ // v234: toda troca de mapa interrompe sons já iniciados, inclusive caudas
+ // WebAudio longas que sobreviveriam à filtragem de eventos novos.
+ let mapaAudioAnterior='',somSilenciadoAte=0;
+ function observarTrocaMapa(){
+  const atual=mapaAudivel();
+  if(atual===mapaAudioAnterior)return;
+  mapaAudioAnterior=atual;somSilenciadoAte=Date.now()+450;
+  if(ctx){
+   const antigo=ctx;ctx=null;mestreVol=null;
+   try{void antigo.close().catch(()=>{});}catch(_){}
+  }
+ }
  const board=()=>el('novaSyncBoard');
  // Sons de combate são eventos espaciais: o documento de saúde é global,
  // mas o áudio só pode tocar no mapa em que o evento realmente ocorreu.
@@ -241,7 +253,13 @@ export function instalarEfeitos(dep){
   garra(){for(let k=0;k<3;k++)ruido(.07,.22,{tipo:'highpass',f:2800+k*400,atraso:k*.05});},
   surgir(){tom(300,900,.35,.14,'triangle');tom(600,1200,.4,.08,'sine',.05);ruido(.5,.14,{tipo:'bandpass',f:1500,f1:300,q:.6,curva:.6});}
  };
- const tocar=(nome,...a)=>{try{if(somLigado&&SONS[nome])SONS[nome](...a);}catch(e){console.warn('[Efeitos] som',e);}};
+ const tocar=(nome,...a)=>{
+  try{
+   observarTrocaMapa();
+   if(!somLigado||!mapaAudivel()||Date.now()<somSilenciadoAte||!SONS[nome])return;
+   SONS[nome](...a);
+  }catch(e){console.warn('[Efeitos] som',e);}
+ };
 
  // ------------------------------------------------------------ animações
  function camada(){const b=board();if(!b)return null;let c=el('efCamada');if(!c||c.parentElement!==b){c?.remove();c=root.createElement('div');c.id='efCamada';b.append(c);}return c;}
@@ -444,6 +462,6 @@ let ocupado=false;
   parar.push(dep.onSnapshot(D(HEALTH),s=>{try{aoSaude(s.exists()?s.data():null);}catch(e){console.warn('[Efeitos]',e);}},e=>console.warn('[Efeitos] saúde',e)));
   parar.push(dep.onSnapshot(D(MAP),s=>{mapa=s.exists()?s.data():null;},()=>{}));
  }
- const vigia=setInterval(()=>{try{if(!uid())return;const k=uid()+'|'+ehMestre();if(assinado!==k){assinado=k;assinar();}botoes();desenharClima();passos();}catch(e){console.warn('[Efeitos]',e);}},250);
- return {tocar,explosao:p=>explosao(p),raio:(a,b)=>raio(a,b,{flash:true}),parar:()=>{clearInterval(vigia);parar.forEach(f=>{try{f();}catch(_){}});}};
+ const vigia=setInterval(()=>{try{observarTrocaMapa();if(!uid())return;const k=uid()+'|'+ehMestre();if(assinado!==k){assinado=k;assinar();}botoes();desenharClima();passos();}catch(e){console.warn('[Efeitos]',e);}},250);
+ return {tocar,explosao:p=>explosao(p),raio:(a,b)=>raio(a,b,{flash:true}),parar:()=>{clearInterval(vigia);if(ctx){try{void ctx.close().catch(()=>{});}catch(_){}}parar.forEach(f=>{try{f();}catch(_){}});}};
 }
