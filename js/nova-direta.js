@@ -180,14 +180,17 @@ export function mountDirectPositionLab({user,characters,workshop=null,renderScen
  // Nunca reproduzir efeito visual/sonoro de outro mapa.
  const eventoAudivelNesteMapa=ev=>{
   const visivel=currentMapId(),origem=String(ev?.mapId||ev?.mapaId||'');
-  if(!visivel||!origem||origem!==visivel)return false;
+  // A interface pode atualizar o mapa antes do tabuleiro durante a troca.
+  // Não tocar som até os dois concordarem sobre a cena visível.
+  const tabuleiro=String(board?.dataset?.mapaVisivel||'');
+  if(!visivel||!tabuleiro||tabuleiro!==visivel||!origem||origem!==visivel)return false;
   // v242: a posição dos participantes também precisa pertencer ao mapa.
   // Um evento do documento global não pode reproduzir golpe local
   // se o token de origem ou o alvo está registrado em outro cenário.
   for(const id of [ev?.source?.id,ev?.target?.id]){
    if(!id)continue;
-   const t=tokens.get(String(id));
-   if(t&&tokenMapId(t)!==origem)return false;
+   const t=tokens.get(String(id))||tokens.get(encodeURIComponent(String(id)));
+   if(!t||tokenMapId(t)!==origem)return false;
   }
   return true;
  };
