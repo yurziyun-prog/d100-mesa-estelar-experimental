@@ -153,7 +153,13 @@ export function instalarEfeitos(dep){
  // Sons de combate são eventos espaciais: o documento de saúde é global,
  // mas o áudio só pode tocar no mapa em que o evento realmente ocorreu.
  // Na ausência de um mapa identificável, não tocar (fail closed).
- const mapaAudivel=()=>String(board()?.dataset.mapaVisivel||ctl()?.mapaAtual?.()||'');
+ // A localização mostrada no DOM pode ficar atrasada ao trocar de aba/mapa.
+ // Se o controlador e o tabuleiro discordarem, silêncio até sincronizar.
+ const mapaAudivel=()=>{
+  const atual=String(ctl()?.mapaAtual?.()||''),visivel=String(board()?.dataset.mapaVisivel||'');
+  if(atual&&visivel&&atual!==visivel)return '';
+  return atual||visivel||'';
+ };
  const tokenMapa=id=>{
   if(!id)return '';
   try{return String(ctl()?.token?.(String(id))?.mapaId||'');}catch(_){return '';}
@@ -163,12 +169,10 @@ export function instalarEfeitos(dep){
   if(!visivel)return false;
   const explicito=String(ev?.mapId||ev?.mapaId||'');
   if(explicito)return explicito===visivel;
-  const ids=[ev?.source?.id,ev?.target?.id].filter(Boolean);
-  // Evento legado: só reproduzir quando os participantes são
-  // identificáveis e todos estão no mapa visível.
-  if(!ids.length)return false;
-  const locais=ids.map(tokenMapa);
-  return locais.every(id=>id&&id===visivel);
+  // Eventos antigos sem mapId não são confiáveis após a troca de mapa:
+  // um token pode ter sido movido desde que o golpe foi registrado.
+  // Preferir perder o som legado a tocar uma luta de outro cenário.
+  return false;
  };
 
 
@@ -288,7 +292,7 @@ export function instalarEfeitos(dep){
   if(ev.natureza==='clima'&&ev.target){
    const ab=abrigoEf(win.mesaVisualClima?.()?.abrigo);
    if(/meteor/i.test(nome)){meteoroCaindo(ev.target);return;}
-   raio({x:ev.target.x+.6,y:-1},ev.target,{flash:true});setTimeout(()=>raio({x:ev.target.x-.4,y:-1},ev.target),120);tocar('raio');tocar('trovao',.05,Math.max(.6,ab.som));
+   raio({x:ev.target.x+.6,y:-1},ev.target,{flash:true});setTimeout(()=>{if(eventoNoMapa(ev))raio({x:ev.target.x-.4,y:-1},ev.target);},120);tocar('raio');tocar('trovao',.05,Math.max(.6,ab.som));
    if(ev.hit&&ev.target.id){marcarToken(ev.target.id,'ef-cai',650);texto(ev.target,'⚡ '+(Number(ev.damage)||''),'#dfe8ff');}
    return;
   }
