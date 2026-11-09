@@ -187,7 +187,8 @@ export function instalarTresMapas(dep={}){
    piso(12.3,0,3.4,H,'Travessa central','#b1a58b','pedra-polida',2),
    piso(11.0,5.9,6,4.2,'Praça do povoado','#a49e8e','pedra-rio',3),
    piso(10.9,10.0,6.2,4,'Caminho de acesso frontal','#c0b49b','pedra-polida',2),
-   piso(0,13.72,W,.28,'Limite frontal do terreno','#797b68','pedra-rio',4),
+   piso(0,13.72,10.9,.28,'Limite frontal esquerdo','#797b68','pedra-rio',4),
+   piso(17.1,13.72,10.9,.28,'Limite frontal direito','#797b68','pedra-rio',4),
    piso(.25,.18,W-.5,.16,'Limite do fundo','#525f4a','pedra-rio',4)
   ];
   // O desenho ortográfico preserva escala real. Casas médias no fundo e
@@ -270,7 +271,7 @@ export function instalarTresMapas(dep={}){
   const id=MAPA_VILA_RECUPERACAO_V246,ref=dep.doc(dep.db,'mapas',id);
   const snapshot=await dep.getDoc(ref);
   if(!snapshot.exists()){
-   const agora=new Date().toISOString(),cena={mapId:id,objects:vilaPiloto239(),pilotoVersao:246};
+   const agora=new Date().toISOString(),cena={mapId:id,objects:vilaPiloto239(),pilotoVersao:253};
    await dep.setDoc(ref,{id,nome:'Mapa 2.5D — vila simples',larguraM:28,alturaM:14,pxPorMetro:40,
     fundo:'#607b5a',criadoPor:uid(),criadoEm:agora,atualizadoEm:agora,pilotoV246:true,mesaScene:cena});
    await dep.setDoc(dep.doc(dep.db,'combatesAtivos','mapaMesaSyncCena_'+id),cena);
