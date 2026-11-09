@@ -8,6 +8,11 @@ import {MATERIAIS,oChao,oParede,oPorta,montarPeca} from './mesa-construcao.js?v=
 import {instalarLaboratorio25D} from './mesa-lab25d.js?v=236';
 const MAPA_T='mesa_laboratorio_v224',MAPA_I='mesa_laboratorio_v224_interior',LIG='combatesAtivos/mesaLigacoes';
 const MAPAS_DESCARTADOS_V224=new Set([MAPA_T,MAPA_I]);
+const MAPA_PILOTO_V237=/^Mapa\s*2[.,]?5\s*D\s*[—–-]\s*vila\s+simples$/i;
+const mapaPilotoV237=m=>!!m?.id&&MAPA_PILOTO_V237.test(String(m.nome||'').trim());
+const pilotoV237=mapas=>(Array.isArray(mapas)?mapas:[]).filter(m=>mapaPilotoV237(m)&&!m.arquivadoV176);
+const TESTES_DESCARTAVEIS_V237=/^(?:Mapa\s*2[.,]?5\s*D\s*[—–-]\s*casa\s+por\s+dentro|Teste\s*2[.,]?5\s*D\s*[—–-]\s*casa\s+por\s+dentro|Teste\s*2[.,]?5\s*D\s*[—–-]\s*casa,?\s*NPC\s+e\s+criatura)$/i;
+
 const MAPAS_REFERENCIA_V225=/^(?:Ecossistema\s*\(teste\)|Casa de teste\s*\(básico\))$/i;
 const POS='combatesAtivos/mapaMesaSyncDireta/posicoes';
 const CSS=`
@@ -96,28 +101,23 @@ export function instalarTresMapas(dep={}){
  }
 
  function filtrarMapasDaArea(){
-  // v225.1: Não filtrar as opções da barra. <option hidden/disabled> não
-  // funciona de maneira consistente nos seletores nativos (Edge/Windows).
-  // A barra já exclui mapas arquivados V176 e preserva os demais.
-  const seletor=root.querySelector('#mbBarra [data-mapa]');
-  if(!seletor)return;
-  for(const option of seletor.options){
-   option.hidden=false;
-   option.disabled=false;
-  }
-  // A mensagem de estado pertence a atualizarPainel(), que conhece
-  // se os dados estão carregando, indisponíveis ou realmente vazios.
+  // O seletor original deve permanecer intacto para não quebrar o
+  // Banco de Mapas nem os mapas da campanha. A lista das três vistas
+  // é filtrada em atualizarPainel().
  }
  async function limparLaboratoriosRuins(){
   if(!ehMestre()||!dep.deleteDoc)throw Error('Exclusão indisponível para esta sessão.');
-  const ids=[...MAPAS_DESCARTADOS_V224],existentes=(dep.mapas?.()||[]).filter(m=>ids.includes(String(m.id)));
-  if(!existentes.length){win.alert('Os dois mapas ruins v224 não aparecem mais na lista. Nada a excluir.');return;}
+  const ids=[...MAPAS_DESCARTADOS_V224],existentes=(dep.mapas?.()||[]).filter(m=>
+   ids.includes(String(m.id))||
+   (TESTES_DESCARTAVEIS_V237.test(String(m.nome||'').trim())&&!mapaPilotoV237(m))
+  );
+  if(!existentes.length){win.alert('Nenhum laboratório descartado identificado para exclusão.');return;}
   const nomes=existentes.map(m=>m.nome||m.id).join('\\n');
-  if(!win.confirm('Excluir SOMENTE estes mapas ruins do Firebase?\\n\\n'+nomes+'\\n\\nEcossistema (teste), Casa de teste (básico) e mapas da campanha NÃO serão excluídos.'))return;
+  if(!win.confirm('Excluir PERMANENTEMENTE apenas estes laboratórios descartados do Firebase?\\n\\n'+nomes+'\\n\\nEcossistema (teste), Casa de teste (básico) e mapas da campanha NÃO serão excluídos.'))return;
   const atualId=String(win.novaSyncController_?.mapaAtual?.()||root.getElementById('novaSyncBoard')?.dataset.mapaVisivel||'');
-  if(ids.includes(atualId)){
-   const ref=(dep.mapas?.()||[]).find(m=>MAPAS_REFERENCIA_V225.test(String(m.nome||'')));
-   if(!ref)throw Error('Selecione um mapa diferente no Mapa da Mesa antes de excluir o laboratório ativo.');
+  if(existentes.some(m=>String(m.id)===atualId)){
+   const ref=pilotoV237(dep.mapas?.())[0];
+   if(!ref)throw Error('O mapa piloto deve estar disponível antes da exclusão de um mapa ativo.');
    await win.novaSyncController_?.openMap?.(String(ref.id));
   }
   const erros=[];
@@ -132,7 +132,7 @@ export function instalarTresMapas(dep={}){
   try{await win.recarregarBancoMapas_?.();}catch(e){console.warn('[Três mapas] atualização',e);}
   filtrarMapasDaArea();
   if(erros.length)win.alert('Algumas exclusões falharam:\\n'+erros.join('\\n'));
-  else win.alert('Laboratórios v224 ruins excluídos. Os mapas de referência foram preservados.');
+  else win.alert('Testes descartados excluídos; mapa piloto, referências e campanha preservados.');
  }
  function casaExterior(){
   const W=28,H=14;
@@ -312,17 +312,16 @@ export function instalarTresMapas(dep={}){
   const mapa=(dep.mapas?.()||[]).find(m=>String(m.id)===id);
   const nome=mapa?.nome||id||'Nenhum mapa selecionado';
   const dest=sec?.querySelector('[data-mtm-mapa]');
-  if(dest)dest.textContent=id?'Mapa compartilhado: '+nome:'Nenhum mapa ativo. Escolha um mapa acima.';
+  if(dest)dest.textContent=id?'Mapa compartilhado: '+nome+(mapaPilotoV237(mapa)?'':' · fora do cenário piloto'):'Nenhum mapa ativo. Escolha o mapa piloto acima.';
   const reload=sec?.querySelector('[data-mtm-recarregar-mapas]');
-  if(reload)reload.hidden=(dep.mapas?.()||[]).length>0;
+  if(reload)reload.hidden=pilotoV237(dep.mapas?.()).length>0;
   const selMapa=sec?.querySelector('[data-mtm-mapa-select]');
   if(selMapa){
-   const lista=[...(dep.mapas?.()||[])].filter(m=>m?.id&&!m.arquivadoV176&&!String(m.id).includes('__parte__'))
-    .sort((a,b)=>String(a.nome||a.id).localeCompare(String(b.nome||b.id),'pt'));
+   const lista=pilotoV237(dep.mapas?.());
    const signature=lista.map(m=>String(m.id)+'='+String(m.nome||m.id)).join('|')+'#'+id;
    const estado=win.mesaEstadoBancoMapasV235_;
    const aviso=sec?.querySelector('[data-mtm-mapas-disponiveis]');
-   if(aviso){aviso.textContent=lista.length?lista.length+' mapas disponíveis':estado?.status==='erro'?'Leitura dos mapas falhou: '+String(estado.erro||'erro de rede'):estado?.status==='carregando'?'Carregando mapas…':'Nenhum mapa disponível. Recarregue ou confira as permissões.';}
+   if(aviso){aviso.textContent=lista.length?'1 mapa de trabalho · outros preservados no Banco de Mapas':estado?.status==='erro'?'Leitura dos mapas falhou: '+String(estado.erro||'erro de rede'):estado?.status==='carregando'?'Carregando mapas…':'Mapa de trabalho indisponível. Recarregue ou confira o Banco de Mapas.';}
    if(selMapa.dataset.signature!==signature&&root.activeElement!==selMapa){
     selMapa.replaceChildren(new Option('Escolha um mapa…',''),...lista.map(m=>new Option(String(m.nome||m.id),String(m.id))));
     selMapa.dataset.signature=signature;
