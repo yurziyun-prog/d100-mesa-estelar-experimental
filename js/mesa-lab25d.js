@@ -125,8 +125,14 @@ function montarCenaReal(scene,W,H,mostrarTelhados=true){
    const ordem=Number(o.ordemChaoV253);
    const planoCamada=o.pilotoTerrenoV253&&Number.isFinite(ordem)?ordem:
      /praça/i.test(nome)?3:estrada?2:/solo|terreno/i.test(nome)?0:1;
-   // Ordem de terreno imutável entre ângulos: sem z-fighting de pisos coplanares.
-   face([V(x,y,.018),V(x+w,y,.018),V(x+w,y+h,.018),V(x,y+h,.018)],cor,null,planoCamada);
+   // O lote piloto afunila apenas 1,1 m de cada lado da borda distante.
+   // A frente permanece larga. A projeção ortográfica e a escala das casas
+   // continuam intactas, com um terreno menos parecido com uma placa retangular.
+   const contorno=o.pilotoTerrenoV253&&ordem===0&&w>20&&h>10
+    ?[V(x+1.1,y,.018),V(x+w-1.1,y,.018),V(x+w,y+h,.018),V(x,y+h,.018)]
+    :[V(x,y,.018),V(x+w,y,.018),V(x+w,y+h,.018),V(x,y+h,.018)];
+   // Ordem de terreno invariável entre ângulos: sem z-fighting de pisos coplanares.
+   face(contorno,cor,null,planoCamada);
    // Ruas contínuas sem juntas coplanares sobrepostas que tremulam com a câmera.
   }else if(kind==='arvore_vila'){
    // Tronco elevado e copa em volumes: ambos participam da ordenação de
