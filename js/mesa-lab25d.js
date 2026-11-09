@@ -276,19 +276,40 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
  const zoomMenos=criarBotao('−','Afastar câmera');
  const zoomMais=criarBotao('+','Aproximar câmera');
  const foto=criarBotao('📷 PNG','Exportar a vista atual do mapa como imagem');
+ const inspecionar=criarBotao('🔎 Inspecionar','Ativar câmera livre temporária para examinar construções');
+ const setor=criarBotao('▦ Setores','Exibir a divisão espacial em setores de 8 metros');
+ const infoObjeto=root.createElement('div');
+ infoObjeto.style.cssText='position:absolute;left:12px;bottom:39px;z-index:2;padding:7px 10px;max-width:60%;border:1px solid #637b8d;border-radius:7px;background:#102339e8;color:#e4f1fd;font:12px Segoe UI,Arial,sans-serif;pointer-events:none';
+ infoObjeto.hidden=true; painel.append(infoObjeto);
  // Não deixar os controles extravasarem pela borda direita em telas menores.
  tools.style.maxWidth='calc(100% - 20px)';
- tools.append(roofToggle,vistaSuperior,vistaFrontal,zoomMenos,zoomMais,foto,reset);painel.append(tools);
+ tools.append(roofToggle,inspecionar,setor,vistaSuperior,vistaFrontal,zoomMenos,zoomMais,foto,reset);painel.append(tools);
  // Compor no buffer e publicar apenas quadros completos.
  const buffer=root.createElement('canvas'),ctx=buffer.getContext('2d',{alpha:false});
  const displayCtx=canvas.getContext('2d',{alpha:false});
  let ultimaCenaValida=null,ultimoIdCenaValida='',ultimoPainelVisivel=null;
  const publicarQuadro=()=>{displayCtx.setTransform(1,0,0,1,0,0);displayCtx.drawImage(buffer,0,0);};
  let yaw=-.65,pitch=.62,zoom=1.0,raf=0,drag=null,ultimoModo='',personagem=[18,13,0],selecionado='',modoAtual='mapa-construtor',centroCamera=[14,9],ultimoTokenPos='',ultimoMapaV230='',ultimaCenaRef=null,ultimoVisivel=false;
- let telhadosVisiveis=true;
+ let telhadosVisiveis=true,inspecaoLivre=false,exibirSetores=false,objetoSelecionadoId='';
+ const manterNorte=()=>{if(modoAtual==='mapa-construtor'&&!inspecaoLivre){yaw=CONSTRUTOR_YAW;pitch=CONSTRUTOR_PITCH;}};
+ const atualizarInspecao=()=>{
+  inspecionar.textContent=inspecaoLivre?'🔓 Encerrar inspeção':'🔎 Inspecionar';
+  inspecionar.title=inspecaoLivre?'Voltar à orientação fixa do construtor':'Inspecionar a cidade com rotação temporária da câmera';
+ };
+ inspecionar.addEventListener('click',()=>{
+  if(modoAtual==='mapa-jogo')return;
+  inspecaoLivre=!inspecaoLivre;
+  if(!inspecaoLivre)manterNorte();
+  atualizarInspecao();invalidate();
+ });
+ setor.addEventListener('click',()=>{
+  exibirSetores=!exibirSetores;
+  setor.textContent=exibirSetores?'▦ Ocultar setores':'▦ Setores';
+  invalidate();
+ });
  roofToggle.addEventListener('click',()=>{telhadosVisiveis=!telhadosVisiveis;roofToggle.textContent=telhadosVisiveis?'🏠 Telhados: visíveis':'🏠 Telhados: ocultos';invalidate();});
- vistaSuperior.addEventListener('click',()=>{if(modoAtual==='mapa-jogo')return;yaw=0;pitch=Math.PI/2;invalidate();});
- vistaFrontal.addEventListener('click',()=>{if(modoAtual==='mapa-jogo')return;yaw=0;pitch=.30;invalidate();});
+ vistaSuperior.addEventListener('click',()=>{if(modoAtual==='mapa-jogo')return;inspecaoLivre=true;atualizarInspecao();yaw=0;pitch=Math.PI/2;invalidate();});
+ vistaFrontal.addEventListener('click',()=>{if(modoAtual==='mapa-jogo')return;inspecaoLivre=true;atualizarInspecao();yaw=0;pitch=.30;invalidate();});
  const alterarZoom=passo=>{if(modoAtual==='mapa-jogo')return;zoom=clamp(zoom*passo,.7,3);invalidate();};
  zoomMenos.addEventListener('click',()=>alterarZoom(1/1.2));
  zoomMais.addEventListener('click',()=>alterarZoom(1.2));
@@ -442,7 +463,7 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
  canvas.addEventListener('pointermove',e=>{
   if(modoAtual==='mapa-jogo'||!drag||e.pointerId!==drag.id)return;
   const dx=e.clientX-drag.x,dy=e.clientY-drag.y;
-  if(drag.pan){
+  if(drag.pan||modoAtual==='mapa-construtor'&&!inspecaoLivre){
    const r=canvas.getBoundingClientRect(),d=dimValidas();
    const factor=Math.min(r.width/(d.W*1.36),r.height/(d.H*1.85))*zoom||1;
    const horiz=dx/factor,vert=dy/(factor*Math.max(.2,Math.sin(pitch)));
@@ -516,15 +537,15 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
   if(mapaMudou)ultimoMapaV230=idAtual;
   if(modo==='mapa-jogo'&&tokenMudou){const t=lerTokens().find(t=>t.id===token);if(t)centroCamera=[t.x,t.y];}
   if(mudou||mapaMudou){
-   drag=null;
+   drag=null;inspecaoLivre=false;atualizarInspecao();objetoSelecionadoId='';infoObjeto.hidden=true;
    reenquadrar();
   }
   canvas.style.cursor=modo==='mapa-jogo'?'crosshair':'grab';
   canvas.style.touchAction=modo==='mapa-jogo'?'auto':'none';
   reset.hidden=modo==='mapa-jogo';
-  for(const b of [roofToggle,vistaSuperior,vistaFrontal,zoomMenos,zoomMais,foto])b.hidden=modo==='mapa-jogo';
+  for(const b of [roofToggle,inspecionar,setor,vistaSuperior,vistaFrontal,zoomMenos,zoomMais,foto])b.hidden=modo==='mapa-jogo';
   help.textContent=modo==='mapa-construtor'
-   ?'CONSTRUTOR · arrastar: girar · Shift+arrastar: deslocar · roda: zoom · edição pelo mapa funcional'
+   ?'CONSTRUTOR · arrastar: mover cidade · clique: selecionar objeto · inspeção: câmera livre · roda: zoom'
    :modo==='mapa-mestre'
    ?'MESTRE · arrastar: girar · Shift+arrastar: deslocar · roda: zoom'
    :'JOGO · clique no chão para caminhar · WASD ou setas · câmera acompanha o personagem';
