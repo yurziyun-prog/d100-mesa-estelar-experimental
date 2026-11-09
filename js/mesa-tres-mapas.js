@@ -197,13 +197,23 @@ export function instalarTresMapas(dep={}){
   ['mapa-jogo','🎮','Mapa de jogo','A visão do jogador, controlando quem foi escolhido']
  ];
  let atual='';let ancora=btnFicha;let atorSelecionado='';let vistaAnterior=null;let seletorV224=null;
+ let tentativasMapasV235=0,ultimaTentativaMapasV235=0,checandoMapasV235=false;
  for(const [id,ic,nome,dica] of defs){
   if(root.getElementById(id))continue;
   const b=root.createElement('button');b.type='button';b.className='tab-btn mtm-tab';b.dataset.mtm=id;b.textContent=ic+' '+nome;b.title=dica;
   b.hidden=!ehMestre();
   b.addEventListener('click',()=>abrir(id,b));
   tabs.insertBefore(b,ancora?.nextSibling||null);ancora=b;
-  const sec=root.createElement('div');sec.id=id;sec.className='tab-content';sec.innerHTML=`<div class="form-section"><div class="mtm-faixa"><b>${ic} ${nome}</b><span class="mtm-dica">${dica}</span><div class="mtm-controles"><button type="button" data-limpar-demo>🗑️ Excluir laboratórios ruins</button><button type="button" data-mtm-preview hidden>🏠 Ver protótipo 2,5D</button><button type="button" data-editar-casa>🧱 Construir</button><button type="button" data-diretor>🧭 NPCs e criaturas</button><button type="button" data-voltar-mesa>Voltar à Mesa</button></div></div><div class="mtm-mini"><label data-mtm-escolha>Mapa <select data-mtm-mapa-select aria-label="Selecionar mapa para os três visualizadores"><option value="">Escolha um mapa…</option></select></label><span data-mtm-mapa>Mapa carregado: verificando…</span><span data-mtm-mapas-disponiveis style="color:#9fb3cc"></span><label data-mtm-seletor style="display:none">Acompanhar <select data-mtm-ator><option value="">Selecione uma miniatura</option></select></label><span class="mtm-estado" data-mtm-estado></span></div><div class="mtm-host"></div></div>`;
+  const sec=root.createElement('div');sec.id=id;sec.className='tab-content';sec.innerHTML=`<div class="form-section"><div class="mtm-faixa"><b>${ic} ${nome}</b><span class="mtm-dica">${dica}</span><div class="mtm-controles"><button type="button" data-limpar-demo>🗑️ Excluir laboratórios ruins</button><button type="button" data-mtm-preview hidden>🏠 Ver protótipo 2,5D</button><button type="button" data-editar-casa>🧱 Construir</button><button type="button" data-diretor>🧭 NPCs e criaturas</button><button type="button" data-voltar-mesa>Voltar à Mesa</button></div></div><div class="mtm-mini"><label data-mtm-escolha>Mapa <select data-mtm-mapa-select aria-label="Selecionar mapa para os três visualizadores"><option value="">Escolha um mapa…</option></select></label><span data-mtm-mapa>Mapa carregado: verificando…</span><span data-mtm-mapas-disponiveis style="color:#9fb3cc"></span><button type="button" data-mtm-recarregar-mapas hidden title="Recarregar mapas do Firebase" style="font:12px Segoe UI,Arial;color:#edf7ff;background:#21334d;border:1px solid #52647b;border-radius:6px;padding:3px 7px;cursor:pointer">↻ Recarregar mapas</button><label data-mtm-seletor style="display:none">Acompanhar <select data-mtm-ator><option value="">Selecione uma miniatura</option></select></label><span class="mtm-estado" data-mtm-estado></span></div><div class="mtm-host"></div></div>`;
+  sec.querySelector('[data-mtm-recarregar-mapas]').addEventListener('click',async e=>{
+   const btn=e.currentTarget;btn.disabled=true;
+   try{
+    if(typeof win.recarregarBancoMapas_!=='function')throw Error('Carregador de mapas ainda não iniciado.');
+    await win.recarregarBancoMapas_();
+    atualizarPainel();filtrarMapasDaArea();
+   }catch(err){win.alert(String(err?.message||err));}
+   finally{btn.disabled=false;}
+  });
   sec.querySelector('[data-mtm-mapa-select]').addEventListener('change',async e=>{
     const sel=e.currentTarget,novo=String(sel.value||'');
     if(!novo)return;
@@ -304,11 +314,16 @@ export function instalarTresMapas(dep={}){
   const nome=mapa?.nome||id||'Nenhum mapa selecionado';
   const dest=sec?.querySelector('[data-mtm-mapa]');
   if(dest)dest.textContent=id?'Mapa compartilhado: '+nome:'Nenhum mapa ativo. Escolha um mapa acima.';
+  const reload=sec?.querySelector('[data-mtm-recarregar-mapas]');
+  if(reload)reload.hidden=(dep.mapas?.()||[]).length>0;
   const selMapa=sec?.querySelector('[data-mtm-mapa-select]');
   if(selMapa){
    const lista=[...(dep.mapas?.()||[])].filter(m=>m?.id&&!m.arquivadoV176&&!String(m.id).includes('__parte__'))
     .sort((a,b)=>String(a.nome||a.id).localeCompare(String(b.nome||b.id),'pt'));
    const signature=lista.map(m=>String(m.id)+'='+String(m.nome||m.id)).join('|')+'#'+id;
+   const estado=win.mesaEstadoBancoMapasV235_;
+   const aviso=sec?.querySelector('[data-mtm-mapas-disponiveis]');
+   if(aviso){aviso.textContent=lista.length?lista.length+' mapas disponíveis':estado?.status==='erro'?'Leitura dos mapas falhou: '+String(estado.erro||'erro de rede'):estado?.status==='carregando'?'Carregando mapas…':'Nenhum mapa disponível. Recarregue ou confira as permissões.';}
    if(selMapa.dataset.signature!==signature&&root.activeElement!==selMapa){
     selMapa.replaceChildren(new Option('Escolha um mapa…',''),...lista.map(m=>new Option(String(m.nome||m.id),String(m.id))));
     selMapa.dataset.signature=signature;
@@ -402,6 +417,23 @@ export function instalarTresMapas(dep={}){
   abrir('mapa-jogo',root.querySelector('.mtm-tab[data-mtm="mapa-jogo"]'));
  },true);
  // se a sessão esconder a aba por troca de papel, restaura a seção
- const iv=setInterval(()=>{try{if(!ehMestre()&&atual){voltarMesa();}for(const b of root.querySelectorAll('.mtm-tab'))b.hidden=!ehMestre();if(atual){atualizarPainel();atualizarVisual25D();filtrarMapasDaArea();}else atualizarVisual25D();}catch(_){}},1500);iv.unref?.();
+ const iv=setInterval(()=>{try{
+  if(!ehMestre()&&atual){voltarMesa();}
+  for(const b of root.querySelectorAll('.mtm-tab'))b.hidden=!ehMestre();
+  if(atual){atualizarPainel();atualizarVisual25D();filtrarMapasDaArea();}
+  else atualizarVisual25D();
+  // Retry limitado enquanto o banco está vazio. Não criar nem salvar mapas.
+  if(ehMestre()&&atual&&!(dep.mapas?.()||[]).length&&
+      tentativasMapasV235<3&&!checandoMapasV235&&
+      Date.now()-ultimaTentativaMapasV235>15000&&
+      typeof win.recarregarBancoMapas_==='function'&&
+      win.mesaEstadoBancoMapasV235_?.status!=='carregando'){
+   checandoMapasV235=true;tentativasMapasV235++;ultimaTentativaMapasV235=Date.now();
+   Promise.resolve(win.recarregarBancoMapas_({silencioso:true})).then(()=>{
+    atualizarPainel();filtrarMapasDaArea();
+   }).catch(e=>console.warn('[Três mapas] recarga de mapas:',e))
+     .finally(()=>{checandoMapasV235=false;});
+  }
+ }catch(e){console.warn('[Três mapas] atualização:',e);}},1500);iv.unref?.();
  return {abrir,voltarMesa,aba:()=>atual};
 }
