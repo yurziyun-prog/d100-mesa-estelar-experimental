@@ -122,7 +122,7 @@ import('./mesa-ligacoes.js?v=205').then(m=>{window.mesaLigacoes=m.instalarLigaco
 import('./mesa-companheiros.js?v=144').then(m=>{window.mesaCompanheirosMod=m.instalarCompanheiros({db,doc,setDoc,onSnapshot,runTransaction,
  controller:()=>novaSyncController_,ehMestre:()=>userData?.role==='mestre',uid:()=>currentUserUid,criaturas:()=>criaturasDB||[],npcs:()=>npcsDB||[],personagens:()=>userCharacters||[],mapas:()=>mapasDB||[]});}).catch(e=>console.warn('[Companheiros] indisponível; site segue normal.',e));
 // v128: animações e sons de batalha (explosão, raio, queda, morte, vozes de criaturas) e clima. Módulo à parte.
-import('./mesa-efeitos.js?v=230').then(m=>{window.mesaEfeitos=m.instalarEfeitos({db,doc,setDoc,getDoc,onSnapshot,runTransaction,raio:()=>window.mesaRaioV132_,
+import('./mesa-efeitos.js?v=234').then(m=>{window.mesaEfeitos=m.instalarEfeitos({db,doc,setDoc,getDoc,onSnapshot,runTransaction,raio:()=>window.mesaRaioV132_,
  controller:()=>novaSyncController_,ehMestre:()=>userData?.role==='mestre',uid:()=>currentUserUid,criaturas:()=>criaturasDB||[]});}).catch(e=>console.warn('[Efeitos] indisponível; site segue normal.',e));
 // v129: rechear os mapas dos cenários com armários/baús, itens e bilhetes (botão 🎁 no 🕸️ Mapa geral).
 import('./mesa-recheio.js?v=155').then(m=>{window.mesaRecheioMod=m.instalarRecheio({db,doc,setDoc,getDoc,ehMestre:()=>userData?.role==='mestre',
@@ -271,7 +271,7 @@ import('./mesa-oficina3.js?v=180').then(m=>{window.mesaOficina3Mod=m.instalarOfi
  controller:()=>novaSyncController_,ehMestre:()=>userData?.role==='mestre',mapas:()=>mapasDB||[],objetos:()=>objetosMapaDB||[],enviarImagem:f=>uploadImagemBanco_(f,'pinceis')});}).catch(e=>console.warn('[Oficina 3] indisponível; site segue normal.',e));
 import('./mesa-camera.js?v=209').then(m=>{window.mesaCameraMod=m.instalarCamera({controller:()=>novaSyncController_,ehMestre:()=>userData?.role==='mestre',db,doc,setDoc,onSnapshot});}).catch(e=>console.warn('[Câmera] indisponível; site segue normal.',e));
 // v222: três abas do mestre em cima do MESMO mapa (construtor, mestre e jogo).
-import('./mesa-tres-mapas.js?v=233').then(m=>{window.mesaTresMapas=m.instalarTresMapas({root:document,ehMestre:()=>userData?.role==='mestre',db,doc,getDoc,setDoc,deleteDoc,mapas:()=>mapasDB||[],uid:()=>currentUserUid});}).catch(e=>console.warn('[Três mapas] indisponível; site segue normal.',e));
+import('./mesa-tres-mapas.js?v=234').then(m=>{window.mesaTresMapas=m.instalarTresMapas({root:document,ehMestre:()=>userData?.role==='mestre',db,doc,getDoc,setDoc,deleteDoc,mapas:()=>mapasDB||[],uid:()=>currentUserUid});}).catch(e=>console.warn('[Três mapas] indisponível; site segue normal.',e));
 import('./mesa-trabalho.js?v=154').then(m=>{window.mesaTrabalhoMod=m.instalarTrabalho({db,doc,setDoc,getDoc,runTransaction,storage,ref,uploadBytes,getDownloadURL,
  controller:()=>novaSyncController_,ehMestre:()=>userData?.role==='mestre',uid:()=>currentUserUid,npcs:()=>npcsDB||[],mapas:()=>mapasDB||[],normalizar:(tipo,bruto)=>normalizarLinhaImportacao_(tipo,bruto)});}).catch(e=>console.warn('[Trabalho] indisponível; site segue normal.',e));
 // v145: névoa de guerra por mapa e a subida para a Cidade Superior (escadaria, praça, Cálice, Câmara, Residência de Ilü-Mus-Ki). Módulos à parte.
