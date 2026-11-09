@@ -169,8 +169,10 @@ export function instalarEfeitos(dep){
  // Se o controlador e o tabuleiro discordarem, silêncio até sincronizar.
  const mapaAudivel=()=>{
   const atual=String(ctl()?.mapaAtual?.()||''),visivel=String(board()?.dataset.mapaVisivel||'');
-  if(atual&&visivel&&atual!==visivel)return '';
-  return atual||visivel||'';
+  // v243: não aceitar mapa por fallback enquanto a cena está trocando.
+  // Só a concordância entre controlador e tabuleiro libera áudio.
+  if(!atual||!visivel||atual!==visivel)return '';
+  return atual;
  };
  const tokenMapa=id=>{
   if(!id)return '';
@@ -185,7 +187,9 @@ export function instalarEfeitos(dep){
   for(const id of [ev?.source?.id,ev?.target?.id]){
    if(!id)continue;
    const local=tokenMapa(id);
-   if(local&&local!==origem)return false;
+   // Personagem desconhecido ou movido de mapa: nunca inferir que o
+   // som pertence ao mapa visível apenas pela origem do documento.
+   if(!local||local!==origem)return false;
   }
   return true;
  };
