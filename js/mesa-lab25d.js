@@ -197,10 +197,10 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
   const longePrimeiro=(a,b)=>a.vs.reduce((n,v)=>n+orientar(v)[2],0)/a.vs.length-b.vs.reduce((n,v)=>n+orientar(v)[2],0)/b.vs.length;
   planos.sort(longePrimeiro);elevados.sort(longePrimeiro);
   for(const f of planos)desenharPoligono(f.vs,f.cor,f.borda);
-  for(const f of elevados)desenharPoligono(f.vs,f.cor,f.borda);
-  // Renderizar todos os tokens presentes neste mapa, e não apenas o primeiro.
+  // Renderizar os personagens e cada face elevada no mesmo passe,
+  // conforme a distância da câmera. Não se trata de opacidade.
   const personagens=lerTokens();
-  for(const t of personagens){
+  const desenharPersonagem=t=>{
    const x=t.x,y=t.y,centro=projetar(V(x,y,0)),cabeca=projetar(V(x,y,1.65));
    const tamanho=Math.max(2,scale*.21),selected=t.id===selecionado;
    // Sombras, botas e torso usam as mesmas unidades de comprimento do mundo.
@@ -219,6 +219,14 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
    ctx.fillStyle='#edc29a';ctx.beginPath();ctx.arc(cabeca[0],cabeca[1]+scale*.08,tamanho,0,Math.PI*2);ctx.fill();
    ctx.fillStyle='#564536';ctx.beginPath();ctx.arc(cabeca[0],cabeca[1]+scale*.03,tamanho,Math.PI,Math.PI*1.97);ctx.fill();
    if(selected){ctx.strokeStyle='#f4d27e';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(centro[0],centro[1],scale*.4,scale*.16,0,0,Math.PI*2);ctx.stroke();}
+  };
+  const ordem=[
+   ...elevados.map(f=>({tipo:'face',d:f.vs.reduce((s,v)=>s+orientar(v)[2],0)/f.vs.length,face:f})),
+   ...personagens.map(t=>({tipo:'personagem',d:orientar(V(t.x,t.y,.8))[2],token:t}))
+  ].sort((a,b)=>a.d-b.d);
+  for(const parte of ordem){
+   if(parte.tipo==='face')desenharPoligono(parte.face.vs,parte.face.cor,parte.face.borda);
+   else desenharPersonagem(parte.token);
   }
   ctx.fillStyle='#102235bb';ctx.fillRect(10,height-29,Math.min(570,width-20),22);ctx.fillStyle='#edf7ff';ctx.font='12px Segoe UI,Arial';ctx.fillText(real?'Cena compartilhada · objetos reais em visualização 2,5D experimental':'Mapa sem cena 3D carregada · abra uma cena no Construtor',18,height-14);
  }
