@@ -203,8 +203,24 @@ export function instalarTresMapas(dep={}){
   b.hidden=!ehMestre();
   b.addEventListener('click',()=>abrir(id,b));
   tabs.insertBefore(b,ancora?.nextSibling||null);ancora=b;
-  const sec=root.createElement('div');sec.id=id;sec.className='tab-content';sec.innerHTML=`<div class="form-section"><div class="mtm-faixa"><b>${ic} ${nome}</b><span class="mtm-dica">${dica}</span><div class="mtm-controles"><button type="button" data-limpar-demo>🗑️ Excluir laboratórios ruins</button><button type="button" data-mtm-preview hidden>🏠 Ver protótipo 2,5D</button><button type="button" data-editar-casa>🧱 Construir</button><button type="button" data-diretor>🧭 NPCs e criaturas</button><button type="button" data-voltar-mesa>Voltar à Mesa</button></div></div><div class="mtm-mini"><span data-mtm-mapa>Mapa carregado: verificando…</span><span data-mtm-mapas-disponiveis style="color:#9fb3cc"></span><label data-mtm-seletor style="display:none">Acompanhar <select data-mtm-ator><option value="">Selecione uma miniatura</option></select></label><span class="mtm-estado" data-mtm-estado></span></div><div class="mtm-host"></div></div>`;
-  sec.querySelector('[data-limpar-demo]').hidden=id!=='mapa-construtor';
+  const sec=root.createElement('div');sec.id=id;sec.className='tab-content';sec.innerHTML=`<div class="form-section"><div class="mtm-faixa"><b>${ic} ${nome}</b><span class="mtm-dica">${dica}</span><div class="mtm-controles"><button type="button" data-limpar-demo>🗑️ Excluir laboratórios ruins</button><button type="button" data-mtm-preview hidden>🏠 Ver protótipo 2,5D</button><button type="button" data-editar-casa>🧱 Construir</button><button type="button" data-diretor>🧭 NPCs e criaturas</button><button type="button" data-voltar-mesa>Voltar à Mesa</button></div></div><div class="mtm-mini"><label data-mtm-escolha>Mapa <select data-mtm-mapa-select aria-label="Selecionar mapa para os três visualizadores"><option value="">Escolha um mapa…</option></select></label><span data-mtm-mapa>Mapa carregado: verificando…</span><span data-mtm-mapas-disponiveis style="color:#9fb3cc"></span><label data-mtm-seletor style="display:none">Acompanhar <select data-mtm-ator><option value="">Selecione uma miniatura</option></select></label><span class="mtm-estado" data-mtm-estado></span></div><div class="mtm-host"></div></div>`;
+  sec.querySelector('[data-mtm-mapa-select]').addEventListener('change',async e=>{
+    const sel=e.currentTarget,novo=String(sel.value||'');
+    if(!novo)return;
+    const old=String(win.novaSyncController_?.mapaAtual?.()||'');
+    if(novo===old)return;
+    sel.disabled=true;
+    try{
+     if(!win.novaSyncController_?.openMap)throw Error('Controlador de mapas não carregado.');
+     await win.novaSyncController_.openMap(novo);
+     atualizarPainel();atualizarVisual25D();
+    }catch(err){
+     console.warn('[Três mapas] falha ao selecionar mapa',err);
+     sel.value=old;
+     win.alert('Não foi possível abrir o mapa: '+(err?.message||err));
+    }finally{sel.disabled=false;}
+   });
+   sec.querySelector('[data-limpar-demo]').hidden=id!=='mapa-construtor';
   sec.querySelector('[data-limpar-demo]').addEventListener('click',async e=>{
    const botao=e.currentTarget;botao.disabled=true;
    try{await limparLaboratoriosRuins();}catch(err){console.warn('[Três mapas] limpeza',err);win.alert(err?.message||String(err));}
@@ -286,7 +302,18 @@ export function instalarTresMapas(dep={}){
   const mapa=(dep.mapas?.()||[]).find(m=>String(m.id)===id);
   const nome=mapa?.nome||id||'Nenhum mapa selecionado';
   const dest=sec?.querySelector('[data-mtm-mapa]');
-  if(dest)dest.textContent='Mapa compartilhado: '+nome;
+  if(dest)dest.textContent=id?'Mapa compartilhado: '+nome:'Nenhum mapa ativo. Escolha um mapa acima.';
+  const selMapa=sec?.querySelector('[data-mtm-mapa-select]');
+  if(selMapa){
+   const lista=[...(dep.mapas?.()||[])].filter(m=>m?.id&&!m.arquivadoV176&&!String(m.id).includes('__parte__'))
+    .sort((a,b)=>String(a.nome||a.id).localeCompare(String(b.nome||b.id),'pt'));
+   const signature=lista.map(m=>String(m.id)+'='+String(m.nome||m.id)).join('|')+'#'+id;
+   if(selMapa.dataset.signature!==signature&&root.activeElement!==selMapa){
+    selMapa.replaceChildren(new Option('Escolha um mapa…',''),...lista.map(m=>new Option(String(m.nome||m.id),String(m.id))));
+    selMapa.dataset.signature=signature;
+   }
+   if(root.activeElement!==selMapa)selMapa.value=lista.some(m=>String(m.id)===id)?id:'';
+  }
   const dims=win.novaSyncController_?.dimsAtual?.();
   const w=Number(dims?.W||mapa?.larguraM||28),h=Number(dims?.H||mapa?.alturaM||14);
   if(board&&w>0&&h>0)board.style.setProperty('--mtm-proporcao',w+' / '+h);
