@@ -181,6 +181,28 @@ export function instalarTresMapas(dep={}){
    {tipo:'casa_media',x:22.0,y:11.4,material:'madeira',giro:2}
   ];
   for(const c of locais)objs.push(...montarPeca(c.tipo,{x:c.x,y:c.y},{M:2,giro:c.giro,mat:c.material,W,H}));
+  // Cenografia persistida no mesmo modelo de objetos do mapa. Os elementos
+  // têm coordenadas próprias, não são um desenho fixo sobre a tela.
+  const prop=(tipo,x,y,w,h,material='madeira')=>{
+   const m=mat(material),base=oChao({x:x-w/2,y:y-h/2,w,h},m,W,H,tipo);
+   return {...base,oficina3:tipo,parteV177:tipo,camada:3,nome:tipo.replaceAll('_',' '),
+    bloqueiaMovimento:['arvore_vila','poco_vila','barril_vila','caixote_vila'].includes(tipo),
+    bloqueiaVisao:false,pilotoDecoracaoV241:true};
+  };
+  [
+   ['arvore_vila',10.0,2.1,1.6,1.6,'madeira'],
+   ['arvore_vila',18.0,2.1,1.4,1.4,'madeira'],
+   ['arvore_vila',10.0,11.8,1.55,1.55,'madeira'],
+   ['arvore_vila',18.0,11.8,1.6,1.6,'madeira'],
+   ['poco_vila',14.0,7.0,1.9,1.9,'pedra-polida'],
+   ['poste_vila',10.95,5.35,.28,.28,'madeira'],
+   ['poste_vila',17.15,8.7,.28,.28,'madeira'],
+   ['barril_vila',8.85,3.5,.75,.75,'madeira'],
+   ['barril_vila',25.3,3.65,.75,.75,'madeira'],
+   ['caixote_vila',8.85,11.75,.9,.9,'madeira'],
+   ['caixote_vila',25.4,11.7,1.0,1.0,'madeira']
+  ].forEach(([tipo,x,y,w,h,material])=>objs.push(prop(tipo,x,y,w,h,material)));
+
   // A praça serve de ponto de orientação. As casas têm interiores e
   // portas produzidos pelo construtor original, não desenhos decorativos.
   return objs.map((o,i)=>({...o,pilotoV239:true,pilotoOrdemV239:i}));
@@ -194,8 +216,8 @@ export function instalarTresMapas(dep={}){
   if(ctl?.emCombate?.())throw Error('Encerre o combate antes de reconstruir o cenário.');
   if(!dep.getDoc||!dep.setDoc||!dep.doc||!dep.db||!dep.runTransaction)throw Error('Firestore ainda não está pronto.');
   const objetos=vilaPiloto239();
-  if(objetos.length<40)throw Error('O gerador não produziu as quatro casas corretamente.');
-  if(!win.confirm('Montar a vila piloto neste ÚNICO mapa?\\n\\nSerão construídas quatro casas, duas ruas e uma praça. O antigo cenário da casa isolada será substituído, com uma cópia de segurança preservada no banco.\\n\\nOs mapas de campanha e as duas referências NÃO serão alterados.'))return false;
+  if(objetos.length<50||objetos.filter(o=>o.pilotoDecoracaoV241).length!==11)throw Error('O gerador não produziu a vila com a cenografia completa.');
+  if(!win.confirm('Montar a vila piloto neste ÚNICO mapa?\\n\\nSerão construídas quatro casas, duas ruas, uma praça, quatro árvores, um poço, postes e objetos de rua. O antigo cenário da casa isolada será substituído, com uma cópia de segurança preservada no banco.\\n\\nOs mapas de campanha e as duas referências NÃO serão alterados.'))return false;
   const doc=dep.doc,db=dep.db,refMapa=doc(db,'mapas',id);
   const refEstado=doc(db,'combatesAtivos','mapaMesaSyncDireta');
   const refAtivo=doc(db,'combatesAtivos','mapaMesaSyncDiretaCena');
@@ -211,7 +233,7 @@ export function instalarTresMapas(dep={}){
    if(!mp.exists())throw Error('O mapa piloto não foi encontrado no banco.');
    const anterior=ar.exists()?ar.data():(at.data()?.mapId===id?at.data():mp.data()?.mesaScene||{mapId:id,objects:[]});
    if(!bk.exists())tx.set(refBackup,{mapId:id,copiaEm:new Date().toISOString(),scene:anterior});
-   const nova={...anterior,mapId:id,objects:objetos,pilotoVersao:239};
+   const nova={...anterior,mapId:id,objects:objetos,pilotoVersao:241};
    tx.set(refArquivo,nova);
    tx.set(refAtivo,nova);
    tx.update(refMapa,{mesaScene:nova,atualizadoEm:new Date().toISOString()});
@@ -273,7 +295,7 @@ export function instalarTresMapas(dep={}){
   b.hidden=!ehMestre();
   b.addEventListener('click',()=>abrir(id,b));
   tabs.insertBefore(b,ancora?.nextSibling||null);ancora=b;
-  const sec=root.createElement('div');sec.id=id;sec.className='tab-content';sec.innerHTML=`<div class="form-section"><div class="mtm-faixa"><b>${ic} ${nome}</b><span class="mtm-dica">${dica}</span><div class="mtm-controles"><button type="button" data-limpar-demo>🗑️ Excluir laboratórios ruins</button><button type="button" data-mtm-gerar-vila title="Substituir a antiga casa isolada por uma vila de quatro casas, com backup">🏘️ Montar vila</button><button type="button" data-mtm-preview hidden>🏠 Ver protótipo 2,5D</button><button type="button" data-editar-casa>🧱 Construir</button><button type="button" data-diretor>🧭 NPCs e criaturas</button><button type="button" data-voltar-mesa>Voltar à Mesa</button></div></div><div class="mtm-mini"><label data-mtm-escolha>Mapa <select data-mtm-mapa-select aria-label="Selecionar mapa para os três visualizadores"><option value="">Escolha um mapa…</option></select></label><span data-mtm-mapa>Mapa carregado: verificando…</span><span data-mtm-mapas-disponiveis style="color:#9fb3cc"></span><button type="button" data-mtm-recarregar-mapas hidden title="Recarregar mapas do Firebase" style="font:12px Segoe UI,Arial;color:#edf7ff;background:#21334d;border:1px solid #52647b;border-radius:6px;padding:3px 7px;cursor:pointer">↻ Recarregar mapas</button><label data-mtm-seletor style="display:none">Acompanhar <select data-mtm-ator><option value="">Selecione uma miniatura</option></select></label><span class="mtm-estado" data-mtm-estado></span></div><div class="mtm-host"></div></div>`;
+  const sec=root.createElement('div');sec.id=id;sec.className='tab-content';sec.innerHTML=`<div class="form-section"><div class="mtm-faixa"><b>${ic} ${nome}</b><span class="mtm-dica">${dica}</span><div class="mtm-controles"><button type="button" data-limpar-demo>🗑️ Excluir laboratórios ruins</button><button type="button" data-mtm-gerar-vila title="Construir ou atualizar a vila no mesmo mapa piloto, com backup da versão original">🏘️ Atualizar vila</button><button type="button" data-mtm-preview hidden>🏠 Ver protótipo 2,5D</button><button type="button" data-editar-casa>🧱 Construir</button><button type="button" data-diretor>🧭 NPCs e criaturas</button><button type="button" data-voltar-mesa>Voltar à Mesa</button></div></div><div class="mtm-mini"><label data-mtm-escolha>Mapa <select data-mtm-mapa-select aria-label="Selecionar mapa para os três visualizadores"><option value="">Escolha um mapa…</option></select></label><span data-mtm-mapa>Mapa carregado: verificando…</span><span data-mtm-mapas-disponiveis style="color:#9fb3cc"></span><button type="button" data-mtm-recarregar-mapas hidden title="Recarregar mapas do Firebase" style="font:12px Segoe UI,Arial;color:#edf7ff;background:#21334d;border:1px solid #52647b;border-radius:6px;padding:3px 7px;cursor:pointer">↻ Recarregar mapas</button><label data-mtm-seletor style="display:none">Acompanhar <select data-mtm-ator><option value="">Selecione uma miniatura</option></select></label><span class="mtm-estado" data-mtm-estado></span></div><div class="mtm-host"></div></div>`;
   sec.querySelector('[data-mtm-recarregar-mapas]').addEventListener('click',async e=>{
    const btn=e.currentTarget;btn.disabled=true;
    try{
@@ -311,7 +333,7 @@ export function instalarTresMapas(dep={}){
    btnVila.disabled=true;const anterior=btnVila.textContent;btnVila.textContent='Preparando vila…';
    try{
     const salvo=await prepararVilaPiloto239();
-    if(salvo){win.alert('Vila piloto salva! Quatro casas, ruas e praça, no mesmo mapa. A cena anterior foi preservada em backup.');atualizarPainel();atualizarVisual25D();}
+    if(salvo){win.alert('Vila salva! Quatro casas, ruas, praça, árvores, poço e objetos de rua no mesmo mapa. A cena anterior foi preservada em backup.');atualizarPainel();atualizarVisual25D();}
    }catch(e){console.error('[Vila piloto] montagem:',e);win.alert('Não foi possível montar a vila: '+(e?.message||e));}
    finally{btnVila.disabled=false;btnVila.textContent=anterior;}
   });
