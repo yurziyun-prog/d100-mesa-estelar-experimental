@@ -10,11 +10,11 @@ const CONSTRUTOR_YAW=-Math.PI/4, CONSTRUTOR_PITCH=.82;
 const V=(x,y,z=0)=>[x,y,z];
 const casa={x:9,y:5,w:7,d:5,h:3.2,telhado:1.7};
 const faces=[];
-function face(vs,cor,borda='#24313b',camada=0){faces.push({vs,cor,borda,camada,indice:faces.length});}
-function caixa(x,y,z,w,d,h,cores){
+function face(vs,cor,borda='#24313b',camada=0,material=''){faces.push({vs,cor,borda,camada,material,indice:faces.length});}
+function caixa(x,y,z,w,d,h,cores,estilo=''){
  const A=V(x,y,z),B=V(x+w,y,z),C=V(x+w,y+d,z),D=V(x,y+d,z);
  const E=V(x,y,z+h),F=V(x+w,y,z+h),G=V(x+w,y+d,z+h),H=V(x,y+d,z+h);
- face([A,B,F,E],cores[0]);face([B,C,G,F],cores[1]);face([D,C,G,H],cores[2]);face([D,A,E,H],cores[3]);face([E,F,G,H],cores[4]);
+ face([A,B,F,E],cores[0],null,0,estilo);face([B,C,G,F],cores[1],null,0,estilo);face([D,C,G,H],cores[2],null,0,estilo);face([D,A,E,H],cores[3],null,0,estilo);face([E,F,G,H],cores[4],null,0,estilo);
 }
 const casaFaces=()=>{
  faces.length=0;
@@ -49,8 +49,8 @@ function telhadoCasa(box,material){
  const cor=material==='tijolo'?['#824d43','#ab6b52','#70443b']:material==='madeira'?['#57483f','#80604d','#4a3b34']:['#82624b','#a77759','#634c41'];
  if(w>=h){
   const mid=y+h/2;
-  face([V(x-e,y-e,z),V(x+w+e,y-e,z),V(x+w+e,mid,z+r),V(x-e,mid,z+r)],cor[0],'#483a34');
-  face([V(x-e,mid,z+r),V(x+w+e,mid,z+r),V(x+w+e,y+h+e,z),V(x-e,y+h+e,z)],cor[1],'#483a34');
+  face([V(x-e,y-e,z),V(x+w+e,y-e,z),V(x+w+e,mid,z+r),V(x-e,mid,z+r)],cor[0],'#483a34',0,'telhas');
+  face([V(x-e,mid,z+r),V(x+w+e,mid,z+r),V(x+w+e,y+h+e,z),V(x-e,y+h+e,z)],cor[1],'#483a34',0,'telhas');
   face([V(x,y,z),V(x,mid,z+r),V(x,y+h,z)],cor[2],'#493931');
   face([V(x+w,y,z),V(x+w,y+h,z),V(x+w,mid,z+r)],cor[2],'#493931');
  }else{
@@ -133,7 +133,7 @@ function montarCenaReal(scene,W,H,mostrarTelhados=true,modoInterior=false){
     ?[V(x+1.1,y,.018),V(x+w-1.1,y,.018),V(x+w,y+h,.018),V(x,y+h,.018)]
     :[V(x,y,.018),V(x+w,y,.018),V(x+w,y+h,.018),V(x,y+h,.018)];
    // Ordem de terreno invariável entre ângulos: sem z-fighting de pisos coplanares.
-   face(contorno,cor,null,planoCamada);
+   face(contorno,cor,null,planoCamada,/solo|terreno|piso/i.test(nome)?'terreno':estrada?'caminho':'');
    // Ruas contínuas sem juntas coplanares sobrepostas que tremulam com a câmera.
   }else if(kind==='arvore_vila'){
    // Tronco elevado e copa em volumes: ambos participam da ordenação de
@@ -173,7 +173,7 @@ function montarCenaReal(scene,W,H,mostrarTelhados=true,modoInterior=false){
   }else if(kind==='parede'||kind==='mureta'){
    const alturaOriginal=normal(o.alturaParedeM,kind==='mureta'?.9:2.7);
    const altura=modoInterior&&kind==='parede'?Math.min(.72,alturaOriginal):alturaOriginal;
-   caixa(x,y,0,w,h,altura,pal);
+   caixa(x,y,0,w,h,altura,pal,kind==='parede'?'fachada':'');
    // v243: embasamento de pedra e montantes aparentes tornam fachadas
    // identificáveis sem alterar a colisão nem a posição real das paredes.
    if(kind==='parede'&&altura>=2.3){
@@ -376,7 +376,7 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
   if(buffer.width!==W||buffer.height!==H){buffer.width=W;buffer.height=H;}
   ctx.setTransform(dpr,0,0,dpr,0,0);
   const width=W/dpr,height=H/dpr;
-  const grad=ctx.createLinearGradient(0,0,0,height);grad.addColorStop(0,'#9fb8c9');grad.addColorStop(1,'#cad4cf');ctx.fillStyle=grad;ctx.fillRect(0,0,width,height);
+  const grad=ctx.createLinearGradient(0,0,0,height);grad.addColorStop(0,'#718e77');grad.addColorStop(1,'#8fa38a');ctx.fillStyle=grad;ctx.fillRect(0,0,width,height);
   // Sem mapa ativo não há cena. Evitar desenhar terreno fictício como se
   // o banco tivesse carregado: o mestre pode escolher o mapa na barra acima.
   if(!String(mapaAtual()||'')){
@@ -393,7 +393,7 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
   const dims=dimValidas();
   const center=orientar(V(centroCamera[0],centroCamera[1],0)),scale=Math.min(width/(dims.W*1.36),height/(dims.H*1.85))*zoom;
   const projetar=v=>{const q=orientar(v);return [width/2+(q[0]-center[0])*scale,height*.53+(q[1]-center[1])*scale];};
-  const desenharPoligono=(vs,cor,borda)=>{
+  const desenharPoligono=(vs,cor,borda,material='')=>{
    const pontos=vs.map(projetar);
    ctx.beginPath();pontos.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath();
    ctx.fillStyle=cor;ctx.fill();
@@ -407,6 +407,44 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
     ctx.fillStyle='rgba(22,24,26,.065)';ctx.fillRect(x0,y0+(y1-y0)*.78,x1-x0,(y1-y0)*.22);
     // Sem linhas hachuradas em todas as faces: geravam riscos
    // atravessando portas e telhados durante a rotação.
+    ctx.restore();
+   }
+   // Padrões pintados na mesma face: não criam planos extras nem z-fighting.
+   if(vs.length===4&&['telhas','fachada','terreno','caminho'].includes(material)){
+    const p=(u,v)=>{
+     const [a,b,c,d]=vs;
+     return projetar(V(
+      (1-u)*(1-v)*a[0]+u*(1-v)*b[0]+u*v*c[0]+(1-u)*v*d[0],
+      (1-u)*(1-v)*a[1]+u*(1-v)*b[1]+u*v*c[1]+(1-u)*v*d[1],
+      (1-u)*(1-v)*a[2]+u*(1-v)*b[2]+u*v*c[2]+(1-u)*v*d[2]));
+    };
+    const riscar=(u0,v0,u1,v1)=>{
+     const a=p(u0,v0),b=p(u1,v1);ctx.beginPath();ctx.moveTo(...a);ctx.lineTo(...b);ctx.stroke();
+    };
+    ctx.save();ctx.clip();
+    if(material==='telhas'){
+     ctx.lineWidth=.7;ctx.strokeStyle='rgba(39,25,19,.26)';
+     const rows=8;
+     for(let k=1;k<rows;k++){
+      const v=k/rows;riscar(.015,v,.985,v);
+      for(let j=0;j<12;j++){
+       const u=(j+(k%2)*.5)/12;
+       if(u>.02&&u<.98)riscar(u,v,u,Math.min(.985,v+1/rows));
+      }
+     }
+     ctx.strokeStyle='rgba(250,214,173,.13)';ctx.lineWidth=.8;
+     for(let k=0;k<rows;k++)riscar(.02,k/rows+.018,.98,k/rows+.018);
+    }else if(material==='fachada'){
+     ctx.strokeStyle='rgba(59,43,32,.17)';ctx.lineWidth=.8;
+     for(let j=1;j<5;j++)riscar(j/5,.04,j/5,.96);
+     ctx.strokeStyle='rgba(255,236,195,.18)';riscar(.02,.10,.98,.10);
+    }else{
+     ctx.lineWidth=.75;ctx.strokeStyle=material==='caminho'?'rgba(83,73,59,.13)':'rgba(44,75,45,.11)';
+     for(let k=1;k<=6;k++){
+      const u=((k*37)%97)/97,v=((k*59)%89)/89;
+      riscar(u,v,Math.min(.98,u+.016),Math.min(.98,v+.026));
+     }
+    }
     ctx.restore();
    }
    if(borda){ctx.strokeStyle=borda;ctx.lineWidth=.75;ctx.stroke();}
@@ -433,7 +471,7 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
   // deve ser invariável ao girar a câmera.
   planos.sort((a,b)=>a.camada-b.camada||a.indice-b.indice);
   // As faces elevadas são ordenadas em um único passe com os personagens.
-  for(const f of planos)desenharPoligono(f.vs,f.cor,f.borda);
+  for(const f of planos)desenharPoligono(f.vs,f.cor,f.borda,f.material);
   // Grades espaciais de 8 m, visíveis só por solicitação. Não armazenam
   // nem duplicam objetos e são calculadas a partir das dimensões da cena.
   if(exibirSetores&&modoAtual!=='mapa-jogo'){
@@ -479,7 +517,7 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
    ...personagens.map(t=>({tipo:'personagem',d:orientar(V(t.x,t.y,.8))[2],token:t}))
   ].map((parte,indice)=>({...parte,indice})).sort((a,b)=>a.d-b.d||a.indice-b.indice);
   for(const parte of ordem){
-   if(parte.tipo==='face')desenharPoligono(parte.face.vs,parte.face.cor,parte.face.borda);
+   if(parte.tipo==='face')desenharPoligono(parte.face.vs,parte.face.cor,parte.face.borda,parte.face.material);
    else desenharPersonagem(parte.token);
   }
   // Destaque de seleção, sem modificar a posição do objeto persistido.
