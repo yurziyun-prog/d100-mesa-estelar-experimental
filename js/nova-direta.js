@@ -968,6 +968,9 @@ visualSync();
   }finally{salvandoV263=false;atualizarSaveV263();}
  });
  globalThis.addEventListener('mesa-rascunho-v197',()=>{avisoSalvarV263='';atualizarSaveV263();});
+ // Trocar o ator entre PJ e Mestre muda a permissão de edição.
+ el('novaSyncPersonagem')?.addEventListener('change',()=>queueMicrotask(atualizarSaveV263));
+ el('novaSyncMapa')?.addEventListener('change',()=>queueMicrotask(atualizarSaveV263));
  atualizarSaveV263();
 
  function closeWorkshop(){if(workshopHandle){workshopDraft=workshopHandle.getState();workshopDirty=workshopHandle.dirty;workshopHandle.close();workshopHandle=null;}catalogChecked.clear();catalogKey='';board.style.removeProperty('display');const details=el('novaOficinaPanel');if(details)details.open=false;drawCatalog();}
