@@ -1481,6 +1481,11 @@ html[data-tema="retro"] .market-card:hover{box-shadow:0 8px 26px rgba(255,111,17
                         <div id="novaSyncOrdem"></div>
                     </div>
                     <div id="novaSyncActionParking" hidden><button id="novaSyncNext" class="btn-small" disabled>Passar ação</button></div>
+                    <div id="mesaSaveBarV263" data-mapa-painel="permanente" aria-label="Salvar alterações do mapa">
+                        <button type="button" id="mesaSaveButtonV263" class="btn-small btn-select" disabled>✓ Mapa salvo</button>
+                        <span id="mesaSaveStatusV263" role="status" aria-live="polite">Sem alterações pendentes</span>
+                        <details id="mesaAdvancedActionsV263"><summary>⚙️ Ferramentas adicionais</summary><div id="mesaAdvancedActionsContentV263"></div></details>
+                    </div>
                     <div class="nova-board-scroll"><div id="novaSyncBoard" style="position:relative;width:1344px;height:672px;background:linear-gradient(135deg,#20314c,#18233a);border:1px solid #49668a;border-radius:10px;overflow:hidden;"></div></div>
                     <details id="novaSyncFichaGaveta" open ontoggle="try{localStorage.setItem('mesa:fichaRapida',this.open?'1':'0')}catch(e){}">
                         <summary title="Mostrar ou esconder a ficha rápida do personagem selecionado">🧾 Ficha rápida</summary>
@@ -1532,6 +1537,25 @@ html[data-tema="retro"] .market-card:hover{box-shadow:0 8px 26px rgba(255,111,17
                         .nova-pv-cell small{display:block;color:#aaa;font-size:12px;}.nova-pv-cell b{display:block;font-size:14px;}.nova-pv-cell .nova-armor{color:#8fc9e8;}
                         .nova-target-hint{font-size:12px;color:#aee8ff;margin-top:5px;}
                         .nova-state-warning{font-size:13px;color:#ffbc96;padding:4px 0;}#novaSyncTurno[data-own-turn=true]{color:#8df2a3;font-weight:bold;}
+                        /* v263: a faixa do mestre não deve invadir nem ser recortada por outra aba. */
+                        #sincronizacao-nova #novaSyncMasterPanel{position:relative!important;max-height:none!important;height:auto!important;overflow:visible!important;max-width:100%;box-sizing:border-box;}
+                        #sincronizacao-nova .nova-primary-v102,#sincronizacao-nova .nova-acting-row-v102,#sincronizacao-nova .nova-organize-v102,
+                        #sincronizacao-nova #novaSyncEditorTools,#sincronizacao-nova .nova-shared-draw-v102{
+                            display:flex;flex-wrap:wrap!important;align-items:center;gap:7px;min-width:0;max-width:100%;width:auto;overflow:visible!important;white-space:normal!important;
+                        }
+                        #sincronizacao-nova #novaSyncEditorTools[hidden],#sincronizacao-nova [hidden]{display:none!important;}
+                        #sincronizacao-nova .nova-acting-row-v102>*,#sincronizacao-nova .nova-organize-v102>*{flex-shrink:0;max-width:100%;min-width:0;}
+                        #sincronizacao-nova .nova-acting-row-v102 select,#sincronizacao-nova .nova-organize-v102 select{max-width:min(100%,280px);}
+                        #sincronizacao-nova #novaSyncMasterPanel button{white-space:nowrap;max-width:100%;}
+                        #mesaSaveBarV263{display:flex;align-items:center;flex-wrap:wrap;gap:10px;padding:10px 12px;margin:8px 0 10px;border:1px solid rgba(135,176,185,.42);background:#14263a;border-radius:9px;clear:both;position:relative;z-index:1;}
+                        #mesaSaveButtonV263{height:38px;min-width:132px;font-weight:700;}
+                        #mesaSaveStatusV263{font-size:12px;color:#c3d6e1;flex:1 1 200px;}
+                        #mesaAdvancedActionsV263{flex:0 1 auto;max-width:100%;position:relative;}
+                        #mesaAdvancedActionsV263 summary{cursor:pointer;padding:7px 11px;border:1px solid #4b657e;border-radius:7px;list-style:none;color:#d8e7ef;font-weight:600;}
+                        #mesaAdvancedActionsContentV263{display:flex;flex-wrap:wrap;align-items:center;gap:7px;padding:10px 2px 3px;}
+                        #mesaAdvancedActionsV263[open]{flex-basis:100%;}
+                        #mesaAdvancedActionsV263:not([open]) #mesaAdvancedActionsContentV263{display:none;}
+                        @media(max-width:800px){#mesaSaveBarV263{gap:8px;}#sincronizacao-nova .nova-acting-row-v102 select{width:180px;}}
                         .nova-board-scroll{width:100%;overflow:auto;max-height:none;min-height:672px;}
                         #novaSyncBoard{box-sizing:content-box;max-width:none;flex-shrink:0;touch-action:none;}
                         #novaSyncBoard [data-map-action]{height:22px!important;min-width:24px!important;width:auto!important;padding:2px 5px!important;font:12px Arial,sans-serif!important;margin:0!important;}
