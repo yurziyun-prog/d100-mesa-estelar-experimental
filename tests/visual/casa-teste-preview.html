@@ -17,7 +17,8 @@ main{padding:12px;max-width:1300px;margin:auto}
 <p>Uma cena de referência fixa para observar a geometria do mesmo motor usado no D100. Não acessa nem altera o Firebase.</p></header>
 <main><div id="host"></div><div id="status">Carregando módulo…</div></main>
 <script type="module">
-import {instalarLaboratorio25D} from '../js/mesa-lab25d.js?v=258';
+try {
+const {instalarLaboratorio25D}=await import('../../js/mesa-lab25d.js?v=258');
 const W=28,H=14;
 let seq=0;
 function piece(tipo,x,y,w,h,material='madeira',nome=tipo,camada=3){
@@ -47,5 +48,10 @@ lab.atualizar({visivel:true,modo:'mapa-construtor'});
 document.getElementById('status').textContent='Cena de referência carregada · '+objects.length+' peças · use Ver interior para inspecionar divisões.';
 window.__visualReady=true;
 window.__visualLab=lab;
+} catch(err) {
+ document.getElementById('status').textContent='ERRO: '+String(err?.stack||err);
+ document.getElementById('status').style.color='#ff9d9d';
+ window.__visualError=String(err?.stack||err);
+}
 </script>
 </body></html>
