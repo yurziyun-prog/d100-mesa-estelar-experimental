@@ -93,7 +93,7 @@ function telhadoCasa(box,material){
 }
 // Conversão de objetos reais do mapa. x/y são porcentagens 28x14 do motor;
 // larguraM/alturaM e z são metros. Nenhum dado é alterado aqui.
-function montarCenaReal(scene,W,H,mostrarTelhados=true){
+function montarCenaReal(scene,W,H,mostrarTelhados=true,modoInterior=false){
  const lista=Array.isArray(scene?.objects)?scene.objects:[];
  if(!lista.length){faces.length=0;face([V(0,0),V(W,0),V(W,H),V(0,H)],'#607b5a',null,-20);return true;}
  faces.length=0;
@@ -171,7 +171,8 @@ function montarCenaReal(scene,W,H,mostrarTelhados=true){
     caixa(x-.025,y-.025,.70,w+.05,h+.05,.09,['#555558','#4a4b50','#64666b','#4c4c50','#74757b']);
    }
   }else if(kind==='parede'||kind==='mureta'){
-   const altura=normal(o.alturaParedeM,kind==='mureta'?.9:2.7);
+   const alturaOriginal=normal(o.alturaParedeM,kind==='mureta'?.9:2.7);
+   const altura=modoInterior&&kind==='parede'?Math.min(.72,alturaOriginal):alturaOriginal;
    caixa(x,y,0,w,h,altura,pal);
    // v243: embasamento de pedra e montantes aparentes tornam fachadas
    // identificáveis sem alterar a colisão nem a posição real das paredes.
@@ -192,20 +193,20 @@ function montarCenaReal(scene,W,H,mostrarTelhados=true){
     }
    }
   }else if(kind==='porta'||kind==='janela'){
-   const janela=kind==='janela',altura=janela?1.05:2.25,z=janela?1.10:0;
+   const janela=kind==='janela',altura=modoInterior?.68:(janela?1.05:2.25),z=modoInterior?0:(janela?1.10:0);
    // A janela substitui um segmento da parede funcional. Completar o volume
    // desse mesmo segmento acima/abaixo do vão para não deixar faixas vazias.
    const alturaParede=2.72;
-   if(janela){
+   if(janela&&!modoInterior){
     const peitoril=Math.max(.12,z),verga=z+altura;
     caixa(x,y,0,w,h,peitoril,pal);
     if(verga<alturaParede-.02)caixa(x,y,verga,w,h,alturaParede-verga,pal);
-   }else if(altura<alturaParede-.02){
+   }else if(!modoInterior&&altura<alturaParede-.02){
     // Bandeira de parede acima da porta, mantendo a passagem livre.
     caixa(x,y,altura,w,h,alturaParede-altura,pal);
    }
    const comprimento=Math.max(w,h),gross=.065;
-   const cor=janela?'#74b5c4':'#644430';
+   const cor=modoInterior?'#896d56':janela?'#74b5c4':'#644430';
    const borda=janela?'#dfd4b9':'#c19c70';
    // Vãos existentes no mapa viram esquadrias verticais. As molduras
    // continuam presas ao objeto original e seguem sua posição.
@@ -218,12 +219,12 @@ function montarCenaReal(scene,W,H,mostrarTelhados=true){
    painel(ini,fim,z,z+altura,borda);
    const margem=Math.min(.115,comprimento*.12);
    painel(ini+margem,fim-margem,z+.11,z+altura-.11,cor);
-   if(janela){
+   if(janela&&!modoInterior){
     const mid=(ini+fim)/2;
     painel(mid-gross/2,mid+gross/2,z+.1,z+altura-.1,'#e6d9bb');
     painel(ini+margem,fim-margem,z+altura*.49,z+altura*.49+.075,'#e6d9bb');
     painel(ini-.14,fim+.14,z-.11,z+.045,'#b1a18c');
-   }else{
+   }else if(!modoInterior){
     painel(ini+margem,ini+margem+.07,z+.1,z+altura-.12,'#8a6148');
     const puxador=ini+comprimento*.77;
     painel(puxador,puxador+.055,z+.95,z+1.04,'#e4bf72');
@@ -282,19 +283,20 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
  const foto=criarBotao('📷 PNG','Exportar a vista atual do mapa como imagem');
  const inspecionar=criarBotao('🔎 Inspecionar','Ativar câmera livre temporária para examinar construções');
  const setor=criarBotao('▦ Setores','Exibir a divisão espacial em setores de 8 metros');
+ const interior=criarBotao('🚪 Ver interior','Mostrar o interior ocultando o telhado e rebaixando paredes na visualização');
  const infoObjeto=root.createElement('div');
  infoObjeto.style.cssText='position:relative;z-index:2;padding:6px 10px;border-top:1px solid #637b8d;background:#102339;color:#e4f1fd;font:12px Segoe UI,Arial,sans-serif;pointer-events:none';
  infoObjeto.hidden=true; painel.append(infoObjeto);
  // Não deixar os controles extravasarem pela borda direita em telas menores.
  tools.style.maxWidth='calc(100% - 20px)';
- tools.append(roofToggle,inspecionar,setor,vistaSuperior,vistaFrontal,zoomMenos,zoomMais,foto,reset);painel.insertBefore(tools,help);
+ tools.append(roofToggle,interior,inspecionar,setor,vistaSuperior,vistaFrontal,zoomMenos,zoomMais,foto,reset);painel.insertBefore(tools,help);
  // Compor no buffer e publicar apenas quadros completos.
  const buffer=root.createElement('canvas'),ctx=buffer.getContext('2d',{alpha:false});
  const displayCtx=canvas.getContext('2d',{alpha:false});
  let ultimaCenaValida=null,ultimoIdCenaValida='',ultimoPainelVisivel=null;
  const publicarQuadro=()=>{displayCtx.setTransform(1,0,0,1,0,0);displayCtx.drawImage(buffer,0,0);};
  let yaw=-.65,pitch=.62,zoom=1.0,raf=0,drag=null,ultimoModo='',personagem=[18,13,0],selecionado='',modoAtual='mapa-construtor',centroCamera=[14,9],ultimoTokenPos='',ultimoMapaV230='',ultimaCenaRef=null,ultimoVisivel=false;
- let telhadosVisiveis=true,inspecaoLivre=false,exibirSetores=false,objetoSelecionadoId='',ignorarCliqueAposArrastar=false;
+ let telhadosVisiveis=true,modoInterior=false,inspecaoLivre=false,exibirSetores=false,objetoSelecionadoId='',ignorarCliqueAposArrastar=false;
  const manterNorte=()=>{if(modoAtual==='mapa-construtor'&&!inspecaoLivre){yaw=CONSTRUTOR_YAW;pitch=CONSTRUTOR_PITCH;}};
  const atualizarInspecao=()=>{
   inspecionar.textContent=inspecaoLivre?'🔓 Encerrar inspeção':'🔎 Inspecionar';
@@ -311,7 +313,16 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
   setor.textContent=exibirSetores?'▦ Ocultar setores':'▦ Setores';
   invalidate();
  });
- roofToggle.addEventListener('click',()=>{telhadosVisiveis=!telhadosVisiveis;roofToggle.textContent=telhadosVisiveis?'🏠 Telhados: visíveis':'🏠 Telhados: ocultos';invalidate();});
+ roofToggle.addEventListener('click',()=>{
+  telhadosVisiveis=!telhadosVisiveis;
+  if(telhadosVisiveis&&modoInterior){modoInterior=false;interior.textContent='🚪 Ver interior';}
+  roofToggle.textContent=telhadosVisiveis?'🏠 Telhados: visíveis':'🏠 Telhados: ocultos';invalidate();
+ });
+ interior.addEventListener('click',()=>{
+  modoInterior=!modoInterior;telhadosVisiveis=!modoInterior;
+  roofToggle.textContent=telhadosVisiveis?'🏠 Telhados: visíveis':'🏠 Telhados: ocultos';
+  interior.textContent=modoInterior?'🚪 Fechar interior':'🚪 Ver interior';invalidate();
+ });
  vistaSuperior.addEventListener('click',()=>{if(modoAtual==='mapa-jogo')return;inspecaoLivre=true;atualizarInspecao();yaw=0;pitch=Math.PI/2;invalidate();});
  vistaFrontal.addEventListener('click',()=>{if(modoAtual==='mapa-jogo')return;inspecaoLivre=true;atualizarInspecao();yaw=0;pitch=.30;invalidate();});
  const alterarZoom=passo=>{if(modoAtual==='mapa-jogo')return;zoom=clamp(zoom*passo,.7,3);invalidate();};
@@ -403,10 +414,10 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
   const cena=cenaAtual(),mid=String(mapaAtual()||''),real=!!(cena&&mid&&String(cena.mapId||'')===mid);
   if(real){
    ultimaCenaValida=cena;ultimoIdCenaValida=mid;
-   montarCenaReal(cena,dims.W,dims.H,telhadosVisiveis);
+   montarCenaReal(cena,dims.W,dims.H,telhadosVisiveis,modoInterior);
   }else if(ultimaCenaValida&&mid&&ultimoIdCenaValida===mid){
    // Atualização transitória vazia não deve fazer a vila desaparecer.
-   montarCenaReal(ultimaCenaValida,dims.W,dims.H,telhadosVisiveis);
+   montarCenaReal(ultimaCenaValida,dims.W,dims.H,telhadosVisiveis,modoInterior);
   }else{
    faces.length=0;face([V(0,0),V(dims.W,0),V(dims.W,dims.H),V(0,dims.H)],'#607b5a','#607b5a');
   }
@@ -604,7 +615,7 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
   canvas.style.cursor=modo==='mapa-jogo'?'crosshair':'grab';
   canvas.style.touchAction=modo==='mapa-jogo'?'auto':'none';
   reset.hidden=modo==='mapa-jogo';
-  for(const b of [roofToggle,inspecionar,setor,vistaSuperior,vistaFrontal,zoomMenos,zoomMais,foto])b.hidden=modo==='mapa-jogo';
+  for(const b of [roofToggle,interior,inspecionar,setor,vistaSuperior,vistaFrontal,zoomMenos,zoomMais,foto])b.hidden=modo==='mapa-jogo';
   help.textContent=modo==='mapa-construtor'
    ?'CONSTRUTOR RPG · arrastar: mover mapa · clique: selecionar objeto · inspeção 3D opcional · roda: zoom'
    :modo==='mapa-mestre'
