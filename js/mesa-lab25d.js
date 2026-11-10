@@ -93,11 +93,11 @@ function telhadoCasa(box,material){
 }
 // Conversão de objetos reais do mapa. x/y são porcentagens 28x14 do motor;
 // larguraM/alturaM e z são metros. Nenhum dado é alterado aqui.
-function montarCenaReal(scene,W,H,mostrarTelhados=true,modoInterior=false){
+function montarCenaReal(scene,W,H,mostrarTelhados=true,modoInterior=false,corFundo='#607b5a'){
  const lista=Array.isArray(scene?.objects)?scene.objects:[];
- if(!lista.length){faces.length=0;face([V(0,0),V(W,0),V(W,H),V(0,H)],'#607b5a',null,-20);return true;}
+ if(!lista.length){faces.length=0;face([V(0,0),V(W,0),V(W,H),V(0,H)],corFundo,null,-20);return true;}
  faces.length=0;
- face([V(0,0),V(W,0),V(W,H),V(0,H)],'#607b5a',null,-20);
+ face([V(0,0),V(W,0),V(W,H),V(0,H)],corFundo,null,-20);
  const cores={
   madeira:['#a5815e','#825c3c','#c1a17b','#705238','#b69770'],
   tijolo:['#b7684a','#91503a','#cb8667','#8c4d37','#ad6b50'],
@@ -129,7 +129,8 @@ function montarCenaReal(scene,W,H,mostrarTelhados=true,modoInterior=false){
   if(kind==='chao'||o.camada===1&&kind!=='escada'){
    const estrada=/rua|travessa|praça|calçada|caminho/i.test(String(o.nome||''));
    const nome=String(o.nome||'');
-   const corPadrao=estrada?(mat.includes('rio')?'#a29d89':'#b7ad94'):(/solo|terreno/i.test(nome)?'#668263':pal[4]);
+   const corObjeto=/^#[0-9a-f]{6}$/i.test(String(o.cor||''))?String(o.cor):'';
+   const corPadrao=estrada?(mat.includes('rio')?'#a29d89':'#b7ad94'):(corObjeto||(/solo|terreno/i.test(nome)?corFundo:pal[4]));
    // Só cores hexadecimais são aceitas: qualquer mapa legado mantém a paleta atual.
    const cor=/^#[0-9a-f]{6}$/i.test(String(o.corChaoV253||''))?o.corChaoV253:corPadrao;
    const ordem=Number(o.ordemChaoV253);
@@ -255,10 +256,12 @@ function montarCenaReal(scene,W,H,mostrarTelhados=true,modoInterior=false){
    caixa(x,y,0,w,h,.35,pal);
    }else if(o.camada>=2&&w<=6&&h<=6){
    const img=imagemObjeto(o),nome=String(o.nome||'').toLowerCase();
+   const cor=/^#[0-9a-f]{6}$/i.test(String(o.cor||''))?String(o.cor):null;
+   const tonalidade=cor?[cor,cor,cor,cor,cor]:pal;
    const plano=/tapete|carpete|piso|passadeira|mosaico|marcação|sinal/i.test(nome);
    // Desenhar a arte original dos tapetes no chão e dos móveis sobre a face.
-   if(plano)face([V(x,y,.02),V(x+w,y,.02),V(x+w,y+h,.02),V(x,y+h,.02)],String(o.cor||pal[4]),null,4,'imagem',img);
-   else caixa(x,y,0,w,h,Math.min(1.5,Math.max(.16,normal(o.alturaObjetoM,.6))),pal,'',img);
+   if(plano)face([V(x,y,.02),V(x+w,y,.02),V(x+w,y+h,.02),V(x,y+h,.02)],String(cor||pal[4]),null,4,'imagem',img);
+   else caixa(x,y,0,w,h,Math.min(1.5,Math.max(.16,normal(o.alturaObjetoM,.6))),tonalidade,'',img);
   }else continue;
   visiveis++;
  }
@@ -269,7 +272,7 @@ function montarCenaReal(scene,W,H,mostrarTelhados=true,modoInterior=false){
  return true; // Cena identificada, mesmo que alguns objetos não tenham equivalente 3D.
 }
 
-export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=()=>null,dimensoes=()=>({W:28,H:14}),mapaAtual=()=>'',ativo=()=>false,modo=()=>'',mapa=()=>'',idMapa='',aoCliqueChao=null}={}){
+export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=()=>null,dimensoes=()=>({W:28,H:14}),mapaAtual=()=>'',fundoMapa=()=>'',ativo=()=>false,modo=()=>'',mapa=()=>'',idMapa='',aoCliqueChao=null}={}){
  if(!host)return {atualizar(){},destruir(){}};
  const painel=root.createElement('div');painel.id='mtmLab25D';
  painel.style.cssText='position:relative;display:flex;flex-direction:column;gap:0;width:100%;min-height:560px;overflow:hidden;border:1px solid #516a79;border-radius:12px;background:#a6c2ce;touch-action:none';
@@ -402,7 +405,9 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
   if(buffer.width!==W||buffer.height!==H){buffer.width=W;buffer.height=H;}
   ctx.setTransform(dpr,0,0,dpr,0,0);
   const width=W/dpr,height=H/dpr;
-  const grad=ctx.createLinearGradient(0,0,0,height);grad.addColorStop(0,'#607b5a');grad.addColorStop(1,'#668263');ctx.fillStyle=grad;ctx.fillRect(0,0,width,height);
+  const corMapa=String(fundoMapa?.()||'');
+  const baseMapa=/^#[0-9a-f]{6}$/i.test(corMapa)?corMapa:'#607b5a';
+  const grad=ctx.createLinearGradient(0,0,0,height);grad.addColorStop(0,baseMapa);grad.addColorStop(1,baseMapa);ctx.fillStyle=grad;ctx.fillRect(0,0,width,height);
   // Sem mapa ativo não há cena. Evitar desenhar terreno fictício como se
   // o banco tivesse carregado: o mestre pode escolher o mapa na barra acima.
   if(!String(mapaAtual()||'')){
@@ -508,10 +513,10 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
   const cena=cenaAtual(),mid=String(mapaAtual()||''),real=!!(cena&&mid&&String(cena.mapId||'')===mid);
   if(real){
    ultimaCenaValida=cena;ultimoIdCenaValida=mid;
-   montarCenaReal(cena,dims.W,dims.H,telhadosVisiveis,modoInterior);
+   montarCenaReal(cena,dims.W,dims.H,telhadosVisiveis,modoInterior,baseMapa);
   }else if(ultimaCenaValida&&mid&&ultimoIdCenaValida===mid){
    // Atualização transitória vazia não deve fazer a vila desaparecer.
-   montarCenaReal(ultimaCenaValida,dims.W,dims.H,telhadosVisiveis,modoInterior);
+   montarCenaReal(ultimaCenaValida,dims.W,dims.H,telhadosVisiveis,modoInterior,baseMapa);
   }else{
    faces.length=0;face([V(0,0),V(dims.W,0),V(dims.W,dims.H),V(0,dims.H)],'#607b5a','#607b5a');
   }
