@@ -42,7 +42,7 @@ export function instalarBarraOrganizada(dep={}){
   root.body.classList.toggle('mb-mais',mais);
   const hab=bs.filter(raro).length;
   // botões "⋯ Mais" e "❓ Ajuda" no fim da fileira de baixo
-  const ancora=root.getElementById('moTodos')?.parentElement||bs.find(e=>e.id==='amBotao')?.parentElement||bs[bs.length-1].parentElement;
+  const ancora=root.querySelector('#mbFerramentasV264 [data-conteudo-avancado]')||root.getElementById('moTodos')?.parentElement||bs.find(e=>e.id==='amBotao')?.parentElement||bs[bs.length-1].parentElement;
   let bm=root.getElementById('mbMais');if(!bm){bm=root.createElement('button');bm.id='mbMais';bm.type='button';bm.addEventListener('pointerdown',e=>e.stopPropagation());bm.addEventListener('click',()=>{mais=!mais;try{win.localStorage?.setItem('mesa:barraMais',mais?'1':'0');}catch(_){}aplicar();});}
   let ba=root.getElementById('mbAjuda');if(!ba){ba=root.createElement('button');ba.id='mbAjuda';ba.type='button';ba.textContent='❓ Ajuda';ba.title='O que cada botão faz';ba.addEventListener('pointerdown',e=>e.stopPropagation());ba.addEventListener('click',abrirAjuda);}
   if(bm.parentElement!==ancora){ancora.append(bm);}if(ba.parentElement!==ancora)ancora.append(ba);
