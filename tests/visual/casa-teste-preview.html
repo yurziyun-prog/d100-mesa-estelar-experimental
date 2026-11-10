@@ -45,6 +45,11 @@ const lab=instalarLaboratorio25D({
  cenaAtual:()=>scene,dimensoes:()=>({W,H}),mapaAtual:()=>scene.mapId
 });
 lab.atualizar({visivel:true,modo:'mapa-construtor'});
+if(new URLSearchParams(location.search).has('interior')){
+ const btn=[...document.querySelectorAll('button')].find(b=>b.textContent.includes('Ver interior'));
+ if(!btn)throw Error('Botão de interior não encontrado');
+ btn.click();
+}
 document.getElementById('status').textContent='Cena de referência carregada · '+objects.length+' peças · use Ver interior para inspecionar divisões.';
 window.__visualReady=true;
 window.__visualLab=lab;
