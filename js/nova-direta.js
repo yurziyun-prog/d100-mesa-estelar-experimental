@@ -924,13 +924,9 @@ visualSync();
  // v263: salvar deve ficar acessível fora da área do mapa e mostrar se há rascunho.
  // Os controles destrutivos/raramente usados permanecem disponíveis em um menu.
  const saveBarV263=el('mesaSaveBarV263'),saveButtonV263=el('mesaSaveButtonV263');
- const saveStatusV263=el('mesaSaveStatusV263'),advancedV263=el('mesaAdvancedActionsContentV263');
- if(advancedV263){
-  for(const id of ['novaSyncRandom','novaSyncClear','novaSyncRestore']){
-   const control=el(id);
-   if(control)advancedV263.append(control);
-  }
- }
+ const saveStatusV263=el('mesaSaveStatusV263');
+ // Os controles raros agora pertencem à barra organizada (v264).
+ // Evitar mover os mesmos botões entre dois menus e causar desordem visual.
  let avisoSalvarV263='',salvandoV263=false;
  function atualizarSaveV263(){
   if(!saveBarV263||!saveButtonV263)return;
