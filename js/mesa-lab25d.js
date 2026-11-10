@@ -133,7 +133,9 @@ function montarCenaReal(scene,W,H,mostrarTelhados=true,modoInterior=false){
     ?[V(x+1.1,y,.018),V(x+w-1.1,y,.018),V(x+w,y+h,.018),V(x,y+h,.018)]
     :[V(x,y,.018),V(x+w,y,.018),V(x+w,y+h,.018),V(x,y+h,.018)];
    // Ordem de terreno invariável entre ângulos: sem z-fighting de pisos coplanares.
-   face(contorno,cor,null,planoCamada,/solo|terreno|piso/i.test(nome)?'terreno':estrada?'caminho':'');
+   const estiloChao=/piso|assoalho|chão/i.test(nome)&&mat==='madeira'?'assoalho':
+     /solo|terreno|piso/i.test(nome)?'terreno':estrada?'caminho':'';
+    face(contorno,cor,null,planoCamada,estiloChao);
    // Ruas contínuas sem juntas coplanares sobrepostas que tremulam com a câmera.
   }else if(kind==='arvore_vila'){
    // Tronco elevado e copa em volumes: ambos participam da ordenação de
@@ -410,7 +412,7 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
     ctx.restore();
    }
    // Padrões pintados na mesma face: não criam planos extras nem z-fighting.
-   if(vs.length===4&&['telhas','fachada','terreno','caminho'].includes(material)){
+   if(vs.length===4&&['telhas','fachada','terreno','caminho','assoalho'].includes(material)){
     const p=(u,v)=>{
      const [a,b,c,d]=vs;
      return projetar(V(
@@ -434,6 +436,19 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
      }
      ctx.strokeStyle='rgba(250,214,173,.28)';ctx.lineWidth=1;
      for(let k=0;k<rows;k++)riscar(.02,k/rows+.018,.98,k/rows+.018);
+    }else if(material==='assoalho'){
+     // Tábuas no mesmo plano do piso: juntas estáveis, sem geometria coplanar.
+     ctx.lineWidth=.85;ctx.strokeStyle='rgba(71,50,31,.22)';
+     for(let k=1;k<13;k++)riscar(0,k/13,1,k/13);
+     for(let k=0;k<13;k++){
+      const v0=k/13,v1=(k+1)/13;
+      for(let j=1;j<=3;j++){
+       const u=(j+(k%2)*.5)/4;
+       if(u<.98)riscar(u,v0+.006,u,v1-.006);
+      }
+     }
+     ctx.strokeStyle='rgba(254,236,190,.13)';ctx.lineWidth=.6;
+     for(let k=0;k<13;k++)riscar(0,k/13+.008,1,k/13+.008);
     }else if(material==='fachada'){
      ctx.strokeStyle='rgba(59,43,32,.17)';ctx.lineWidth=.8;
      for(let j=1;j<5;j++)riscar(j/5,.04,j/5,.96);
