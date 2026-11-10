@@ -921,6 +921,53 @@ visualSync();
  }
  const editor=criarEditorMesa({board,root,database,scenePath:SCENE_PATH,mapPath:MAP_PATH,positionPath:POSITION_PATH,enabled:masterMode,map:()=>mapPacket,scene:()=>sceneData?.mapId===(mapPacket?.mapId||'')?sceneData:null,fail,changed:draw,tokens:()=>tokens,archivePath});
  try{globalThis.mesaRascunhoMapaV193=editor.rascunho;}catch(_){}
+ // v263: salvar deve ficar acessível fora da área do mapa e mostrar se há rascunho.
+ // Os controles destrutivos/raramente usados permanecem disponíveis em um menu.
+ const saveBarV263=el('mesaSaveBarV263'),saveButtonV263=el('mesaSaveButtonV263');
+ const saveStatusV263=el('mesaSaveStatusV263'),advancedV263=el('mesaAdvancedActionsContentV263');
+ if(advancedV263){
+  for(const id of ['novaSyncRandom','novaSyncClear','novaSyncRestore']){
+   const control=el(id);
+   if(control)advancedV263.append(control);
+  }
+ }
+ let avisoSalvarV263='',salvandoV263=false;
+ function atualizarSaveV263(){
+  if(!saveBarV263||!saveButtonV263)return;
+  const habilitado=!!user()?.master;
+  saveBarV263.hidden=!habilitado;
+  if(!habilitado)return;
+  const r=editor.rascunho;
+  const pendentes=Number(r.pendentes)||0;
+  const ocupado=salvandoV263||!!r.ocupado;
+  saveButtonV263.disabled=ocupado||!pendentes||!r.ativo();
+  saveButtonV263.textContent=ocupado?'⏳ Salvando…':pendentes?'💾 Salvar mapa ('+pendentes+')':'✓ Mapa salvo';
+  if(saveStatusV263){
+   saveStatusV263.textContent=ocupado?'Gravando alterações…':
+    pendentes?pendentes+' alteração(ões) NÃO salva(s).'+(avisoSalvarV263?' '+avisoSalvarV263:''):
+    avisoSalvarV263||'Todas as alterações do editor foram salvas.';
+   saveStatusV263.style.color=pendentes?'#ffdc9b':'#c1dfce';
+  }
+ }
+ if(saveButtonV263)saveButtonV263.addEventListener('click',async()=>{
+  if(salvandoV263||!user()?.master)return;
+  const r=editor.rascunho;
+  if(!r.ativo()||!r.pendentes)return;
+  salvandoV263=true;avisoSalvarV263='';atualizarSaveV263();
+  try{
+   const resp=await r.salvar();
+   if(resp?.estado!=='confirmado'){
+    throw Error(resp?.erro?.message||'Não houve confirmação de salvamento: '+String(resp?.estado||'desconhecido'));
+   }
+   avisoSalvarV263='✓ Salvo e sincronizado.';
+  }catch(e){
+   avisoSalvarV263='⚠ Erro ao salvar: '+String(e?.message||e);
+   // Não limpar o rascunho se a gravação falhar.
+   console.error('[Mapa] salvar v263:',e);
+  }finally{salvandoV263=false;atualizarSaveV263();}
+ });
+ globalThis.addEventListener('mesa-rascunho-v197',()=>{avisoSalvarV263='';atualizarSaveV263();});
+ atualizarSaveV263();
 
  function closeWorkshop(){if(workshopHandle){workshopDraft=workshopHandle.getState();workshopDirty=workshopHandle.dirty;workshopHandle.close();workshopHandle=null;}catalogChecked.clear();catalogKey='';board.style.removeProperty('display');const details=el('novaOficinaPanel');if(details)details.open=false;drawCatalog();}
  if(workshop){
