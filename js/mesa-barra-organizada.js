@@ -39,13 +39,19 @@ export function instalarBarraOrganizada(dep={}){
    const r=e.tagName==='BUTTON'?rotuloBotao(e):'';if(r&&e.dataset.rotulo!==r){e.dataset.rotulo=r;e.classList.add('mb-rotulado');}
    if(raro(e)&&!e.classList.contains('mb-raro'))e.classList.add('mb-raro');
   }
-  root.body.classList.toggle('mb-mais',mais);
+  const painelAvancado=root.querySelector('#mbFerramentasV264 [data-conteudo-avancado]');
+  root.body.classList.toggle('mb-mais',mais&&!painelAvancado);
   const hab=bs.filter(raro).length;
-  // botões "⋯ Mais" e "❓ Ajuda" no fim da fileira de baixo
-  const ancora=root.querySelector('#mbFerramentasV264 [data-conteudo-avancado]')||root.getElementById('moTodos')?.parentElement||bs.find(e=>e.id==='amBotao')?.parentElement||bs[bs.length-1].parentElement;
+  // v265: um único menu de recursos ocasionais, sem botões "Mais" duplicados.
+  const ancora=painelAvancado||root.getElementById('moTodos')?.parentElement||bs.find(e=>e.id==='amBotao')?.parentElement||bs[bs.length-1].parentElement;
+  if(painelAvancado){
+   for(const e of bs.filter(raro))if(e.parentElement!==painelAvancado)painelAvancado.append(e);
+   root.getElementById('mbMais')?.remove();
+  }
   let bm=root.getElementById('mbMais');if(!bm){bm=root.createElement('button');bm.id='mbMais';bm.type='button';bm.addEventListener('pointerdown',e=>e.stopPropagation());bm.addEventListener('click',()=>{mais=!mais;try{win.localStorage?.setItem('mesa:barraMais',mais?'1':'0');}catch(_){}aplicar();});}
   let ba=root.getElementById('mbAjuda');if(!ba){ba=root.createElement('button');ba.id='mbAjuda';ba.type='button';ba.textContent='❓ Ajuda';ba.title='O que cada botão faz';ba.addEventListener('pointerdown',e=>e.stopPropagation());ba.addEventListener('click',abrirAjuda);}
-  if(bm.parentElement!==ancora){ancora.append(bm);}if(ba.parentElement!==ancora)ancora.append(ba);
+  if(!painelAvancado&&bm.parentElement!==ancora)ancora.append(bm);
+  if(ba.parentElement!==ancora)ancora.append(ba);
   bm.textContent=mais?'⋯ Menos':'⋯ Mais ('+hab+')';bm.setAttribute('aria-pressed',String(mais));bm.title=mais?'Esconder os botões pouco usados':'Mostrar os botões pouco usados ('+hab+' escondidos): desenho ao vivo, mapa geral, companheiros, lojas, panorâmico…';
  }
  function abrirAjuda(){
