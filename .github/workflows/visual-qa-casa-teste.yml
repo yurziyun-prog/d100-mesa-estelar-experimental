@@ -23,11 +23,13 @@ jobs:
           test -n "$CHROME"
           "$CHROME" --headless --no-sandbox --disable-gpu --hide-scrollbars --window-size=1440,1050 --virtual-time-budget=7000 --screenshot=tests/visual/output/casa-teste.png http://127.0.0.1:8765/tests/visual/casa-teste-preview.html
           test -s tests/visual/output/casa-teste.png
+          "$CHROME" --headless --no-sandbox --disable-gpu --hide-scrollbars --window-size=1440,1050 --virtual-time-budget=7000 --screenshot=tests/visual/output/casa-teste-interior.png 'http://127.0.0.1:8765/tests/visual/casa-teste-preview.html?interior=1'
+          test -s tests/visual/output/casa-teste-interior.png
       - name: Store visual capture on test branch
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add tests/visual/output/casa-teste.png
+          git add tests/visual/output/casa-teste.png tests/visual/output/casa-teste-interior.png
           if ! git diff --cached --quiet; then
             git commit -m "qa: atualizar captura visual da Casa Teste [skip ci]"
             git push
@@ -35,4 +37,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: visual-qa-casa-teste
-          path: tests/visual/output/casa-teste.png
+          path: tests/visual/output/*.png
