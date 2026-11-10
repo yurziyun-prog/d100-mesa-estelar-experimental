@@ -35,6 +35,13 @@ if(totalArtes<10){
  'Copie essas pastas de uma instalação completa do jogo ANTES de publicar. '+
  'O site que já está no ar foi preservado; nenhuma alteração foi enviada.');
 }
+// Conferir as artes concretas da Casa Teste antes de qualquer substituição.
+const essenciais=['arte/texturas/grama.webp','arte/texturas/madeira.webp','arte/texturas/tijolo.webp','arte/texturas/terra.webp'];
+const faltando=essenciais.filter(p=>!fs.existsSync(path.join(root,p)));
+if(faltando.length){
+ throw Error('PUBLICAÇÃO BLOQUEADA: faltam as texturas da Casa Teste: '+faltando.join(', ')+
+ '. Restaure a pasta arte/ da versão original antes de publicar.');
+}
 console.log('Artes verificadas para publicação: '+
  pastasArte.map(n=>n+'='+porPasta[n].length).join(', '));
 // 2) grava
