@@ -37,6 +37,14 @@ if(totalArtes<10){
 }
 // Conferir as artes concretas da Casa Teste antes de qualquer substituição.
 const essenciais=['arte/texturas/grama.webp','arte/texturas/madeira.webp','arte/texturas/tijolo.webp','arte/texturas/terra.webp'];
+// A Casa Teste depende de árvores/copas e móveis, não somente do chão.
+// Uma cópia com 4 texturas também seria uma publicação quebrada.
+const gruposMinimos=[['arte/texturas',10],['arte/pecas',10],['arte/copas',2]];
+for(const [p,min] of gruposMinimos){
+ const n=listarArtes(path.join(root,p)).length;
+ if(n<min)throw Error('PUBLICAÇÃO BLOQUEADA: pasta '+p+' tem apenas '+n+
+  ' imagens. Esperava ao menos '+min+'. Recupere a pasta arte/ original.');
+}
 const faltando=essenciais.filter(p=>!fs.existsSync(path.join(root,p)));
 if(faltando.length){
  throw Error('PUBLICAÇÃO BLOQUEADA: faltam as texturas da Casa Teste: '+faltando.join(', ')+
