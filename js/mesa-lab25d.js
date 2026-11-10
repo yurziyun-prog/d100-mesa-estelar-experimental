@@ -55,8 +55,8 @@ function telhadoCasa(box,material){
   face([V(x+w,y,z),V(x+w,y+h,z),V(x+w,mid,z+r)],cor[2],'#493931');
  }else{
   const mid=x+w/2;
-  face([V(x-e,y-e,z),V(mid,y-e,z+r),V(mid,y+h+e,z+r),V(x-e,y+h+e,z)],cor[0],'#483a34');
-  face([V(mid,y-e,z+r),V(x+w+e,y-e,z),V(x+w+e,y+h+e,z),V(mid,y+h+e,z+r)],cor[1],'#483a34');
+  face([V(x-e,y-e,z),V(mid,y-e,z+r),V(mid,y+h+e,z+r),V(x-e,y+h+e,z)],cor[0],'#483a34',0,'telhas');
+  face([V(mid,y-e,z+r),V(x+w+e,y-e,z),V(x+w+e,y+h+e,z),V(mid,y+h+e,z+r)],cor[1],'#483a34',0,'telhas');
   face([V(x,y,z),V(x+w,y,z),V(mid,y,z+r)],cor[2],'#493931');
   face([V(x,y+h,z),V(mid,y+h,z+r),V(x+w,y+h,z)],cor[2],'#493931');
  }
@@ -376,7 +376,7 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
   if(buffer.width!==W||buffer.height!==H){buffer.width=W;buffer.height=H;}
   ctx.setTransform(dpr,0,0,dpr,0,0);
   const width=W/dpr,height=H/dpr;
-  const grad=ctx.createLinearGradient(0,0,0,height);grad.addColorStop(0,'#718e77');grad.addColorStop(1,'#8fa38a');ctx.fillStyle=grad;ctx.fillRect(0,0,width,height);
+  const grad=ctx.createLinearGradient(0,0,0,height);grad.addColorStop(0,'#607b5a');grad.addColorStop(1,'#668263');ctx.fillStyle=grad;ctx.fillRect(0,0,width,height);
   // Sem mapa ativo não há cena. Evitar desenhar terreno fictício como se
   // o banco tivesse carregado: o mestre pode escolher o mapa na barra acima.
   if(!String(mapaAtual()||'')){
@@ -423,8 +423,8 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
     };
     ctx.save();ctx.clip();
     if(material==='telhas'){
-     ctx.lineWidth=.7;ctx.strokeStyle='rgba(39,25,19,.26)';
-     const rows=8;
+     ctx.lineWidth=1.15;ctx.strokeStyle='rgba(39,25,19,.48)';
+     const rows=9;
      for(let k=1;k<rows;k++){
       const v=k/rows;riscar(.015,v,.985,v);
       for(let j=0;j<12;j++){
@@ -432,7 +432,7 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
        if(u>.02&&u<.98)riscar(u,v,u,Math.min(.985,v+1/rows));
       }
      }
-     ctx.strokeStyle='rgba(250,214,173,.13)';ctx.lineWidth=.8;
+     ctx.strokeStyle='rgba(250,214,173,.28)';ctx.lineWidth=1;
      for(let k=0;k<rows;k++)riscar(.02,k/rows+.018,.98,k/rows+.018);
     }else if(material==='fachada'){
      ctx.strokeStyle='rgba(59,43,32,.17)';ctx.lineWidth=.8;
