@@ -526,7 +526,7 @@ export function instalarTresMapas(dep={}){
    if(criar)criar.hidden=disponiveis.length>0||win.mesaEstadoBancoMapasV235_?.status==='carregando';
   const selMapa=sec?.querySelector('[data-mtm-mapa-select]');
   if(selMapa){
-   const lista=atual==='mapa-construtor'?mapasConstrutorV257(dep.mapas?.()):disponiveis;
+   const lista=mapasConstrutorV257(dep.mapas?.()); // Casa Teste pode ser aberta nas três vistas
    const signature=lista.map(m=>String(m.id)+'='+String(m.nome||m.id)).join('|')+'#'+id;
    const estado=win.mesaEstadoBancoMapasV235_;
    const aviso=sec?.querySelector('[data-mtm-mapas-disponiveis]');
