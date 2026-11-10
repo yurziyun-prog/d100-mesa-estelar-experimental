@@ -126,7 +126,7 @@ export function instalarTresMapas(dep={}){
   lab25D?.atualizar({visivel:mostrar,token:atorSelecionado,modo:atual});
   for(const btn of root.querySelectorAll('[data-mtm-preview]')){
    btn.hidden=!atual;
-   btn.textContent=modoLab25D?'🗺️ Editar no mapa funcional':(atual==='mapa-construtor'?'🏗️ Voltar à câmera 3D':'🏠 Ver protótipo 2,5D');
+   btn.textContent=modoLab25D?'🧱 Editar no mapa 2D':(atual==='mapa-construtor'?'🏠 Ver em perspectiva RPG':'🏠 Ver em perspectiva 2,5D');
   }
  }
 
@@ -437,7 +437,9 @@ export function instalarTresMapas(dep={}){
   sync.classList.add('active');
   root.body.classList.remove('mapa-construtor','mapa-mestre','mapa-jogo');root.body.classList.add(id);
   atual=id;win.mesaVista25D=id!=='mapa-construtor';
-  // Os três visualizadores iniciam no 2,5D. No Construtor, a edição 2D
+  // Casa Teste usa a mesma cena, convertida para câmera fixa em perspectiva.
+  // O protótipo da vila 2,5D permanece no banco, mas não é mais a única opção.
+  // No Construtor, a edição 2D
   // continua acessível por um botão, sem mudar a aba nem abrir Mapa da Mesa.
   modoLab25D=true;
   atualizarPainel();
