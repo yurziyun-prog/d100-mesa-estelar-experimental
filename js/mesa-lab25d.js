@@ -447,7 +447,9 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
     }
     ctx.restore();
    }
-   if(borda){ctx.strokeStyle=borda;ctx.lineWidth=.75;ctx.stroke();}
+   // O padrão de textura cria caminhos próprios: reconstruir o contorno
+   // antes de desenhar a borda geométrica da face.
+   if(borda){ctx.beginPath();pontos.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath();ctx.strokeStyle=borda;ctx.lineWidth=.75;ctx.stroke();}
   };
   const cena=cenaAtual(),mid=String(mapaAtual()||''),real=!!(cena&&mid&&String(cena.mapId||'')===mid);
   if(real){
