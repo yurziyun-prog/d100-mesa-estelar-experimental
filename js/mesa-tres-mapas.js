@@ -332,7 +332,7 @@ export function instalarTresMapas(dep={}){
  const paiOriginal=sync.parentElement,proximoOriginal=sync.nextSibling;
  const btnFicha=[...tabs.querySelectorAll('.tab-btn')].find(b=>/mostrarAba\('ficha'/.test(b.getAttribute('onclick')||''));
  const defs=[
-  ['mapa-construtor','🏗️','Mapa construtor','Câmera 3D livre para construir e inspecionar ambientes'],
+  ['mapa-construtor','🏗️','Mapa construtor','Casa Teste · câmera fixa de RPG · inspeção 3D opcional'],
   ['mapa-mestre','👑','Mapa do mestre','Direção da sessão; botão direito num NPC abre o jogo'],
   ['mapa-jogo','🎮','Mapa de jogo','A visão do jogador, controlando quem foi escolhido']
  ];
@@ -344,7 +344,7 @@ export function instalarTresMapas(dep={}){
   b.hidden=!ehMestre();
   b.addEventListener('click',()=>abrir(id,b));
   tabs.insertBefore(b,ancora?.nextSibling||null);ancora=b;
-  const sec=root.createElement('div');sec.id=id;sec.className='tab-content';sec.innerHTML=`<div class="form-section"><div class="mtm-faixa"><b>${ic} ${nome}</b><span class="mtm-dica">${dica}</span><div class="mtm-controles"><button type="button" data-limpar-demo>🗑️ Excluir laboratórios ruins</button><button type="button" data-mtm-gerar-vila title="Construir ou atualizar a vila no mesmo mapa piloto, com backup da versão original">🏘️ Atualizar vila</button><button type="button" data-mtm-preview hidden>🏠 Ver protótipo 2,5D</button><button type="button" data-editar-casa>🧱 Construir</button><button type="button" data-diretor>🧭 NPCs e criaturas</button><button type="button" data-voltar-mesa>Voltar à Mesa</button></div></div><div class="mtm-mini"><label data-mtm-escolha>Mapa <select data-mtm-mapa-select aria-label="Selecionar mapa para os três visualizadores"><option value="">Escolha um mapa…</option></select></label><span data-mtm-mapa>Mapa carregado: verificando…</span><span data-mtm-mapas-disponiveis style="color:#9fb3cc"></span><button type="button" data-mtm-criar-vila hidden title="Criar a vila piloto sem alterar mapas existentes">🏘️ Criar vila piloto</button><button type="button" data-mtm-recarregar-mapas hidden title="Recarregar mapas do Firebase" style="font:12px Segoe UI,Arial;color:#edf7ff;background:#21334d;border:1px solid #52647b;border-radius:6px;padding:3px 7px;cursor:pointer">↻ Recarregar mapas</button><label data-mtm-seletor style="display:none">Acompanhar <select data-mtm-ator><option value="">Selecione uma miniatura</option></select></label><span class="mtm-estado" data-mtm-estado></span></div><div class="mtm-host"></div></div>`;
+  const sec=root.createElement('div');sec.id=id;sec.className='tab-content';sec.innerHTML=`<div class="form-section"><div class="mtm-faixa"><b>${ic} ${nome}</b><span class="mtm-dica">${dica}</span><div class="mtm-controles"><button type="button" data-mtm-abrir-casa hidden title="Abrir Casa de teste (básico), preservando a vila experimental">🏠 Abrir Casa Teste</button><button type="button" data-limpar-demo hidden>🗑️ Excluir laboratórios ruins</button><button type="button" data-mtm-gerar-vila title="Construir ou atualizar a vila no mesmo mapa piloto, com backup da versão original">🏘️ Atualizar vila</button><button type="button" data-mtm-preview hidden>🏠 Ver protótipo 2,5D</button><button type="button" data-editar-casa>🧱 Construir</button><button type="button" data-diretor>🧭 NPCs e criaturas</button><button type="button" data-voltar-mesa>Voltar à Mesa</button></div></div><div class="mtm-mini"><label data-mtm-escolha>Mapa <select data-mtm-mapa-select aria-label="Selecionar mapa para os três visualizadores"><option value="">Escolha um mapa…</option></select></label><span data-mtm-mapa>Mapa carregado: verificando…</span><span data-mtm-mapas-disponiveis style="color:#9fb3cc"></span><button type="button" data-mtm-criar-vila hidden title="Criar a vila piloto sem alterar mapas existentes">🏘️ Criar vila piloto</button><button type="button" data-mtm-recarregar-mapas hidden title="Recarregar mapas do Firebase" style="font:12px Segoe UI,Arial;color:#edf7ff;background:#21334d;border:1px solid #52647b;border-radius:6px;padding:3px 7px;cursor:pointer">↻ Recarregar mapas</button><label data-mtm-seletor style="display:none">Acompanhar <select data-mtm-ator><option value="">Selecione uma miniatura</option></select></label><span class="mtm-estado" data-mtm-estado></span></div><div class="mtm-host"></div></div>`;
   sec.querySelector('[data-mtm-recarregar-mapas]').addEventListener('click',async e=>{
    const btn=e.currentTarget;btn.disabled=true;
    try{
@@ -359,6 +359,17 @@ export function instalarTresMapas(dep={}){
    try{const id=await criarVilaPilotoV246();await win.novaSyncController_?.openMap?.(id);atualizarPainel();atualizarVisual25D();}
    catch(err){console.error('[Vila piloto]',err);win.alert('Não foi possível criar a vila: '+String(err?.message||err));}
    finally{btn.disabled=false;btn.textContent='🏘️ Criar vila piloto';}
+  });
+  sec.querySelector('[data-mtm-abrir-casa]').addEventListener('click',async e=>{
+   const btn=e.currentTarget,casa=mapasConstrutorV257(dep.mapas?.()).find(mapaCasaTesteV257);
+   if(!casa){win.alert('Casa Teste não encontrada na lista carregada. Recarregue o Banco de Mapas.');return;}
+   btn.disabled=true;
+   try{
+    if(!win.novaSyncController_?.openMap)throw Error('O carregador de mapas não está pronto.');
+    await win.novaSyncController_.openMap(String(casa.id));
+    modoLab25D=true;atualizarPainel();atualizarVisual25D();
+   }catch(err){win.alert('Não foi possível abrir a Casa Teste: '+String(err?.message||err));}
+   finally{btn.disabled=false;}
   });
   sec.querySelector('[data-mtm-mapa-select]').addEventListener('change',async e=>{
     const sel=e.currentTarget,novo=String(sel.value||'');
@@ -472,6 +483,11 @@ export function instalarTresMapas(dep={}){
   if(dest)dest.textContent=id?'Mapa compartilhado: '+nome:'Nenhum mapa ativo. Selecione Casa de teste (básico).';
   const atualizarVila=sec?.querySelector('[data-mtm-gerar-vila]');
   if(atualizarVila)atualizarVila.hidden=atual!=='mapa-construtor'||!mapasTrabalhoV246(dep.mapas?.()).some(m=>String(m.id)===id);
+  const btnCasa=sec?.querySelector('[data-mtm-abrir-casa]');
+  if(btnCasa){
+   const casa=mapasConstrutorV257(dep.mapas?.()).find(mapaCasaTesteV257);
+   btnCasa.hidden=atual!=='mapa-construtor'||!casa||String(casa.id)===id;
+  }
   const limparLab=sec?.querySelector('[data-limpar-demo]');
   if(limparLab)limparLab.hidden=true; // protótipos preservados; não sugerir exclusão
   const reload=sec?.querySelector('[data-mtm-recarregar-mapas]');
