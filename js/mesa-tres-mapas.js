@@ -102,6 +102,10 @@ export function instalarTresMapas(dep={}){
     cenaAtual:()=>win.novaSyncController_?.cenaAtual?.()||null,
     dimensoes:()=>win.novaSyncController_?.dimsAtual?.()||({W:28,H:14}),
     mapaAtual:()=>String(win.novaSyncController_?.mapaAtual?.()||''),
+    fundoMapa:()=>{
+     const id=String(win.novaSyncController_?.mapaAtual?.()||'');
+     return String((dep.mapas?.()||[]).find(m=>String(m.id)===id)?.fundo||'');
+    },
     aoCliqueChao:({x,y,W,H})=>{
      if(atual!=='mapa-jogo'||!atorSelecionado)return;
      const ctl=win.novaSyncController_,id=String(atorSelecionado);
