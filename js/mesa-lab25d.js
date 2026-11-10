@@ -257,7 +257,7 @@ function montarCenaReal(scene,W,H,mostrarTelhados=true,modoInterior=false){
    const img=imagemObjeto(o),nome=String(o.nome||'').toLowerCase();
    const plano=/tapete|carpete|piso|passadeira|mosaico|marcação|sinal/i.test(nome);
    // Desenhar a arte original dos tapetes no chão e dos móveis sobre a face.
-   if(plano)face([V(x,y,.04),V(x+w,y,.04),V(x+w,y+h,.04),V(x,y+h,.04)],String(o.cor||pal[4]),null,4,'imagem',img);
+   if(plano)face([V(x,y,.02),V(x+w,y,.02),V(x+w,y+h,.02),V(x,y+h,.02)],String(o.cor||pal[4]),null,4,'imagem',img);
    else caixa(x,y,0,w,h,Math.min(1.5,Math.max(.16,normal(o.alturaObjetoM,.6))),pal,'',img);
   }else continue;
   visiveis++;
