@@ -17,7 +17,7 @@ export function instalarBarraOrganizada(dep={}){
  let mais=false;try{mais=win.localStorage?.getItem('mesa:barraMais')==='1';}catch(_){}
  const CSS=`#novaSyncBoard{--x:0}.mb-rotulado{width:auto!important;min-width:40px;padding-left:10px!important;padding-right:12px!important;gap:5px;display:inline-flex!important;align-items:center;justify-content:center;white-space:nowrap}
 .mb-rotulado::after{content:attr(data-rotulo);font:600 12px 'Segoe UI',Arial,sans-serif;opacity:.92}
-.mb-raro{display:none!important}body.mb-mais .mb-raro{display:revert!important}body.mb-mais .mb-rotulado.mb-raro{display:inline-flex!important}
+.mb-raro{display:none!important}body.mb-mais .mb-raro{display:revert!important}body.mb-mais .mb-rotulado.mb-raro{display:inline-flex!important}#mbFerramentasV264[open] .mb-raro{display:inline-flex!important}#mbFerramentasV264[open] input.mb-raro{display:inline-block!important}
 #mbMais,#mbAjuda{height:36px;padding:0 12px;border-radius:999px;border:1px solid #3b5878;background:rgba(9,15,29,.85);color:#c6d3e6;font:600 12px 'Segoe UI',Arial,sans-serif;cursor:pointer;white-space:nowrap}#mbMais[aria-pressed=true]{background:#22406a;color:#fff;border-color:#8ee7ff}
 #mbAjudaPainel{position:fixed;inset:0;z-index:10060;background:rgba(3,7,16,.72);display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:4vh 12px}
 #mbAjudaPainel>div{width:min(680px,100%);background:#101a2c;color:#e8eefc;border:1px solid #8ee7ff;border-radius:14px;padding:16px 18px;font:14px/1.4 'Segoe UI',Arial,sans-serif}
