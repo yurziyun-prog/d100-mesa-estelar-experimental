@@ -385,6 +385,17 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
 
 
  function orientar(p){const [x,y,z]=p,c=Math.cos(yaw),s=Math.sin(yaw);const xx=x*c-y*s,yy=x*s+y*c;return [xx,yy*Math.sin(pitch)-z*Math.cos(pitch),yy*Math.cos(pitch)+z*Math.sin(pitch)];}
+  const imageCache=new Map();
+  const obterImagem=url=>{
+   if(!url)return null;
+   if(imageCache.has(url))return imageCache.get(url);
+   const img=new Image();img.crossOrigin='anonymous';
+   const entry={img,ready:false};
+   img.onload=()=>{entry.ready=true;invalidate();};
+   img.onerror=()=>{entry.ready=false;};
+   imageCache.set(url,entry);img.src=url;
+   return entry;
+  };
  function pintar(){
   raf=0;if(!painel.isConnected)return;
   const r=canvas.getBoundingClientRect(),dpr=clamp(win.devicePixelRatio||1,1,2),W=Math.max(1,Math.round(r.width*dpr)),H=Math.max(1,Math.round(r.height*dpr));
@@ -408,17 +419,6 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
   const dims=dimValidas();
   const center=orientar(V(centroCamera[0],centroCamera[1],0)),scale=Math.min(width/(dims.W*1.36),height/(dims.H*1.85))*zoom;
   const projetar=v=>{const q=orientar(v);return [width/2+(q[0]-center[0])*scale,height*.53+(q[1]-center[1])*scale];};
-  const imageCache=new Map();
-  const obterImagem=url=>{
-   if(!url)return null;
-   if(imageCache.has(url))return imageCache.get(url);
-   const img=new Image();img.crossOrigin='anonymous';
-   const entry={img,ready:false};
-   img.onload=()=>{entry.ready=true;invalidate();};
-   img.onerror=()=>{entry.ready=false;};
-   imageCache.set(url,entry);img.src=url;
-   return entry;
-  };
   const desenharPoligono=(vs,cor,borda,material='',imagem='')=>{
    const pontos=vs.map(projetar);
    ctx.beginPath();pontos.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath();
