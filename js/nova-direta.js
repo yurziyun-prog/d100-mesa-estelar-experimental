@@ -939,13 +939,14 @@ visualSync();
   if(!habilitado)return;
   const r=editor.rascunho;
   const pendentes=Number(r.pendentes)||0;
-  const ocupado=salvandoV263||!!r.ocupado;
-  saveButtonV263.disabled=ocupado||!pendentes||!r.ativo();
+  const ocupado=salvandoV263||!!r.ocupado,editandoComoMestre=!!r.ativo();
+  saveButtonV263.disabled=ocupado||!pendentes||!editandoComoMestre;
   saveButtonV263.textContent=ocupado?'⏳ Salvando…':pendentes?'💾 Salvar mapa ('+pendentes+')':'✓ Mapa salvo';
   if(saveStatusV263){
    saveStatusV263.textContent=ocupado?'Gravando alterações…':
+    !editandoComoMestre?'Para editar o cenário, selecione Mestre em “Atuar como” acima.':
     pendentes?pendentes+' alteração(ões) NÃO salva(s).'+(avisoSalvarV263?' '+avisoSalvarV263:''):
-    avisoSalvarV263||'Todas as alterações do editor foram salvas.';
+    avisoSalvarV263||'Sem alterações pendentes.';
    saveStatusV263.style.color=pendentes?'#ffdc9b':'#c1dfce';
   }
  }
