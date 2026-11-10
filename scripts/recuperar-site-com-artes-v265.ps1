@@ -51,9 +51,21 @@ if(-not (TemArtes $origem)){
   $origem=$encontradas[0]
   Write-Host "Copia com artes encontrada: $origem" -ForegroundColor Green
  }else{
-  Write-Host "Nao encontrei uma copia completa das artes neste computador." -ForegroundColor Yellow
-  Write-Host "Nenhuma publicacao sera feita. Voce pode recuperar as artes da versao anterior do Firebase Hosting." -ForegroundColor Yellow
-  exit 2
+  Write-Host "Nao encontrei uma copia completa nas pastas comuns." -ForegroundColor Yellow
+  Write-Host "Voce pode indicar uma pasta de projeto original na janela que vai abrir." -ForegroundColor Yellow
+  try {
+   Add-Type -AssemblyName System.Windows.Forms
+   $escolha=New-Object System.Windows.Forms.FolderBrowserDialog
+   $escolha.Description='Escolha a pasta ORIGINAL do D100, contendo a subpasta arte'
+   if($escolha.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK){
+    $origem=$escolha.SelectedPath
+   }
+  } catch { Write-Host "Nao foi possivel abrir o seletor de pastas." -ForegroundColor Yellow }
+  if(-not (TemArtes $origem)){
+   Write-Host "Nenhuma copia completa foi encontrada. Nada sera publicado." -ForegroundColor Yellow
+   Write-Host "Alternativa: restaurar uma versao anterior em Firebase Console > Hosting." -ForegroundColor Yellow
+   exit 2
+  }
  }
 }
 if(-not (TemArtes $origem)){throw "Copia original incompleta: $origem"}
