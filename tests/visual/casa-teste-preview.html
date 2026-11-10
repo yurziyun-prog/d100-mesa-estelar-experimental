@@ -18,7 +18,7 @@ main{padding:12px;max-width:1300px;margin:auto}
 <main><div id="host"></div><div id="status">Carregando módulo…</div></main>
 <script type="module">
 try {
-const {instalarLaboratorio25D}=await import('../../js/mesa-lab25d.js?v=259');
+const {instalarLaboratorio25D}=await import('../../js/mesa-lab25d.js?v=260');
 const W=28,H=14;
 let seq=0;
 function piece(tipo,x,y,w,h,material='madeira',nome=tipo,camada=3){
@@ -35,11 +35,12 @@ const objects=[
  piece('parede',20.7,2,.3,4),piece('janela',20.7,6,.3,2),piece('parede',20.7,8,.3,4),
  piece('parede',14,2,.3,3),piece('porta',14,5,.3,2),piece('parede',14,7,.3,5),
  piece('teto',7,2,7,10),piece('teto',14,2,7,10),
+ {...piece('objeto',9,6,3.5,2.5,'madeira','Tapete de teste'),imagem:'/tests/visual/assets/tapete-teste.svg'},
  piece('caixote_vila',9,6,2,1,'madeira','Mesa de referência'),
  piece('caixote_vila',17,5,1.5,1.5,'madeira','Estante de referência'),
  piece('barril_vila',18.3,9,.9,.9,'madeira','Barril de referência')
 ];
-const scene={mapId:'qa-casa-teste',objects,pilotoVersao:258};
+const scene={mapId:'qa-casa-teste',objects,pilotoVersao:260};
 const lab=instalarLaboratorio25D({
  root:document,win:window,host:document.getElementById('host'),
  cenaAtual:()=>scene,dimensoes:()=>({W,H}),mapaAtual:()=>scene.mapId
