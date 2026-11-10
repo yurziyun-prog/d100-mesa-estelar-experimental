@@ -10,11 +10,11 @@ const CONSTRUTOR_YAW=-Math.PI/4, CONSTRUTOR_PITCH=.82;
 const V=(x,y,z=0)=>[x,y,z];
 const casa={x:9,y:5,w:7,d:5,h:3.2,telhado:1.7};
 const faces=[];
-function face(vs,cor,borda='#24313b',camada=0,material=''){faces.push({vs,cor,borda,camada,material,indice:faces.length});}
-function caixa(x,y,z,w,d,h,cores,estilo=''){
+function face(vs,cor,borda='#24313b',camada=0,material='',imagem=''){faces.push({vs,cor,borda,camada,material,imagem,indice:faces.length});}
+function caixa(x,y,z,w,d,h,cores,estilo='',imagemTopo=''){
  const A=V(x,y,z),B=V(x+w,y,z),C=V(x+w,y+d,z),D=V(x,y+d,z);
  const E=V(x,y,z+h),F=V(x+w,y,z+h),G=V(x+w,y+d,z+h),H=V(x,y+d,z+h);
- face([A,B,F,E],cores[0],null,0,estilo);face([B,C,G,F],cores[1],null,0,estilo);face([D,C,G,H],cores[2],null,0,estilo);face([D,A,E,H],cores[3],null,0,estilo);face([E,F,G,H],cores[4],null,0,estilo);
+ face([A,B,F,E],cores[0],null,0,estilo);face([B,C,G,F],cores[1],null,0,estilo);face([D,C,G,H],cores[2],null,0,estilo);face([D,A,E,H],cores[3],null,0,estilo);face([E,F,G,H],cores[4],null,0,estilo,imagemTopo);
 }
 const casaFaces=()=>{
  faces.length=0;
@@ -108,6 +108,15 @@ function montarCenaReal(scene,W,H,mostrarTelhados=true,modoInterior=false){
  const gruposTelhado=new Map();
  const normal=(n,def)=>Number.isFinite(Number(n))?Number(n):def;
  const objects=lista.filter(o=>o&&!o.destruido&&!o.invisivelV161&&o.opacity!==0).slice(0,1500);
+ const imagemObjeto=o=>{
+  const raw=o?.imagem?.url||o?.imagem?.src||o?.imagem||o?.src||o?.imagemUrl||'';
+  const value=typeof raw==='string'?raw:'';
+  const textura=typeof o?.textura==='string'?o.textura:'';
+  const css=textura.match(/^url\(\s*['"]?([^'")]+)['"]?\s*\)$/i);
+  const path=value||(css?.[1]||textura);
+  // Somente fontes de imagem, nunca HTML/scripts.
+  return /^(https?:\/\/|data:image\/|\/|arte\/|assets\/|imagens\/)/i.test(path)?path:'';
+ };
  const prioridade=o=>o.oficina3==='chao'?0:o.oficina3==='teto'?2:1;
  objects.sort((a,b)=>prioridade(a)-prioridade(b));
  for(const o of objects){
@@ -244,8 +253,12 @@ function montarCenaReal(scene,W,H,mostrarTelhados=true,modoInterior=false){
    }
   }else if(kind==='escada'){
    caixa(x,y,0,w,h,.35,pal);
-  }else if(o.camada>=2&&w<=6&&h<=6){
-   caixa(x,y,0,w,h,Math.min(2,Math.max(.35,normal(o.alturaObjetoM,.75))),pal);
+   }else if(o.camada>=2&&w<=6&&h<=6){
+   const img=imagemObjeto(o),nome=String(o.nome||'').toLowerCase();
+   const plano=/tapete|carpete|piso|passadeira|mosaico|marcação|sinal/i.test(nome);
+   // Desenhar a arte original dos tapetes no chão e dos móveis sobre a face.
+   if(plano)face([V(x,y,.04),V(x+w,y,.04),V(x+w,y+h,.04),V(x,y+h,.04)],String(o.cor||pal[4]),null,4,'imagem',img);
+   else caixa(x,y,0,w,h,Math.min(1.5,Math.max(.16,normal(o.alturaObjetoM,.6))),pal,'',img);
   }else continue;
   visiveis++;
  }
@@ -395,10 +408,36 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
   const dims=dimValidas();
   const center=orientar(V(centroCamera[0],centroCamera[1],0)),scale=Math.min(width/(dims.W*1.36),height/(dims.H*1.85))*zoom;
   const projetar=v=>{const q=orientar(v);return [width/2+(q[0]-center[0])*scale,height*.53+(q[1]-center[1])*scale];};
-  const desenharPoligono=(vs,cor,borda,material='')=>{
+  const imageCache=new Map();
+  const obterImagem=url=>{
+   if(!url)return null;
+   if(imageCache.has(url))return imageCache.get(url);
+   const img=new Image();img.crossOrigin='anonymous';
+   const entry={img,ready:false};
+   img.onload=()=>{entry.ready=true;invalidate();};
+   img.onerror=()=>{entry.ready=false;};
+   imageCache.set(url,entry);img.src=url;
+   return entry;
+  };
+  const desenharPoligono=(vs,cor,borda,material='',imagem='')=>{
    const pontos=vs.map(projetar);
    ctx.beginPath();pontos.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath();
    ctx.fillStyle=cor;ctx.fill();
+   // A projeção afim preserva imagens originais do mapa 2D em faces 2,5D.
+   if(imagem&&vs.length===4){
+    const asset=obterImagem(imagem);
+    if(asset?.ready&&asset.img.naturalWidth){
+     ctx.save();
+     try{
+      const [a,b,,d]=pontos;
+      ctx.clip();
+      ctx.transform((b[0]-a[0])/asset.img.naturalWidth,(b[1]-a[1])/asset.img.naturalWidth,
+       (d[0]-a[0])/asset.img.naturalHeight,(d[1]-a[1])/asset.img.naturalHeight,a[0],a[1]);
+      ctx.drawImage(asset.img,0,0);
+     }catch(e){console.warn('[Vista RPG] arte do objeto indisponível',e);}
+     finally{ctx.restore();}
+    }
+   }
    // Materialidade visual: sombra nas bases e linhas sutis de assentamento,
    // sem modificar a geometria ou os objetos armazenados no Firebase.
    const vertical=vs.length>=3&&(Math.max(...vs.map(v=>v[2]))-Math.min(...vs.map(v=>v[2]))>.3);
@@ -488,7 +527,7 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
   // deve ser invariável ao girar a câmera.
   planos.sort((a,b)=>a.camada-b.camada||a.indice-b.indice);
   // As faces elevadas são ordenadas em um único passe com os personagens.
-  for(const f of planos)desenharPoligono(f.vs,f.cor,f.borda,f.material);
+  for(const f of planos)desenharPoligono(f.vs,f.cor,f.borda,f.material,f.imagem);
   // Grades espaciais de 8 m, visíveis só por solicitação. Não armazenam
   // nem duplicam objetos e são calculadas a partir das dimensões da cena.
   if(exibirSetores&&modoAtual!=='mapa-jogo'){
@@ -534,7 +573,7 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
    ...personagens.map(t=>({tipo:'personagem',d:orientar(V(t.x,t.y,.8))[2],token:t}))
   ].map((parte,indice)=>({...parte,indice})).sort((a,b)=>a.d-b.d||a.indice-b.indice);
   for(const parte of ordem){
-   if(parte.tipo==='face')desenharPoligono(parte.face.vs,parte.face.cor,parte.face.borda,parte.face.material);
+   if(parte.tipo==='face')desenharPoligono(parte.face.vs,parte.face.cor,parte.face.borda,parte.face.material,parte.face.imagem);
    else desenharPersonagem(parte.token);
   }
   // Destaque de seleção, sem modificar a posição do objeto persistido.
