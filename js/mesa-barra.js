@@ -30,7 +30,15 @@ export function posicoesEmVolta(ponto,n,{W=28,H=14}={},passoM=1.2){
 export function filtrarCatalogo(lista,busca){const q=norm(busca).trim();if(!q)return lista;return lista.filter(x=>norm(x.nome+' '+(x.extra||'')).includes(q));}
 
 const ESTILO=`
-#mbBarra{position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:6px;flex-wrap:nowrap;overflow-x:auto;height:46px;box-sizing:border-box;padding:6px 8px;margin:6px 0;background:rgba(10,16,30,.92);border:1px solid #2f4664;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.35);scrollbar-width:thin}
+#mbBarra{position:relative;top:auto;z-index:2;display:flex;align-items:center;align-content:flex-start;gap:9px 10px;flex-wrap:wrap;overflow:visible;height:auto;min-height:55px;max-width:100%;width:100%;box-sizing:border-box;padding:11px 13px;margin:12px 0;background:rgba(10,16,30,.92);border:1px solid #2f4664;border-radius:12px;box-shadow:none}
+#mbBarra [data-mesa],#mbBarra [data-extras]{display:flex!important;align-items:center;gap:7px;flex-wrap:wrap!important;min-width:0;max-width:100%}
+#mbBarra [data-st]{margin-left:0!important}
+#mbBarra .mb-sep{display:none}
+#mbBarra #mbFerramentasV264{width:100%;min-width:0;border-top:1px solid #2f4664;padding-top:8px}
+#mbBarra #mbFerramentasV264>summary{cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:7px 11px;border:1px solid #43607d;border-radius:8px;color:#d1dfed;font-size:12px;list-style:none}
+#mbBarra #mbFerramentasV264>summary::-webkit-details-marker{display:none}
+#mbBarra #mbFerramentasV264:not([open]) [data-conteudo-avancado]{display:none!important}
+#mbBarra #mbFerramentasV264 [data-conteudo-avancado]{display:flex;flex-wrap:wrap;gap:7px;padding-top:10px}
 #mbBarra .mb-b{flex:none;width:34px;height:32px;padding:0;display:inline-grid;place-items:center;font-size:16px;line-height:1;border-radius:9px;border:1px solid #3b5878;background:#16233a;color:#e8eefc;cursor:pointer}
 #mbBarra .mb-seta{width:24px;font-size:12px}
 #mbBarra .mb-b:hover{border-color:#8ee7ff}
@@ -142,7 +150,16 @@ export function instalarBarraMestre(dep){
    <span class="mb-sep"></span>
    <button type="button" class="mb-b" data-a="editar" title="Editar o mapa: paredes, formas, lápis e objetos com botões na lateral do mapa" aria-pressed="false">🛠️</button>
    <span class="mb-st" data-st title="Situação do salvamento automático">✔ tudo salvo</span>`;
-  alvo.parentElement.insertBefore(barra,alvo);
+  // A barra faz parte da área de comandos da mesa, não da viewport de 1344px.
+  // Colocá-la antes dos painéis evita barras de rolagem e aproveita a largura livre do cabeçalho.
+  const status=el('novaSyncStatus');
+  if(status?.parentElement)status.insertAdjacentElement('afterend',barra);
+  else alvo.parentElement.insertBefore(barra,alvo);
+  const avancado=root.createElement('details');avancado.id='mbFerramentasV264';
+  const resumo=root.createElement('summary');resumo.textContent='⚙️ Mais ferramentas';
+  const conteudo=root.createElement('div');conteudo.dataset.conteudoAvancado='';
+  avancado.append(resumo,conteudo);
+  barra.append(avancado);
   barra.querySelector('[data-mapa]').addEventListener('change',e=>trocarMapa(e.target.value));
   // v125: ◀ ▶ trocam para o mapa anterior/seguinte da lista (em ordem de acesso quando houver ligações)
   const passo=d=>{const sel=barra.querySelector('[data-mapa]'),ops=[...sel.options].filter(o=>o.value);if(!ops.length)return;let i=ops.findIndex(o=>o.value===sel.value);i=i<0?(d>0?0:ops.length-1):(i+d+ops.length)%ops.length;sel.value=ops[i].value;trocarMapa(ops[i].value);};
@@ -157,12 +174,17 @@ export function instalarBarraMestre(dep){
   const ferramentas=root.querySelector('#sincronizacao-nova .nova-view-tools');
   let extras=barra.querySelector('[data-extras]');
   if(!extras){const sep=root.createElement('span');sep.className='mb-sep';extras=root.createElement('span');extras.dataset.extras='';extras.style.cssText='display:flex;gap:6px;flex:none';barra.insertBefore(sep,barra.querySelector('[data-st]'));barra.insertBefore(extras,barra.querySelector('[data-st]'));}
-  for(const b of [...(ferramentas?.querySelectorAll(':scope > button')||[])]){if(b.id==='novaSyncFocus')continue;b.classList.add('mb-b');extras.append(b);}
+  const conteudo=barra.querySelector('[data-conteudo-avancado]');
+  for(const b of [...(ferramentas?.querySelectorAll(':scope > button')||[])]){if(b.id==='novaSyncFocus')continue;b.classList.add('mb-b');(conteudo||extras).append(b);}
   const desenho=el('novaSyncSharedDrawTools');if(desenho&&desenho.style.display!=='none')desenho.style.display='none';
   // v120: os controles da linha de cima (▶ ■ 📍 🎲 🧹 ♻ e a situação do turno) vêm para a barra;
   // os repetidos (seletor de mapa, ✕, busca rápida) somem para o mestre.
   const mesa=barra.querySelector('[data-mesa]');
-  for(const id of ['novaSyncStart','novaSyncEnd','novaSyncPullActiveV92','novaSyncRandom','novaSyncClear','novaSyncRestore']){const b=el(id);if(b&&mesa&&b.parentElement!==mesa){b.classList.add('mb-b');mesa.append(b);}}
+  for(const id of ['novaSyncStart','novaSyncEnd','novaSyncPullActiveV92','novaSyncRandom','novaSyncClear','novaSyncRestore']){
+   const b=el(id);
+   const destino=['novaSyncRandom','novaSyncClear','novaSyncRestore','novaSyncStart','novaSyncEnd'].includes(id)?conteudo:mesa;
+   if(b&&destino&&b.parentElement!==destino){b.classList.add('mb-b');destino.append(b);}
+  }
   const turno=el('novaSyncTurno'),st=barra.querySelector('[data-st]');if(turno&&st&&turno.parentElement!==barra){turno.classList.add('mb-turno');barra.insertBefore(turno,st);}
   // v116: o ＋ é o jeito padrão de colocar; o catálogo antigo e o "Atuar como" saem da frente
   for(const id of ['novaSyncCatalog']){const n=el(id);if(n&&n.style.display!=='none')n.style.display='none';}
