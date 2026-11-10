@@ -155,6 +155,18 @@ export function instalarBarraMestre(dep){
   const status=el('novaSyncStatus');
   if(status?.parentElement)status.insertAdjacentElement('afterend',barra);
   else alvo.parentElement.insertBefore(barra,alvo);
+  // O painel técnico continua completo, mas não ocupa a tela toda a cada sessão.
+  // Todos os controles permanecem no DOM para rotinas de combate e módulos antigos.
+  const painelCompleto=el('novaSyncMasterPanel');
+  if(painelCompleto&&!el('mbPainelCompletoV266')){
+   const gaveta=root.createElement('details');gaveta.id='mbPainelCompletoV266';
+   gaveta.style.cssText='margin:6px 0 10px;padding:8px 12px;border:1px solid #3b526e;border-radius:10px;background:#101d2f';
+   const resumo=root.createElement('summary');
+   resumo.textContent='⚙️ Controles completos da mesa e combate';
+   resumo.style.cssText='cursor:pointer;color:#d6e5f8;font-weight:600;font-size:13px';
+   painelCompleto.insertAdjacentElement('beforebegin',gaveta);
+   gaveta.append(resumo,painelCompleto);
+  }
   const avancado=root.createElement('details');avancado.id='mbFerramentasV264';
   const resumo=root.createElement('summary');resumo.textContent='⚙️ Mais ferramentas';
   const conteudo=root.createElement('div');conteudo.dataset.conteudoAvancado='';
