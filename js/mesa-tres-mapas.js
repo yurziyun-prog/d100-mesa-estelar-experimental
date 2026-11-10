@@ -19,6 +19,17 @@ const mapasTrabalhoV246=mapas=>(Array.isArray(mapas)?mapas:[]).filter(m=>
 const TESTES_DESCARTAVEIS_V237=/^(?:Mapa\s*2[.,]?5\s*D\s*[—–-]\s*casa\s+por\s+dentro|Teste\s*2[.,]?5\s*D\s*[—–-]\s*casa\s+por\s+dentro|Teste\s*2[.,]?5\s*D\s*[—–-]\s*casa,?\s*NPC\s+e\s+criatura)$/i;
 
 const MAPAS_REFERENCIA_V225=/^(?:Ecossistema\s*\(teste\)|Casa de teste\s*\(básico\))$/i;
+// A Casa Teste volta ao seletor do Construtor. A vila fica preservada como
+// experimento, sem alterar ou arquivar documentos do Firebase.
+const mapaCasaTesteV257=m=>!!m?.id&&!m.arquivadoV176&&
+  (/^casa\s+de\s+teste(?:\s*\(b[aá]sico\))?$/i.test(String(m.nome||'').trim())||
+  /^casa\s+teste$/i.test(String(m.nome||'').trim()));
+const mapasConstrutorV257=mapas=>{
+ const todos=Array.isArray(mapas)?mapas:[];
+ const casa=todos.filter(mapaCasaTesteV257);
+ const vila=mapasTrabalhoV246(todos);
+ return [...casa,...vila.filter(m=>!casa.some(c=>String(c.id)===String(m.id)))];
+};
 const POS='combatesAtivos/mapaMesaSyncDireta/posicoes';
 const CSS=`
 /* v224.1: o mundo ocupa a largura da área de trabalho, mantendo proporções do mapa. */
@@ -458,19 +469,23 @@ export function instalarTresMapas(dep={}){
   const mapa=(dep.mapas?.()||[]).find(m=>String(m.id)===id);
   const nome=mapa?.nome||id||'Nenhum mapa selecionado';
   const dest=sec?.querySelector('[data-mtm-mapa]');
-  if(dest)dest.textContent=id?'Mapa compartilhado: '+nome+(mapaPilotoV237(mapa)?'':' · fora do cenário piloto'):'Nenhum mapa ativo. Escolha o mapa piloto acima.';
+  if(dest)dest.textContent=id?'Mapa compartilhado: '+nome:'Nenhum mapa ativo. Selecione Casa de teste (básico).';
+  const atualizarVila=sec?.querySelector('[data-mtm-gerar-vila]');
+  if(atualizarVila)atualizarVila.hidden=atual!=='mapa-construtor'||!mapasTrabalhoV246(dep.mapas?.()).some(m=>String(m.id)===id);
+  const limparLab=sec?.querySelector('[data-limpar-demo]');
+  if(limparLab)limparLab.hidden=true; // protótipos preservados; não sugerir exclusão
   const reload=sec?.querySelector('[data-mtm-recarregar-mapas]');
   const disponiveis=mapasTrabalhoV246(dep.mapas?.());
-   if(reload)reload.hidden=disponiveis.length>0;
+   if(reload)reload.hidden=(atual==='mapa-construtor'?mapasConstrutorV257(dep.mapas?.()):disponiveis).length>0;
    const criar=sec?.querySelector('[data-mtm-criar-vila]');
    if(criar)criar.hidden=disponiveis.length>0||win.mesaEstadoBancoMapasV235_?.status==='carregando';
   const selMapa=sec?.querySelector('[data-mtm-mapa-select]');
   if(selMapa){
-   const lista=disponiveis;
+   const lista=atual==='mapa-construtor'?mapasConstrutorV257(dep.mapas?.()):disponiveis;
    const signature=lista.map(m=>String(m.id)+'='+String(m.nome||m.id)).join('|')+'#'+id;
    const estado=win.mesaEstadoBancoMapasV235_;
    const aviso=sec?.querySelector('[data-mtm-mapas-disponiveis]');
-   if(aviso){aviso.textContent=lista.length?'1 vila de trabalho · demais mapas preservados no Banco de Mapas':estado?.status==='erro'?'Leitura dos mapas falhou: '+String(estado.erro||'erro de rede'):estado?.status==='carregando'?'Carregando mapas…':'Nenhuma vila piloto encontrada. Use Criar vila piloto ou recarregue os mapas.';}
+   if(aviso){aviso.textContent=lista.length?(atual==='mapa-construtor'?'Casa Teste: base do RPG · vila 2,5D preservada como experimento':'Vila 2,5D experimental · demais mapas preservados'):estado?.status==='erro'?'Leitura dos mapas falhou: '+String(estado.erro||'erro de rede'):estado?.status==='carregando'?'Carregando mapas…':'Nenhuma vila piloto encontrada. Use Criar vila piloto ou recarregue os mapas.';}
    if(selMapa.dataset.signature!==signature&&root.activeElement!==selMapa){
     selMapa.replaceChildren(new Option('Escolha um mapa…',''),...lista.map(m=>new Option(String(m.nome||m.id),String(m.id))));
     selMapa.dataset.signature=signature;
