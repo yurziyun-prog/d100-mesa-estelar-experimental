@@ -917,7 +917,17 @@ body:not(.er-antigos) #o3Botao,body:not(.er-antigos) #mkBotao,body:not(.er-antig
    if(k==='novo'){abrirNovo();return;}
    if(k==='gerador'){abrirGerador();}else if(k==='chaomapa'){const {W,H}=dims();aviso(String(texPiso).startsWith('copa_')?'Copa não serve de chão: escolha um piso.':aplicar(L=>fTrocaChao(L,texPiso,W,H))?'Chão do mapa trocado.':'O chão já era esse.');}else if(k==='desfazer')R?.desfazerLote();else if(k==='refazer')R?.refazerLote();
    else if(k==='descartar'){if(win.confirm('Descartar o que ainda não foi salvo?'))R?.descartar();}
-   else if(k==='salvar'){aviso('⏳ Salvando o mapa…');Promise.resolve(R?.salvar()).then(()=>aviso('✔ Mapa salvo e sincronizado.')).catch(err=>aviso('⚠️ '+(err?.message||err))).finally(desenharPainel);return;}}
+   else if(k==='salvar'){
+    if(!R?.salvar){aviso('⚠️ O editor de mapas não está pronto.');return;}
+    aviso('⏳ Salvando o mapa…');
+    Promise.resolve(R.salvar()).then(resultado=>{
+     if(resultado?.estado==='confirmado')aviso('✓ Mapa salvo e sincronizado.');
+     else if(resultado?.estado==='sem-mudancas')aviso('Nenhuma alteração pendente.');
+     else aviso('⚠️ O mapa NÃO foi salvo: '+String(resultado?.erro?.message||resultado?.estado||'não confirmado'));
+    }).catch(err=>aviso('⚠️ O mapa NÃO foi salvo: '+String(err?.message||err)))
+      .finally(desenharPainel);
+    return;
+   }}
   limparPrevia();desenharPainel();
  }
  function abrir(){if(!ehMestre())return;aberto=true;montar();reservarLado(true);painel.hidden=false;dicas.hidden=false;botao?.setAttribute('aria-pressed','true');if(!ferr)ferr='parede';win.mesaOficina3V175?.fechar?.();try{win.mesaAndarV144?.editor?.(true,andar);}catch(_){}desenharPainel();}
@@ -976,6 +986,6 @@ body:not(.er-antigos) #o3Botao,body:not(.er-antigos) #mkBotao,body:not(.er-antig
    if(a.k==='alavanca')return base(a.emperrada?'Alavanca emperrada':'Alavanca',{x:a.x-.5,y:a.y-.5,w:1,h:1},{material:'metal',imagem:SVG_ALAVANCA,alavancaV186:a.jid});
    return base(a.tipo==='laminas'?'Armadilha de lâminas':'Armadilha de estacas',{x:a.x-.6,y:a.y-.6,w:1.2,h:1.2},{camada:1,imagem:SVG_ARM,opacity:.22,armadilhaV184:a.tipo});
   }))]);}
- win.mesaEditorRapidoV197={pronto:id=>{const R=rasc();return !!R&&String(mapa())===String(id);},construir,especiais:async l=>adicionarEspeciais(l),objetos:()=>{const R=rasc();return R?R.objetosAtuais():[];},aplicarPlano:(pl,d,n)=>aplicarPlanoNoMapa(pl,d,n),armadilhas:async pts=>adicionarArmadilhas(pts),salvar:async()=>{const R=rasc();if(R)await R.salvar();},mapaAtual:()=>String(mapa()||''),abrir,fechar,criarMapa,abrirNovo,gerador:abrirGerador,fazer:(tipo,r)=>opRetangulo(tipo,r),terreno:()=>({...terr}),aberto:()=>aberto,ferramenta:f=>{ferr=f;desenharPainel();},estado:()=>({ferr,texParede,texPiso,poca,objSel,rot,arrasto:arrasto?arrasto.tipo:''})};
+ win.mesaEditorRapidoV197={pronto:id=>{const R=rasc();return !!R&&String(mapa())===String(id);},construir,especiais:async l=>adicionarEspeciais(l),objetos:()=>{const R=rasc();return R?R.objetosAtuais():[];},aplicarPlano:(pl,d,n)=>aplicarPlanoNoMapa(pl,d,n),armadilhas:async pts=>adicionarArmadilhas(pts),salvar:async()=>{const R=rasc();return R?.salvar?.()||{estado:'indisponivel'};},mapaAtual:()=>String(mapa()||''),abrir,fechar,criarMapa,abrirNovo,gerador:abrirGerador,fazer:(tipo,r)=>opRetangulo(tipo,r),terreno:()=>({...terr}),aberto:()=>aberto,ferramenta:f=>{ferr=f;desenharPainel();},estado:()=>({ferr,texParede,texPiso,poca,objSel,rot,arrasto:arrasto?arrasto.tipo:''})};
  return {abrir,fechar,parar(){clearInterval(vigia);botao?.remove();painel?.remove();dicas?.remove();previa?.remove();}};
 }
