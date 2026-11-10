@@ -1,0 +1,38 @@
+name: Visual QA - Casa Teste
+on:
+  push:
+    branches: [chatgpt-tres-mapas-correcoes-v224]
+    paths:
+      - 'js/mesa-lab25d.js'
+      - 'tests/visual/casa-teste-preview.html'
+      - '.github/workflows/visual-qa-casa-teste.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  screenshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Browser visual capture
+        run: |
+          mkdir -p tests/visual/output
+          python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/d100-visual-http.log 2>&1 &
+          sleep 2
+          CHROME="$(command -v google-chrome || command -v chromium || true)"
+          test -n "$CHROME"
+          "$CHROME" --headless --no-sandbox --disable-gpu --hide-scrollbars --window-size=1440,1050 --virtual-time-budget=7000 --screenshot=tests/visual/output/casa-teste.png http://127.0.0.1:8765/tests/visual/casa-teste-preview.html
+          test -s tests/visual/output/casa-teste.png
+      - name: Store visual capture on test branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tests/visual/output/casa-teste.png
+          if ! git diff --cached --quiet; then
+            git commit -m "qa: atualizar captura visual da Casa Teste [skip ci]"
+            git push
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: visual-qa-casa-teste
+          path: tests/visual/output/casa-teste.png
