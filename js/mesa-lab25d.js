@@ -5,7 +5,8 @@ const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 // Inspirado na leitura isometrica de RPGs classicos: norte estavel, cameras sem rotacao livre no jogo.
 const JOGO_YAW=-Math.PI/4, JOGO_PITCH=.72, JOGO_ZOOM=1.38;
 const MESTRE_YAW=-Math.PI/4, MESTRE_PITCH=.68;
-const CONSTRUTOR_YAW=-Math.PI/4, CONSTRUTOR_PITCH=1.14;
+// Projeção estável, oblíqua, mais próxima da leitura clássica dos RPGs 2.5D.
+const CONSTRUTOR_YAW=-Math.PI/4, CONSTRUTOR_PITCH=.82;
 const V=(x,y,z=0)=>[x,y,z];
 const casa={x:9,y:5,w:7,d:5,h:3.2,telhado:1.7};
 const faces=[];
@@ -255,12 +256,15 @@ function montarCenaReal(scene,W,H,mostrarTelhados=true){
 export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=()=>null,dimensoes=()=>({W:28,H:14}),mapaAtual=()=>'',ativo=()=>false,modo=()=>'',mapa=()=>'',idMapa='',aoCliqueChao=null}={}){
  if(!host)return {atualizar(){},destruir(){}};
  const painel=root.createElement('div');painel.id='mtmLab25D';
- painel.style.cssText='position:relative;width:100%;min-height:580px;height:min(78dvh,900px);overflow:hidden;border:1px solid #516a79;border-radius:12px;background:#a6c2ce;touch-action:none';
+ painel.style.cssText='position:relative;display:flex;flex-direction:column;gap:0;width:100%;min-height:560px;overflow:hidden;border:1px solid #516a79;border-radius:12px;background:#a6c2ce;touch-action:none';
  const canvas=root.createElement('canvas');canvas.style.cssText='width:100%;height:100%;display:block;cursor:grab;touch-action:none';canvas.setAttribute('aria-label','Protótipo geométrico 2,5D: casa, rua e personagem');
- const help=root.createElement('div');help.style.cssText='position:absolute;left:12px;top:10px;z-index:2;padding:6px 9px;border-radius:7px;background:#0c1b2dda;color:#e8f5ff;font:12px Segoe UI,Arial,sans-serif;pointer-events:none';help.textContent='Laboratório geométrico 2,5D · arraste para girar · roda para aproximar · não edita objetos';
- painel.append(canvas,help);host.prepend(painel);
+ const help=root.createElement('div');help.style.cssText='padding:7px 12px;background:#111f32;color:#d5e5f6;font:12px Segoe UI,Arial,sans-serif;pointer-events:none';help.textContent='RPG · arraste para mover · roda para aproximar · inspecione objetos';
+ const viewport=root.createElement('div');
+ viewport.style.cssText='position:relative;width:100%;height:min(72dvh,820px);min-height:500px;overflow:hidden;flex:1 1 auto';
+ viewport.append(canvas);painel.append(help,viewport);host.prepend(painel);
  const tools=root.createElement('div');
- tools.style.cssText='position:absolute;right:10px;top:10px;z-index:3;display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end';
+ // Barra de ferramentas fora da área da câmera: nenhum botão cobre o cenário.
+ tools.style.cssText='position:relative;z-index:2;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-start;align-items:center;padding:8px 10px;border-bottom:1px solid #516a79;background:#182a3e';
  const reset=root.createElement('button');reset.type='button';reset.textContent='⌖ Reenquadrar';
  reset.title='Voltar ao ângulo e ao centro recomendados para este modo';
  reset.style.cssText='background:#102339e8;border:1px solid #5c748f;color:#e4f1fd;border-radius:7px;padding:6px 9px;cursor:pointer;font:12px Segoe UI,Arial,sans-serif';
@@ -279,11 +283,11 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
  const inspecionar=criarBotao('🔎 Inspecionar','Ativar câmera livre temporária para examinar construções');
  const setor=criarBotao('▦ Setores','Exibir a divisão espacial em setores de 8 metros');
  const infoObjeto=root.createElement('div');
- infoObjeto.style.cssText='position:absolute;left:12px;bottom:39px;z-index:2;padding:7px 10px;max-width:60%;border:1px solid #637b8d;border-radius:7px;background:#102339e8;color:#e4f1fd;font:12px Segoe UI,Arial,sans-serif;pointer-events:none';
+ infoObjeto.style.cssText='position:relative;z-index:2;padding:6px 10px;border-top:1px solid #637b8d;background:#102339;color:#e4f1fd;font:12px Segoe UI,Arial,sans-serif;pointer-events:none';
  infoObjeto.hidden=true; painel.append(infoObjeto);
  // Não deixar os controles extravasarem pela borda direita em telas menores.
  tools.style.maxWidth='calc(100% - 20px)';
- tools.append(roofToggle,inspecionar,setor,vistaSuperior,vistaFrontal,zoomMenos,zoomMais,foto,reset);painel.append(tools);
+ tools.append(roofToggle,inspecionar,setor,vistaSuperior,vistaFrontal,zoomMenos,zoomMais,foto,reset);painel.insertBefore(tools,help);
  // Compor no buffer e publicar apenas quadros completos.
  const buffer=root.createElement('canvas'),ctx=buffer.getContext('2d',{alpha:false});
  const displayCtx=canvas.getContext('2d',{alpha:false});
@@ -602,7 +606,7 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
   reset.hidden=modo==='mapa-jogo';
   for(const b of [roofToggle,inspecionar,setor,vistaSuperior,vistaFrontal,zoomMenos,zoomMais,foto])b.hidden=modo==='mapa-jogo';
   help.textContent=modo==='mapa-construtor'
-   ?'CONSTRUTOR · arrastar: mover cidade · clique: selecionar objeto · inspeção: câmera livre · roda: zoom'
+   ?'CONSTRUTOR RPG · arrastar: mover mapa · clique: selecionar objeto · inspeção 3D opcional · roda: zoom'
    :modo==='mapa-mestre'
    ?'MESTRE · arrastar: girar · Shift+arrastar: deslocar · roda: zoom'
    :'JOGO · clique no chão para caminhar · WASD ou setas · câmera acompanha o personagem';
