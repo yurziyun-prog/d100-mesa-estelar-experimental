@@ -11,7 +11,16 @@ export function criarEditorMesa({board,root,database,scenePath,mapPath,positionP
  const toolbar=root.getElementById('novaSyncEditorTools');
  const extra=root.createElement('div');extra.style.cssText='display:flex;gap:6px;flex-wrap:wrap;align-items:center;width:100%';
  extra.innerHTML='<label>Forma <select id="novaSyncShape"><option value="move">Selecionar</option><option value="draw">Lápis</option><option value="rect">Retângulo</option><option value="square">Quadrado</option><option value="triangle">Triângulo</option><option value="circle">Círculo</option><option value="ellipse">Elipse</option></select></label><label>Nome <input id="novaEditName" value="Muro" size="9"></label><label>Opacidade <input id="novaEditOpacity" type="number" min="0" max="1" step="0.1" value="1" style="width:60px"></label><label>Borda <input id="novaEditBorder" type="color" value="#111111"></label><input id="novaEditBorderWidth" aria-label="Espessura da borda" type="number" min="0" value="1" style="width:55px"><label>Camada <input id="novaEditLayer" type="number" value="3" step="1" style="width:55px"></label><label><input id="novaEditBlock" type="checkbox" checked> Bloqueia movimento</label><label><input id="novaEditShadow" type="checkbox"> Sombra</label><label>Largura (m) <input id="novaEditWidth" type="number" min="0.1" step="0.1" value="1" style="width:60px"></label><label>Altura (m) <input id="novaEditHeight" type="number" min="0.1" step="0.1" value="1" style="width:60px"></label><label>Rotação <input id="novaEditAngle" type="number" value="0" style="width:65px"></label><button id="novaEditApply" type="button">Aplicar ao selecionado</button><button id="novaEditDuplicate" type="button">Duplicar</button><button id="novaEditRedo" type="button">Refazer</button><button id="novaEditDiscard" type="button">Descartar alterações</button><button id="novaEditSave" type="button">💾 Salvar mapa</button><span id="novaEditNotice" role="status"></span>';
- toolbar?.append(extra);
+ // Propriedades e comandos de formas são ocasionais: não ocupar a linha
+ // principal do mapa permanentemente com dezenas de campos.
+ const detalhesEditor=root.createElement('details');
+ detalhesEditor.id='novaEditDetailsV263';
+ detalhesEditor.style.cssText='width:100%;margin-top:5px;max-width:100%;padding:7px 9px;border:1px solid #4b657e;border-radius:8px;background:rgba(10,23,39,.72)';
+ const tituloEditor=root.createElement('summary');
+ tituloEditor.textContent='⚙️ Formas e propriedades do objeto';
+ tituloEditor.style.cssText='cursor:pointer;font-weight:600;color:#d9eafa';
+ detalhesEditor.append(tituloEditor,extra);
+ toolbar?.append(detalhesEditor);
  const input=id=>root.getElementById(id),num=(id,fallback)=>{const n=Number(input(id).value);return Number.isFinite(n)?n:fallback;};
  function style(){return {nome:input('novaEditName').value||'Forma',cor:input('novaSyncInk').value,opacity:Math.max(0,Math.min(1,num('novaEditOpacity',1))),borda:input('novaEditBorder').value,bordaLargura:Math.max(0,num('novaEditBorderWidth',1)),camada:Math.trunc(num('novaEditLayer',3)),bloqueiaMovimento:input('novaEditBlock').checked,sombra:input('novaEditShadow').checked};}
  let autoTimer=null,optPorId=new Map(),optMapa='';
