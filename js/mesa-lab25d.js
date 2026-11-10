@@ -193,7 +193,7 @@ function montarCenaReal(scene,W,H,mostrarTelhados=true,modoInterior=false){
     }
    }
   }else if(kind==='porta'||kind==='janela'){
-   const janela=kind==='janela',altura=modoInterior?.68:(janela?1.05:2.25),z=modoInterior?0:(janela?1.10:0);
+   const janela=kind==='janela',altura=modoInterior ? .68 : (janela ? 1.05 : 2.25),z=modoInterior ? 0 : (janela ? 1.10 : 0);
    // A janela substitui um segmento da parede funcional. Completar o volume
    // desse mesmo segmento acima/abaixo do vão para não deixar faixas vazias.
    const alturaParede=2.72;
@@ -288,7 +288,7 @@ export function instalarLaboratorio25D({root=document,win=window,host,cenaAtual=
  infoObjeto.style.cssText='position:relative;z-index:2;padding:6px 10px;border-top:1px solid #637b8d;background:#102339;color:#e4f1fd;font:12px Segoe UI,Arial,sans-serif;pointer-events:none';
  infoObjeto.hidden=true; painel.append(infoObjeto);
  // Não deixar os controles extravasarem pela borda direita em telas menores.
- tools.style.maxWidth='calc(100% - 20px)';
+ tools.style.width='100%';tools.style.boxSizing='border-box';
  tools.append(roofToggle,interior,inspecionar,setor,vistaSuperior,vistaFrontal,zoomMenos,zoomMais,foto,reset);painel.insertBefore(tools,help);
  // Compor no buffer e publicar apenas quadros completos.
  const buffer=root.createElement('canvas'),ctx=buffer.getContext('2d',{alpha:false});
