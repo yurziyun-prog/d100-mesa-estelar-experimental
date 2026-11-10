@@ -1433,9 +1433,15 @@ html[data-tema="retro"] .market-card:hover{box-shadow:0 8px 26px rgba(255,111,17
 
             <div id="sincronizacao-nova" class="tab-content">
                 <div class="form-section">
-                    <h2 style="margin:0 0 6px;">🗺️ Mapa da Mesa</h2>
-                    
-                    <div id="novaSyncStatus" style="padding:10px;border-radius:8px;background:rgba(0,0,0,.2);margin-bottom:8px;">Aguardando conexão.</div>
+                    <div id="mesaTopBarV265">
+                        <h2 style="margin:0">🗺️ Mapa da Mesa</h2>
+                        <div id="mesaSaveBarV263" aria-label="Salvar alterações do mapa">
+                        <button type="button" id="mesaSaveButtonV263" class="btn-small btn-select" disabled>✓ Mapa salvo</button>
+                        <span id="mesaSaveStatusV263" role="status" aria-live="polite">Sem alterações pendentes</span>
+                        <details id="mesaAdvancedActionsV263"><summary>⚙️ Ferramentas adicionais</summary><div id="mesaAdvancedActionsContentV263"></div></details>
+                    </div>
+                        <div id="novaSyncStatus">Aguardando conexão.</div>
+                    </div>
                     <div class="nova-view-tools" aria-label="Opções de visualização da mesa">
                         <button id="novaSyncFocus" class="btn-small" type="button" aria-pressed="false" title="Oculta painéis secundários para dar mais espaço ao mapa">⛶ Foco no mapa</button>
                         <button id="novaSyncHistoryToggle" class="btn-small" type="button" aria-pressed="true" title="Mostrar ou ocultar o histórico da mesa">📜 Histórico</button>
@@ -1481,11 +1487,6 @@ html[data-tema="retro"] .market-card:hover{box-shadow:0 8px 26px rgba(255,111,17
                         <div id="novaSyncOrdem"></div>
                     </div>
                     <div id="novaSyncActionParking" hidden><button id="novaSyncNext" class="btn-small" disabled>Passar ação</button></div>
-                    <div id="mesaSaveBarV263" aria-label="Salvar alterações do mapa">
-                        <button type="button" id="mesaSaveButtonV263" class="btn-small btn-select" disabled>✓ Mapa salvo</button>
-                        <span id="mesaSaveStatusV263" role="status" aria-live="polite">Sem alterações pendentes</span>
-                        <details id="mesaAdvancedActionsV263"><summary>⚙️ Ferramentas adicionais</summary><div id="mesaAdvancedActionsContentV263"></div></details>
-                    </div>
                     <div class="nova-board-scroll"><div id="novaSyncBoard" style="position:relative;width:1344px;height:672px;background:linear-gradient(135deg,#20314c,#18233a);border:1px solid #49668a;border-radius:10px;overflow:hidden;"></div></div>
                     <details id="novaSyncFichaGaveta" open ontoggle="try{localStorage.setItem('mesa:fichaRapida',this.open?'1':'0')}catch(e){}">
                         <summary title="Mostrar ou esconder a ficha rápida do personagem selecionado">🧾 Ficha rápida</summary>
@@ -1547,6 +1548,15 @@ html[data-tema="retro"] .market-card:hover{box-shadow:0 8px 26px rgba(255,111,17
                         #sincronizacao-nova .nova-acting-row-v102>*,#sincronizacao-nova .nova-organize-v102>*{flex-shrink:0;max-width:100%;min-width:0;}
                         #sincronizacao-nova .nova-acting-row-v102 select,#sincronizacao-nova .nova-organize-v102 select{max-width:min(100%,280px);}
                         #sincronizacao-nova #novaSyncMasterPanel button{white-space:nowrap;max-width:100%;}
+                        /* v265: informação de sincronização e controles na faixa de cabeçalho. */
+                        #mesaTopBarV265{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;width:100%;padding:4px 0 11px;margin-bottom:9px;border-bottom:1px solid rgba(150,175,205,.16);}
+                        #mesaTopBarV265 h2{flex:0 0 auto;font-size:22px;}
+                        #mesaTopBarV265 #novaSyncStatus{order:2;flex:0 1 auto;margin-left:auto;padding:7px 11px;border-radius:8px;background:rgba(0,0,0,.24);font-size:12px;}
+                        #mesaTopBarV265 #mesaSaveBarV263{order:1;flex:1 1 280px;min-width:245px;margin:0;padding:5px 9px;background:transparent;border:0;box-shadow:none;}
+                        #mesaTopBarV265 #mesaSaveBarV263 #mesaSaveStatusV263{flex:1 1 150px;}
+                        #mesaTopBarV265 #mbBarra{order:3;flex:1 0 100%;margin:0 0 5px;}
+                        #mesaTopBarV265 #mesaAdvancedActionsV263{display:none;}
+                        @media(max-width:800px){#mesaTopBarV265 #novaSyncStatus{margin-left:0;order:1;}#mesaTopBarV265 #mesaSaveBarV263{order:2;}}
                         #mesaSaveBarV263{display:flex;align-items:center;flex-wrap:wrap;gap:10px;padding:10px 12px;margin:8px 0 10px;border:1px solid rgba(135,176,185,.42);background:#14263a;border-radius:9px;clear:both;position:relative;z-index:1;}
                         #mesaSaveButtonV263{height:38px;min-width:132px;font-weight:700;}
                         #mesaSaveStatusV263{font-size:12px;color:#c3d6e1;flex:1 1 200px;}
