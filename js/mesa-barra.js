@@ -248,9 +248,13 @@ export function instalarBarraMestre(dep){
   atualizarLateral();
   const cor=el('novaSyncSharedDrawColor'),ci=barra.querySelector('[data-cor]');if(cor&&root.activeElement!==ci&&ci.value!==cor.value)ci.value=cor.value;
   const aviso=String(el('novaEditNotice')?.textContent||''),st=barra.querySelector('[data-st]');
-  const salvando=/Salvando|Sincronizando|Retirando/i.test(aviso);
-  const txt=salvando?'⏳ salvando…':/Alterações locais/i.test(aviso)?'⚠️ não salvo':'✔ tudo salvo';
-  if(st.textContent!==txt){st.textContent=txt;st.classList.toggle('salvando',txt!=='✔ tudo salvo');}
+  const r=win.mesaRascunhoMapaV193;
+  const pend=Number(r?.pendentes||0);
+  const salvando=!!r?.ocupado||/Salvando|Sincronizando|Retirando/i.test(aviso);
+  // Nunca mostrar "tudo salvo" apenas porque o aviso do editor não foi encontrado.
+  const txt=salvando?'⏳ salvando…':pend?'⚠️ '+pend+' não salvo(s)':'';
+  if(st.textContent!==txt){st.textContent=txt;st.classList.toggle('salvando',!!txt);}
+  st.hidden=!txt;
  }
 
  // ------------------------------------------------------------ paleta
