@@ -790,7 +790,31 @@ onAuthStateChanged(auth, async (user) => {
             userData = userDoc.data();
             // v138/v206: o mestre pode abrir uma aba "como jogador" (?verComo=jogador → Kael Teste;
             // ?verComo=<id de token> → modo diretor: atua como aquele PJ/NPC/criatura)
-            try{const vc=new URLSearchParams(location.search).get('verComo');if(userData?.role==='mestre'&&vc){window.mesaModoJogadorV138_=true;userData={...userData,role:'jogador',mestreReal:true};if(vc!=='jogador')window.mesaDiretorV206_=decodeURIComponent(vc);}}catch(_){}
+            try{
+                const vc=new URLSearchParams(location.search).get('verComo');
+                if(userData?.role==='mestre'&&vc){
+                    window.mesaModoJogadorV138_=true;
+                    userData={...userData,role:'jogador',mestreReal:true};
+                    if(vc!=='jogador')window.mesaDiretorV206_=decodeURIComponent(vc);
+                    // O teste "Atuar como" não pode prender o mestre na interface do NPC.
+                    // O botão aparece no cabeçalho, fora da área do mapa.
+                    let voltar=document.getElementById('mesaVoltarAoMestreV262');
+                    if(!voltar){
+                        voltar=document.createElement('button');
+                        voltar.id='mesaVoltarAoMestreV262';
+                        voltar.type='button';
+                        voltar.textContent='↩ Voltar ao mestre';
+                        voltar.title='Sair do modo Atuar como e recuperar as ferramentas do mestre';
+                        voltar.style.cssText='margin-left:10px;padding:6px 11px;background:#285a65;color:white;border:1px solid #91b5b8;border-radius:7px;cursor:pointer;font-weight:600';
+                        document.querySelector('#appScreen .user-info')?.append(voltar);
+                    }
+                    voltar.addEventListener('click',()=>{
+                        const url=new URL(location.href);
+                        url.searchParams.delete('verComo');
+                        location.assign(url.pathname+url.search+url.hash);
+                    });
+                }
+            }catch(err){console.warn('[Mesa Estelar] retorno ao mestre',err);}
             const t = traducoes[idiomaAtual];
             document.getElementById('userRole').textContent = userData.role === 'mestre' ? t.mestre : t.jogador;
             document.getElementById('configTabBtn')?.style && (document.getElementById('configTabBtn').style.display = userData.role === 'mestre' ? 'block' : 'none');
