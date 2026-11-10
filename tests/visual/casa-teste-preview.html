@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>D100 · Teste visual do renderizador</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#121926;color:#e6effb;font:14px system-ui,Segoe UI,Arial}
+header{padding:12px 18px;background:#17263a;border-bottom:1px solid #40536b}
+h1{font-size:17px;margin:0 0 5px}p{margin:0;color:#bbcee0}
+main{padding:12px;max-width:1300px;margin:auto}
+#host{width:100%;min-height:690px}
+#status{padding:8px;color:#b9d3e8}
+</style>
+</head>
+<body>
+<header><h1>Laboratório de comparação visual · Casa Teste</h1>
+<p>Uma cena de referência fixa para observar a geometria do mesmo motor usado no D100. Não acessa nem altera o Firebase.</p></header>
+<main><div id="host"></div><div id="status">Carregando módulo…</div></main>
+<script type="module">
+import {instalarLaboratorio25D} from '../js/mesa-lab25d.js?v=258';
+const W=28,H=14;
+let seq=0;
+function piece(tipo,x,y,w,h,material='madeira',nome=tipo,camada=3){
+ return {id:'qa-'+(++seq),oficina3:tipo,parteV177:tipo,nome,materialV177:material,
+ camada,x:x+w/2,y:y+h/2,larguraM:w,alturaM:h,opacity:1};
+}
+const objects=[
+ piece('chao',0,0,W,H,'adobe','Solo de teste',1),
+ piece('chao',7,2,14,10,'madeira','Piso interno',1),
+ // Casa 14x10, paredes externas com vãos reais de porta e janela.
+ piece('parede',7,2,5,.3),piece('janela',12,2,2,.3),piece('parede',14,2,7,.3),
+ piece('parede',7,11.7,6,.3),piece('porta',13,11.7,2,.3),piece('parede',15,11.7,6,.3),
+ piece('parede',7,2,.3,4),piece('janela',7,6,.3,2),piece('parede',7,8,.3,4),
+ piece('parede',20.7,2,.3,4),piece('janela',20.7,6,.3,2),piece('parede',20.7,8,.3,4),
+ piece('parede',14,2,.3,3),piece('porta',14,5,.3,2),piece('parede',14,7,.3,5),
+ piece('teto',7,2,7,10),piece('teto',14,2,7,10),
+ piece('caixote_vila',9,6,2,1,'madeira','Mesa de referência'),
+ piece('caixote_vila',17,5,1.5,1.5,'madeira','Estante de referência'),
+ piece('barril_vila',18.3,9,.9,.9,'madeira','Barril de referência')
+];
+const scene={mapId:'qa-casa-teste',objects,pilotoVersao:258};
+const lab=instalarLaboratorio25D({
+ root:document,win:window,host:document.getElementById('host'),
+ cenaAtual:()=>scene,dimensoes:()=>({W,H}),mapaAtual:()=>scene.mapId
+});
+lab.atualizar({visivel:true,modo:'mapa-construtor'});
+document.getElementById('status').textContent='Cena de referência carregada · '+objects.length+' peças · use Ver interior para inspecionar divisões.';
+window.__visualReady=true;
+window.__visualLab=lab;
+</script>
+</body></html>
