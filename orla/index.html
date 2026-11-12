@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Orla • Pequeno RPG v0.35 · Equipamento e clima</title>
+<title>Orla v0.50 · Casa 2, clima e movimento</title>
 <style>
 :root{color-scheme:dark;--ink:#eaf5e7;--muted:#b8cab3;--panel:rgba(14,31,27,.88);--line:rgba(209,239,196,.16);--mint:#b9f0ad;--gold:#ffdc89}
 *{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#223b30;font:14px/1.4 system-ui,-apple-system,Segoe UI,sans-serif;color:var(--ink)}
@@ -91,6 +91,17 @@
 #placementPreview{position:fixed;inset:0;pointer-events:none;z-index:3;width:100vw;height:100vh}
 #placementHelp{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);background:#10271de9;border:1px solid #8ab2bf;border-radius:9px;padding:7px 12px;z-index:14;color:#e9f3ed;font:12px system-ui;display:none;pointer-events:none;white-space:nowrap}
 #placementHelp.active{display:block}
+
+/* v0.50 · painéis independentes abaixo da barra, sem empilhamento */
+#top{z-index:30}
+#climate,#inventory,#equipment,#sheet,#appearancePanel,#powersPanel,#interaction{position:fixed!important;top:var(--orla-panel-top,105px)!important;right:12px!important;left:auto!important;width:min(355px,calc(100vw - 24px))!important;max-height:calc(100dvh - var(--orla-panel-top,105px) - 12px)!important;overflow:auto!important;z-index:42!important;box-shadow:0 15px 48px #081418dc!important}
+#interaction{width:min(400px,calc(100vw - 24px))!important}
+#equipment{max-width:unset!important}
+#resourceHud{display:none}
+#orlaFatigue{position:fixed;left:12px;bottom:50px;z-index:12;padding:6px 9px;background:#17292beb;color:#e8e3d3;border:1px solid #ad98706c;border-radius:7px;font:12px system-ui;pointer-events:none;min-width:165px}
+#orlaFatigue progress{width:100%;height:7px;accent-color:#9dcc86;display:block;margin-top:3px}
+#orlaFloorToggle{position:fixed;bottom:55px;right:12px;z-index:14;background:#233d38;color:#f5e6bc;border:1px solid #ad9870;border-radius:8px;padding:9px 12px;font:600 12px system-ui;cursor:pointer;display:none}
+@media(max-width:620px){#climate,#inventory,#equipment,#sheet,#appearancePanel,#powersPanel,#interaction{right:6px!important;width:calc(100vw - 12px)!important}#orlaFatigue{bottom:42px}}
 </style>
 </head>
 <body>
@@ -102,6 +113,7 @@
 <section id="climate"><h3>☀️ Tempo e clima</h3><div class="line"><span>Horário</span><strong id="clockLabel">09:00</strong></div><div class="line"><label for="clockSlider">Hora do dia</label><input type="range" id="clockSlider" min="0" max="1439" step="15" value="540"></div><div class="line"><label for="cycleToggle">Ciclo automático</label><input type="checkbox" id="cycleToggle" checked></div><div class="line"><label for="speedSlider">Velocidade do dia</label><input type="range" id="speedSlider" min="0" max="10" step="1" value="3"></div><div class="line"><label for="weatherAuto">Clima natural aleatório</label><input type="checkbox" id="weatherAuto" checked></div><div class="weather-buttons" id="weatherChoices"></div><div class="fine" id="weatherAllowed" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:10px"></div><p class="fine">Sem intervenção de Deus, o clima muda entre os dias: céu limpo mais comum, chuva e vento ocasionais, areia incomum e meteoros raros. Luzes iluminam a vizinhança à noite.</p></section><aside id="sheet"><h3 id="sheetTitle">Ficha D100</h3><div id="sheetStats"></div><p id="sheetNote"></p><button id="sheetClose">Fechar</button></aside>
 <section id="appearancePanel" class="orla-custom"><h3>🎨 Aparência</h3><label>Cor da pele <input id="skinColor" type="color" value="#dca26b"></label><label>Cor do cabelo <input id="hairColor" type="color" value="#bd7539"></label><label>Cor da roupa <input id="outfitColor" type="color" value="#713843"></label><label>Estilo do cabelo <select id="hairStyle"><option value="short">Curto</option><option value="long">Comprido</option><option value="bald">Careca</option></select></label><label>Roupa <select id="outfitStyle"><option value="tunic">Túnica</option><option value="coat">Casaco</option><option value="armor">Armadura</option><option value="robe">Manto longo</option></select></label><label>Cor das calças <input id="pantsColor" type="color" value="#303a4b"></label><label>Cor dos olhos <input id="eyeColor" type="color" value="#43342f"></label><label>Constituição <select id="bodyStyle"><option value="normal">Normal</option><option value="slim">Delgado</option><option value="strong">Robusto</option></select></label><label id="godFaceRow">Barba de Deus <select id="beardStyle"><option value="long">Longa</option><option value="short">Curta</option><option value="none">Sem barba</option></select></label><p id="characterHint" class="muted">Aparência salva separadamente por personagem.</p><button id="appearanceClose">Salvar e fechar</button></section><section id="powersPanel" class="orla-custom"><h3>👁 Poderes de Deus</h3><label>Manifestação <select id="godPresence"><option value="normal">Visível</option><option value="translucent">Translúcido</option><option value="invisible">Invisível</option><option value="ethereal">Invisível e intangível</option></select></label><p>Telecinese, teleporte, clarividência, controle de matéria, invulnerabilidade e acesso total ao cenário. Escolha a manifestação acima e use o editor Tab para manipular o mundo de qualquer distância.</p><button id="godTeleport" type="button">🧠 Teletransportar</button><button id="godCreateItem" type="button">✨ Materializar item</button><button id="powersClose">Fechar</button></section><section id="editor"><div class="status" id="editorStatus">Modo de edição · clique no objeto para selecioná-lo.</div><div class="editor-actions" id="editorActions"></div></section>
 <div class="bottom"><strong>WASD</strong> ou <strong>setas</strong> para andar &nbsp;·&nbsp; <strong>clique</strong> para caminhar &nbsp;·&nbsp; <strong>botão direito</strong> abrir/fechar · <strong>Shift + direito</strong> trancar/destrancar · <strong>Shift + movimento</strong> empurrar móveis &nbsp;·&nbsp; <strong>direito na luminária</strong> ligar/desligar &nbsp;·&nbsp; <strong>E</strong> para interagir &nbsp;·&nbsp; <strong>Espaço ou Espaço + direção/clique</strong> pular &nbsp;·&nbsp; <strong>I</strong> inventário &nbsp;·&nbsp; <strong>Q/R</strong> para girar a câmera &nbsp;·&nbsp; <strong>roda</strong> para zoom</div>
+<div id="orlaFatigue">Fadiga <span id="orlaFatigueValue">100/100</span><progress id="orlaFatigueBar" max="100" value="100"></progress></div><button id="orlaFloorToggle" type="button">Escada · E para subir</button>
 <div id="resourceHud" style="position:absolute;left:14px;top:150px;background:#172c24e8;border:1px solid #8aa77d;border-radius:9px;padding:8px 11px;z-index:5;font-size:12px">🪓 1 Machado · ⛏️ 2 Picareta · 🪏 3 Pá<br><span id="resourceMode">Ferramenta: Machado</span><br><small>Botão direito nos recursos próximos</small></div><div id="help" role="dialog" aria-modal="true" aria-label="Como jogar"><div class="dialog"><h2>Bem-vindo a Orla</h2><p>Este é nosso começo: uma única casa, um viajante e um pequeno bosque.</p><p>Use <b>WASD</b> ou as setas para andar. Clique no terreno para ir até lá. Entre pela porta na frente da casa para ver o interior. Pressione <b>E</b> perto da porta, da chave ou do baú para interagir. Ao clicar nesses objetos você também pode caminhar até eles. A casa começa trancada: encontre a chave dourada junto à trilha, pegue-a e destranque a porta. Clique numa luminária para acender ou apagar; o estado fica salvo no navegador. Há outra chave dentro da casa para o baú. Algumas peças têm materialidade: o tapete é passável, a mesa pode ser empurrada para a frente (mas não se prende ao personagem) e paredes/armários bloqueiam sua passagem. Pressione Espaço para pular no mesmo lugar, ou use Espaço com uma direção/clique para pular sobre objetos baixos (como o baú).</p><p>A porta pode ser destrancada, aberta, fechada e trancada novamente. O baú possui sua própria fechadura e chave, além de moedas e um cristal que você pode recolher. O telhado desaparece automaticamente quando você entra. Equipamento e mochila são painéis separados: a mochila só abre depois de equipada. Use Tab para selecionar, mover e girar móveis. Arraste os itens do inventário somente para locais ao alcance do personagem. Clique diretamente nos itens do chão para recolhê-los com o botão direito. Use o editor Tab para mover ou girar. Segure Shift enquanto caminha em direção a móveis com 50 kg ou mais para empurrá-los; móveis leves podem ser empurrados sem Shift. Use Q/R ou os botões ↶ ↷ para girar a câmera horizontalmente, sem alterar a inclinação. Você também pode arrastar com o botão direito do mouse para girar. Tudo funciona em um único arquivo, sem precisar de internet ou conta.</p><button id="closeHelp">Começar a explorar</button></div></div>
 <script>(() => {
   var __defProp = Object.defineProperty;
@@ -3752,6 +3764,12 @@
       state.ctx.fill();
     }
     state.ctx.restore();
+    if (state.snowAccum > 0.004) {
+      state.ctx.save();
+      state.ctx.globalAlpha = Math.min(0.83, state.snowAccum * 0.72);
+      state.poly(corners, "#e4eff0");
+      state.ctx.restore();
+    }
     state.quad3([3.08, 5.04, 0.015], [4.14, 5.04, 0.015], [4.14, 14, 0.015], [3.08, 14, 0.015], "#b5aa8b");
     for (let t = 5.15; t < 13.7; t += 0.55) state.line3([3.08, t, 0.02], [4.14, t, 0.02], "#f1e8cb2b", 0.9);
   }
@@ -3784,6 +3802,13 @@
       state.ctx.beginPath();
       state.ctx.arc(pt[0], pt[1], r, 0, Math.PI * 2);
       state.ctx.fill();
+      if (state.snowAccum > 0.015) {
+        state.ctx.save(); state.ctx.globalAlpha = Math.min(.9,state.snowAccum);
+        state.ctx.fillStyle = "#eef8f8";
+        state.ctx.beginPath();
+        state.ctx.ellipse(pt[0]-r*.12,pt[1]-r*.60,r*.57,r*.17,-.11,0,Math.PI*2);
+        state.ctx.fill();state.ctx.restore();
+      }
       for (let j = 0; j < 8; j++) {
         let ang = state.rnd(i * 37 + j * 51 + x * 11) * Math.PI * 2, rr = r * (0.15 + state.rnd(i * 43 + j * 71) * 0.72);
         state.ctx.fillStyle = j % 3 ? "#a6cf65" : "#79b35d";
@@ -3810,6 +3835,12 @@
       state.ctx.beginPath();
       state.ctx.arc(pt[0], pt[1], r, 0, 7);
       state.ctx.fill();
+      if(state.snowAccum > .02){
+        state.ctx.save();state.ctx.globalAlpha=Math.min(.9,state.snowAccum);
+        state.ctx.fillStyle="#eaf3f3";state.ctx.beginPath();
+        state.ctx.ellipse(pt[0],pt[1]-r*.62,r*.66,r*.20,0,0,Math.PI*2);
+        state.ctx.fill();state.ctx.restore();
+      }
     }
   }
   function floorSurface() {
@@ -5523,7 +5554,13 @@
     if (mag < 0.01) return;
     dx /= mag;
     dz /= mag;
-    const speed = 2.5 * dt;
+    const sprintRequested = state.keys.has("c") || state.runMouseBoth;
+    const sprintAllowed = state.godMode() || (state.fatigue||0) > 2.5;
+    state.sprinting = !!(sprintRequested && sprintAllowed);
+    const moveStat = state.godMode()?9:state.SHEETS.traveler.mov;
+    const walkSpeed = state.godMode()?3.7:Math.max(1.5,moveStat*.5);
+    const speed = walkSpeed * (state.sprinting ? (state.godMode()?2.6:1.7) : 1) * dt;
+    if(state.sprinting&&!state.godMode())state.fatigue=Math.max(0,state.fatigue-dt*(3.3+Math.max(0,12-state.SHEETS.traveler.CON)*.5));
     const tryAxis = (stepX, stepZ) => {
       const nx = state.player.x + stepX, nz = state.player.z + stepZ;
       if (state.godPhasing()) {
@@ -5593,6 +5630,9 @@
   function tick(t) {
     let dt = Math.min(0.05, (t - state.last) / 1e3 || 0);
     state.last = t;
+    if(!state.godMode()&&!state.sprinting)state.fatigue=Math.min(state.maxFatigue||100,(state.fatigue||0)+dt*2.15);
+    if(state.godMode())state.fatigue=state.maxFatigue||100;
+    state.sprinting=false;
     const angleDiff = state.cameraGoal - state.cameraYaw;
     state.cameraYaw += angleDiff * Math.min(1, dt * 9);
     if (Math.abs(state.cameraGoal - state.cameraYaw) < 8e-5) state.cameraYaw = state.cameraGoal;
@@ -7105,6 +7145,7 @@
         if (!state.dialog.classList.contains("open")) state.interact();
         return;
       }
+      if (k === "c") {state.keys.add("c");return;}
       if (k === "shift") {
         state.keys.add("shift");
         return;
@@ -7251,6 +7292,7 @@
       };
       if (state.helpOpen) return;
       if (e.button === 2) {
+        if(e.buttons===3){state.runMouseBoth=true;state.dragRotate=null;state.target=state.worldAt(e.clientX,e.clientY);return;}
         state.dragRotate = {
           id: e.pointerId,
           x: e.clientX,
@@ -7261,6 +7303,7 @@
         state.canvas.style.cursor = "ew-resize";
         return;
       }
+      if(e.button===0&&e.buttons===3&&!state.editMode){state.runMouseBoth=true;state.dragRotate=null;state.target=state.worldAt(e.clientX,e.clientY);return;}
       if (e.button !== 0) return;
       if (state.editMode) {
         if (state.editPlacing) {
@@ -7371,7 +7414,7 @@
     });
   }
   function initialize094() {
-    state.stopDrag = (e) => {
+    state.stopDrag = (e) => { if((e.buttons&3)!==3)state.runMouseBoth=false;
       if (state.dragRotate && state.dragRotate.id === e.pointerId) {
         const info = state.dragRotate;
         state.dragRotate = null;
@@ -7861,6 +7904,7 @@
     state.wc.setTransform(pixel, 0, 0, pixel, 0, 0);
   }
   function weatherTick(dt) {
+    state.snowAccum = Math.max(0,Math.min(1.2,(state.snowAccum||0)+ (state.climate.weather === "snow" ? dt*.027 : -dt*.004)));
     const w = state.weatherCanvas.clientWidth || window.innerWidth, h = state.weatherCanvas.clientHeight || window.innerHeight;
     state.wc.clearRect(0, 0, w, h);
     if (state.climate.auto) {
@@ -7916,9 +7960,9 @@
         const rain = state.climate.weather === "rain", snow = state.climate.weather === "snow";
         p.x += (snow ? 30 : rain ? -110 : state.climate.weather === "sand" ? 180 : 250) * dt * p.v;
         p.y += (snow ? 75 : rain ? 600 : state.climate.weather === "sand" ? 38 : -15) * dt * p.v;
-        if (p.y > h + 15 || p.x > w + 25 || p.y < -25) {
-          p.x = rain ? Math.random() * w : -20;
-          p.y = rain ? -15 : Math.random() * h;
+        if (p.y > h + 15 || p.x > w + 25 || p.y < -25 || p.x < -25) {
+          if(snow){p.x=Math.random()*w; p.y=-10-Math.random()*65;}
+          else {p.x=rain?Math.random()*w:-20;p.y=rain?-15:Math.random()*h;}
         }
         state.wc.strokeStyle = snow ? "rgba(242,250,255,.92)" : rain ? "rgba(188,218,249,.57)" : state.climate.weather === "sand" ? "rgba(218,184,123,.58)" : "rgba(222,244,216,.32)";
         state.wc.lineWidth = snow ? 2.7 : rain ? 1.2 : state.climate.weather === "wind" ? 1.25 : 2;
@@ -8422,6 +8466,147 @@ precision mediump float;in vec3 vCol;out vec4 outColor;void main(){outColor=vec4
   installPlacementPreview();
   installAtmosphere();
   installOcclusion();
+
+  function installOrla050(){
+    state.maxFatigue=Math.max(35, state.SHEETS.traveler.CON*8); // protótipo D100 contínuo: CON determina reserva
+    state.fatigue=state.maxFatigue;
+    state.sprinting=false;state.runMouseBoth=false;state.snowAccum=0;
+    state.secondFloor=false;
+    state.stairArea={x:6.18,z:1.65,w:1.30,d:2.10};
+    const fatigueLabel=document.getElementById('orlaFatigueValue'), fatigueBar=document.getElementById('orlaFatigueBar');
+    const floorButton=document.getElementById('orlaFloorToggle');
+    const popupIds=['climate','inventory','equipment','sheet','appearancePanel','powersPanel','interaction'];
+    const popupButtons=['climateBtn','inventoryBtn','equipmentBtn','sheetBtn','appearanceBtn','powersBtn'];
+    function positionPanels(){
+      const header=document.getElementById('top');
+      const h=header?.getBoundingClientRect();
+      document.documentElement.style.setProperty('--orla-panel-top',Math.max(62,Math.ceil(h?.bottom||65)+8)+'px');
+    }
+    positionPanels();window.addEventListener('resize',positionPanels);
+    new ResizeObserver(positionPanels).observe(document.getElementById('top'));
+    function hidePanels(except=''){
+      for(const id of popupIds){if(id!==except)document.getElementById(id)?.classList.remove('open');}
+    }
+    // Captura antes dos eventos antigos: ao abrir um painel fecha os demais.
+    document.addEventListener('pointerdown',e=>{
+      const source=e.target;
+      const btn=source.closest?.('button');
+      const panel=source.closest?.('#'+popupIds.join(',#'));
+      if(panel)return;
+      if(btn&&popupButtons.includes(btn.id)){
+        const target={climateBtn:'climate',inventoryBtn:'inventory',equipmentBtn:'equipment',sheetBtn:'sheet',appearanceBtn:'appearancePanel',powersBtn:'powersPanel'}[btn.id];
+        hidePanels(target);return;
+      }
+      if(!source.closest?.('#top')&&!source.closest?.('#editor'))hidePanels();
+    },true);
+    const oldCloseClimate=state.closeClimate;
+    // Force every popup into the same responsive top anchor; keep custom open/close logic.
+    const oldDrawInner=state.drawInnerScene;
+    function drawStair(){
+      if(!state.inside(state.player.x,state.player.z)||state.secondFloor)return;
+      const a=state.stairArea;
+      for(let i=0;i<11;i++){
+        const z=a.z+i*a.d/11;
+        state.box3(a.x,z,a.w,a.d/11+.01,.12+i*.21,['#735137','#9a7048','#c49b65'],i*.21);
+      }
+      state.line3([a.x-.08,a.z,0.15],[a.x-.08,a.z+a.d,2.65],'#e5c89d',3);
+      state.line3([a.x+a.w+.08,a.z,.15],[a.x+a.w+.08,a.z+a.d,2.65],'#e5c89d',3);
+    }
+    function drawUpperFloor(){
+      const hw=state.currentHouseWidth(),rise=2.84;
+      // Laje elevada, com vão central real para a escada.
+      const baseP=state.P;
+      const drawAt=(fn)=>{state.P=(x,z,y=0)=>baseP(x,z,y+rise);try{fn();}finally{state.P=baseP;}};
+      drawAt(()=>{
+        state.rectFloor(.08,.08,6.0,4.84,'#97683f');
+        state.rectFloor(7.62,.08,hw-7.7,4.84,'#97683f');
+        state.rectFloor(6.08,.08,1.54,1.48,'#97683f');
+        state.rectFloor(6.08,3.86,1.54,1.06,'#97683f');
+        for(let z=.2;z<5;z+=.30){
+          state.line3([.12,z,.04],[6.07,z,.04],'#c69a67',.85);
+          state.line3([7.64,z,.04],[hw-.15,z,.04],'#c69a67',.85);
+        }
+        // Guardas em torno da abertura, não uma parede fechando a escada.
+        state.wallX(6.08,1.58,3.80,.60,'#c9ad83');
+        state.wallX(7.64,1.58,3.80,.60,'#c9ad83');
+        state.wallZ(1.58,6.08,7.64,.6,'#c9ad83');
+        state.wallZ(0,.08,hw-.08,.50,'#e1caab');
+        state.wallX(0,.08,4.92,.48,'#e1caab');
+        state.wallX(hw,.08,4.92,.48,'#e1caab');
+        state.wallZ(5,.08,hw-.08,.48,'#e1caab');
+      });
+      state.character();
+    }
+    state.drawInnerScene=()=>{
+      if(state.secondFloor){drawUpperFloor();return;}
+      oldDrawInner();drawStair();
+    };
+    const originalSupport=state.supportHeight;
+    state.supportHeight=(x,z)=>state.secondFloor&&state.inside(x,z)?2.84:originalSupport(x,z);
+    const originalWalk=state.canWalk;
+    state.canWalk=(x,z,ignore)=>state.secondFloor ? x>.35&&x<state.currentHouseWidth()-.35&&z>.35&&z<4.65&&!(x>6.10&&x<7.63&&z>1.58&&z<3.82) : originalWalk(x,z,ignore);
+    const originalMove=state.move;
+    state.move=(dx,dz,dt)=>{
+      if(!state.secondFloor)return originalMove(dx,dz,dt);
+      const oldWalls=state.wallBarriers;
+      state.wallBarriers=()=>[];
+      try{return originalMove(dx,dz,dt);}finally{state.wallBarriers=oldWalls;}
+    };
+    function staircaseNear(){
+      const a=state.stairArea;
+      const cx=a.x+a.w/2,cz=a.z+a.d/2;
+      return state.inside(state.player.x,state.player.z)&&Math.hypot(state.player.x-cx,state.player.z-cz)<2.15;
+    }
+    function switchFloor(){
+      if(!staircaseNear()&&!state.secondFloor){state.toast('Aproxime-se da escada no centro da sala.');return;}
+      state.secondFloor=!state.secondFloor;
+      state.target=null;
+      state.player.x=state.secondFloor?6.0:6.75;
+      state.player.z=state.secondFloor?3.95:3.7;
+      state.player.elevation=state.secondFloor?2.84:0;
+      state.toast(state.secondFloor?'Segundo andar · pressione E para descer.':'Térreo · pressione E perto da escada para subir.');
+    }
+    floorButton.addEventListener('click',switchFloor);
+    window.addEventListener('keydown',e=>{
+      if(e.key.toLowerCase()==='e'&&!e.repeat&&(state.secondFloor||staircaseNear())&&!e.target.closest?.('input,textarea,select')){
+        e.stopImmediatePropagation();e.preventDefault();switchFloor();
+      }
+    },true);
+    // Makes wood available for testing without modifying the inventory of existing saves.
+    if(!state.game.stores.inventory.includes('wood') && !state.game.droppedItems.some(it=>it.type==='wood'&&it.x>7&&it.x<10&&it.z<5)){
+      for(let i=0;i<3;i++){state.game.droppedItems.push({type:'wood',x:8.24+i*.25,z:2.55});state.game.stores.floor.push('wood');}
+    }
+    // Accessible 'wood stock' action to test fireplace without uncertain right-click drag interactions.
+    const stock=document.createElement('button');
+    stock.id='orlaWoodTest';stock.textContent='🪵 Lenha para teste';
+    stock.title='Aproxime-se da lareira para apanhar lenha de teste';
+    stock.style.cssText='position:fixed;right:12px;bottom:11px;z-index:14;background:#293b30;color:#eed2a4;border:1px solid #96816b;border-radius:7px;padding:7px 10px;cursor:pointer';
+    document.body.append(stock);
+    stock.onclick=()=>{
+      if(!state.inside(state.player.x,state.player.z)||Math.hypot(state.player.x-9.45,state.player.z-1.7)>2.7)return state.toast('Aproxime-se da lareira para apanhar lenha.');
+      if(state.game.stores.inventory.length<40){state.game.stores.inventory.push('wood');state.inventoryDraw();state.saveGame();state.toast('Lenha recebida: segure-a e clique com o direito na lareira.');}
+      else state.toast('Mochila cheia. Pegue lenha do chão.');
+    };
+    state.fatigue=state.maxFatigue;
+    // animation HUD + recovery; avoid replacing core game tick.
+    let last=performance.now();
+    const hud=()=>{
+      let now=performance.now(),dt=Math.min(.1,(now-last)/1000);last=now;
+      if(!state.sprinting&&!state.godMode())state.fatigue=Math.min(state.maxFatigue,state.fatigue+dt*2.1);
+      if(state.godMode())state.fatigue=state.maxFatigue;
+      const v=Math.max(0,Math.round(state.fatigue));
+      fatigueLabel.textContent=state.godMode()?'∞':`${v}/${state.maxFatigue}`;
+      fatigueBar.max=state.maxFatigue;fatigueBar.value=v;
+      floorButton.style.display=state.inside(state.player.x,state.player.z)?'block':'none';
+      floorButton.textContent=state.secondFloor?'⬇ Descer (E)':staircaseNear()?'⬆ Subir (E)':'⬆ Escada: aproxime-se';
+      requestAnimationFrame(hud);
+    };hud();
+    window.addEventListener('pointerup',()=>{state.runMouseBoth=false},true);
+    window.addEventListener('blur',()=>{state.runMouseBoth=false},true);
+    state.__orla050={switchFloor,staircaseNear};
+  }
+
+  installOrla050();
   if (new URLSearchParams(location.search).has("test")) window.__orlaTest = { state };
 })();
 </script>
