@@ -5745,7 +5745,7 @@ body.orla-editor #orlaFloorToggle{display:none!important}
             if (state.canWalk(state.target.x, state.target.z)) {
               state.player.x = state.target.x;
               state.player.z = state.target.z;
-              state.player.elevation = 0;
+              state.player.elevation = state.supportHeight(state.player.x,state.player.z);
             }
             state.target = null;
           } else {
