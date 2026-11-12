@@ -1,0 +1,2239 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Orla • Pequeno RPG v0.35 · Equipamento e clima</title>
+<style>
+:root{color-scheme:dark;--ink:#eaf5e7;--muted:#b8cab3;--panel:rgba(14,31,27,.88);--line:rgba(209,239,196,.16);--mint:#b9f0ad;--gold:#ffdc89}
+*{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#223b30;font:14px/1.4 system-ui,-apple-system,Segoe UI,sans-serif;color:var(--ink)}
+#game{width:100%;height:100%;display:block;touch-action:none;cursor:crosshair;position:relative;z-index:0}
+#top{position:absolute;top:16px;left:18px;right:18px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;pointer-events:none}
+.brand,.actions,.hint,.toast,.bottom{background:var(--panel);border:1px solid var(--line);backdrop-filter:blur(14px);box-shadow:0 10px 40px #061a1240}
+.brand{padding:9px 13px;border-radius:15px;display:flex;align-items:center;gap:11px}.brand b{display:block;font-family:Georgia,serif;font-size:20px;letter-spacing:.04em;font-weight:700}.brand small{display:block;color:var(--muted);font-size:11px;letter-spacing:.08em;text-transform:uppercase}.mark{display:grid;place-items:center;background:#315d44;border:1px solid #71936d;border-radius:11px;width:39px;height:39px;font-size:21px}
+.actions{pointer-events:auto;display:flex;gap:5px;padding:6px;border-radius:14px;align-items:center;flex-wrap:wrap;justify-content:flex-end}button{font:600 12px system-ui;cursor:pointer;border:0;border-radius:10px;background:transparent;color:#e5f3df;padding:10px 12px;white-space:nowrap}button:hover{background:#42634a}button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}.accent{background:#cbe6a5;color:#193b2d}.accent:hover{background:#ecf7c8}
+.bottom{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);padding:11px 15px;border-radius:13px;text-align:center;font-size:12px;color:#e7f1df;pointer-events:none;white-space:nowrap}
+.bottom strong{color:var(--gold)}.toast{position:absolute;top:84px;left:50%;transform:translateX(-50%);border-radius:12px;padding:12px 18px;opacity:0;transition:opacity .25s;pointer-events:none;max-width:min(90vw,500px);text-align:center}.toast.on{opacity:1}
+#help{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:#0a1b16ad;backdrop-filter:blur(7px);padding:18px}#help.open{display:flex}.dialog{max-width:420px;width:100%;background:#182d28;border:1px solid #7da07d55;padding:24px;border-radius:20px;box-shadow:0 25px 100px #0008}.dialog h2{font:28px Georgia,serif;margin:0 0 12px}.dialog p{color:#c4d5bd}.dialog button{background:#d5e9af;color:#1d3929;margin-top:10px}
+@media(max-width:700px){#top{top:8px;left:8px;right:8px}.brand{padding:6px 8px}.brand b{font-size:15px}.mark{height:31px;width:31px}.actions{gap:0;padding:3px}.actions button{padding:8px 7px;font-size:11px}.bottom{width:calc(100% - 16px);white-space:normal;bottom:8px;padding:8px 10px}}
+#interaction{position:absolute;left:50%;bottom:84px;transform:translateX(-50%);display:none;width:min(430px,calc(100vw - 24px));padding:17px 19px;border-radius:16px;background:#172c24f2;border:1px solid #a1c98c90;box-shadow:0 18px 48px #04120daa;z-index:10;text-align:center}
+#interaction.open{display:block}#interaction h3{font:23px Georgia,serif;margin:0 0 4px}#interaction p{color:#d5e4cf;margin:7px 0 12px}#interaction .choices{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}#interaction button{background:#354f3e;border:1px solid #71936d}#interaction button.primary{background:#d2e6ab;color:#233a26}
+#inventory{position:absolute;right:18px;top:83px;width:min(360px,calc(100vw - 32px));padding:15px;background:#162b23f4;border:1px solid #72956e;border-radius:15px;z-index:9;display:none;box-shadow:0 15px 40px #0008}#inventory.open{display:block}#inventory h3{margin:0 0 8px;font:21px Georgia,serif}#inventory .muted{font-size:12px;color:#a8c4a5}#inventory button{margin-top:10px;background:#3d5d46}#inventory .inventory-meta{font-size:12px;color:#cfe0c8;margin-bottom:8px}#inventory .inventory-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;margin:10px 0 0}#inventory .inventory-cell{min-height:44px;border:1px dashed #56745c;border-radius:8px;background:#21372c80}#inventory .inventory-item{cursor:grab;user-select:none;border:1px solid #6d9064;background:linear-gradient(180deg,#35533f,#274133);padding:6px;border-radius:10px;display:flex;flex-direction:column;justify-content:space-between;min-height:44px;gap:4px;color:#eef7e8}#inventory .inventory-item:active{cursor:grabbing}#inventory .inventory-item .icon{font-size:16px;line-height:1}#inventory .inventory-item .name{font-size:11px;line-height:1.15;color:#eff7e8}#inventory .inventory-item .size{font-size:10px;color:#bfd3ba}#inventory .inventory-empty{padding:8px 0;color:#d4e6cf}#game.dragging{cursor:copy!important}
+@media(max-width:700px){#interaction{bottom:75px}#inventory{top:66px;right:8px;width:min(340px,calc(100vw - 16px))}}
+
+#editor{position:absolute;left:12px;bottom:61px;right:12px;z-index:12;display:none;pointer-events:auto;background:#142a22f5;border:1px solid #8dba81;border-radius:13px;padding:10px 12px;box-shadow:0 12px 35px #0009}
+#editor.open{display:block}#editor .editor-actions{display:flex;flex-wrap:wrap;gap:5px;align-items:center}#editor button{border:1px solid #60835f;background:#32523c;padding:8px 10px}#editor button.selected{background:#dfd7a7;color:#172a21}#editor .status{color:#c8d8be;font-size:12px;margin-bottom:7px}
+#sheet{position:absolute;left:15px;top:84px;z-index:13;width:min(295px,calc(100vw - 32px));max-height:calc(100vh - 185px);overflow:auto;display:none;background:#142b23f4;border:1px solid #779e71;border-radius:13px;padding:14px}#sheet.open{display:block}#sheet h3{font:23px Georgia,serif;margin:0 0 10px}#sheet .stat{display:flex;justify-content:space-between;border-bottom:1px solid #516d5366;padding:5px 0}#sheet p{color:#c3d5bd;font-size:12px}#sheet button{background:#426048;margin-top:8px}
+@media(max-width:700px){#editor{bottom:56px;max-height:30vh;overflow-y:auto}#editor button{padding:7px;font-size:11px}}
+
+#glView,#weatherView{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;display:block}
+#glView{z-index:1}#weatherView{z-index:2}
+#top{z-index:4}#editor{z-index:12}#interaction{z-index:10}#inventory{z-index:9}#sheet{z-index:13}
+#climate{position:absolute;right:18px;top:155px;width:min(320px,calc(100vw - 36px));z-index:15;display:none;padding:14px;border-radius:13px;background:#142b24f5;border:1px solid #7caa83;box-shadow:0 14px 50px #0008}
+#climate.open{display:block}#climate h3{margin:0 0 9px;font:21px Georgia,serif}#climate .line{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:10px 0;font-size:12px}#climate .weather-buttons{display:flex;gap:5px;flex-wrap:wrap}#climate button{background:#365340;border:1px solid #718f69;padding:7px 9px}#climate button.active{background:#d8e8ba;color:#18291e}#climate input{width:160px;accent-color:#c4dfa6}#climate .fine{color:#b9d0ba;font-size:11px;margin-top:8px}
+#timePanel{position:absolute;left:18px;bottom:69px;z-index:3;background:#163128cf;border:1px solid #9dc39066;border-radius:11px;padding:6px 10px;color:#ecf5e8;font-size:12px;pointer-events:none}
+@media(max-width:700px){#climate{top:124px;right:8px}#timePanel{bottom:60px;left:8px}}
+.orla-custom{position:absolute;top:88px;right:16px;z-index:16;display:none;width:min(320px,calc(100vw - 32px));max-height:70vh;overflow:auto;padding:16px;background:#152d24f4;border:1px solid #7d9b70;border-radius:15px;box-shadow:0 12px 40px #0008}.orla-custom.open{display:block}.orla-custom h3{margin:0 0 13px;font:22px Georgia,serif}.orla-custom label{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:10px 0;color:#e1edd7}.orla-custom input,.orla-custom select{background:#294233;color:white;border:1px solid #6f9168;border-radius:8px;min-height:32px;padding:3px}.orla-custom button{background:#466a4c;margin-top:10px}.orla-custom p{font-size:12px;line-height:1.6;color:#c6d7c3}
+/* Interface compacta: a área do mundo é prioridade */
+#top{top:9px;left:10px;right:10px;gap:8px;justify-content:flex-end}
+#top .brand{padding:5px 9px;min-height:37px;align-self:flex-start;opacity:.88}
+#top .brand small{display:none}
+#top .brand b{font-size:15px}
+#top .mark{width:27px;height:27px;font-size:14px}
+#top .actions{max-width:min(600px,calc(100vw - 175px));padding:3px 5px;flex-wrap:nowrap;gap:2px}
+#top .actions button{padding:6px 8px;font-size:12px}
+#top .actions .secondary-control{display:none}
+#top .actions.expanded{flex-wrap:wrap;max-width:min(660px,calc(100vw - 150px))}
+#top .actions.expanded .secondary-control{display:inline-flex}
+#top .actions button#menuBtn{background:#375f45;color:#edf9e7}
+.bottom{display:none!important}
+#resourceHud{display:none!important}
+#timePanel{left:9px;bottom:9px;padding:4px 7px;font-size:11px}
+#editor{max-height:160px;overflow-y:auto;bottom:8px;left:10px;right:10px}
+#climate{top:64px}
+#equipment{position:absolute;top:57px;left:10px;z-index:7;display:none;max-width:380px;padding:10px;background:#142d24ee;border:1px solid #739b76;border-radius:12px;box-shadow:0 10px 35px #0008}
+#equipment.open{display:block}
+#equipment .eq-slots{display:grid;grid-template-columns:repeat(4,minmax(72px,1fr));gap:6px}
+#equipment .eq-slot{min-height:64px;border:1px solid #6a9070;border-radius:8px;background:#243d2d;color:#dcebd6;text-align:center;padding:5px 3px;cursor:pointer}
+#equipment .eq-slot strong{display:block;font-size:11px;margin-bottom:7px}
+#equipment .eq-slot span{font-size:12px}
+#equipment .eq-info{font-size:11px;color:#c9d6c7;margin-top:7px}
+#inventory{top:57px;right:10px}
+#appearancePanel,#powersPanel,#sheet{top:58px}
+#equipment .panel-head,#inventory .panel-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+#equipment .panel-head h3,#inventory .panel-head h3{margin:0;font-size:18px}
+.panel-close{border:1px solid #7da07f;background:#274232;color:#eef6ea;border-radius:8px;padding:4px 9px;cursor:pointer}
+@media(max-width:700px){#top .brand{display:none}#top .actions{max-width:calc(100vw - 20px)}#equipment{left:5px;top:49px;max-width:calc(100vw - 10px)}#timePanel{bottom:5px}}
+</style>
+</head>
+<body>
+<canvas id="game" draggable="true" aria-label="Jogo isométrico com casa, personagem e árvores"></canvas><canvas id="glView" aria-hidden="true"></canvas><canvas id="weatherView" aria-hidden="true"></canvas><div id="timePanel">☀️ 09:00 · Céu limpo</div>
+<header id="top"><div class="brand"><span class="mark">✦</span><div><b>ORLA</b><small>Um pequeno mundo para explorar</small></div></div><nav class="actions" id="topActions" aria-label="Controles do jogo"><button id="menuBtn" title="Mostrar ou ocultar controles">☰ Menu</button><span id="saveStatus" title="Situação do salvamento da partida" style="font-size:11px;color:#c4ddc2;white-space:nowrap">● Partida local</span><button class="secondary-control" id="exportSave" title="Baixar cópia da partida">💾 Exportar</button><button class="secondary-control" id="importSave" title="Restaurar cópia da partida">📂 Importar</button><input type="file" id="saveFile" accept="application/json,.json" style="display:none"><button class="secondary-control" id="roof" title="Alternar telhado">🏠 Telhado: auto</button><button class="secondary-control" id="turnL" title="Girar a câmera para a esquerda (Q)">↶ Girar</button><button class="secondary-control" id="turnR" title="Girar a câmera para a direita (R)">Girar ↷</button><button class="secondary-control" id="minus" title="Diminuir zoom">−</button><button class="secondary-control" id="plus" title="Aumentar zoom">+</button><button class="secondary-control" id="appearanceBtn" title="Personalizar aparência">🎨 Aparência</button><button id="powersBtn" title="Poderes de Deus" style="display:none">👁 Poderes</button><button class="secondary-control" id="sheetBtn" title="Ficha D100 (F)">📜 Ficha</button><button id="roleBtn" title="Trocar de personagem">🧙 Viajante</button><button id="editBtn" title="Modo de edição (Tab)">✎ Editar</button><button id="inventoryBtn" title="Abrir a mochila se estiver equipada (I)">🎒 Mochila</button><button id="equipmentBtn" title="Equipamento (B)">⚔️ Equipar</button><button id="graphicsBtn" style="display:none" title="Modo 3D experimental desativado">🧊 3D</button><button class="secondary-control" id="climateBtn" title="Tempo e clima, configurável pelo Deus">☀️ Clima</button><button class="secondary-control" id="helpbtn" title="Controles e ajuda">? Ajuda</button></nav></header>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<section id="interaction" role="dialog" aria-label="Interagir com objeto" aria-live="polite"><h3 id="dialogTitle"></h3><p id="dialogText"></p><div class="choices" id="dialogChoices"></div><small style="color:#a5c19f">Clique na opção ou pressione Enter · Esc para sair</small></section>
+<section id="equipment"><div class="panel-head"><h3>⚔️ Equipamento</h3><button id="equipmentClose" class="panel-close" type="button">Fechar</button></div><div class="eq-slots" id="eqSlots"></div><div class="eq-info" id="eqInfo">Equipe mochila, roupas e ferramentas.</div></section><aside id="inventory"><div class="panel-head"><h3>🎒 Mochila</h3><button id="inventoryClose" class="panel-close" type="button">Fechar</button></div><div id="inventoryMeta" class="inventory-meta"></div><div id="inventoryItems" class="inventory-grid"></div><p class="muted">A mochila é um inventário separado do equipamento. Clique direito em um item para segurá-lo; clique no equipamento para usar ferramentas.</p><button id="restart">↺ Reiniciar aventura de teste</button></aside>
+<section id="climate"><h3>☀️ Tempo e clima</h3><div class="line"><span>Horário</span><strong id="clockLabel">09:00</strong></div><div class="line"><label for="clockSlider">Hora do dia</label><input type="range" id="clockSlider" min="0" max="1439" step="15" value="540"></div><div class="line"><label for="cycleToggle">Ciclo automático</label><input type="checkbox" id="cycleToggle" checked></div><div class="line"><label for="speedSlider">Velocidade do dia</label><input type="range" id="speedSlider" min="0" max="10" step="1" value="3"></div><div class="line"><label for="weatherAuto">Clima natural aleatório</label><input type="checkbox" id="weatherAuto" checked></div><div class="weather-buttons" id="weatherChoices"></div><div class="fine" id="weatherAllowed" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:10px"></div><p class="fine">Sem intervenção de Deus, o clima muda entre os dias: céu limpo mais comum, chuva e vento ocasionais, areia incomum e meteoros raros. Luzes iluminam a vizinhança à noite.</p></section><aside id="sheet"><h3 id="sheetTitle">Ficha D100</h3><div id="sheetStats"></div><p id="sheetNote"></p><button id="sheetClose">Fechar</button></aside>
+<section id="appearancePanel" class="orla-custom"><h3>🎨 Aparência</h3><label>Cor da pele <input id="skinColor" type="color" value="#dca26b"></label><label>Cor do cabelo <input id="hairColor" type="color" value="#bd7539"></label><label>Cor da roupa <input id="outfitColor" type="color" value="#713843"></label><label>Estilo do cabelo <select id="hairStyle"><option value="short">Curto</option><option value="long">Comprido</option><option value="bald">Careca</option></select></label><label>Roupa <select id="outfitStyle"><option value="tunic">Túnica</option><option value="coat">Casaco</option><option value="armor">Armadura</option><option value="robe">Manto longo</option></select></label><label>Cor das calças <input id="pantsColor" type="color" value="#303a4b"></label><label>Cor dos olhos <input id="eyeColor" type="color" value="#43342f"></label><label>Constituição <select id="bodyStyle"><option value="normal">Normal</option><option value="slim">Delgado</option><option value="strong">Robusto</option></select></label><label id="godFaceRow">Barba de Deus <select id="beardStyle"><option value="long">Longa</option><option value="short">Curta</option><option value="none">Sem barba</option></select></label><p id="characterHint" class="muted">Aparência salva separadamente por personagem.</p><button id="appearanceClose">Salvar e fechar</button></section><section id="powersPanel" class="orla-custom"><h3>👁 Poderes de Deus</h3><label>Manifestação <select id="godPresence"><option value="normal">Visível</option><option value="translucent">Translúcido</option><option value="invisible">Invisível</option><option value="ethereal">Invisível e intangível</option></select></label><p>Telecinese, teleporte, clarividência, controle de matéria, invulnerabilidade e acesso total ao cenário. Escolha a manifestação acima e use o editor Tab para manipular o mundo de qualquer distância.</p><button id="godTeleport" type="button">🧠 Teletransportar</button><button id="godCreateItem" type="button">✨ Materializar item</button><button id="powersClose">Fechar</button></section><section id="editor"><div class="status" id="editorStatus">Modo de edição · clique no objeto para selecioná-lo.</div><div class="editor-actions" id="editorActions"></div></section>
+<div class="bottom"><strong>WASD</strong> ou <strong>setas</strong> para andar &nbsp;·&nbsp; <strong>clique</strong> para caminhar &nbsp;·&nbsp; <strong>botão direito</strong> abrir/fechar · <strong>Shift + direito</strong> trancar/destrancar · <strong>Shift + movimento</strong> empurrar móveis &nbsp;·&nbsp; <strong>direito na luminária</strong> ligar/desligar &nbsp;·&nbsp; <strong>E</strong> para interagir &nbsp;·&nbsp; <strong>Espaço ou Espaço + direção/clique</strong> pular &nbsp;·&nbsp; <strong>I</strong> inventário &nbsp;·&nbsp; <strong>Q/R</strong> para girar a câmera &nbsp;·&nbsp; <strong>roda</strong> para zoom</div>
+<div id="resourceHud" style="position:absolute;left:14px;top:150px;background:#172c24e8;border:1px solid #8aa77d;border-radius:9px;padding:8px 11px;z-index:5;font-size:12px">🪓 1 Machado · ⛏️ 2 Picareta · 🪏 3 Pá<br><span id="resourceMode">Ferramenta: Machado</span><br><small>Botão direito nos recursos próximos</small></div><div id="help" role="dialog" aria-modal="true" aria-label="Como jogar"><div class="dialog"><h2>Bem-vindo a Orla</h2><p>Este é nosso começo: uma única casa, um viajante e um pequeno bosque.</p><p>Use <b>WASD</b> ou as setas para andar. Clique no terreno para ir até lá. Entre pela porta na frente da casa para ver o interior. Pressione <b>E</b> perto da porta, da chave ou do baú para interagir. Ao clicar nesses objetos você também pode caminhar até eles. A casa começa trancada: encontre a chave dourada junto à trilha, pegue-a e destranque a porta. Clique numa luminária para acender ou apagar; o estado fica salvo no navegador. Há outra chave dentro da casa para o baú. Algumas peças têm materialidade: o tapete é passável, a mesa pode ser empurrada para a frente (mas não se prende ao personagem) e paredes/armários bloqueiam sua passagem. Pressione Espaço para pular no mesmo lugar, ou use Espaço com uma direção/clique para pular sobre objetos baixos (como o baú).</p><p>A porta pode ser destrancada, aberta, fechada e trancada novamente. O baú possui sua própria fechadura e chave, além de moedas e um cristal que você pode recolher. O telhado desaparece automaticamente quando você entra. Equipamento e mochila são painéis separados: a mochila só abre depois de equipada. Use Tab para selecionar, mover e girar móveis. Arraste os itens do inventário somente para locais ao alcance do personagem. Clique diretamente nos itens do chão para recolhê-los com o botão direito. Use o editor Tab para mover ou girar. Segure Shift enquanto caminha em direção a móveis com 50 kg ou mais para empurrá-los; móveis leves podem ser empurrados sem Shift. Use Q/R ou os botões ↶ ↷ para girar a câmera horizontalmente, sem alterar a inclinação. Você também pode arrastar com o botão direito do mouse para girar. Tudo funciona em um único arquivo, sem precisar de internet ou conta.</p><button id="closeHelp">Começar a explorar</button></div></div>
+<script>
+(()=>{'use strict';
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d',{alpha:false});
+const roofButton=document.getElementById('roof'),toastEl=document.getElementById('toast');
+let W=0,H=0,dpr=1,scale=35,zoom=1,target=null,roofMode=0,frame=0,last=0,toastTime=0,helpOpen=false;
+let cameraYaw=0,cameraGoal=0,dragRotate=null,walking=false,neutralJumpTimer=0;
+let editMode=false,role='traveler',selected=null,editPlacing=null,editDragging=null;
+let handItem=null,mouseScreen={x:0,y:0};
+const looks={traveler:{skin:'#dca26b',hair:'#bd7539',outfit:'#713843',pants:'#303a4b',eyes:'#43342f',hairStyle:'short',outfitStyle:'tunic',bodyStyle:'normal',beardStyle:'none'},god:{skin:'#d5b692',hair:'#ded6bd',outfit:'#29394d',pants:'#3b4657',eyes:'#75b7d3',hairStyle:'long',outfitStyle:'robe',bodyStyle:'strong',beardStyle:'long'}};
+let godPresence='normal';
+const godMode=()=>role==='god';
+const godPhasing=()=>godMode()&&godPresence==='ethereal';
+function syncLookInputs(){const a=looks[role];for(const [id,key] of [['skinColor','skin'],['hairColor','hair'],['outfitColor','outfit'],['pantsColor','pants'],['eyeColor','eyes'],['hairStyle','hairStyle'],['outfitStyle','outfitStyle'],['bodyStyle','bodyStyle'],['beardStyle','beardStyle']])document.getElementById(id).value=a[key];document.getElementById('godFaceRow').style.display=role==='god'?'flex':'none';document.getElementById('characterHint').textContent=role==='god'?'Deus: avatar independente, olho único e barba personalizável.':'Viajante: cores, roupa e constituição próprias.';}
+function dismissPopups(){for(const id of ['appearancePanel','powersPanel'])document.getElementById(id).classList.remove('open');}
+
+const SHEETS={traveler:{name:'Viajante',FOR:11,DES:13,CON:12,INT:12,PER:11,VON:10,CAR:10,PV:12,PM:10,mov:5},god:{name:'Deus',FOR:100,DES:100,CON:100,INT:100,PER:100,VON:100,CAR:100,PV:'∞',PM:'∞',mov:'∞'}};
+const kgLoad=()=>SHEETS.traveler.FOR*4;
+
+const player={x:3.5,z:8.2,dir:1,step:0,walkBlend:0,faceX:1,faceY:.2,r:.22,elevation:0,jumpY:0,jump:null},keys=new Set();
+let camX=player.x,camZ=player.z;
+const METRE=1; // unidade de mundo: 1 = 1 metro; dimensões arquitetônicas em metros
+const WALL_THICKNESS=.15*METRE,DOOR_THICKNESS=.05*METRE;
+const house={x:0,z:0,w:10,h:5,doorX1:3.05,doorX2:4.23,doorZ:5};
+const foliage=[[-6,-3,1.1],[-2,-4,.88],[6,-4,.9],[9,-2,.98],[13,3,1.18],[-5,3,1.12],[-4,8,.8],[9,8,1.05],[13,6,.76],[-1,-5,.75],[3,-5,.67],[15,0,.8],[15,8,.92],[12,10,.84],[-6,10,.86]];
+const shrubs=[[-1,6,.95],[11,4.8,1.02],[8,-1,.92],[-1,-1,.96],[-3,0,.88],[10,7,1.02],[13,1,.92],[12,9,.88],[-5,7,.84]];
+const fixedSolids=[
+ {label:'cama',x:.12,z:.20,w:1.6,d:.92,h:.35,movable:true,mass:90,rot:0},
+ {label:'armario',x:7.55,z:.28,w:.74,d:1.56,h:1.95,rot:0,movable:true,mass:115},
+ {label:'bau',x:8.18,z:3.10,w:.96,d:.66,h:.54,rot:2,movable:true,mass:75},
+ {label:'escrivaninha',x:4.62,z:4.08,w:1.2,d:.72,h:.66,rot:0,movable:true,mass:65},
+ {label:'chamine',x:9.56,z:1.22,w:.42,d:.92,h:2.74,rot:0,movable:false,mass:999},
+ {label:'luminaria',x:.78,z:2.18,w:.18,d:.18,h:1.34,movable:true,mass:12},
+ {label:'luminaria',x:8.68,z:2.44,w:.18,d:.18,h:1.34,movable:true,mass:12}
+];
+const editDecor=[];
+const pushables=[
+ {label:'mesa',x:5.62,z:.46,w:1.12,d:.58,h:.58,rot:0,movable:true,mass:23},
+ {label:'banquinho',x:5.96,z:1.12,w:.42,d:.42,h:.42,rot:0,movable:true,mass:7}
+];
+const houseOneBlueprint={id:'casa-1',name:'Casa 1',width:7,depth:5,wallHeight:2.96,roof:'gable-red',rooms:2,features:['porta','janelas','lareira','chaminé','parede interna','móveis','baú','luminárias'],fixedFurniture:fixedSolids.map(o=>({...o})),moveableFurniture:pushables.map(o=>({...o})),layout:{innerWall:{x:3.6,z1:.1,z2:2.28},entrance:{x1:3.05,x2:4.23,z:5}},sourceVersion:'v0.40',kind:'house1'};
+// Modelos distintos; os móveis e materiais usam sempre o mesmo motor de desenho.
+const houseTwoBlueprint={id:'casa-2',name:'Casa 2',width:10,depth:5,wallHeight:2.96,roof:'gable-red',rooms:3,kind:'house2',features:['sala ampliada','mesma linguagem da casa original','espaço central livre para escada','lareira','janelas','móveis compartilhados']};
+function isHouseTwo(o){return !!o&&o.kind==='house2'}
+let useHouseTwoBase=true;
+function annexActive(){return isHouseTwo(houseContext)||(!houseContext&&useHouseTwoBase)}
+function currentHouseWidth(){return annexActive()?10:7}
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));const rnd=(n)=>{let x=Math.sin(n*126.93+14.17)*43758.5453;return x-Math.floor(x)};
+function shade(hex,delta){if(!hex||hex[0]!=='#')return hex;let s=hex.slice(1);if(s.length===3)s=s.split('').map(c=>c+c).join('');const nums=[0,2,4].map(i=>parseInt(s.slice(i,i+2),16));return '#'+nums.map(n=>clamp(Math.round(n+delta),0,255).toString(16).padStart(2,'0')).join('')}
+const inside=(x,z)=>x>.12&&x<(currentHouseWidth()-.12)&&z>.12&&z<4.88;
+const reveal=()=>roofMode===2 || roofMode===0&&inside(player.x,player.z);
+const game={door:{locked:true,open:false},chest:{locked:true,open:false},loot:{coins:false,gem:false},deskLoot:{paper:false,book:false},items:{houseKey:false,chestKey:false},booksTaken:0,booksLeft:6,lamps:[true,true],rug:{collected:false,placed:true,x:.45,z:1.8},droppedItems:[],placedDeskBook:false,placedDeskPaper:false,groundKeys:{house:{x:5.40,z:7.25},chest:{x:2.75,z:1.35}},pending:null,fireplace:{wood:0,lit:false,burn:0}};
+// Recipientes têm volume em litros; cada item ocupa espaço de verdade.
+const ITEM_SPEC={backpack:{name:'Mochila',litres:18},clothing:{name:'Roupa simples',litres:2},coins:{name:'12 moedas',litres:.18},gem:{name:'Cristal azul',litres:.25},paper:{name:'Papéis',litres:.15},deskBook:{name:'Livro antigo',litres:1.6},book:{name:'Livro da estante',litres:1.6},rug:{name:'Tapete',litres:24},houseKey:{name:'Chave da casa',litres:.05},chestKey:{name:'Chave do baú',litres:.05},apple:{name:'Maçã',litres:.35},cup:{name:'Copo',litres:.28},mug:{name:'Xícara',litres:.30},axe:{name:'Machado',litres:3.5},pickaxe:{name:'Picareta',litres:4.0},shovel:{name:'Pá',litres:3.0},wood:{name:'Lenha',litres:3},ore:{name:'Minério',litres:1.4},stoneChunk:{name:'Pedra',litres:1.8},soil:{name:'Terra',litres:1.5},treasure:{name:'Tesouro',litres:1.2}};
+const STORAGE_LIMIT={inventory:40,chest:65,drawerTop:5,drawerBottom:7,shelf:18,table:9,deskTop:7,bed:20,floor:9999};
+const INVENTORY_SLOT_LITRES=2;
+const emptyDragImage=(()=>{const c=document.createElement('canvas');c.width=1;c.height=1;return c})();
+function itemSlots(type){return Math.max(1,Math.ceil((ITEM_SPEC[type]?.litres||1)/INVENTORY_SLOT_LITRES))}
+function itemIcon(type){return ({backpack:'🎒',clothing:'🥼',houseKey:'🗝️',chestKey:'🗝️',coins:'🪙',gem:'💎',paper:'📜',deskBook:'📕',book:'📘',rug:'🧵',apple:'🍎',cup:'🥛',mug:'☕',axe:'🪓',pickaxe:'⛏️',shovel:'🪏',wood:'🪵',ore:'💠',stoneChunk:'🪨',soil:'🟫',treasure:'💰'})[type]||'📦'}
+game.stores={inventory:[],chest:['coins','gem'],drawerTop:['paper'],drawerBottom:['deskBook'],shelf:Array(6).fill('book'),table:['apple','cup','mug'],deskTop:['paper'],bed:[],floor:['rug']};
+game.drawerOpen=[false,false];
+const shelfRows=[2,2,2];
+let workAnimation={kind:null,until:0,x:0,z:0};
+function startWorkAnimation(kind,x,z){workAnimation={kind,until:performance.now()+600,x,z};}
+const gathering={trees:[],rocks:[{x:-1.8,z:5.1,hp:5,hard:3,max:5},{x:8.7,z:5.8,hp:5,hard:3,max:5}],mound:{x:8.6,z:7.1,work:0,dug:false,chestOpen:false},activeTool:null};
+for(let i=0;i<foliage.length;i++)gathering.trees.push({hp:6,hard:4,max:6,fallen:false});
+// Equipamentos e ferramentas estão fisicamente no mapa, não equipados de graça.
+const equipment={clothing:'clothing',left:null,right:null,backpack:null};
+const initialEquipmentDrops=[{type:'backpack',x:3.0,z:7.3},{type:'axe',x:2.4,z:7.35},{type:'pickaxe',x:2.1,z:8.05},{type:'shovel',x:3.0,z:8.85}];
+for(const o of initialEquipmentDrops){game.droppedItems.push({...o});game.stores.floor.push(o.type);}
+function storeLoad(id){return game.stores[id].reduce((n,t)=>n+(ITEM_SPEC[t]?.litres||0),0)}
+function storeCanFit(id,type){return game.stores[id].length<50&&storeLoad(id)+(ITEM_SPEC[type]?.litres||Infinity)<=STORAGE_LIMIT[id]+1e-6}
+function itemLabel(type){return ITEM_SPEC[type]?.name||type}
+function inventoryHas(type){return game.stores.inventory.includes(type)}
+function keyHeld(kind){return inventoryHas(kind+'Key')}
+function drawStoredItemMarker(x,z,y,type,scaleMul=1){
+ if(type==='rug'){
+  const rollW=.20*scaleMul,rollD=.12*scaleMul,rollH=.11*scaleMul;
+  box3(x,z,rollW,rollD,rollH,['#6b2942','#8b4564','#b46a53'],y);
+  const pt=P(x+rollW*.82,z+rollD*.5,y+rollH*.55);
+  ctx.strokeStyle='#d8b574';ctx.lineWidth=Math.max(1,.8*zoom);ctx.beginPath();ctx.arc(pt[0],pt[1],Math.max(2,3.3*zoom*scaleMul),0,Math.PI*2);ctx.stroke();
+  return;
+ }
+ if(type==='houseKey'||type==='chestKey'){
+  const pt=P(x+.10*scaleMul,z+.05*scaleMul,y+.03*scaleMul);
+  ctx.strokeStyle='#e3c476';ctx.lineWidth=Math.max(1.2,1.6*zoom);ctx.beginPath();ctx.arc(pt[0]-3.5*scaleMul*zoom,pt[1],2.7*scaleMul*zoom,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.moveTo(pt[0]-1*scaleMul*zoom,pt[1]);ctx.lineTo(pt[0]+5*scaleMul*zoom,pt[1]);ctx.lineTo(pt[0]+7*scaleMul*zoom,pt[1]-2*scaleMul*zoom);ctx.moveTo(pt[0]+4*scaleMul*zoom,pt[1]);ctx.lineTo(pt[0]+4*scaleMul*zoom,pt[1]+2*scaleMul*zoom);ctx.stroke();
+  return;
+ }
+ if(type==='apple'){const pt=P(x+.09*scaleMul,z+.07*scaleMul,y+.05*scaleMul);ctx.fillStyle='#c53a34';ctx.beginPath();ctx.arc(pt[0],pt[1],4.8*zoom*scaleMul,0,7);ctx.fill();ctx.strokeStyle='#7f1f1a';ctx.stroke();ctx.strokeStyle='#5b6f2a';ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(pt[0],pt[1]-5*zoom*scaleMul);ctx.lineTo(pt[0]+2*zoom*scaleMul,pt[1]-8*zoom*scaleMul);ctx.stroke();return;}
+ if(type==='cup'||type==='mug'){const pt=P(x+.09*scaleMul,z+.06*scaleMul,y+.04*scaleMul);ctx.fillStyle=type==='cup'?'#cfe0ef':'#d9c9b3';ctx.fillRect(pt[0]-4*zoom*scaleMul,pt[1]-4*zoom*scaleMul,8*zoom*scaleMul,7*zoom*scaleMul);ctx.strokeStyle='#6b625a';ctx.strokeRect(pt[0]-4*zoom*scaleMul,pt[1]-4*zoom*scaleMul,8*zoom*scaleMul,7*zoom*scaleMul);ctx.beginPath();ctx.arc(pt[0]+5*zoom*scaleMul,pt[1]-1*zoom*scaleMul,2.3*zoom*scaleMul,-1.2,1.2);ctx.stroke();return;}
+ if(type==='wood'){box3(x,z,.26*scaleMul,.08*scaleMul,.10*scaleMul,['#775136','#90653e','#ba8250'],y);const pt=P(x+.22*scaleMul,z+.045*scaleMul,y+.06*scaleMul);ctx.fillStyle='#dfba80';ctx.beginPath();ctx.ellipse(pt[0],pt[1],2.8*zoom*scaleMul,3.5*zoom*scaleMul,0,0,7);ctx.fill();return;}
+ if(type==='stoneChunk'||type==='ore'){drawRockShape(x+.12*scaleMul,z+.08*scaleMul,.25*scaleMul,.18*scaleMul,.13*scaleMul);return;}
+ if(['axe','pickaxe','shovel','backpack'].includes(type)){const at=P(x+.10*scaleMul,z+.06*scaleMul,y+.08*scaleMul);ctx.font=Math.max(12,18*scaleMul*zoom)+'px system-ui';ctx.textAlign='center';ctx.fillText(itemIcon(type),at[0],at[1]);return;}
+ const color=type==='paper'?'#efe8cd':type==='gem'?'#51bed2':type==='coins'?'#e6b652':'#ab5748';
+ quad3([x,z,y],[x+.19*scaleMul,z,y],[x+.19*scaleMul,z+.12*scaleMul,y],[x,z+.12*scaleMul,y],color,'#70533c');
+}
+function drawGroundItem(o){
+ const p=P(o.x,o.z,.06);
+ // Mantém objetos pequenos, especialmente chaves, visíveis também no exterior.
+ if(o.type==='houseKey'||o.type==='chestKey'){drawKey(o.x,o.z,o.type==='houseKey'?'house':'chest');return;}
+ drawStoredItemMarker(o.x-.09,o.z-.065,.06,o.type,.95);
+ ctx.strokeStyle='#f0de9f88';ctx.lineWidth=1;ctx.beginPath();ctx.ellipse(p[0],p[1],8*zoom,3*zoom,0,0,7);ctx.stroke();
+}
+function transferItem(from,to,type){
+ const list=game.stores[from],index=list.indexOf(type);
+ if(index<0)return false;
+ if(!storeCanFit(to,type)){toast('Sem espaço suficiente para '+itemLabel(type)+'.');return false}
+ list.splice(index,1);game.stores[to].push(type);if(type==='book'&&(from==='shelf'||to==='shelf')){if(from==='shelf'){const r=shelfRows.findIndex(v=>v>0);if(r>=0)shelfRows[r]--;}else shelfRows[0]++;}syncLegacyItems();saveGame();inventoryDraw();return true;
+}
+function syncLegacyItems(){
+ const locs=Object.values(game.stores).flat();
+ game.loot.coins=!game.stores.chest.includes('coins');game.loot.gem=!game.stores.chest.includes('gem');
+ game.deskLoot.paper=!game.stores.drawerTop.includes('paper')&&!game.stores.drawerBottom.includes('paper')&&!game.stores.deskTop.includes('paper');
+ game.deskLoot.book=!game.stores.drawerTop.includes('deskBook')&&!game.stores.drawerBottom.includes('deskBook')&&!game.stores.deskTop.includes('deskBook');
+ game.booksLeft=game.stores.shelf.filter(x=>x==='book').length;
+ game.booksTaken=game.stores.inventory.filter(x=>x==='book').length;
+ game.rug.placed=game.stores.floor.includes('rug');
+ game.rug.collected=game.stores.inventory.includes('rug');
+}
+let placingObject=null,placingRug=false,placingSmallItem=null,dialogOrigin=null,furnitureSaveTimer=null;
+function scheduleFurnitureSave(){clearTimeout(furnitureSaveTimer);furnitureSaveTimer=setTimeout(()=>saveGame(),300);}
+const chestObject=fixedSolids.find(o=>o.label==='bau');
+const bedObject=fixedSolids.find(o=>o.label==='cama');
+const deskObject=fixedSolids.find(o=>o.label==='escrivaninha');
+const wardrobeObject=fixedSolids.find(o=>o.label==='armario');
+const chimneyObject=fixedSolids.find(o=>o.label==='chamine');
+const saveKey='orla-v20-aventura'; // compatível com partidas anteriores
+let lastSaveData='',houseContext=null,saveFailureShown=false,lastPositionSaveAt=0,lastSavedPosition={x:player.x,z:player.z};
+const saveStatus=document.getElementById('saveStatus');
+function markSaveStatus(ok){if(!saveStatus)return;saveStatus.textContent=ok?'● Salvo no navegador':'● Exportar para preservar';saveStatus.style.color=ok?'#c4ddc2':'#ffd39c';}
+function serializeObject(o){return {label:o.label,x:o.x,z:o.z,w:o.w,d:o.d,rot:o.rot||0,hidden:!!o.hidden}}
+function applyObjectState(list,saved){if(!Array.isArray(saved))return;for(const st of saved){const o=list.find(v=>v.label===st.label);if(!o)continue;for(const k of ['x','z','w','d'])if(Number.isFinite(st[k]))o[k]=st[k];if(Number.isFinite(st.rot))o.rot=st.rot|0;if(typeof st.hidden==='boolean')o.hidden=st.hidden;}}
+function saveGame(){if(houseContext)return;try{const payload=JSON.stringify({door:game.door,chest:game.chest,loot:game.loot,deskLoot:game.deskLoot,items:game.items,booksTaken:game.booksTaken,booksLeft:game.booksLeft,lamps:game.lamps,rug:game.rug,droppedItems:game.droppedItems,placedDeskBook:game.placedDeskBook,placedDeskPaper:game.placedDeskPaper,stores:game.stores,drawerOpen:game.drawerOpen,fixedMovables:fixedSolids.filter(o=>o.movable).map(serializeObject),pushables:pushables.map(serializeObject),editDecor,role,looks,godPresence,gathering,houseBlueprint:{...houseOneBlueprint,fixedFurniture:fixedSolids.map(serializeObject),moveableFurniture:pushables.map(serializeObject)},toolsSeeded:true,equipment,shelfRows,layoutVersion:45,fireplace:game.fireplace,playerPosition:{x:player.x,z:player.z},savedAt:new Date().toISOString()});lastSaveData=payload;try{localStorage.setItem(saveKey,payload);markSaveStatus(true);}catch(err){markSaveStatus(false);if(!saveFailureShown){saveFailureShown=true;console.warn('Falha ao salvar localmente:',err);}}}catch(err){markSaveStatus(false);console.warn('Falha ao serializar a partida:',err);}}
+function transferLegacy(type,origin){const i=game.stores[origin].indexOf(type);if(i>=0){game.stores[origin].splice(i,1);game.stores.inventory.push(type);}}
+function loadGame(){try{
+ const data=JSON.parse(localStorage.getItem(saveKey)||localStorage.getItem('orla-v19-aventura')||localStorage.getItem('orla-v18-aventura')||localStorage.getItem('orla-v16-aventura')||'null');
+ if(!data)return;
+ if(data.stores){for(const id of Object.keys(game.stores))if(Array.isArray(data.stores[id]))game.stores[id]=data.stores[id].filter(t=>ITEM_SPEC[t]);if(Array.isArray(data.drawerOpen))game.drawerOpen=data.drawerOpen.map(Boolean).slice(0,2);if(game.drawerOpen[0]&&game.drawerOpen[1])game.drawerOpen[1]=false;}
+ else{if(data.loot?.coins)transferLegacy('coins','chest');if(data.loot?.gem)transferLegacy('gem','chest');if(data.deskLoot?.paper)transferLegacy('paper','drawerTop');if(data.deskLoot?.book)transferLegacy('deskBook','drawerBottom');for(let i=0;i<Math.min(6,Number(data.booksTaken)||0);i++)transferLegacy('book','shelf');if(data.rug?.collected)transferLegacy('rug','floor');}
+ for(const k of ['door','chest','loot','deskLoot','items','fireplace'])if(data[k])Object.assign(game[k],data[k]);
+  // Migra as chaves das versões antigas, que só tinham os dois booleanos.
+  // Uma chave largada/guardada já existente em stores NÃO é duplicada.
+  for(const kind of ['house','chest']){const key=kind+'Key';if(game.items[key]&&!Object.values(game.stores).some(a=>a.includes(key)))game.stores.inventory.push(key);}
+ if(data.rug)Object.assign(game.rug,data.rug);if(Array.isArray(data.droppedItems))game.droppedItems=data.droppedItems.filter(o=>o&&ITEM_SPEC[o.type]&&Number.isFinite(o.x)&&Number.isFinite(o.z));game.placedDeskBook=!!data.placedDeskBook;game.placedDeskPaper=!!data.placedDeskPaper;
+ if(Number.isFinite(data.booksTaken))game.booksTaken=data.booksTaken;
+ if(Number.isFinite(data.booksLeft))game.booksLeft=data.booksLeft;
+ if(Array.isArray(data.lamps)&&data.lamps.length===2)game.lamps=data.lamps.map(Boolean);
+ applyObjectState(fixedSolids.filter(o=>o.movable),data.fixedMovables);
+ applyObjectState(pushables,data.pushables);
+ // Correção pontual v0.45: cama no canto original e estante afastada da lareira.
+ // Somente estes dois móveis são corrigidos, preservando todo o restante da partida.
+ if(!data.layoutVersion||data.layoutVersion<45){
+  const bed=fixedSolids.find(o=>o.label==='cama');
+  const shelf=fixedSolids.find(o=>o.label==='armario');
+  if(bed)Object.assign(bed,{x:.12,z:.20,rot:0});
+  if(shelf)Object.assign(shelf,{x:7.55,z:.28,rot:0});
+ }
+ // Restauração pontual solicitada: corrige UMA vez o layout invertido nas versões 0.36–0.38.
+ // Preserva itens, fichas, casas criadas, fechaduras e demais dados da partida.
+ if(!data.layoutVersion||data.layoutVersion<39){
+  Object.assign(fixedSolids.find(o=>o.label==='cama'),{x:.12,z:.20,rot:0});
+  Object.assign(fixedSolids.find(o=>o.label==='armario'),{x:6.10,z:.34,rot:0});
+  Object.assign(fixedSolids.find(o=>o.label==='bau'),{x:.20,z:4.15,rot:2});
+  Object.assign(fixedSolids.find(o=>o.label==='escrivaninha'),{x:4.30,z:4.10,rot:0});
+  Object.assign(fixedSolids.filter(o=>o.label==='luminaria')[0],{x:.61,z:2.21});
+  Object.assign(fixedSolids.filter(o=>o.label==='luminaria')[1],{x:6.17,z:3.79});
+  Object.assign(pushables.find(o=>o.label==='mesa'),{x:5.64,z:4.05,rot:0});
+  Object.assign(pushables.find(o=>o.label==='banquinho'),{x:4.87,z:3.58,rot:0});
+ }
+
+ if(data.playerPosition&&Number.isFinite(data.playerPosition.x)&&Number.isFinite(data.playerPosition.z)){const {x,z}=data.playerPosition;if(x>-12&&x<20&&z>-10&&z<18){player.x=x;player.z=z;}}
+ if(data.looks)for(const kind of ['traveler','god'])if(data.looks[kind]){for(const k of Object.keys(looks[kind]))if(typeof data.looks[kind][k]==='string')looks[kind][k]=data.looks[kind][k];}
+ if(['normal','translucent','invisible','ethereal'].includes(data.godPresence))godPresence=data.godPresence;
+ if(data.gathering){if(Array.isArray(data.gathering.trees))data.gathering.trees.forEach((v,i)=>{if(gathering.trees[i]&&v)Object.assign(gathering.trees[i],v)});if(Array.isArray(data.gathering.rocks))data.gathering.rocks.forEach((v,i)=>{if(gathering.rocks[i]&&v)Object.assign(gathering.rocks[i],v)});if(data.gathering.mound)Object.assign(gathering.mound,data.gathering.mound);if(['axe','pickaxe','shovel'].includes(data.gathering.activeTool))gathering.activeTool=data.gathering.activeTool;}
+ if(Array.isArray(data.editDecor)){data.editDecor.filter(o=>o&&typeof o.kind==='string'&&Number.isFinite(o.x)&&Number.isFinite(o.z)).forEach(o=>editDecor.push(o));}
+ if(data.equipment&&typeof data.equipment==='object'){for(const k of ['clothing','left','right','backpack'])if(data.equipment[k]===null||typeof data.equipment[k]==='string')equipment[k]=data.equipment[k];}
+ if(Array.isArray(data.shelfRows)&&data.shelfRows.length===3){for(let i=0;i<3;i++)shelfRows[i]=Math.max(0,Math.floor(data.shelfRows[i]||0));}
+ if(!data.equipment){const hasLegacyTools=['axe','pickaxe','shovel'].some(t=>game.stores.inventory.includes(t));if(hasLegacyTools){equipment.backpack='backpack';}}
+ // Remove ferramentas duplicadas de mapas antigos quando já estiverem carregadas.
+ for(const t of ['axe','pickaxe','shovel','backpack'])if(game.stores.inventory.includes(t)){const idx=game.droppedItems.findIndex(o=>o.type===t);if(idx>=0){game.droppedItems.splice(idx,1);const fi=game.stores.floor.indexOf(t);if(fi>=0)game.stores.floor.splice(fi,1);}}
+ }catch(_){}}
+loadGame();syncLegacyItems();
+// Restitui objetos físicos ao cenário em partidas anteriores à criação do equipamento.
+for(const entry of initialEquipmentDrops){
+ const type=entry.type;
+ const equipped=Object.values(equipment).includes(type);
+ const inStores=Object.values(game.stores).some(a=>a.includes(type));
+ const onGround=game.droppedItems.some(o=>o.type===type);
+ if(!equipped&&!inStores&&!onGround){game.droppedItems.push({...entry});game.stores.floor.push(type);}
+}
+
+if(!shelfRows.some(Boolean)&&game.stores.shelf.includes('book'))shelfRows[0]=game.stores.shelf.filter(t=>t==='book').length;
+const syncShelf=()=>{const n=game.stores.shelf.filter(t=>t==='book').length;let q=shelfRows.reduce((a,b)=>a+b,0);if(q<n)shelfRows[0]+=n-q;else if(q>n){let diff=q-n;for(let r=2;r>=0;r--){const d=Math.min(diff,shelfRows[r]);shelfRows[r]-=d;diff-=d;}}};
+syncShelf();try{const stored=JSON.parse(localStorage.getItem('orla-blueprint-casa-1')||'null');if(!stored||stored.sourceVersion!=='v0.39')localStorage.setItem('orla-blueprint-casa-1',JSON.stringify({...houseOneBlueprint,fixedFurniture:fixedSolids.map(serializeObject),moveableFurniture:pushables.map(serializeObject)}));}catch(_){}
+let doorSwing=game.door.open?1:0; // fração visual de abertura, 0 fechado a 1 aberto
+
+let toastTimer=0;function toast(msg){toastEl.textContent=msg;toastEl.classList.add('on');clearTimeout(toastTimer);toastTimer=setTimeout(()=>toastEl.classList.remove('on'),2300)}
+function size(){dpr=Math.min(2,window.devicePixelRatio||1);W=window.innerWidth;H=window.innerHeight;canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);scale=clamp(Math.min(W/29,H/20)*1.48,20,58)}
+function rotated(x,z){const c=Math.cos(cameraYaw),si=Math.sin(cameraYaw);return [x*c-z*si,x*si+z*c]}
+function unrotate(x,z){const c=Math.cos(cameraYaw),si=Math.sin(cameraYaw);return [x*c+z*si,-x*si+z*c]}
+function screenVector(dx,dz){const [x,z]=rotated(dx,dz);return [(x-z)*.87,(x+z)*.45]}
+// Projeção oblíqua fixa: apenas o eixo horizontal (yaw) pode girar.
+function P(x,z,y=0){const [rx,rz]=rotated(x-camX,z-camZ),u=(rx-rz)*scale*.87*zoom,v=(rx+rz)*scale*.45*zoom-y*scale*zoom;return [W*.5+u,H*.56+v]}
+function poly(pts,fill,stroke=null,line=1){ctx.beginPath();pts.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.closePath();ctx.fillStyle=fill;ctx.fill();if(stroke){ctx.lineWidth=line;ctx.strokeStyle=stroke;ctx.stroke()}}
+function quad3(a,b,c,d,fill,stroke=null){poly([P(...a),P(...b),P(...c),P(...d)],fill,stroke)}
+function line3(a,b,color,w=1){let p=P(...a),q=P(...b);ctx.strokeStyle=color;ctx.lineWidth=w;ctx.beginPath();ctx.moveTo(...p);ctx.lineTo(...q);ctx.stroke()}
+function ellipse(x,z,rx,ry,color){const p=P(x,z);ctx.fillStyle=color;ctx.beginPath();ctx.ellipse(p[0],p[1],rx*scale*zoom,ry*scale*zoom,0,0,Math.PI*2);ctx.fill()}
+function cylinder(x,z,h,r,c1,c2){const a=P(x,z,h),b=P(x,z,0);ctx.strokeStyle=c1;ctx.lineWidth=2*r*scale*zoom;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(...a);ctx.lineTo(...b);ctx.stroke();ctx.fillStyle=c2;ctx.beginPath();ctx.ellipse(a[0],a[1],r*scale*zoom,r*scale*zoom*.5,0,0,7);ctx.fill()}
+function wallX(x,z1,z2,h,fill,base='#4b3028'){const t=.075;quad3([x,z1,0],[x,z2,0],[x,z2,h],[x,z1,h],fill,base);quad3([x-t,z1,h],[x+t,z1,h],[x+t,z2,h],[x-t,z2,h],'#ead8b8','#674630')}
+function wallZ(z,x1,x2,h,fill,base='#4b3028'){const t=.075;quad3([x1,z,0],[x2,z,0],[x2,z,h],[x1,z,h],fill,base);quad3([x1,z-t,h],[x2,z-t,h],[x2,z+t,h],[x1,z+t,h],'#ead8b8','#674630')}
+function solidInnerWall(x,z1,z2,h=1.62){
+ const t=WALL_THICKNESS/2,edge='#836044',light='#dfc8a8';
+ // Thick, closed wall: two parallel faces plus endcaps, not a flat sheet.
+ const faces=[
+  {depth:painterDepth(x-t,z1),draw:()=>quad3([x-t,z1,0],[x-t,z2,0],[x-t,z2,h],[x-t,z1,h],light,edge)},
+  {depth:painterDepth(x+t,z1),draw:()=>quad3([x+t,z2,0],[x+t,z1,0],[x+t,z1,h],[x+t,z2,h],'#cdb391',edge)},
+  {depth:painterDepth(x,z1),draw:()=>quad3([x-t,z1,0],[x+t,z1,0],[x+t,z1,h],[x-t,z1,h],'#b99a77',edge)},
+  {depth:painterDepth(x,z2),draw:()=>quad3([x+t,z2,0],[x-t,z2,0],[x-t,z2,h],[x+t,z2,h],'#b99a77',edge)}
+ ];
+ faces.sort((a,b)=>a.depth-b.depth).forEach(f=>f.draw());
+ quad3([x-t,z1,h],[x+t,z1,h],[x+t,z2,h],[x-t,z2,h],'#f1ddbb','#816048');
+}
+function rectFloor(x,z,w,h,fill){quad3([x,z,0.028],[x+w,z,0.028],[x+w,z+h,0.028],[x,z+h,0.028],fill)}
+// Cubo sólido: desenha faces visíveis da câmera, sem "paredes de papel".
+function box3(x,z,w,d,h,sides=['#7c4e31','#9b693f','#b27a50'],base=0){
+ const c=Math.cos(cameraYaw),si=Math.sin(cameraYaw),vx=c+si,vz=c-si;
+ const faces=[
+  {depth:painterDepth(x+w,z+d/2),visible:vx>0,fill:sides[1],quad:[[x+w,z,base],[x+w,z+d,base],[x+w,z+d,base+h],[x+w,z,base+h]]},
+  {depth:painterDepth(x,z+d/2),visible:vx<=0,fill:sides[1],quad:[[x,z+d,base],[x,z,base],[x,z,base+h],[x,z+d,base+h]]},
+  {depth:painterDepth(x+w/2,z+d),visible:vz>0,fill:sides[0],quad:[[x,z+d,base],[x+w,z+d,base],[x+w,z+d,base+h],[x,z+d,base+h]]},
+  {depth:painterDepth(x+w/2,z),visible:vz<=0,fill:sides[0],quad:[[x+w,z,base],[x,z,base],[x,z,base+h],[x+w,z,base+h]]}
+ ];
+ faces.filter(f=>f.visible).sort((a,b)=>a.depth-b.depth).forEach(f=>quad3(...f.quad,f.fill,'#523b2a'));
+ quad3([x,z,base+h],[x+w,z,base+h],[x+w,z+d,base+h],[x,z+d,base+h],sides[2],'#60422c');
+}
+function ground(){ctx.fillStyle='#3f6944';ctx.fillRect(0,0,W,H);const corners=[P(-11,-10),P(18,-10),P(18,17),P(-11,17)];poly(corners,'#729f61','#527c4a',1);
+ ctx.save();ctx.beginPath();corners.forEach((p,i)=>i?ctx.lineTo(...p):ctx.moveTo(...p));ctx.closePath();ctx.clip();
+ // Micro-variações de grama sem milhares de sprites ou dependências externas.
+ for(let x=-11;x<18;x+=.36)for(let z=-10;z<17;z+=.36){let n=rnd(x*81+z*117);if(n<.13)continue;let p=P(x+(n-.5)*.3,z+(n-.5)*.35),r=(.5+n)*scale*zoom*.014;ctx.strokeStyle=n>.7?'#91bb6c55':'#2f683a46';ctx.lineWidth=Math.max(.5,zoom*.8);ctx.beginPath();ctx.moveTo(p[0],p[1]);ctx.lineTo(p[0]+r,p[1]-r*.65);ctx.stroke()}
+ // pequenas folhagens com variação de solo, sem mosaico de textura artificial
+ for(let x=-10;x<17;x+=1.33)for(let z=-9;z<16;z+=1.21){
+  const n=rnd(x*39.17+z*71.3);if(n<.73)continue;
+  const p=P(x+n*.36,z+n*.47,.013);const r=scale*zoom*(.035+.028*n);
+  ctx.fillStyle=n>.94?'#d4c58b77':'#376f4a77';ctx.beginPath();ctx.ellipse(p[0],p[1],r,r*.42,0,0,Math.PI*2);ctx.fill();
+ }
+ ctx.restore();
+ // Trilha que termina na porta.
+ quad3([3.08,5.04,.015],[4.14,5.04,.015],[4.14,14,.015],[3.08,14,.015],'#b5aa8b');
+ for(let t=5.15;t<13.7;t+=.55)line3([3.08,t,.02],[4.14,t,.02],'#f1e8cb2b',.9);
+}
+function tree(x,z,s=1){
+ const p=P(x,z);
+ ctx.fillStyle='#10231555';ctx.beginPath();ctx.ellipse(p[0]+scale*zoom*.12*s,p[1]+scale*zoom*.08*s,scale*zoom*s*.44,scale*zoom*s*.16,-.2,0,7);ctx.fill();
+ ctx.fillStyle='#0f21148c';ctx.beginPath();ctx.ellipse(p[0],p[1]+scale*zoom*.015,scale*zoom*s*.14,scale*zoom*s*.06,0,0,7);ctx.fill();
+ cylinder(x,z,1.62*s,.16*s,'#6c4a2f','#8f633e');
+ ctx.fillStyle='#6f5a42';ctx.beginPath();ctx.ellipse(p[0],p[1]-scale*zoom*.01,scale*zoom*s*.09,scale*zoom*s*.035,0,0,7);ctx.fill();
+ const bunch=[[-.43,.12,.55],[.35,.07,.61],[.08,-.44,.65],[-.18,-.16,.60],[.13,.27,.67]];
+ const c=Math.cos(cameraYaw),si=Math.sin(cameraYaw);
+ for(let i=0;i<bunch.length;i++){
+  let [bx,bz,rad]=bunch[i];
+  const swayX=(c*bx-si*bz)*.12*s, swayZ=(si*bx+c*bz)*.12*s;
+  let pt=P(x+bx*s+swayX,z+bz*s+swayZ,2.02*s+(i%2)*.14*s),r=rad*scale*zoom*s;
+  let g=ctx.createRadialGradient(pt[0]-r*.36,pt[1]-r*.5,r*.1,pt[0],pt[1],r*1.15);g.addColorStop(0,'#a8cf63');g.addColorStop(.46,'#5a9a57');g.addColorStop(1,'#275b42');
+  ctx.fillStyle=g;ctx.beginPath();ctx.arc(pt[0],pt[1],r,0,Math.PI*2);ctx.fill();
+  for(let j=0;j<8;j++){let ang=rnd(i*37+j*51+x*11)*Math.PI*2,rr=r*(.15+rnd(i*43+j*71)*.72);ctx.fillStyle=j%3?'#a6cf65':'#79b35d';ctx.beginPath();ctx.arc(pt[0]+Math.cos(ang)*rr,pt[1]+Math.sin(ang)*rr*.78,r*.09,0,7);ctx.fill()}
+ }
+}
+function bush(x,z,s){
+ let p=P(x,z,.02);
+ ctx.fillStyle='#21412655';ctx.beginPath();ctx.ellipse(p[0]+scale*zoom*.08,p[1]+scale*zoom*.05,scale*zoom*.42*s,scale*zoom*.15*s,0,0,7);ctx.fill();
+ const clusters=[[-.18,.02,.42],[.16,.04,.46],[0,-.08,.50]];
+ for(const [bx,bz,r0] of clusters){
+  const pt=P(x+bx*s,z+bz*s,.22*s),r=scale*zoom*r0*s;
+  const g=ctx.createRadialGradient(pt[0]-r*.28,pt[1]-r*.42,r*.06,pt[0],pt[1],r);g.addColorStop(0,'#a8cf63');g.addColorStop(.5,'#5a9a57');g.addColorStop(1,'#2a6347');
+  ctx.fillStyle=g;ctx.beginPath();ctx.arc(pt[0],pt[1],r,0,7);ctx.fill();
+ }
+}
+function floorSurface(){
+ const hw=currentHouseWidth();
+ rectFloor(0,0,hw,5,'#94683e');
+ for(let z=.18;z<5;z+=.22){line3([0,z,.035],[hw,z,.035],z%1<.3?'#d9ad76':'#6b452d',1)}
+ for(let z=.2;z<5;z+=.44){for(let x=.4+(Math.round(z*10)%2)*.85;x<hw;x+=1.9)line3([x,z,.04],[x,z+.22,.04],'#4c2e24',1)}
+ if(game.rug.placed){const x=game.rug.x,z=game.rug.z;
+  rectFloor(x,z,2.4,1.65,'#6d2c45');rectFloor(x+.17,z+.16,2.06,1.34,'#b46a53');rectFloor(x+.31,z+.30,1.77,1.04,'#792b46');
+  for(let j=0;j<14;j++){let zz=z+.07+j*.105;line3([x+.02,zz,.043],[x+.14,zz,.043],'#f0bb70',1)}
+ }
+}
+function drawBed(){
+ const o=bedObject,x=o.x,z=o.z,w=o.w,d=o.d;
+ box3(x,z,w,d,.18,['#5c4028','#755034','#9a6f47']);
+ box3(x,z,w,.10,.58,['#6a4930','#83583a','#af7b4f']);
+ box3(x+.03,z+.10,w-.06,d-.14,.18,['#b34840','#ca5c52','#e28372'],.18);
+ quad3([x+.12,z+.15,.39],[x+.56,z+.15,.39],[x+.56,z+.35,.39],[x+.12,z+.35,.39],'#ddd1b0');
+ quad3([x+.65,z+.14,.39],[x+w-.10,z+.14,.39],[x+w-.10,z+d-.08,.39],[x+.65,z+d-.08,.39],'#c24d43');
+ line3([x+.62,z+.14,.40],[x+w-.12,z+.14,.40],'#eab4a2',1.6);
+}
+function drawDesk(){
+ const o=deskObject,x=o.x,z=o.z,w=o.w,d=o.d,h=o.h;
+ const dark=['#62452f','#765339','#966d48'];
+ // quatro pernas
+ for(const [px,pz] of [[x+.09,z+.10],[x+w-.17,z+.10],[x+.09,z+d-.16],[x+w-.17,z+d-.16]])box3(px,pz,.09,.09,h-.12,dark);
+ // Gabinete opaco para impedir que pessoas ou outros móveis atravessem visualmente as gavetas.
+ box3(x+w-.31,z+.05,.27,d-.10,h-.12,['#65432e','#785039','#a27650']);
+ quad3([x+w-.315,z+.045,.08],[x+w-.315,z+d-.05,.08],[x+w-.315,z+d-.05,h-.12],[x+w-.315,z+.045,h-.12],'#70503b','#4b3429');
+ for(const yy of [.23,.40]){const p=P(x+w-.18,z+.045,yy);ctx.fillStyle='#dbc28a';ctx.beginPath();ctx.arc(p[0],p[1],2.2*zoom,0,Math.PI*2);ctx.fill();}
+ // saia traseira e lateral esquerda, deixando vão frontal livre
+ box3(x+.16,z+d-.09,w-.50,.08,.16,['#62422c','#765137','#a27853'],h-.28);
+ box3(x+.14,z+.08,.08,d-.24,.16,['#62422c','#765137','#a27853'],h-.28);
+ // tampo por cima
+ box3(x-.02,z-.02,w+.04,d+.04,.10,['#765236','#8b6240','#bd9060'],h-.10);
+  // Gavetas pertencem apenas à face z negativa do bloco lateral.
+  // O tampo é opaco; o verso não recebe falsos puxadores.
+  const frontVisible=(Math.cos(cameraYaw)-Math.sin(cameraYaw))<-.015;
+  if(frontVisible){
+   for(let n=0;n<2;n++){
+    const open=game.drawerOpen[n],height=h-.28-n*.19;
+    const frontZ=z+.045-(open?.29:0);
+    if(open){
+     box3(x+w-.32,frontZ,.28,.29,.075,['#453023','#543b2c','#73513a'],height-.04);
+     game.stores[n?'drawerBottom':'drawerTop'].slice(0,2).forEach((t,i)=>drawStoredItemMarker(x+w-.29+i*.10,frontZ+.09,height+.04,t,.48));
+    }
+    quad3([x+w-.33,frontZ,height-.035],[x+w-.06,frontZ,height-.035],[x+w-.06,frontZ,height+.11],[x+w-.33,frontZ,height+.11],'#8e633e','#4f3528');
+    const pt=P(x+w-.19,frontZ-.002,height+.035);ctx.fillStyle='#e8c785';ctx.beginPath();ctx.arc(pt[0],pt[1],2.2*zoom,0,7);ctx.fill();
+   }
+  }
+ // itens sobre o tampo
+ if(game.stores.deskTop.includes('deskBook'))quad3([x+.12,z+.10,h+.008],[x+.46,z+.10,h+.008],[x+.46,z+.33,h+.008],[x+.12,z+.33,h+.008],'#9e4041');
+ if(game.stores.deskTop.includes('paper'))quad3([x+.54,z+.12,h+.008],[x+.82,z+.12,h+.008],[x+.82,z+.30,h+.008],[x+.54,z+.30,h+.008],'#ded7b0');
+}
+
+function drawWardrobe(){
+ const o=wardrobeObject,x=o.x,z=o.z,w=o.w,d=o.d,h=o.h;
+ box3(x,z,w,d,h,['#4f3529','#624330','#8d6648']);
+ const showFront=(Math.cos(cameraYaw)+Math.sin(cameraYaw))<-.04;
+ if(showFront){
+  const fx=x-.012;
+  quad3([fx,z+.05,.16],[fx,z+d-.05,.16],[fx,z+d-.05,h-.10],[fx,z+.05,h-.10],'#4a3124','#392117');
+  for(let row=0;row<3;row++){
+   const bottom=.26+row*.48;
+   quad3([fx-.012,z+.07,bottom],[fx-.012,z+d-.07,bottom],[fx-.012,z+d-.07,bottom+.05],[fx-.012,z+.07,bottom+.05],'#a98156','#6a4a34');
+  }
+  let left=game.stores.shelf.filter(v=>v==='book').length;
+  const cols=['#b05649','#b79a57','#6b8e79','#c48649','#9c4f5d','#7091b0'];
+  for(let row=0;row<3;row++){
+   const base=.31+row*.48;
+   const count=Math.min(shelfRows[row],5);
+   for(let k=0;k<count;k++){
+    const zz=z+.12+k*.12,hi=.23+((k+row)%2)*.03;
+    quad3([fx-.028,zz,base],[fx-.028,zz+.09,base],[fx-.028,zz+.09,base+hi],[fx-.028,zz,base+hi],cols[(row*3+k)%cols.length],'#4a2c25');
+    line3([fx-.031,zz+.02,base+hi-.02],[fx-.031,zz+.07,base+hi-.02],'#f1e7c4',1.0);
+   }
+  }
+ }
+}
+function drawChimney(){
+ const o=chimneyObject;if(!o)return;
+ const x=o.x,z=o.z,d=o.d,w=o.w,fx=x+.08;
+ // Boca na parede leste; o volume principal da chaminé fica do lado de fora.
+ box3(fx,z-.045,Math.max(.24,w*.58),d+.09,1.58,['#9e8872','#b8a18c','#d4bba0']);
+ box3(x-.02,z-.095,w+.04,d+.19,.17,['#87715e','#a78d73','#c3a98f']);
+ box3(x,z-.08,w*.50,.17,1.38,['#917a68','#ae967f','#d5b9a0']);
+ box3(x,z+d-.09,w*.50,.17,1.38,['#917a68','#ae967f','#d5b9a0']);
+ quad3([x-.015,z+.14,.18],[x-.015,z+d-.14,.18],[x-.015,z+d-.14,1.25],[x-.015,z+.14,1.25],'#151312','#51463d');
+ if(game.fireplace.lit&&game.fireplace.wood>0){
+  const glow=P(x,z+d*.5,.55);
+  ctx.save();
+  const g=ctx.createRadialGradient(glow[0],glow[1],0,glow[0],glow[1],34*zoom);
+  g.addColorStop(0,'#ffcc6677');g.addColorStop(.6,'#ff9d3b33');g.addColorStop(1,'#ffcc6600');ctx.fillStyle=g;ctx.beginPath();ctx.arc(glow[0],glow[1],34*zoom,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#ff8a2a';ctx.beginPath();ctx.moveTo(glow[0]-7*zoom,glow[1]+7*zoom);ctx.quadraticCurveTo(glow[0]-1*zoom,glow[1]-8*zoom,glow[0]+4*zoom,glow[1]+4*zoom);ctx.quadraticCurveTo(glow[0]+6*zoom,glow[1]-2*zoom,glow[0]+9*zoom,glow[1]+8*zoom);ctx.closePath();ctx.fill();
+  ctx.fillStyle='#ffd76a';ctx.beginPath();ctx.moveTo(glow[0]-3*zoom,glow[1]+6*zoom);ctx.quadraticCurveTo(glow[0]+1*zoom,glow[1]-4*zoom,glow[0]+4*zoom,glow[1]+5*zoom);ctx.closePath();ctx.fill();
+  ctx.restore();
+ }
+ box3(x-.05,z-.12,w+.08,d+.24,.14,['#654b36','#815d42','#ad8760'],1.39);
+ for(let row=0;row<4;row++)for(let i=0;i<2;i++){
+  const zz=z+.03+i*d/2+(row%2)*.05,yy=.28+row*.25;
+  line3([x-.02,zz,yy],[x-.02,Math.min(z+d-.02,zz+d*.37),yy+.01],'#796757',1.1);
+ }
+}
+function drawRockShape(cx,cz,w,d,h){
+ const verts=[[cx-w*.54,cz-d*.2,.08],[cx-w*.35,cz-d*.51,h*.56],[cx+w*.25,cz-d*.48,h*.80],[cx+w*.53,cz+d*.04,h*.35],[cx+w*.29,cz+d*.46,h*.78],[cx-w*.27,cz+d*.48,h*.55]];
+ const top=[cx,cz,h];const colors=['#69756c','#838b7c','#a2a294','#747e75','#969c90','#78887e'];
+ for(let i=0;i<6;i++)quad3([cx,cz,.04],verts[i],verts[(i+1)%6],top,colors[i],'#58645c');
+}
+
+// Casa 1 instanciável: transforma o mesmo modelo visual em uma unidade navegável.
+function houseInstances(){return editDecor.filter(o=>(o.kind==='house1'||o.kind==='house2')&&!o.hidden)}
+function captureHouseBlueprint(){
+ // Cópias novas usam a disposição ATUAL dos móveis, mas não partilham inventários,
+ // gavetas ou fechaduras com a casa principal.
+ return {fixed:fixedSolids.map(v=>({...v})),moveable:pushables.map(v=>({...v})),
+   shelfRows:[...shelfRows],shelf:[...game.stores.shelf],rug:{...game.rug}};
+}
+
+function cloneInteriorAt(x,z){return houseInstances().find(o=>x>o.x+.12&&x<o.x+((isHouseTwo(o)?10:7)-.12)&&z>o.z+.12&&z<o.z+4.88)||null}
+function ensureHouseState(o){
+ if(o.interior&&o.interior.fixed&&o.interior.door)return o.interior;
+ const seed=o.snapshot||captureHouseBlueprint();
+ const fixed=seed.fixed.map(v=>({...v}));
+ const moveable=seed.moveable.map(v=>({...v}));
+ o.interior={door:{locked:false,open:false},chest:{locked:false,open:false},fixed,moveable,
+  stores:{chest:[],drawerTop:[],drawerBottom:[],deskTop:[],table:['apple','cup','mug'],bed:[],shelf:[...(seed.shelf||[])],floor:seed.rug?.placed?['rug']:[],inventory:[]},
+  drawerOpen:[false,false],rug:{...(seed.rug||{x:.45,z:1.8,placed:true})},lamps:[true,true],droppedItems:[],shelfRows:[...(seed.shelfRows||[2,2,2])],fireplace:{wood:0,lit:false,burn:0}};
+ if(isHouseTwo(o)){
+  const byLabel=(arr,lbl,idx=0)=>arr.filter(v=>v.label===lbl)[idx]||null;
+  const desk=byLabel(fixed,'escrivaninha'),ward=byLabel(fixed,'armario'),chim=byLabel(fixed,'chamine'),bed=byLabel(fixed,'cama'),chest=byLabel(fixed,'bau');
+  const lampA=byLabel(fixed,'luminaria',0),lampB=byLabel(fixed,'luminaria',1),table=byLabel(moveable,'mesa'),stool=byLabel(moveable,'banquinho');
+  if(chim)Object.assign(chim,{x:9.56,z:1.22,w:.42,d:.92,h:2.74});
+  if(ward)Object.assign(ward,{x:9.02,z:.36,w:.74,d:1.56,h:1.95});
+  if(desk)Object.assign(desk,{x:4.62,z:4.08,w:1.2,d:.72,h:.66,rot:0});
+  if(chest)Object.assign(chest,{x:8.18,z:3.10,w:.96,d:.66,h:.54,rot:2});
+  if(table)Object.assign(table,{x:5.62,z:.46,w:1.12,d:.58,h:.58,rot:0});
+  if(stool)Object.assign(stool,{x:5.96,z:1.12,w:.42,d:.42,h:.42,rot:0});
+  if(bed)Object.assign(bed,{x:.18,z:3.84,w:1.6,d:.92,h:.35,rot:0});
+  if(lampA)Object.assign(lampA,{x:.78,z:2.18});
+  if(lampB)Object.assign(lampB,{x:8.68,z:2.44});
+ }
+ return o.interior;
+}
+function withHouseInstance(o,callback){
+ if(houseContext)return callback();
+ const h=ensureHouseState(o);
+ const before={camX,camZ,playerX:player.x,playerZ:player.z,door:game.door,chest:game.chest,
+  stores:game.stores,drawerOpen:game.drawerOpen,rug:game.rug,lamps:game.lamps,droppedItems:game.droppedItems,
+  doorSwing,items:game.items,fireplace:game.fireplace,shelfRows:[...shelfRows],
+  fixed:fixedSolids.map(v=>({...v})),moveable:pushables.map(v=>({...v}))};
+ houseContext=o;
+ try{
+  camX-=o.x;camZ-=o.z;player.x-=o.x;player.z-=o.z;
+  fixedSolids.forEach((v,i)=>Object.assign(v,h.fixed[i]||{}));
+  pushables.forEach((v,i)=>Object.assign(v,h.moveable[i]||{}));
+  game.door=h.door;game.chest=h.chest;game.stores=h.stores;
+  game.stores.inventory=before.stores.inventory;
+  game.drawerOpen=h.drawerOpen;game.rug=h.rug;game.lamps=h.lamps;game.droppedItems=h.droppedItems;game.fireplace=h.fireplace||(h.fireplace={wood:0,lit:false});
+  game.items={...before.items,chestKey:true};doorSwing=h.door.open?1:0;
+  for(let i=0;i<3;i++)shelfRows[i]=h.shelfRows[i]||0;
+  return callback();
+ }finally{
+  h.fixed=fixedSolids.map(v=>({...v}));h.moveable=pushables.map(v=>({...v}));
+  h.door=game.door;h.chest=game.chest;h.stores=game.stores;h.stores.inventory=[];
+  h.drawerOpen=game.drawerOpen;h.rug=game.rug;h.lamps=game.lamps;h.droppedItems=game.droppedItems;h.shelfRows=[...shelfRows];h.fireplace=game.fireplace;
+  fixedSolids.forEach((v,i)=>{for(const key of Object.keys(v))delete v[key];Object.assign(v,before.fixed[i]);});
+  pushables.forEach((v,i)=>{for(const key of Object.keys(v))delete v[key];Object.assign(v,before.moveable[i]);});
+  camX=before.camX;camZ=before.camZ;player.x=before.playerX;player.z=before.playerZ;
+  game.door=before.door;game.chest=before.chest;game.stores=before.stores;game.drawerOpen=before.drawerOpen;
+  game.rug=before.rug;game.lamps=before.lamps;game.droppedItems=before.droppedItems;
+  game.items=before.items;game.fireplace=before.fireplace;doorSwing=before.doorSwing;
+  for(let i=0;i<3;i++)shelfRows[i]=before.shelfRows[i];
+  houseContext=null;
+ }
+}
+function drawAnnexFloor(){ }
+function drawAnnexWalls(interior=false){ }
+function drawAnnexRoof(){ }
+function drawDecor(o){
+ if(['table','bed','chest','shelf','lamp','chair'].includes(o.kind)){
+  const map={table:pushables.find(q=>q.label==='mesa'),bed:bedObject,chest:chestObject,shelf:wardrobeObject,lamp:fixedSolids.find(q=>q.label==='luminaria')};
+  const base=map[o.kind];
+  if(base){const bak={x:base.x,z:base.z,w:base.w,d:base.d,h:base.h,rot:base.rot};Object.assign(base,{x:o.x,z:o.z,w:o.w,d:o.d,h:o.h,rot:o.rot||0});
+   try{if(o.kind==='table')drawMoveable(base);else if(o.kind==='bed')drawBed();else if(o.kind==='chest'){const oldChest=game.chest,oldItems=game.stores.chest;game.chest=o.chestState||{locked:false,open:false};game.stores.chest=o.contents||[];try{drawChest()}finally{game.chest=oldChest;game.stores.chest=oldItems;}}else if(o.kind==='shelf')drawWardrobe();else if(o.kind==='lamp')drawLamp(o.x+o.w/2,o.z+o.d/2);}finally{Object.assign(base,bak);}return;
+  }
+ }
+ if(o.kind==='tree'){tree(o.x,o.z,o.scale||.9);return;}
+ if(o.kind==='shrub'){bush(o.x,o.z,o.scale||.85);return;}
+ if(o.kind==='stone'){drawRockShape(o.x+o.w/2,o.z+o.d/2,o.w,o.d,o.h);return;}
+ if(o.kind==='house1'||o.kind==='house2'){
+  const playerInside=cloneInteriorAt(player.x,player.z)===o;
+  withHouseInstance(o,()=>{
+   if(playerInside&&(roofMode===0||roofMode===2)){drawAnnexFloorIfNeeded();drawInnerScene();}
+   else {drawOuterShell();if(annexActive())drawAnnexWalls();roof();if(annexActive())drawAnnexRoof();drawExternalChimney();}
+  });
+  return;
+ }
+ if(o.kind==='house'){box3(o.x,o.z,o.w,o.d,o.h,['#99836a','#b49c7c','#d1b592']);box3(o.x-.1,o.z-.1,o.w+.2,o.d+.2,.35,['#653a2f','#8c4835','#af6147'],o.h);return;}
+ box3(o.x,o.z,o.w,o.d,o.h,o.kind==='barrel'?['#654831','#805b38','#a27b50']:['#6a4b35','#8a6442','#b28c62']);
+}
+
+function drawExternalChimney(){
+ const o=chimneyObject;if(!o)return;
+ const eastVisible=screenVector(1,0)[0]>.02;
+ const x=currentHouseWidth()-.03,z=o.z+.02,w=.38,d=Math.max(.74,o.d*.9),top=4.55;
+ if(eastVisible){
+  box3(x,z,w,d,top,['#8f7a68','#b39d83','#d2baa0']);
+  box3(x-.035,z-.04,w+.07,d+.08,.12,['#766858','#95816a','#c5b39b']);
+  for(let row=0;row<13;row++){
+   const by=.18+row*.295;const count=row%2?3:4;
+   for(let i=0;i<count;i++){
+    const za=z+.03+(i+(row%2)*.18)*(d-.06)/count;
+    const zb=Math.min(z+d-.03,za+(d-.06)/count*.82);
+    if(zb<=za)continue;
+    const col=['#b9a38b','#8d7967','#c8b49b','#9d8975','#a89480'][(row*3+i)%5];
+    quad3([x+w+.002,za,by],[x+w+.002,zb,by+.025],[x+w+.002,zb,by+.215],[x+w+.002,za,by+.195],col,'#6d6257');
+   }
+  }
+ }
+ box3(x-.025,z-.03,w+.05,d+.06,.10,['#766858','#95816a','#c5b39b'],top-.15);
+ box3(x+.06,z+.09,w-.12,d-.18,.10,['#55473c','#76665a','#a99782'],top-.02);
+ if(game.fireplace.lit&&game.fireplace.wood>0){
+  const t=performance.now()/1000;
+  for(let i=0;i<5;i++){
+    const rise=((t*0.22+i*0.21)%1),sx=x+w*.50 + Math.sin(t*1.5+i)*.045,sz=z+d*.48 + Math.cos(t*1.2+i)*.045,sy=top+.10+rise*1.8;
+    const p=P(sx,sz,sy);ctx.save();ctx.globalAlpha=(1-rise)*0.35;ctx.fillStyle= i%2 ? '#6f6f73' : '#8b8b90';ctx.beginPath();ctx.arc(p[0],p[1],(5+rise*9)*zoom,0,Math.PI*2);ctx.fill();ctx.restore();
+  }
+ }
+}
+function drawChest(){
+ const o=chestObject,{x,z,w,d}=o,h=.54,odd=(o.rot||0)%2!==0;
+ // W e D são a caixa de colisão já rotacionada. Coordenadas locais sempre mantêm as proporções.
+ const corner=(u,v,y)=>{const r=((o.rot||0)%4+4)%4;return r===0?[x+u*w,z+v*d,y]:r===1?[x+(1-v)*w,z+u*d,y]:r===2?[x+(1-u)*w,z+(1-v)*d,y]:[x+v*w,z+(1-u)*d,y]};
+ const face=(a,b,c,dd,col,edge)=>quad3(corner(...a),corner(...b),corner(...c),corner(...dd),col,edge);
+ const wood=['#28272e','#37353b','#55515b'];
+ box3(x,z,w,d,.47,wood);
+ // Detalhes aplicados somente às faces externas do volume, nunca ao chão.
+ for(const u of [.12,.83]){
+  face([u,1,.06],[u+.06,1,.06],[u+.06,1,.46],[u,1,.46],'#24242a');
+  face([u,0,.06],[u+.06,0,.06],[u+.06,0,.46],[u,0,.46],'#24242a');
+ }
+ const key=P(...corner(.5,1,.30));ctx.fillStyle=game.chest.locked?'#e1bd6a':'#a6ada0';ctx.fillRect(key[0]-3,key[1]-5,6,10);
+ if(game.chest.open){
+  face([.045,.05,.485],[.955,.05,.485],[.955,.95,.485],[.045,.95,.485],'#161419','#4b454a');
+  const lid=()=>{ // tampa sólida e opaca; ocupa o plano traseiro do baú
+   face([0,-.12,.48],[1,-.12,.48],[1,-.12,1.16],[0,-.12,1.16],'#353139','#9e8c73');
+   face([.03,-.121,.55],[.97,-.121,.55],[.97,-.121,1.10],[.03,-.121,1.10],'#48444e','#84796b');
+  };
+  const items=()=>{
+   if(game.stores.chest.includes('coins')){for(let i=0;i<8;i++){const q=P(...corner(.18+(i%4)*.18,.26+Math.floor(i/4)*.23,.51));ctx.fillStyle='#e0b350';ctx.beginPath();ctx.ellipse(q[0],q[1],3*zoom,2.5*zoom,0,0,7);ctx.fill();}}
+   if(game.stores.chest.includes('gem')){const q=P(...corner(.72,.56,.53));ctx.fillStyle='#5ad2de';ctx.beginPath();ctx.moveTo(q[0],q[1]-7);ctx.lineTo(q[0]+6,q[1]);ctx.lineTo(q[0],q[1]+6);ctx.lineTo(q[0]-6,q[1]);ctx.fill();}
+   game.stores.chest.filter(t=>!['coins','gem'].includes(t)).slice(0,5).forEach((type,i)=>{const c=corner(.15+(i%3)*.24,.20+Math.floor(i/3)*.32,.52);drawStoredItemMarker(c[0],c[1],c[2],type,.88);});
+  };
+  // Se o lado da dobradiça está à frente dos itens, desenhar a tampa POR ÚLTIMO.
+  // No ângulo oposto, os itens ficam naturalmente à frente da tampa.
+  const hinge=corner(.5,-.12,.7),middle=corner(.5,.5,.7);
+  const lidInFront=painterDepth(hinge[0],hinge[1])>=painterDepth(middle[0],middle[1]);
+  if(lidInFront){items();lid()}else{lid();items()}
+ }else{
+  box3(x-.015,z-.015,w+.03,d+.03,.12,['#353139','#46424a','#66616a'],.46);
+  for(const u of [.13,.81])face([u,0,.58],[u+.06,0,.58],[u+.06,1,.58],[u,1,.58],'#24232a');
+ }
+}
+
+function drawDivider(){
+ solidInnerWall(3.6,.06,2.36,1.64);
+ // A pequena seção solta da antiga parede foi removida por completo.
+}
+function drawMoveable(o){
+ if(o.label==='mesa'){
+
+  for(const [lx,lz] of [[o.x+.12,o.z+.12],[o.x+o.w-.12,o.z+.12],[o.x+.12,o.z+o.d-.12],[o.x+o.w-.12,o.z+o.d-.12]])box3(lx-.047,lz-.047,.094,.094,.50,['#583927','#64432d','#87603e']);
+  box3(o.x,o.z,o.w,o.d,.12,['#875b37','#9b6940','#c49860'],.46);
+  line3([o.x+.08,o.z+.11,.60],[o.x+o.w-.08,o.z+.11,.60],'#ebc993',1.4);
+ }else{
+  box3(o.x,o.z,o.w,o.d,.38,['#634329','#805631','#a47344']);
+  box3(o.x+.04,o.z+.04,o.w-.08,o.d-.08,.04,['#8a633f','#9d7751','#bc9465'],.38);
+ }
+}
+function drawSurfaceItems(id=null){
+ const groups=[['table',pushables.find(o=>o.label==='mesa')],['bed',bedObject],['deskTop',deskObject]];
+ for(const [loc,o] of groups){if(id&&loc!==id||!o)continue;
+  for(const [i,type] of game.stores[loc].entries()){
+   const x=o.x+.14+(i%3)*.21,z=o.z+.12+Math.floor(i/3)*.21,y=o.h+.035;
+   drawStoredItemMarker(x,z,y,type,1);
+  }
+ }
+}
+function lampIndexAt(x,z){const a=fixedSolids.filter(o=>o.label==='luminaria');return Math.hypot(x-(a[0].x+a[0].w/2),z-(a[0].z+a[0].d/2))<Math.hypot(x-(a[1].x+a[1].w/2),z-(a[1].z+a[1].d/2))?0:1}
+function toggleLamp(i){
+ game.lamps[i]=!game.lamps[i];saveGame();
+ toast(game.lamps[i]?'Luminária acesa.':'Luminária apagada.');
+}
+function drawLamp(x,z){
+ const on=game.lamps[lampIndexAt(x,z)],base=P(x,z,.02),light=P(x,z,1.41);
+ if(on){
+  ctx.save();const radius=scale*zoom*1.45;
+  const glow=ctx.createRadialGradient(base[0],base[1],0,base[0],base[1],radius);
+  glow.addColorStop(0,'#f6cb6448');glow.addColorStop(.42,'#f6cf4920');glow.addColorStop(1,'#f6cf4900');
+  ctx.fillStyle=glow;ctx.beginPath();ctx.ellipse(base[0],base[1],radius,radius*.50,0,0,Math.PI*2);ctx.fill();
+  const aura=ctx.createRadialGradient(light[0],light[1],0,light[0],light[1],scale*zoom*.42);
+  aura.addColorStop(0,'#fff5bf88');aura.addColorStop(1,'#fff5bf00');ctx.fillStyle=aura;ctx.beginPath();ctx.arc(light[0],light[1],scale*zoom*.42,0,Math.PI*2);ctx.fill();ctx.restore();
+ }
+ box3(x-.11,z-.11,.22,.22,.07,['#473629','#604736','#82644b']);
+ box3(x-.042,z-.042,.084,.084,1.02,['#4b3527','#473527','#64513c'],.07);
+ box3(x-.07,z-.07,.14,.14,.12,['#6e543f','#7c624b','#96775b'],1.09);
+ box3(x-.15,z-.15,.30,.30,.23,on?['#c69942','#e8c96b','#fff0b2']:['#555347','#66665a','#99968a'],1.17);
+ line3([x-.12,z,1.30],[x+.12,z,1.30],on?'#fff5c7':'#777065',1.8);
+}
+// Continuous wall prism: original (inner) face stays fixed and volume grows outwards.
+// Top / end caps close gaps between adjacent sections, including window jambs.
+function wallPanel(x,z,y0,y1,dx,dz,fill){
+ // Cada parede é um prisma de 15 cm; a face interna permanece no perímetro
+ // original da casa e a espessura cresce exclusivamente para o exterior.
+ const thick=WALL_THICKNESS,edge='#6c4d38';
+ const alongX=Math.abs(dx)>.001;
+ const ox=alongX?0:(x<3.5?-thick:thick);
+ const oz=alongX?(z<2.5?-thick:thick):0;
+ const a=[x,z,y0],b=[x+dx,z+dz,y0],c=[x+dx,z+dz,y1],d=[x,z,y1];
+ const aa=[x+ox,z+oz,y0],bb=[x+dx+ox,z+dz+oz,y0];
+ const cc=[x+dx+ox,z+dz+oz,y1],dd=[x+ox,z+oz,y1];
+ const surfaces=[
+  {z:painterDepth(x+dx/2,z+dz/2),pts:[a,b,c,d],fill:shade(fill,-3)},
+  {z:painterDepth(x+dx/2+ox,z+dz/2+oz),pts:[aa,bb,cc,dd],fill},
+  {z:painterDepth(x,z),pts:[a,aa,dd,d],fill:'#cdb291'},
+  {z:painterDepth(x+dx,z+dz),pts:[b,bb,cc,c],fill:'#cdb291'}
+ ];
+ surfaces.sort((u,v)=>u.z-v.z).forEach(f=>quad3(...f.pts,f.fill));
+ quad3(d,c,cc,dd,'#e8d3af');
+ line3(dd,cc,edge,1.1);
+}
+function wallLine(x,z,h,dx,dz,fill){wallPanel(x,z,0,h,dx,dz,fill)}
+// Portal: somente a abertura é transparente; refazemos o que existe além da parede
+// em vez de preencher o vidro com uma textura artificial de grama ou madeira.
+let paintingPortal=false;
+function sceneThroughWindow(side){
+ if(paintingPortal)return;
+ paintingPortal=true;
+ try{
+  if(reveal()){
+   // Exterior: somente o desenho dentro do recorte do vidro. Evita redesenhar
+   // o chão inteiro e elimina grama que aparecia indevidamente sobre a copa.
+   ctx.fillStyle='#65984e';ctx.fillRect(0,0,W,H);
+   const distantTrees=foliage.filter(t=>Math.abs(t[0]-3.5)<8&&Math.abs(t[1]-2.5)<8);
+   for(const t of distantTrees)tree(...t);
+   for(const s of shrubs.filter(t=>Math.abs(t[0]-3.5)<8&&Math.abs(t[1]-2.5)<8))bush(...s);
+  }else{
+   // Vista externa: assoalho e móveis REAIS projetados através da janela.
+   floorSurface();
+   drawBed();drawDesk();drawWardrobe();drawChest();
+   for(const o of pushables)drawMoveable(o);
+  }
+ }finally{paintingPortal=false;}
+}
+function clippedWindow(coords,side){
+ if(paintingPortal)return;
+ ctx.save();ctx.beginPath();coords.map(p=>P(...p)).forEach((p,i)=>i?ctx.lineTo(...p):ctx.moveTo(...p));ctx.closePath();ctx.clip();
+ sceneThroughWindow(side);
+ ctx.restore();
+}
+function windowPaneZ(z,x,width){
+ const y1=1.24,y2=2.17,eps=.003;
+ wallLine(x,z,y1,width,0,'#d4bd98');
+ wallPanel(x,z,y2,2.92,width,0,'#dbc5a2');
+ clippedWindow([[x,z,y1],[x+width,z,y1],[x+width,z,y2],[x,z,y2]],'z');
+ // Vidro azulado translúcido apenas sobre o que efetivamente está atrás.
+ ctx.save();ctx.globalAlpha=.32;
+ quad3([x,z+eps,y1],[x+width,z+eps,y1],[x+width,z+eps,y2],[x,z+eps,y2],'#a7d8ee');ctx.restore();
+ line3([x+width/2,z,y1],[x+width/2,z,y2],'#f3dfba',2.3);
+ line3([x,z,1.70],[x+width,z,1.70],'#f3dfba',2.3);
+ line3([x,z,y1],[x+width,z,y1],'#694631',3.3);
+}
+function windowPaneX(x,z,width){
+ const y1=1.24,y2=2.17,eps=.003;
+ wallLine(x,z,y1,0,width,'#d4bd98');
+ wallPanel(x,z,y2,2.92,0,width,'#dbc5a2');
+ clippedWindow([[x,z,y1],[x,z+width,y1],[x,z+width,y2],[x,z,y2]],'x');
+ ctx.save();ctx.globalAlpha=.32;
+ quad3([x+eps,z,y1],[x+eps,z+width,y1],[x+eps,z+width,y2],[x+eps,z,y2],'#a7d8ee');ctx.restore();
+ line3([x,z+width/2,y1],[x,z+width/2,y2],'#f3dfba',2.3);
+ line3([x,z,1.70],[x,z+width,1.70],'#f3dfba',2.3);
+ line3([x,z,y1],[x,z+width,y1],'#694631',3.3);
+}
+function drawWallFace(side){
+ const cream='#e6d3b1',wood='#765338',h=2.92,hw=currentHouseWidth();
+ if(side==='north'||side==='south'){
+  const z=side==='north'?0:5;
+  const segments=side==='north' ? [[0,2],[2,2.9],[2.9,hw]] : [[0,1.1],[1.1,1.8],[1.8,3.05],[4.23,hw]];
+  for(const [a,b] of segments){
+   if(side==='north'&&a===2||side==='south'&&a===1.1)windowPaneZ(z,a,b-a);
+   else wallLine(a,z,h,b-a,0,cream);
+  }
+  for(let x=0;x<hw;x+=1.18){if(side==='south'&&x>3.02&&x<4.24)continue;if(side==='north'&&x>2&&x<2.9||side==='south'&&x>1.1&&x<1.8)continue;line3([x,z,.02],[x,z,h],wood,3.3)}
+  if(side==='south'){wallPanel(3.05,z,2.60,h,1.18,0,cream);if(!reveal())drawDoor();}
+  line3([0,z,h],[hw,z,h],wood,4.3);
+ }else{
+  const x=side==='west'?0:hw;
+  if(side==='west'){
+   const w1=1.95,w2=w1+.88;
+   wallLine(x,0,h,0,w1,cream);windowPaneX(x,w1,w2-w1);wallLine(x,w2,h,0,5-w2,cream);
+   for(let z=0;z<5;z+=1.18){if(z>w1&&z<w2)continue;line3([x,z,.02],[x,z,h],wood,3.3)}
+  }else{
+   wallLine(x,0,h,0,5,cream);for(let z=0;z<5;z+=1.18)line3([x,z,.02],[x,z,h],wood,3.3)
+  }
+  line3([x,0,h],[x,5,h],wood,4.3);
+ }
+}
+// Máscara projetada de alvenaria opaca, aplicada somente às paredes
+// que ficam na frente da folha da porta em cada orientação de câmera.
+// O recorte atua em pixels e não depende de um ângulo fixo da câmera.
+function clipDoorBehindWalls(){
+ const d=painterDepth(3.05,4.52),t=.001;
+ const occluders=[
+  {depth:painterDepth(1.5,5),quad:[[0,5,0],[3.05,5,0],[3.05,5,2.92],[0,5,2.92]]},
+  {depth:painterDepth(5.6,5),quad:[[4.23,5,0],[7,5,0],[7,5,2.92],[4.23,5,2.92]]},
+  {depth:painterDepth(0,2.5),quad:[[0,0,0],[0,5,0],[0,5,2.92],[0,0,2.92]]},
+  {depth:painterDepth(7,2.5),quad:[[7,0,0],[7,5,0],[7,5,2.92],[7,0,2.92]]},
+  {depth:painterDepth(3.5,0),quad:[[0,0,0],[7,0,0],[7,0,2.92],[0,0,2.92]]}
+ ];
+ const front=occluders.filter(o=>o.depth>d+t);
+ if(!front.length)return false;
+ ctx.beginPath();ctx.rect(0,0,W,H);
+ for(const wall of front){const ps=wall.quad.map(v=>P(...v));ctx.moveTo(ps[0][0],ps[0][1]);for(let i=1;i<ps.length;i++)ctx.lineTo(...ps[i]);ctx.closePath()}
+ ctx.clip('evenodd');
+ return true;
+}
+function drawDoor(){
+ ctx.save();if(!paintingPortal&&!reveal())clipDoorBehindWalls();
+ const x=3.05,z=5,h=2.60;
+ line3([x,z,0],[x,z,h],'#523826',4.5);
+ line3([4.23,z,0],[4.23,z,h],'#523826',4.5);
+ line3([x,z,h],[4.23,z,h],'#503827',4.5);
+ // Porta maciça gira lentamente no eixo vertical, de frente para o cômodo.
+ const angle=doorSwing*Math.PI/2,dx=1.18*Math.cos(angle),dz=-1.18*Math.sin(angle);
+ const nx=Math.sin(angle)*DOOR_THICKNESS*.5,nz=Math.cos(angle)*DOOR_THICKNESS*.5;
+ const a=[x-nx,z-nz,0],b=[x+dx-nx,z+dz-nz,0];
+ const c=[x+dx+nx,z+dz+nz,0],d=[x+nx,z+nz,0];
+ const aa=[a[0],a[1],h],bb=[b[0],b[1],h],cc=[c[0],c[1],h],dd=[d[0],d[1],h];
+ const faces=[
+  {depth:painterDepth((a[0]+b[0])/2,(a[1]+b[1])/2),p:[a,b,bb,aa],color:'#76502f'},
+  {depth:painterDepth((c[0]+d[0])/2,(c[1]+d[1])/2),p:[d,c,cc,dd],color:'#694429'},
+  {depth:painterDepth((b[0]+c[0])/2,(b[1]+c[1])/2),p:[b,c,cc,bb],color:'#593920'}
+ ];
+ faces.sort((u,v)=>u.depth-v.depth).forEach(f=>quad3(...f.p,f.color,'#563b28'));
+ quad3(aa,bb,cc,dd,'#9a6c48','#563b28');
+ for(let i=1;i<=5;i++){
+  const t=i/6;line3([x+dx*t-nx,z+dz*t-nz,.10],[x+dx*t-nx,z+dz*t-nz,h-.1],'#5c3925',1.4);
+ }
+ const lock=P(x+dx*.85+nx,z+dz*.85+nz,1.10);
+ ctx.fillStyle=game.door.locked?'#e9ba57':'#c6d2b1';ctx.beginPath();ctx.arc(lock[0],lock[1],3.2*zoom,0,7);ctx.fill();
+ ctx.restore();
+}
+function drawDoorwayBackground(){
+ if(!game.door.open)return;
+ // O recorte do vão é um portal óptico: renderiza a geometria real do
+ // cômodo no mesmo espaço da cena, não um painel que imita madeira.
+ const corners=[[3.055,5,0],[4.225,5,0],[4.225,5,2.60],[3.055,5,2.60]].map(p=>P(...p));
+ ctx.save();ctx.beginPath();corners.forEach((p,i)=>i?ctx.lineTo(...p):ctx.moveTo(...p));ctx.closePath();ctx.clip();
+ // Fundo neutro: se a câmera não alcançar outra parede, não revela grama.
+ ctx.fillStyle='#baa483';ctx.fillRect(0,0,W,H);
+ floorSurface();
+ // A parede oposta, as aberturas e o mobiliário são os mesmos de dentro.
+ drawWallFace('north');
+ const things=[
+  {x:1.3,z:.9,draw:drawBed},
+  {x:deskObject.x+deskObject.w/2,z:deskObject.z+deskObject.d/2,draw:drawDesk},
+  {x:wardrobeObject.x+wardrobeObject.w/2,z:wardrobeObject.z+wardrobeObject.d/2,draw:drawWardrobe},
+  {x:chestPos().x,z:chestPos().z,draw:drawChest},
+  {x:3.6,z:1.18,draw:drawDivider},
+  ...pushables.map(o=>({x:o.x+o.w/2,z:o.z+o.d/2,draw:()=>{drawMoveable(o);if(o.label==='mesa')drawSurfaceItems('table')}})),
+  {x:.7,z:2.3,draw:()=>drawLamp(.7,2.3)},
+  {x:6.26,z:3.88,draw:()=>drawLamp(6.26,3.88)}
+ ];
+ things.sort((a,b)=>painterDepth(a.x,a.z)-painterDepth(b.x,b.z)).forEach(o=>o.draw());
+ ctx.restore();
+}
+function drawOuterShell(){
+ const hw=currentHouseWidth();
+ const sides=[{side:'north',x:hw/2,z:0},{side:'south',x:hw/2,z:5},{side:'west',x:0,z:2.5},{side:'east',x:hw,z:2.5}];
+ const depth=(p)=>{const [rx,rz]=rotated(p.x,p.z);return rx+rz};
+ drawDoorwayBackground();
+ sides.sort((a,b)=>depth(a)-depth(b)).forEach(w=>drawWallFace(w.side));
+}
+function interiorWalls(){const cream='#e8d5b6',dark='#765338',hw=currentHouseWidth();
+ wallX(3.6,.1,2.28,1.6,cream);
+ for(let z=.2;z<4.9;z+=1)if(z<2.28||z>2.55&&z<2.78)line3([3.6,z,.01],[3.6,z,1.6],dark,3);
+ wallZ(5,0,3.02,.74,'#d8c29b');wallZ(5,4.28,hw,.74,'#d8c29b');wallX(hw,0,5,.72,'#d7c09c');wallX(0,0,5,.72,'#d7c09c');
+ line3([0,5,.74],[3.02,5,.74],dark,4);line3([4.28,5,.74],[hw,5,.74],dark,4);
+}
+
+function roof(){
+ const hw=currentHouseWidth(),a=-.28,b=hw+.28,rz=2.5,eave=2.96,rh=4.18;
+ const gables=[a,b].map(x=>({x,depth:(rotated(x,2.5)[0]+rotated(x,2.5)[1])})).sort((x,y)=>x.depth-y.depth);
+ for(const g of gables)poly([P(g.x,-.40,eave-.05),P(g.x,2.5,rh+.01),P(g.x,5.41,eave-.05)],'#bb956f','#5b3827',.6);
+ const sides=[
+  {depth:rotated(hw/2,1.0).reduce((a,b)=>a+b,0),fill:'#984332',p:[[a,-.37,eave],[b,-.37,eave],[b,rz,rh],[a,rz,rh]],back:true},
+  {depth:rotated(hw/2,4).reduce((a,b)=>a+b,0),fill:'#b6563c',p:[[a,rz,rh],[b,rz,rh],[b,5.39,eave],[a,5.39,eave]],back:false}
+ ];
+ sides.sort((x,y)=>x.depth-y.depth);
+ for(const face of sides){
+  quad3(...face.p,face.fill,'#542e24');
+  const r=face.back?[-.37,rz]:[rz,5.39];
+  for(let i=1;i<12;i++){
+   const z=r[0]+(r[1]-r[0])*i/12;
+   const yy=face.back?eave+(rh-eave)*(z-r[0])/(rz-r[0]):rh+(eave-rh)*(z-rz)/(5.39-rz);
+   line3([a,z,yy+.01],[b,z,yy+.01],'#67382d9b',.76);
+  }
+ }
+ quad3([a,-.37,eave],[b,-.37,eave],[b,-.37,eave-.15],[a,-.37,eave-.15],'#683b2d');
+ quad3([a,5.39,eave],[b,5.39,eave],[b,5.39,eave-.15],[a,5.39,eave-.15],'#683b2d');
+ line3([a,rz,rh],[b,rz,rh],'#633b30',4.5);
+}
+
+function drawKey(x,z,type){
+ const p=P(x,z,.06),r=scale*zoom;
+ ctx.fillStyle='#26361d80';ctx.beginPath();ctx.ellipse(p[0]+1.6,p[1]+3,r*.18,r*.07,0,0,7);ctx.fill();
+ // Chave dourada, aro e dentes, com brilho discreto.
+ ctx.strokeStyle=type==='house'?'#f5d36e':'#aedee3';ctx.lineWidth=Math.max(2,r*.075);ctx.lineCap='round';
+ ctx.beginPath();ctx.arc(p[0]-r*.13,p[1]-r*.10,r*.095,0,Math.PI*2);ctx.stroke();
+ ctx.beginPath();ctx.moveTo(p[0]-r*.06,p[1]-r*.04);ctx.lineTo(p[0]+r*.21,p[1]+r*.18);ctx.lineTo(p[0]+r*.26,p[1]+r*.11);ctx.moveTo(p[0]+r*.14,p[1]+r*.12);ctx.lineTo(p[0]+r*.19,p[1]+r*.05);ctx.stroke();
+ ctx.font='bold 11px system-ui';ctx.textAlign='center';ctx.fillStyle='#fff0bb';ctx.fillText('Chave',p[0],p[1]-r*.45);
+}
+function drawItems(){
+ if(!game.items.chestKey&&reveal())drawKey(game.groundKeys.chest.x,game.groundKeys.chest.z,'chest');
+}
+function character(){
+ if(godMode()&&(godPresence==='invisible'||godPresence==='ethereal'))return;
+ ctx.save();if(godMode()&&godPresence==='translucent')ctx.globalAlpha=.35;
+ const look=looks[role];
+ const foot=P(player.x,player.z,player.elevation+player.jumpY),groundFoot=P(player.x,player.z,player.elevation),u=scale*zoom;
+ const motion=player.walkBlend;
+ const phase=player.step*1.25,sw=Math.sin(phase)*motion,swOther=Math.sin(phase+Math.PI)*motion;
+ const bounce=(1-Math.cos(phase*2))*.023*motion;
+ const screenFace=screenVector(player.faceX,player.faceY);
+ const facing=screenFace[0]<-.08?-1:1;
+ // Sombra de contato: primeiro o apoio sob os pés, depois a penumbra.
+ ctx.fillStyle='#1327168a';ctx.beginPath();ctx.ellipse(groundFoot[0],groundFoot[1]+1,u*.23,u*.076,0,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle='#152e1970';ctx.beginPath();ctx.ellipse(groundFoot[0]+1,groundFoot[1]+1,u*.14,u*.052,0,0,Math.PI*2);ctx.fill();
+ const centerY=foot[1]-u*(.60+bounce);const bodyMul=look.bodyStyle==='strong'?1.20:look.bodyStyle==='slim'?.82:1;
+ ctx.lineCap='round';ctx.lineJoin='round';
+ for(const [side,cycle] of [[-1,sw],[1,swOther]]){
+  const hipX=foot[0]+side*u*.077,hipY=centerY+u*.19;
+  const kneeX=hipX+cycle*u*.14,kneeY=foot[1]-u*(.22+Math.max(0,cycle)*.07);
+  const toeX=kneeX+cycle*u*.08+facing*u*.02,toeY=foot[1]-u*(Math.max(0,cycle)*.07);
+  ctx.strokeStyle=look.pants||'#303a4b';ctx.lineWidth=u*.092*bodyMul;
+  ctx.beginPath();ctx.moveTo(hipX,hipY);ctx.lineTo(kneeX,kneeY);ctx.lineTo(toeX,toeY);ctx.stroke();
+  ctx.strokeStyle='#49352b';ctx.lineWidth=u*.11;ctx.beginPath();ctx.moveTo(toeX-u*.035,toeY);ctx.lineTo(toeX+facing*u*.067,toeY+u*.01);ctx.stroke();
+ }
+ for(const [side,cycle] of [[-1,swOther],[1,sw]]){
+  const sx=foot[0]+side*u*.17,sy=centerY-u*.24;
+  ctx.strokeStyle=look.skin;ctx.lineWidth=u*.095;
+  ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(sx+side*u*.05+cycle*u*.11,sy+u*(.3+Math.max(0,-cycle)*.08));ctx.stroke();
+ }
+ ctx.save();ctx.translate(foot[0],centerY-u*.10);ctx.rotate(sw*.025);
+ ctx.fillStyle=look.outfit;ctx.beginPath();ctx.moveTo(-u*.155*bodyMul,-u*.27);ctx.quadraticCurveTo(0,-u*.38,u*.155*bodyMul,-u*.27);ctx.lineTo(u*.18*bodyMul,look.outfitStyle==='robe'?u*.45:u*.29);ctx.quadraticCurveTo(0,u*.35,-u*.18*bodyMul,look.outfitStyle==='robe'?u*.45:u*.29);ctx.closePath();ctx.fill();
+ ctx.fillStyle='#9f5649';ctx.fillRect(-u*.16,u*.09,u*.32,u*.065);ctx.fillStyle='#e6c57f';ctx.fillRect(-u*.028,u*.09,u*.056,u*.065);ctx.restore();
+ const hx=foot[0]+sw*u*.013,hy=centerY-u*.69;
+ ctx.fillStyle=look.skin;ctx.beginPath();ctx.arc(hx,hy,u*.217,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle=look.hair;ctx.beginPath();ctx.arc(hx,hy-u*.067,u*.225,Math.PI*1.03,Math.PI*1.98);ctx.lineTo(hx+u*.22,hy-u*.11);ctx.fill();
+ if(look.hairStyle==='bald'){ctx.fillStyle=look.skin;ctx.beginPath();ctx.arc(hx,hy-u*.092,u*.205,Math.PI*1.02,Math.PI*1.99);ctx.fill();}
+ if(look.hairStyle==='long'){ctx.fillStyle=look.hair;ctx.fillRect(hx-u*.19,hy-u*.08,u*.09,u*.38);ctx.fillRect(hx+u*.10,hy-u*.08,u*.09,u*.38);}
+ if(look.outfitStyle==='coat'){ctx.strokeStyle='#d4b987';ctx.lineWidth=u*.022;ctx.beginPath();ctx.moveTo(foot[0],centerY-u*.34);ctx.lineTo(foot[0],centerY+u*.26);ctx.stroke();}
+ if(look.outfitStyle==='armor'){ctx.fillStyle='#9aa7ac';ctx.fillRect(foot[0]-u*.16,centerY-u*.23,u*.32,u*.14);}
+ ctx.fillStyle=look.eyes||'#43342f';ctx.beginPath();ctx.arc(role==='god'?hx:hx+facing*u*.083,hy+u*.019,u*(role==='god'?.033:.023),0,Math.PI*2);ctx.fill();
+ if(role==='god'&&look.beardStyle!=='none'){
+  ctx.fillStyle='#e6e1d1';ctx.beginPath();ctx.moveTo(hx-u*.15,hy+u*.085);ctx.quadraticCurveTo(hx,hy+u*(look.beardStyle==='short'?.27:.43),hx+u*.15,hy+u*.085);ctx.quadraticCurveTo(hx,hy+u*.21,hx-u*.15,hy+u*.085);ctx.fill();
+  ctx.fillStyle='#ded6bd';ctx.beginPath();ctx.arc(hx,hy-u*.18,u*.19,Math.PI,2*Math.PI);ctx.fill();
+  ctx.fillStyle='#e7e0ca';ctx.fillRect(hx-u*.15,hy-u*.04,u*.30,u*.055);
+ }
+ if(role==='god'){ctx.strokeStyle=look.hair;ctx.lineWidth=u*.028;ctx.beginPath();ctx.moveTo(hx-u*.11,hy-u*.02);ctx.lineTo(hx+u*.11,hy-u*.02);ctx.stroke();}
+ ctx.restore();
+}
+
+
+// Camadas de interiores separadas da colisão: nenhum objeto é duplicado.
+function painterDepth(x,z){const a=rotated(x,z);return a[0]+a[1]}
+function footprintDepth(o){const pts=[[o.x,o.z],[o.x+o.w,o.z],[o.x,o.z+o.d],[o.x+o.w,o.z+o.d]];return Math.min(...pts.map(([x,z])=>painterDepth(x,z)))}
+// Renderização por partes: evita que uma parede ou mesa inteira cubra o personagem.
+function wallParts(){const result=[];for(let z=.06;z<2.36;z+=.12){const a=z,b=Math.min(z+.12,2.36);result.push({x:3.6,z:(a+b)/2,depth:painterDepth(3.6,(a+b)/2),draw:()=>drawWallSegment(a,b)});}return result;}
+function drawWallSegment(z1,z2){
+ const x=3.6,t=WALL_THICKNESS/2,h=1.06;
+ const vx=Math.cos(cameraYaw)+Math.sin(cameraYaw);
+ // Renderizar somente a face visível evita desenhar a face traseira sobre o personagem.
+ const xx=vx>0?x+t:x-t;
+ quad3([xx,z1,0],[xx,z2,0],[xx,z2,h],[xx,z1,h],vx>0?'#cdb391':'#dfc8a8');
+ quad3([x-t,z1,h],[x+t,z1,h],[x+t,z2,h],[x-t,z2,h],'#f1ddbb');
+ if(z1<=.061)quad3([x-t,z1,0],[x+t,z1,0],[x+t,z1,h],[x-t,z1,h],'#b99a77');
+ if(z2>=2.359)quad3([x+t,z2,0],[x-t,z2,0],[x-t,z2,h],[x+t,z2,h],'#b99a77');
+}
+
+function tableParts(o){
+ if(o.label!=='mesa')return [{x:o.x+o.w/2,z:o.z+o.d/2,depth:footprintDepth(o),draw:()=>drawMoveable(o)}];
+ const parts=[];
+ for(const [lx,lz] of [[.12,.12],[o.w-.12,.12],[.12,o.d-.12],[o.w-.12,o.d-.12]]){
+  const x=o.x+lx-.047,z=o.z+lz-.047;
+  parts.push({x,z,depth:painterDepth(x+.047,z+.047),draw:()=>box3(x,z,.094,.094,.50,['#583927','#64432d','#87603e'])});
+ }
+ for(let i=0;i<6;i++){
+  const z=o.z+o.d*i/6,dd=o.d/6+.001;
+  parts.push({x:o.x+o.w/2,z:z+dd/2,depth:painterDepth(o.x+o.w/2,z+dd/2),draw:()=>{
+   quad3([o.x,z,.58],[o.x+o.w,z,.58],[o.x+o.w,z+dd,.58],[o.x,z+dd,.58],'#c49860');
+   if(i===0)quad3([o.x,z,.46],[o.x+o.w,z,.46],[o.x+o.w,z,.58],[o.x,z,.58],'#875b37');
+   quad3([o.x+o.w,z,.46],[o.x+o.w,z+dd,.46],[o.x+o.w,z+dd,.58],[o.x+o.w,z,.58],'#9b6940');
+  }});
+ }
+ return parts;
+}
+
+function drawAnnexFloorIfNeeded(){ }
+function drawInnerScene(){
+ floorSurface();
+ const hw=currentHouseWidth();
+ const sides=[{name:'north',x:hw/2,z:0},{name:'south',x:hw/2,z:5},{name:'west',x:0,z:2.5},{name:'east',x:hw,z:2.5}];
+ const mid=painterDepth(hw/2,2.5);
+ const distant=sides.filter(o=>painterDepth(o.x,o.z)<=mid).sort((a,b)=>painterDepth(a.x,a.z)-painterDepth(b.x,b.z));
+ const nearby=sides.filter(o=>painterDepth(o.x,o.z)>mid).sort((a,b)=>painterDepth(a.x,a.z)-painterDepth(b.x,b.z));
+ const cutH=zoom>1.42?.18:.56;
+ for(const o of distant)drawCutWall(o.name,cutH);
+ const parts=[
+  ...(bedObject.hidden?[]:[{x:bedObject.x+bedObject.w/2,z:bedObject.z+bedObject.d/2,depth:footprintDepth(bedObject),draw:()=>{drawBed();drawSurfaceItems('bed')}}]),
+  ...(deskObject.hidden?[]:[{x:deskObject.x+deskObject.w/2,z:deskObject.z+deskObject.d/2,depth:footprintDepth(deskObject),draw:()=>drawDesk()}]),
+  ...(wardrobeObject.hidden?[]:[{x:wardrobeObject.x+wardrobeObject.w/2,z:wardrobeObject.z+wardrobeObject.d/2,depth:footprintDepth(wardrobeObject),draw:()=>drawWardrobe()}]),
+  {x:chimneyObject.x+chimneyObject.w/2,z:chimneyObject.z+chimneyObject.d/2,depth:footprintDepth(chimneyObject),draw:()=>drawChimney()},
+  ...(chestObject.hidden?[]:[{x:chestPos().x,z:chestPos().z,depth:footprintDepth(chestObject),draw:()=>drawChest()}]),
+  {x:game.door.open?3.05:3.64,z:game.door.open?4.49:5,depth:game.door.open?Math.min(painterDepth(3.05,3.98),painterDepth(3.05,5)):painterDepth(3.64,5)-.02,isDoor:true,draw:()=>drawDoor()},
+  ...wallParts(),
+  ...pushables.filter(o=>!o.hidden).flatMap(o=>tableParts(o)),
+  ...pushables.filter(o=>o.label==='mesa'&&!o.hidden).map(o=>({x:o.x+o.w/2,z:o.z+o.d/2,depth:painterDepth(o.x+o.w/2,o.z+o.d/2)+.075,draw:()=>drawSurfaceItems('table')})),
+  ...fixedSolids.filter(o=>o.label==='luminaria'&&!o.hidden).map(o=>({x:o.x+o.w/2,z:o.z+o.d/2,depth:footprintDepth(o),draw:()=>drawLamp(o.x+o.w/2,o.z+o.d/2)})),
+  {x:game.groundKeys.chest.x,z:game.groundKeys.chest.z,depth:painterDepth(game.groundKeys.chest.x,game.groundKeys.chest.z),draw:()=>drawItems()},
+  ...editDecor.filter(o=>inside(o.x,o.z)).map(o=>({x:o.x,z:o.z,depth:painterDepth(o.x+(o.w||0)/2,o.z+(o.d||0)/2),draw:()=>drawDecor(o)})),
+  ...game.droppedItems.filter(o=>inside(o.x,o.z)).map(o=>({x:o.x,z:o.z,depth:painterDepth(o.x,o.z),draw:()=>drawGroundItem(o)})),
+  {x:player.x,z:player.z,isPlayer:true,draw:()=>character()}
+ ];
+ parts.sort((a,b)=>{const d=q=>q.isPlayer?(painterDepth(q.x,q.z)+.12+Math.min(.25,player.elevation*.12)):(q.depth??painterDepth(q.x,q.z));return d(a)-d(b);}).forEach(part=>part.draw());
+ for(const wall of nearby)drawCutWall(wall.name,cutH);
+}
+function drawCutWall(name,height){
+ const hw=currentHouseWidth(),cream='#e3d0ad';
+ if(name==='south'){wallZ(5,0,3.05,height,cream);wallZ(5,4.23,hw,height,cream);}else if(name==='north')wallZ(0,0,hw,height,cream);else if(name==='east')wallX(hw,0,5,height,cream);else wallX(0,0,5,height,cream);
+}
+function draw(){
+ frame++;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);ground();
+ const baseHouseScene=reveal()
+  ? [{x:house.w/2,z:2.5,kind:'house',depth:painterDepth(house.w/2,2.5)-.2,draw:()=>{ellipse(house.w/2,2.5,house.w/2+.1,1.48,'#152a1680');drawInnerScene();}}]
+  : [
+     {x:house.w/2,z:2.5,kind:'house-shadow',depth:-999,draw:()=>ellipse(house.w/2,2.5,house.w/2+.1,1.48,'#152a1680')},
+     {x:house.w/2,z:4.8,kind:'house-shell',depth:painterDepth(house.w/2,4.8)-.18,draw:()=>drawOuterShell()},
+     {x:currentHouseWidth()-.03,z:chimneyObject.z+chimneyObject.d/2,kind:'house-chimney',depth:painterDepth(currentHouseWidth()-.03,chimneyObject.z+chimneyObject.d/2)+.06,draw:()=>drawExternalChimney()},
+     {x:house.w/2,z:2.8,kind:'house-roof',depth:painterDepth(house.w/2,2.8)+.32,draw:()=>roof()}
+    ];
+ const scene=[
+  ...foliage.map((t,i)=>({x:t[0],z:t[1],kind:'tree',draw:()=>{if(!gathering.trees[i].fallen)tree(...t);else{box3(t[0]-.5,t[1]-.10,1.0,.24,.18,['#6b4c32','#98704b','#b38a5e']);}}})),
+  ...gathering.rocks.map(r=>({x:r.x,z:r.z,kind:'rock',draw:()=>{if(r.hp>0)drawRockShape(r.x,r.z,.56,.5,.40);}})),
+  {x:gathering.mound.x,z:gathering.mound.z,kind:'mound',draw:()=>{const m=gathering.mound;ellipse(m.x,m.z,.72,.36,m.dug?'#533929':'#678b3f');if(m.dug){box3(m.x-.21,m.z-.15,.43,.30,.31,['#735032','#90663f','#b48b5e']);}}},
+  ...shrubs.map(t=>({x:t[0],z:t[1],kind:'bush',draw:()=>bush(...t)})),
+  ...baseHouseScene,
+  ...(!inside(player.x,player.z)&&!cloneInteriorAt(player.x,player.z)?[{x:player.x,z:player.z,kind:'player',draw:()=>character()}]:[]),
+  ...editDecor.filter(o=>!inside(o.x,o.z)).map(o=>({x:o.x,z:o.z,kind:'decor',draw:()=>drawDecor(o)})),
+  ...game.droppedItems.filter(o=>!inside(o.x,o.z)).map(o=>({x:o.x,z:o.z,kind:'dropped',draw:()=>drawGroundItem(o)})),
+  ...(!game.items.houseKey?[{x:game.groundKeys.house.x,z:game.groundKeys.house.z,kind:'key',draw:()=>drawKey(game.groundKeys.house.x,game.groundKeys.house.z,'house')}]:[])
+ ];
+ scene.sort((a,b)=>(a.depth??painterDepth(a.x,a.z))-(b.depth??painterDepth(b.x,b.z)));
+ for(const obj of scene)obj.draw();
+ if(placingObject){ctx.save();ctx.font='bold 14px sans-serif';ctx.fillStyle='#f8e5ab';ctx.textAlign='center';ctx.fillText('CLIQUE PARA POSICIONAR O OBJETO  •  ESC CANCELA',W/2,H-70);ctx.restore();}
+ if(target){const r=P(target.x,target.z);ctx.strokeStyle='#d5ecab';ctx.lineWidth=1.4;ctx.beginPath();ctx.ellipse(r[0],r[1],scale*zoom*.24,scale*zoom*.12,0,0,7);ctx.stroke()}
+ if(workAnimation.kind&&performance.now()<workAnimation.until){const progress=1-(workAnimation.until-performance.now())/600;const p=P(player.x,player.z,1.0);const rad=(.1+Math.sin(progress*Math.PI)*.55)*scale*zoom;ctx.save();ctx.strokeStyle=workAnimation.kind==='axe'?'#d8d4c8':workAnimation.kind==='pickaxe'?'#a2b3bf':'#ae8551';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(p[0]-12,p[1]+6);ctx.lineTo(p[0]+Math.cos(progress*5)*rad,p[1]-Math.sin(progress*5)*rad);ctx.stroke();const q=P(workAnimation.x,workAnimation.z,.28);for(let i=0;i<6;i++){ctx.fillStyle=workAnimation.kind==='shovel'?'#876142':workAnimation.kind==='axe'?'#c6a16e':'#aeb7b5';const angle=i*Math.PI/3;ctx.fillRect(q[0]+Math.cos(angle)*progress*21-2,q[1]+Math.sin(angle)*progress*16-2,4,4);}ctx.restore();}
+ if(handItem){ctx.save();ctx.font='16px system-ui';ctx.textAlign='left';ctx.fillText('✋ '+itemIcon(handItem.type)+' '+itemLabel(handItem.type),mouseScreen.x+16,mouseScreen.y-10);ctx.restore();}
+}
+function circleRect(px,pz,r,o){
+ const cx=clamp(px,o.x,o.x+o.w),cz=clamp(pz,o.z,o.z+o.d);return Math.hypot(px-cx,pz-cz)<r;
+}
+function rectRect(a,b){return a.x<b.x+b.w&&a.x+a.w>b.x&&a.z<b.z+b.d&&a.z+a.d>b.z}
+function pushableObjects(){return [...fixedSolids.filter(o=>o.movable),...pushables]}
+function blockingPushable(x,z,ignore=null){
+ for(const o of pushableObjects()){
+  if(o===ignore||o.h<=player.elevation+.12)continue;
+  if(pushContact(x,z,o)&&!overlapCanSeparate(x,z,o))return o;
+ }
+ return null;
+}
+function insideBoundsForObject(x,z,w,d){const hw=currentHouseWidth();return x>=.012&&z>=.012&&x+w<=hw-.012&&z+d<=4.988}
+function hitsInteriorWallRect(obj){return rectRect(obj,{x:3.6-WALL_THICKNESS/2-.03,z:.03,w:WALL_THICKNESS+.06,d:2.34})||rectRect(obj,{x:3.42,z:2.26,w:.36,d:.20})}
+function objectCanBeAt(o,nx,nz){const test={x:nx,z:nz,w:o.w,d:o.d};if(!insideBoundsForObject(nx,nz,o.w,o.d)||hitsInteriorWallRect(test))return false;for(const s of fixedSolids)if(s!==o&&rectRect(test,s))return false;for(const other of pushables)if(other!==o&&rectRect(test,other))return false;return true}
+function rectDistance(px,pz,o){
+ return Math.hypot(Math.max(o.x-px,0,px-(o.x+o.w)),Math.max(o.z-pz,0,pz-(o.z+o.d)));
+}
+function pushContact(x,z,o){
+ return rectDistance(x,z,o)<player.r-.0001;
+}
+function overlapCanSeparate(nx,nz,o){
+ // Ao encostar num balcão fixo ou móvel, afastar-se sempre deve ser permitido,
+ // mesmo que o corpo ainda esteja alguns centímetros sobreposto.
+ const oldDist=rectDistance(player.x,player.z,o);
+ const newDist=rectDistance(nx,nz,o);
+ return newDist>oldDist+.0001;
+}
+function isPushIntent(o,dx,dz){
+ const cx=o.x+o.w/2-player.x,cz=o.z+o.d/2-player.z;
+ const dot=cx*dx+cz*dz;
+ return dot>0 && dot/(Math.hypot(cx,cz)*Math.hypot(dx,dz)+1e-6)>.48;
+}
+function canPushTo(o,x,z,nx,nz){
+ const test={x:nx,z:nz,w:o.w,d:o.d};
+ if(!insideBoundsForObject(nx,nz,o.w,o.d)||hitsInteriorWallRect(test))return false;
+ if(fixedSolids.some(s=>s!==o&&!s.movable&&rectRect(test,s)))return false;
+ if(fixedSolids.some(s=>s!==o&&s.movable&&rectRect(test,s)))return false;
+ if(wallBarriers().some(b=>rectRect(test,b)))return false;
+ if(pushables.some(other=>other!==o&&rectRect(test,other)))return false;
+ // Separamos o centro do personagem e o móvel no fim do movimento.
+ return rectDistance(x,z,test)>=player.r-.015;
+}
+function tryPush(o,dx,dz,nx,nz){
+ // O móvel tem de avançar NO MÍNIMO o deslocamento do jogador.
+ // Acrescentar folga evita que as colisões se entrelacem por muitos quadros.
+ const margin=.026;
+ const vx=dx===0?0:dx+Math.sign(dx)*margin;
+ const vz=dz===0?0:dz+Math.sign(dz)*margin;
+ const ox=o.x+vx,oz=o.z+vz;
+ if(canPushTo(o,nx,nz,ox,oz)){
+  o.x=ox;o.z=oz;return true;
+ }
+ return false;
+}
+function canWalk(x,z,ignorePush=null){
+ if(godPhasing())return x>-40&&x<40&&z>-40&&z<40;
+ const r=player.r;
+ if(x<-40||x>40||z<-40||z>40)return false;
+ const barriers=wallBarriers();
+ if(barriers.some(o=>circleRect(x,z,r,o)))return false;
+ for(const o of fixedSolids){if(o===ignorePush)continue;if(o.h>player.elevation+.12&&circleRect(x,z,r,o)&&!overlapCanSeparate(x,z,o))return false;}
+ for(const h of houseInstances()){const state=ensureHouseState(h);for(const obj of [...state.fixed,...state.moveable]){if(obj.hidden||obj.label==='chamine')continue;const rect={x:h.x+obj.x,z:h.z+obj.z,w:obj.w,d:obj.d};if(obj.h>player.elevation+.12&&circleRect(x,z,r,rect))return false;}}
+ if(!ignorePush&&pushables.some(o=>o.h>player.elevation+.12&&pushContact(x,z,o)&&!overlapCanSeparate(x,z,o)))return false;
+ for(const [tx,tz,s] of foliage)if(Math.hypot(x-tx,z-tz)<.22+.14*s+r)return false;
+ for(const [bx,bz,s] of shrubs)if(Math.hypot(x-bx,z-bz)<.1+.09*s+r)return false;
+ return true;
+}
+
+// Saltos direcionais: alcançam móveis baixos, mas nunca atravessam paredes.
+function wallBarriers(){
+ const t=WALL_THICKNESS,hw=currentHouseWidth();
+ const b=[
+  {x:-t,z:-t,w:t,d:5+2*t},
+  {x:hw,z:-t,w:t,d:5+2*t},
+  {x:0,z:-t,w:hw,d:t},
+  {x:0,z:5,w:house.doorX1,d:t},
+  {x:house.doorX2,z:5,w:hw-house.doorX2,d:t},
+  {x:3.6-t/2-.03,z:.03,w:t+.06,d:2.34},
+  {x:3.42,z:2.26,w:.36,d:.20}
+ ];
+ if(!game.door.open)b.push({x:house.doorX1,z:5,w:house.doorX2-house.doorX1,d:t});
+ else b.push({x:house.doorX1-DOOR_THICKNESS/2,z:3.98,w:DOOR_THICKNESS,d:1.02});
+ for(const h of houseInstances()){
+  const state=ensureHouseState(h),ww=isHouseTwo(h)?10:7;
+  const frame=[
+   {x:-t,z:-t,w:t,d:5+2*t},
+   {x:ww,z:-t,w:t,d:5+2*t},
+   {x:0,z:-t,w:ww,d:t},
+   {x:0,z:5,w:house.doorX1,d:t},
+   {x:house.doorX2,z:5,w:ww-house.doorX2,d:t},
+   {x:3.6-t/2-.03,z:.03,w:t+.06,d:2.34},
+   {x:3.42,z:2.26,w:.36,d:.20}
+  ];
+  for(const wall of frame)b.push({x:h.x+wall.x,z:h.z+wall.z,w:wall.w,d:wall.d});
+  if(!state.door.open)b.push({x:h.x+house.doorX1,z:h.z+5,w:house.doorX2-house.doorX1,d:t});
+  else b.push({x:h.x+house.doorX1-DOOR_THICKNESS/2,z:h.z+3.98,w:DOOR_THICKNESS,d:1.02});
+ }
+ return b;
+}
+function supportHeight(x,z){
+ const supports=player.jump?[...fixedSolids.filter(o=>o.h<.9),...pushables]:[];
+ let h=0;
+ for(const o of supports)if(x>o.x+.05&&x<o.x+o.w-.05&&z>o.z+.05&&z<o.z+o.d-.05)h=Math.max(h,o.h);
+ return h;
+}
+function jumpAllowedPoint(x,z){
+ if(godPhasing())return x>-60&&x<60&&z>-60&&z<60;
+ if(x<-60||x>60||z<-60||z>60)return false;
+ if(wallBarriers().some(b=>circleRect(x,z,player.r,b)))return false;
+ if(fixedSolids.some(o=>o.h>1&&circleRect(x,z,player.r,o)))return false;
+ for(const [tx,tz,r] of foliage)if(Math.hypot(x-tx,z-tz)<.22+.14*r+player.r)return false;
+ return true;
+}
+function startJump(dx,dz,distance=null){
+ if(player.jump||dialog.classList.contains('open')||helpOpen)return false;
+ const mag=Math.hypot(dx,dz);if(mag<.1)return false;
+ dx/=mag;dz/=mag;
+ let jumpLen=distance===null?1.22:clamp(distance,.35,1.42);
+ // O comando direcional procura uma superfície baixa à frente antes de saltar por cima dela.
+ if(distance===null){
+  const candidates=[...fixedSolids.filter(o=>o.h<=.85),...pushables].map(o=>{
+   const cx=o.x+o.w/2,cz=o.z+o.d/2,xx=cx-player.x,zz=cz-player.z;
+   return {distance:Math.hypot(xx,zz),forward:xx*dx+zz*dz,side:Math.abs(xx*dz-zz*dx)};
+  }).filter(o=>o.forward>.32&&o.forward<1.42&&o.side<.3&&o.distance<1.48)
+    .sort((a,b)=>a.distance-b.distance);
+  if(candidates.length)jumpLen=candidates[0].forward;
+ }
+ const ex=player.x+dx*jumpLen,ez=player.z+dz*jumpLen;
+ const steps=Math.max(24,Math.ceil(Math.hypot(ex-player.x,ez-player.z)/.035));
+ const startInside=inside(player.x,player.z),endInside=inside(ex,ez);
+ // Saltos não podem cruzar limites da casa, nem mesmo tangenciando a parede.
+ if(startInside!==endInside){toast('Você não pode saltar através de uma parede.');return false;}
+ for(let i=1;i<=steps;i++){
+  const x=player.x+(ex-player.x)*i/steps,z=player.z+(ez-player.z)*i/steps;
+  if(!jumpAllowedPoint(x,z)){toast('O salto está bloqueado por uma parede ou obstáculo alto.');return false;}
+ }
+ const endHeight=supportHeight(ex,ez);
+ if(endHeight>player.elevation+.85){toast('É alto demais para pular.');return false}
+ player.jump={t:0,duration:.62,sx:player.x,sz:player.z,sy:player.elevation,ex,ez,ey:endHeight};
+ player.faceX=dx;player.faceY=dz;target=null;game.pending=null;
+ return true;
+}
+function startHop(){
+ if(player.jump||dialog.classList.contains('open')||helpOpen)return false;
+ player.jump={t:0,duration:.42,sx:player.x,sz:player.z,sy:player.elevation,ex:player.x,ez:player.z,ey:player.elevation};
+ target=null;game.pending=null;return true;
+}
+function tickJump(dt){
+ const j=player.jump;if(!j)return;
+ j.t=Math.min(1,j.t+dt/j.duration);
+ // Movimento balístico aproximado: duas parábolas combinadas.
+ const p=j.t;const nextX=j.sx+(j.ex-j.sx)*p,nextZ=j.sz+(j.ez-j.sz)*p;
+ // Revalidar cada quadro: a parede ou um móvel pode ter mudado durante o salto.
+ if(!jumpAllowedPoint(nextX,nextZ)||inside(j.sx,j.sz)!==inside(nextX,nextZ)){
+  player.x=j.sx;player.z=j.sz;player.elevation=j.sy;player.jumpY=0;player.jump=null;
+  target=null;toast('Salto interrompido: passagem bloqueada.');return;
+ }
+ player.x=nextX;player.z=nextZ;
+ player.elevation=j.sy+(j.ey-j.sy)*p;
+ player.jumpY=Math.sin(Math.PI*p)*.96;
+ if(j.t>=1){player.elevation=j.ey;player.jumpY=0;player.jump=null}
+}
+function rescueFromOverlap(){
+ if(godPhasing())return;
+ // Corrige interseções antigas do salvamento ou móveis deslocados pelo editor.
+ const solids=[...fixedSolids.filter(o=>!o.hidden&&o.h>.28),...pushables.filter(o=>!o.hidden&&o.h>.28)];
+ const trapped=solids.some(o=>circleRect(player.x,player.z,player.r*.60,o))||wallBarriers().some(b=>circleRect(player.x,player.z,player.r*.60,b));
+ if(!trapped||player.jump)return;
+ const ox=player.x,oz=player.z;
+ for(const radius of [.15,.3,.45,.6,.8,1.05]){
+  for(let i=0;i<24;i++){
+   const theta=i*Math.PI/12,cx=ox+radius*Math.cos(theta),cz=oz+radius*Math.sin(theta);
+   if(inside(cx,cz)!==inside(ox,oz))continue;
+   if(canWalk(cx,cz)&&!solids.some(o=>circleRect(cx,cz,player.r,o))){player.x=cx;player.z=cz;target=null;return;}
+  }
+ }
+}
+function move(dx,dz,dt){
+ if(player.jump)return;
+ let mag=Math.hypot(dx,dz);if(mag<.01)return;dx/=mag;dz/=mag;
+ const speed=2.5*dt;
+ const tryAxis=(stepX,stepZ)=>{
+  const nx=player.x+stepX,nz=player.z+stepZ;
+  if(godPhasing()){player.x=nx;player.z=nz;player.elevation=0;return true;}
+  const wallSteps=Math.max(1,Math.ceil(Math.hypot(stepX,stepZ)/.055));
+  for(let i=1;i<=wallSteps;i++){const t=i/wallSteps;if(wallBarriers().some(w=>circleRect(player.x+stepX*t,player.z+stepZ*t,player.r,w)))return false;}
+  const free=canWalk(nx,nz);
+  if(free){player.x=nx;player.z=nz;player.elevation=0;return true}
+  // Nunca mover um móvel se outra colisão impedir o personagem.
+  const obj=blockingPushable(nx,nz);
+  if(!obj||!inside(nx,nz)||!isPushIntent(obj,stepX,stepZ))return false;
+  // Para não aprisionar o personagem entre móveis, empurrar exige Shift.
+  if(!keys.has('shift'))return false;
+  const oldX=obj.x,oldZ=obj.z;
+  if(!tryPush(obj,stepX,stepZ,nx,nz))return false;
+  if(!canWalk(nx,nz,obj)){obj.x=oldX;obj.z=oldZ;return false}
+  player.x=nx;player.z=nz;player.elevation=0;scheduleFurnitureSave();return true;
+ };
+ if(Math.abs(dx*speed)>0)tryAxis(dx*speed,0);
+ if(Math.abs(dz*speed)>0)tryAxis(0,dz*speed);
+ player.step+=dt*10;player.dir=dx>=0?1:-1;
+ const desired=Math.atan2(dz,dx),current=Math.atan2(player.faceY,player.faceX);
+ let diff=Math.atan2(Math.sin(desired-current),Math.cos(desired-current));
+ let angle=current+diff*Math.min(1,dt*15);player.faceX=Math.cos(angle);player.faceY=Math.sin(angle);
+ walking=true;
+}
+function turnCamera(delta){cameraGoal+=delta;target=null}
+function tick(t){
+ let dt=Math.min(.05,(t-last)/1000||0);last=t;
+ const angleDiff=cameraGoal-cameraYaw;
+ cameraYaw+=angleDiff*Math.min(1,dt*9);
+ if(Math.abs(cameraGoal-cameraYaw)<.00008)cameraYaw=cameraGoal;
+ walking=false;
+ doorSwing+=(Number(game.door.open)-doorSwing)*Math.min(1,dt*3.1);
+ if(game.fireplace.lit&&game.fireplace.wood>0){
+   game.fireplace.burn=(game.fireplace.burn||0)-dt;
+   if(game.fireplace.burn<=0){
+     game.fireplace.wood=Math.max(0,(game.fireplace.wood||0)-1);
+     if(game.fireplace.wood>0)game.fireplace.burn+=42;
+     else {game.fireplace.lit=false;game.fireplace.burn=0;toast('A lareira apagou quando a lenha acabou.');}
+   }
+ } else if(game.fireplace.wood>0&&game.fireplace.burn<=0){ game.fireplace.burn=42; }
+ if(Math.abs(doorSwing-Number(game.door.open))<.002)doorSwing=Number(game.door.open);
+ if(!helpOpen){
+  if(player.jump)tickJump(dt);
+  else {
+  let sx=0,sy=0;
+  if(keys.has('w')||keys.has('arrowup'))sy-=1;
+  if(keys.has('s')||keys.has('arrowdown'))sy+=1;
+  if(keys.has('a')||keys.has('arrowleft'))sx-=1;
+  if(keys.has('d')||keys.has('arrowright'))sx+=1;
+  if(sx||sy){
+   target=null;
+   // WASD mantém o sentido NA TELA mesmo depois de girar a câmera.
+   const [dx,dz]=unrotate(sx+sy,sy-sx);
+   move(dx,dz,dt);
+  }else if(target){
+   const vx=target.x-player.x,vz=target.z-player.z;
+   const dist=Math.hypot(vx,vz);
+   const step=2.5*dt;
+   if(dist<=Math.max(.08,step*.95)){if(canWalk(target.x,target.z)){player.x=target.x;player.z=target.z;player.elevation=0;}target=null;}
+   else{
+    const px=player.x,pz=player.z;
+    move(vx,vz,dt);
+    if(Math.hypot(px-player.x,pz-player.z)<.00001||Math.hypot(target.x-player.x,target.z-player.z)>dist+.001)target=null;
+   }
+  }
+  }
+ }
+ rescueFromOverlap();
+ if(t-lastPositionSaveAt>10000&&Math.hypot(player.x-lastSavedPosition.x,player.z-lastSavedPosition.z)>.22){lastPositionSaveAt=t;lastSavedPosition={x:player.x,z:player.z};saveGame();}
+ if(dialogOrigin&&Math.hypot(player.x-dialogOrigin.x,player.z-dialogOrigin.z)>1.45)closeDialog();
+ if(game.pending){
+  const kind=game.pending;
+  const at=kind==='door'?(inside(player.x,player.z)?{x:3.64,z:4.48}:{x:3.64,z:5.66}):kind==='house'?game.groundKeys.house:kind==='chest'?{x:chestPos().x,z:chestPos().z+.64}:game.groundKeys.chest;
+  if(Math.hypot(player.x-at.x,player.z-at.z)<.85){
+   game.pending=null;target=null;
+   ({door:()=>quickDoorAction(!!game.pendingLockMode),house:()=>pickKey('house'),chest:()=>quickChestAction(!!game.pendingLockMode),chestKey:()=>pickKey('chest')})[kind]();game.pendingLockMode=false;
+  }else if(!target){game.pending=null}
+ }
+ player.walkBlend+=(Number(walking)-player.walkBlend)*Math.min(1,dt*12);
+ const follow=Math.min(1,dt*7);camX+=((player.x)-camX)*follow;camZ+=((player.z)-camZ)*follow;
+ draw();refreshVisuals(dt);requestAnimationFrame(tick)
+}
+function worldAt(mx,my){
+ const u=(mx-W*.5)/(scale*.87*zoom),v=(my-H*.56)/(scale*.45*zoom);
+ const [x,z]=unrotate((u+v)/2,(v-u)/2);
+ return {x:x+camX,z:z+camZ};
+}
+const dialog=document.getElementById('interaction'),dialogTitle=document.getElementById('dialogTitle'),dialogText=document.getElementById('dialogText'),dialogChoices=document.getElementById('dialogChoices');
+const inventory=document.getElementById('inventory'),invItems=document.getElementById('inventoryItems'),invMeta=document.getElementById('inventoryMeta');
+let choicesNow=[];
+let dragInventoryType=null;let canvasDragOrigin=null;let canvasDragSource=null;
+function closePanels(){closeDialog();inventory.classList.remove('open');equipmentBox.classList.remove('open');document.getElementById('sheet').classList.remove('open');dismissPopups();}
+function restoreHandItem(){
+ if(!handItem)return;
+ const h=handItem,t=h.type;
+ if(h.from==='inventory')game.stores.inventory.push(t);else if(h.from==='equipment'){if(['axe','pickaxe','shovel'].includes(t)){equipment.left=t;equipment.right=t;gathering.activeTool=t;}else if(t==='backpack')equipment.backpack=t;else if(t==='clothing')equipment.clothing=t;else equipment.left=t;renderEquipment();}
+ else if(h.from==='worldKey')game.items[t]=false;
+ else if(h.from==='floor'&&h.object){game.droppedItems.push({type:t,x:h.object.x,z:h.object.z});game.stores.floor.push(t);}
+ else if(h.from==='rug'){if(!game.stores.floor.includes('rug'))game.stores.floor.push('rug');game.rug.placed=true;}
+ else if(game.stores[h.from]){game.stores[h.from].push(t);if(h.from==='shelf')shelfRows[h.row??0]++;}
+ handItem=null;syncLegacyItems();inventoryDraw();saveGame();
+}
+function pickItemToHand(src){
+ if(handItem){toast('Você já está segurando algo.');return false;}
+ if(!src||!ITEM_SPEC[src.type])return false;
+ const t=src.type;
+ if(src.from==='inventory'){const i=game.stores.inventory.indexOf(t); if(i<0)return false; game.stores.inventory.splice(i,1);}
+ else if(src.from==='worldKey')game.items[t]=true;
+ else if(src.from==='floor'&&src.object){const i=game.droppedItems.indexOf(src.object); if(i<0)return false; game.droppedItems.splice(i,1);const f=game.stores.floor.indexOf(t);if(f>=0)game.stores.floor.splice(f,1);}
+ else if(src.from==='rug'){const i=game.stores.floor.indexOf('rug'); if(i>=0)game.stores.floor.splice(i,1); game.rug.placed=false;}
+ else if(game.stores[src.from]){const i=game.stores[src.from].indexOf(t); if(i<0)return false; game.stores[src.from].splice(i,1);} else return false;
+ if(src.from==='shelf'&&Number.isInteger(src.row)&&shelfRows[src.row]>0)shelfRows[src.row]--;handItem={type:t,from:src.from,row:src.row,object:src.object||null};
+ syncLegacyItems();inventoryDraw();saveGame();toast(itemLabel(t)+' na mão.'); return true;
+}
+function storeHandInInventory(){
+ if(!handItem)return false;if(!canOpenBackpack())return toast('Equipe a mochila primeiro.'),false;
+ if(!storeCanFit('inventory',handItem.type)){toast('Não cabe na mochila.');return false;}
+ game.stores.inventory.push(handItem.type);handItem=null;syncLegacyItems();inventoryDraw();saveGame();toast('Guardado na mochila.');return true;
+}
+function placeHandAt(mx,my){
+ if(!handItem)return false;
+ const p=worldAt(mx,my),type=handItem.type; let dest=inventoryDropLocation(p.x,p.z,mx,my);
+ if(!dest){toast('Abra o recipiente ou escolha um local válido.');return true;}
+ if(type==='rug'&&dest!=='floor'){toast('O tapete só pode ser colocado no chão.');return true;}
+ if(dest==='floor'&&!canReachFloorPoint(p.x,p.z)){toast('Lugar fora de alcance.');return true;}
+ if(dest!=='floor'&&!requireStore(dest))return true;
+ if(type==='rug'){
+  const x=clamp(p.x-1.2,.07,4.52),z=clamp(p.z-.82,.07,3.28);
+  if(!canReachFloorPoint(x+1.2,z+.82)){toast('O tapete ficaria fora de alcance.');return true;}
+  if(!game.stores.floor.includes('rug'))game.stores.floor.push('rug');
+  game.rug.x=x;game.rug.z=z;game.rug.placed=true;handItem=null;saveGame();toast('Tapete colocado.');return true;
+ }
+ if(dest==='floor'){game.droppedItems.push({type:type,x:p.x,z:p.z});game.stores.floor.push(type);handItem=null;syncLegacyItems();saveGame();toast(itemLabel(type)+' colocado no chão.');return true;}
+ if(!storeCanFit(dest,type)){toast('Sem espaço suficiente.');return true;}
+ game.stores[dest].push(type);if(dest==='shelf'&&type==='book'){const zz=wardrobeObject.z+wardrobeObject.d*.45;let best=0,dist=1e9;for(let r=0;r<3;r++){const q=P(wardrobeObject.x-.03,zz,.47+r*.48);const d=Math.hypot(mx-q[0],my-q[1]);if(d<dist){dist=d;best=r;}}shelfRows[best]++;}handItem=null;syncLegacyItems();saveGame();inventoryDraw();toast(itemLabel(type)+' colocado em '+dest+'.');return true;
+}
+
+const equipmentBox=document.getElementById('equipment'),eqSlots=document.getElementById('eqSlots');
+document.getElementById('equipmentClose').onclick=()=>equipmentBox.classList.remove('open');
+document.getElementById('inventoryClose').onclick=()=>inventory.classList.remove('open');
+const gearSlots=['clothing','left','right','backpack'];
+const equipmentIcon={clothing:'🥼',left:'✋',right:'✋',backpack:'🎒'};
+function renderEquipment(){
+ eqSlots.replaceChildren();
+ for(const slot of gearSlots){
+  const el=document.createElement('button');el.className='eq-slot';el.title='Clique para equipar ou retirar';
+  const value=equipment[slot],dual=(slot==='right'&&value&&equipment.left===value&&['axe','pickaxe','shovel'].includes(value));
+  el.innerHTML='<strong>'+({clothing:'Roupa',left:'Mão esquerda',right:'Mão direita',backpack:'Mochila'})[slot]+'</strong><span>'+(value?itemIcon(value)+' '+(dual?'↔':itemLabel(value)):'Vazio')+'</span>';
+  el.onclick=()=>{
+   if(handItem){if(slot==='backpack'&&handItem.type!=='backpack')return toast('Esse espaço exige uma mochila.');if(slot==='clothing'&&handItem.type!=='clothing')return toast('Esse espaço é para roupas.');if((slot==='left'||slot==='right')&&['backpack','clothing'].includes(handItem.type))return toast('Use o espaço correto.');
+    if(equipment[slot])return toast('Retire o equipamento anterior.');
+    const type=handItem.type;
+    if(['axe','pickaxe','shovel'].includes(type)){if(equipment.left||equipment.right)return toast('Libere as duas mãos.');equipment.left=type;equipment.right=type;gathering.activeTool=type;}
+    else equipment[slot]=type;
+    handItem=null;saveGame();inventoryDraw();renderEquipment();return;
+   }
+   if(!value)return;
+   if(['axe','pickaxe','shovel'].includes(value)){equipment.left=null;equipment.right=null;gathering.activeTool=null;}
+   else equipment[slot]=null;
+   if(!storeCanFit('inventory',value)&&equipment.backpack){toast('Sem espaço na mochila.');return;}
+   if(equipment.backpack&&value!=='backpack')game.stores.inventory.push(value);else handItem={type:value,from:'equipment',object:null};
+   saveGame();inventoryDraw();renderEquipment();
+  };
+  eqSlots.append(el);
+ }
+ document.getElementById('eqInfo').textContent=equipment.backpack?'Equipamento e mochila são painéis separados. Clique nos espaços para desequipar.':'Sem mochila: leve-a até este painel e equipe-a.';
+}
+document.getElementById('equipmentBtn').onclick=()=>{inventory.classList.remove('open');renderEquipment();equipmentBox.classList.toggle('open');};
+document.getElementById('menuBtn').onclick=()=>document.getElementById('topActions').classList.toggle('expanded');
+function exportSaveFile(){saveGame();const json=lastSaveData||(()=>{try{return localStorage.getItem(saveKey)}catch(_){return null}})();if(!json)return toast('Não foi possível criar a cópia da partida.');const blob=new Blob([json],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='orla_partida_'+new Date().toISOString().slice(0,10)+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),2500);toast('Arquivo de partida exportado.');}
+document.getElementById('exportSave').onclick=exportSaveFile;
+document.getElementById('importSave').onclick=()=>document.getElementById('saveFile').click();
+document.getElementById('saveFile').onchange=async e=>{const file=e.target.files?.[0];if(!file)return;try{if(file.size>8*1024*1024)throw Error('Arquivo grande demais');const raw=await file.text(),data=JSON.parse(raw);if(!data||typeof data!=='object'||!data.stores||!Array.isArray(data.editDecor)||!data.door||!Array.isArray(data.stores.inventory))throw Error('Formato incompatível');if(!confirm('Substituir a partida atual pelo arquivo importado?'))return;localStorage.setItem(saveKey,raw);location.reload();}catch(err){toast('Falha na importação: '+err.message)}};
+function canOpenBackpack(){return godMode()||equipment.backpack==='backpack'}
+renderEquipment();
+function inventoryDraw(){
+ invItems.innerHTML='';
+ const items=[...game.stores.inventory];
+ const usedSlots=items.reduce((n,t)=>n+itemSlots(t),0);
+ const totalCells=Math.max(24,Math.ceil(Math.max(usedSlots,1)/6)*6);
+ invMeta.textContent='Bolsa visual · '+usedSlots+' quadrinhos usados · 1 quadrinho = '+(INVENTORY_SLOT_LITRES*1000)+' ml';
+ if(!items.length){const empty=document.createElement('div');empty.className='inventory-empty';empty.textContent='Vazio. Explore e procure objetos.';invItems.append(empty);return;}
+ for(const type of items){
+  const cell=document.createElement('div');cell.className='inventory-item';cell.draggable=true;cell.style.gridColumn='span '+Math.min(6,itemSlots(type));cell.title='Arraste para o chão, baú, gaveta ou móvel';
+  cell.innerHTML='<span class="icon">'+itemIcon(type)+'</span><span class="name">'+itemLabel(type)+'</span><span class="size">'+((ITEM_SPEC[type]?.litres||0).toFixed(2)).replace('.',',')+' L</span>';
+  cell.addEventListener('dragstart',e=>{dragInventoryType=type;e.dataTransfer.setData('text/plain',type);e.dataTransfer.effectAllowed='move';e.dataTransfer.setDragImage(emptyDragImage,0,0)});
+  cell.addEventListener('dragend',()=>{dragInventoryType=null});
+  cell.addEventListener('contextmenu',e=>{e.preventDefault();pickItemToHand({from:'inventory',type});inventory.classList.remove('open');});
+  invItems.append(cell);
+ }
+ const empties=Math.max(0,totalCells-usedSlots);
+ for(let i=0;i<empties;i++){const c=document.createElement('div');c.className='inventory-cell';invItems.append(c);}
+}
+inventory.addEventListener('dragover',e=>{if(e.dataTransfer.types.includes('application/x-orla-source')){e.preventDefault();e.dataTransfer.dropEffect='move';}});
+inventory.addEventListener('drop',e=>{
+ e.preventDefault();e.stopPropagation();
+ let data;try{data=JSON.parse(e.dataTransfer.getData('application/x-orla-source'));}catch{return;}
+ if(!data||!ITEM_SPEC[data.type])return;
+ if(data.from==='worldKey'){
+  const kind=data.type==='houseKey'?'house':data.type==='chestKey'?'chest':null;
+  if(!kind||inventoryHas(data.type))return;
+  const point=game.groundKeys[kind];
+  if(Math.hypot(player.x-point.x,player.z-point.z)>1.12)return toast('Aproxime-se da chave.');
+  game.items[data.type]=true;game.stores.inventory.push(data.type);saveGame();inventoryDraw();toast('Chave recolhida.');
+ }else if(data.from==='rug'){
+  if(!game.rug.placed||!game.stores.floor.includes('rug')||!canReachObject(rugRect(),.85)){toast('Aproxime-se do tapete.');return;}
+  const i=game.stores.floor.indexOf('rug'); if(i>=0)game.stores.floor.splice(i,1); game.rug.placed=false; game.stores.inventory.push('rug'); inventoryDraw(); saveGame(); toast('Tapete recolhido.');
+ }else if(!game.stores[data.from]?.includes(data.type))return;
+ else if(data.from==='floor'){
+  const o=game.droppedItems.find(o=>o.type===data.type&&Math.abs(o.x-data.x)<.001&&Math.abs(o.z-data.z)<.001);
+  if(!o||Math.hypot(player.x-o.x,player.z-o.z)>1.12){toast('Aproxime-se do objeto.');return;}
+  if(transferItem('floor','inventory',data.type)){game.droppedItems.splice(game.droppedItems.indexOf(o),1);saveGame();toast(itemLabel(data.type)+' recolhido.');}
+ }else if(requireStore(data.from)&&transferItem(data.from,'inventory',data.type)){syncLegacyItems();toast(itemLabel(data.type)+' recolhido.');}
+ canvasDragSource=null;
+});
+function inventoryToggle(){if(!canOpenBackpack())return toast('Primeiro equipe a mochila.');equipmentBox.classList.remove('open');inventoryDraw();inventory.classList.toggle('open');dialog.classList.remove('open');document.getElementById('sheet').classList.remove('open')}
+function closeDialog(){dialog.classList.remove('open');choicesNow=[];dialogOrigin=null}
+function showDialog(title,message,choices){
+ inventory.classList.remove('open');dialogTitle.textContent=title;dialogText.textContent=message;
+ dialogChoices.innerHTML='';choicesNow=choices;
+ for(const [i,ch] of choices.filter(c=>c&&c.label!=='Cancelar').entries()){
+  const b=document.createElement('button');b.type='button';b.textContent=ch.label;if(i===0)b.classList.add('primary');
+  b.onclick=()=>{closeDialog();ch.action?.();};dialogChoices.append(b);
+ }
+ dialogOrigin={x:player.x,z:player.z};dialog.classList.add('open');
+}
+const REACH=1.08;
+function near(x,z,d=1.12){return godMode()||Math.hypot(player.x-x,player.z-z)<=d}
+function withinReach(x,z,margin=REACH){return godMode()||Math.hypot(player.x-x,player.z-z)<=margin}
+function canReachObject(o,margin=REACH){return godMode()||inside(player.x,player.z)&&rectDistance(player.x,player.z,o)<=margin}
+function storeObject(id){
+ if(id==='chest')return chestObject;
+ if(id==='drawerTop'||id==='drawerBottom'||id==='deskTop')return deskObject;
+ if(id==='shelf')return wardrobeObject;
+ if(id==='bed')return bedObject;
+ if(id==='table')return pushables.find(o=>o.label==='mesa');
+ return null;
+}
+function canReachStore(id){const o=storeObject(id);return !!o&&canReachObject(o)}
+function storeAvailable(id){
+ if(godMode())return !!game.stores[id];
+ if(!canReachStore(id))return false;
+ if(id==='chest')return game.chest.open&&!game.chest.locked;
+ if(id==='drawerTop')return game.drawerOpen[0];
+ if(id==='drawerBottom')return game.drawerOpen[1];
+ return true;
+}
+function requireStore(id){if(storeAvailable(id))return true;toast('Aproxime-se e abra o recipiente, se necessário.');return false}
+function canReachFloorPoint(x,z){return withinReach(x,z)&&x>-12&&x<20&&z>-10&&z<18&&(godMode()||!wallBarriers().some(w=>circleRect(x,z,.08,w)))}
+function rugRect(){return {x:game.rug.x,z:game.rug.z,w:2.4,d:1.65}}
+
+function chestPos(){return {x:chestObject.x+chestObject.w/2,z:chestObject.z+chestObject.d/2};}
+function canPlaceChest(x,z){
+ const c=chestObject,nx=x-c.w/2,nz=z-c.d/2,test={x:nx,z:nz,w:c.w,d:c.d};
+ if(!insideBoundsForObject(nx,nz,c.w,c.d)||hitsInteriorWallRect(test))return false;
+ if(wallBarriers().some(w=>rectRect(test,w)))return false;
+ if(fixedSolids.some(o=>o!==c&&rectRect(test,o)))return false;
+ if(pushables.some(o=>rectRect(test,o)))return false;
+ if(circleRect(player.x,player.z,player.r+.12,test))return false;
+ return true;
+}
+function canRotateObject(o){return ['bau','escrivaninha','mesa','armario','banquinho','cama'].includes(o.label)}
+function canPlaceObjectAt(o,x,z,ignorePlayer=false){
+ const nx=x-o.w/2,nz=z-o.d/2,test={x:nx,z:nz,w:o.w,d:o.d};
+ if(!insideBoundsForObject(nx,nz,o.w,o.d)||hitsInteriorWallRect(test))return false;
+ if(wallBarriers().some(w=>rectRect(test,w)))return false;
+ if(fixedSolids.some(s=>s!==o&&rectRect(test,s)))return false;
+ if(pushables.some(s=>s!==o&&rectRect(test,s)))return false;
+ if(!ignorePlayer&&circleRect(player.x,player.z,player.r+.12,test))return false;
+ return true;
+}
+function encostarParede(o){
+ // Testa cada parede externa com uma pequena folga visual, sem diminuir cômodos.
+ 
+ const oldX=o.x,oldZ=o.z;
+ const offsets=[0,-.10,.10,-.23,.23,-.38,.38];
+ const candidates=[];
+ for(const along of offsets){
+  candidates.push({x:.08,z:clamp(oldZ+along,.08,4.92-o.d)});
+  candidates.push({x:6.92-o.w,z:clamp(oldZ+along,.08,4.92-o.d)});
+  candidates.push({x:clamp(oldX+along,.08,6.92-o.w),z:.08});
+  candidates.push({x:clamp(oldX+along,.08,6.92-o.w),z:4.92-o.d});
+ }
+ candidates.sort((a,b)=>Math.hypot(a.x-oldX,a.z-oldZ)-Math.hypot(b.x-oldX,b.z-oldZ));
+ for(const pos of candidates){
+  if(canPlaceObjectAt(o,pos.x+o.w/2,pos.z+o.d/2)){
+   o.x=pos.x;o.z=pos.z;saveGame();toast('Móvel encostado à parede.');return;
+  }
+ }
+ toast('Esta parede está ocupada. Reposicione outro móvel primeiro.');
+}
+function startPlaceObject(o){if(!canReachObject(o)){toast('Aproxime-se do móvel para movê-lo.');return;}placingObject=o;target=null;toast('Clique no chão para reposicionar '+(o.label==='bau'?'o baú':'o móvel')+'. Esc cancela.')}
+function rotateObjectBy(o,degrees){
+ if(!canRotateObject(o)||!canReachObject(o,1.45)){toast('Aproxime-se do móvel.');return false;}
+ const old={x:o.x,z:o.z,w:o.w,d:o.d,rot:o.rot||0},steps=degrees/90;
+ const cx=o.x+o.w/2,cz=o.z+o.d/2;
+ if(steps%2){[o.w,o.d]=[o.d,o.w]}
+ o.rot=((o.rot||0)+steps)%4;
+ const shifts=[[0,0],[.07,0],[-.07,0],[0,.07],[0,-.07],[.16,0],[-.16,0],[0,.16],[0,-.16],[.28,0],[-.28,0],[0,.28],[0,-.28],[.38,0],[-.38,0],[0,.38],[0,-.38]];
+ for(const [dx,dz] of shifts){o.x=cx+dx-o.w/2;o.z=cz+dz-o.d/2;if(canPlaceObjectAt(o,cx+dx,cz+dz,true)){saveGame();toast('Móvel girado '+degrees+'°.');return true}}
+ Object.assign(o,old);toast('Não há espaço para girar aqui.');return false;
+}
+function rotateObject90(o){return rotateObjectBy(o,90)}
+function objectAtScreen(mx,my){
+ const objs=[...pushableObjects()];
+ const hits=[];
+ for(const o of objs){
+  const p=o.x,q=o.z,w=o.w,d=o.d,h=o.h;
+  const polyTop=[[p,q,h],[p+w,q,h],[p+w,q+d,h],[p,q+d,h]].map(v=>P(...v));
+  const faces=[
+   [[p,q,0],[p+w,q,0],[p+w,q,h],[p,q,h]],
+   [[p,q+d,0],[p+w,q+d,0],[p+w,q+d,h],[p,q+d,h]],
+   [[p,q,0],[p,q+d,0],[p,q+d,h],[p,q,h]],
+   [[p+w,q,0],[p+w,q+d,0],[p+w,q+d,h],[p+w,q,h]]
+  ];
+  if(inScreenPoly([mx,my],polyTop)||faces.some(face=>inScreenPoly([mx,my],face.map(v=>P(...v)))))hits.push(o);
+ }
+ hits.sort((a,b)=>painterDepth(b.x+b.w/2,b.z+b.d/2)-painterDepth(a.x+a.w/2,a.z+a.d/2));
+ return hits[0]||null;
+}
+function storageDialog(id,title){
+ if(!requireStore(id))return;
+ const contents=game.stores[id],cap=STORAGE_LIMIT[id],choices=[];
+ for(const type of [...new Set(contents)])choices.push({label:'Pegar '+itemLabel(type),action:()=>{if(transferItem(id,'inventory',type))storageDialog(id,title)}});
+ // Para guardar, arraste o item do inventário até o recipiente; sem botões adicionais.
+ showDialog(title,'Ocupação: '+storeLoad(id).toFixed(1)+' / '+cap+' L. '+(contents.length?'Clique no item para pegar.':'Vazio.')+' Arraste itens do inventário para guardar.',choices);
+}
+function drawerDialog(index){
+ if(!canReachObject(deskObject))return toast('Aproxime-se da escrivaninha.');
+ toggleDrawer(index);
+}
+function toggleDrawer(index,showToast=true){
+ if(!canReachObject(deskObject)){toast('Aproxime-se da escrivaninha.');return false;}
+ if(game.drawerOpen[index]){game.drawerOpen[index]=false;saveGame();if(showToast)toast('Gaveta '+(index+1)+' fechada.');return true;}
+ if(index===1&&game.drawerOpen[0]){toast('Feche a gaveta superior primeiro.');return false;}
+ game.drawerOpen[index]=true;saveGame();if(showToast)toast('Gaveta '+(index+1)+' aberta.');return true;
+}
+function drawerFrontAtClick(mx,my){
+ if(!canReachObject(deskObject)||(Math.cos(cameraYaw)-Math.sin(cameraYaw))>=-.015)return -1;
+ const o=deskObject,{x,z,w,h}=o;
+ for(let n=0;n<2;n++){
+  const frontZ=z+.045-(game.drawerOpen[n]?.29:0),height=h-.28-n*.19;
+  const front=[[x+w-.36,frontZ,height-.075],[x+w-.035,frontZ,height-.075],[x+w-.035,frontZ,height+.145],[x+w-.36,frontZ,height+.145]].map(v=>P(...v));
+  if(inScreenPoly([mx,my],front))return n;
+  if(game.drawerOpen[n]){
+   const side=[[x+w-.35,frontZ,height-.075],[x+w-.35,frontZ+.29,height-.075],[x+w-.35,frontZ+.29,height+.08],[x+w-.35,frontZ,height+.08]].map(v=>P(...v));
+   if(inScreenPoly([mx,my],side))return n;
+  }
+ }
+ return -1;
+}
+function bookshelfDialog(){
+ if(!canReachObject(wardrobeObject)){toast('Aproxime-se da estante.');return;}
+ const choices=[{label:'Ver livros e guardar',action:()=>storageDialog('shelf','Estante de livros')}];
+ if(game.stores.shelf.length===0)choices.push({label:'Reposicionar',action:()=>repositionMenu(wardrobeObject)});
+ showDialog('Estante',game.stores.shelf.length+' livros/itens nas prateleiras.',choices);
+}
+function deskDialog(){
+ if(!canReachObject(deskObject)){toast('Aproxime-se da escrivaninha.');return;}
+ const choices=[{label:(game.drawerOpen[0]?'Fechar':'Abrir')+' gaveta superior',action:()=>toggleDrawer(0)},{label:(game.drawerOpen[1]?'Fechar':'Abrir')+' gaveta inferior',action:()=>toggleDrawer(1)},
+ {label:'Objetos sobre o tampo',action:()=>storageDialog('deskTop','Tampo da escrivaninha')},
+ {label:'Reposicionar',action:()=>repositionMenu(deskObject)}];
+ showDialog('Escrivaninha','Escolha uma gaveta ou examine o tampo.',choices);
+}
+function repositionMenu(o){
+ if(!canReachObject(o)){toast('Aproxime-se do móvel.');return;}
+ if(o.label==='armario'&&game.booksLeft>0){toast('Retire os livros antes de reposicionar a estante.');return;}
+ const opts=[{label:'Mover',action:()=>startPlaceObject(o)}];
+ if(canRotateObject(o)){opts.push({label:'Girar 90°',action:()=>rotateObjectBy(o,90)});opts.push({label:'Girar 180°',action:()=>rotateObjectBy(o,180)});}
+ showDialog('Reposicionar', 'Mover ou girar '+({bau:'baú',armario:'estante',cama:'cama',escrivaninha:'escrivaninha',mesa:'mesa',banquinho:'banquinho',luminaria:'luminária'}[o.label]||'objeto')+'.',opts);
+}
+function objectContextMenu(o,lockMode=false){
+ if(!o||!canReachObject(o))return toast('Aproxime-se do objeto.');
+ if(o.label==='bau')return quickChestAction(lockMode);
+ if(o.label==='luminaria'){const i=fixedSolids.filter(v=>v.label==='luminaria').indexOf(o);toggleLamp(i);return;}
+ if(o.label==='escrivaninha')return toast('Clique com o direito nas gavetas para abrir ou fechar. Use Tab para mover.');
+ if(o.label==='armario')return toast('Clique com o direito sobre um livro para pegá-lo. Use Tab para mover a estante.');
+ if(o.label==='chamine'){
+  if(handItem&&handItem.type==='wood'){game.fireplace.wood++;game.fireplace.burn=(game.fireplace.burn||0)+42;handItem=null;saveGame();toast('Lenha colocada na lareira.');return;}
+  if(game.fireplace.wood>0){game.fireplace.lit=!game.fireplace.lit;if(game.fireplace.lit&&game.fireplace.burn<=0)game.fireplace.burn=42;saveGame();return toast(game.fireplace.lit?'Fogo aceso.':'Fogo apagado.');}
+  return toast('Leve lenha até a lareira para acendê-la.');
+ }
+ toast('Use Tab para selecionar, girar ou mover este objeto.');
+}
+
+function nearDoor(){return near(3.64,5,1.32)}
+function doorCanClose(){
+ return !circleRect(player.x,player.z,player.r+.14,{x:3.05,z:4.90,w:1.18,d:.20})&&!circleRect(player.x,player.z,player.r+.07,{x:3.05-DOOR_THICKNESS/2,z:3.98,w:DOOR_THICKNESS,d:1.02});
+}
+function quickDoorAction(lockMode=false){
+ if(!nearDoor())return toast('Aproxime-se da porta para interagir.');
+ if(lockMode){
+  if(game.door.open)return toast('Feche a porta antes de trancá-la.');
+  if(!godMode()&&!keyHeld('house'))return toast('Você precisa estar com a chave da casa.');
+  game.door.locked=!game.door.locked;saveGame();return toast(game.door.locked?'Porta trancada.':'Porta destrancada.');
+ }
+ if(game.door.locked){if(!godMode()&&!keyHeld('house'))return toast('A porta está trancada.');game.door.locked=false;game.door.open=true;saveGame();return toast('Você destrancou e abriu a porta.');}
+ if(game.door.open){if(!doorCanClose())return toast('Afaste-se do vão antes de fechar a porta.');game.door.open=false;saveGame();return toast('Porta fechada.');}
+ game.door.open=true;saveGame();return toast('Porta aberta.');
+}
+function doorDialog(){
+ if(!nearDoor()){toast('Aproxime-se da porta para interagir.');return}
+ if(game.door.open){showDialog('Porta da casa','A porta está aberta.',[
+  {label:'Fechar',action:()=>{if(!doorCanClose()){toast('Afaste-se do vão antes de fechar a porta.');return;}game.door.open=false;saveGame();toast('Você fechou a porta.')}},
+  {label:'Cancelar'}]);return}
+ if(game.door.locked){
+  if(!keyHeld('house')){showDialog('Porta trancada','A fechadura não cede. Você precisa ter a chave dourada consigo.',[{label:'Entendido'}]);return}
+  showDialog('Porta trancada','Você tem a chave da casa no inventário.',[
+   {label:'Destrancar',action:()=>{if(!keyHeld('house'))return toast('Você não está com a chave da casa.');game.door.locked=false;saveGame();toast('A fechadura abriu. Agora você pode abrir a porta.')}},
+   {label:'Cancelar'}]);return
+ }
+ showDialog('Porta destrancada','Você pode abrir a porta ou trancá-la novamente.',[
+  {label:'Abrir',action:()=>{game.door.open=true;saveGame();toast('Porta aberta. Agora você pode entrar.')}},
+  {label:'Trancar',action:()=>{game.door.locked=true;saveGame();toast('Porta trancada.')}},
+  {label:'Cancelar'}]);
+}
+function pickKey(kind){
+ const pos=game.groundKeys[kind],code=kind+'Key';
+ if(!godMode()&&!near(pos.x,pos.z,1.15))return toast('Aproxime-se da chave.');
+ if(game.items[code]||Object.values(game.stores).some(a=>a.includes(code)))return;
+ game.items[code]=true;game.stores.inventory.push(code);saveGame();inventoryDraw();toast('Chave guardada no inventário.');
+}
+
+function collectChestItem(kind){
+ if(!game.chest.open||game.loot[kind])return;
+ game.loot[kind]=true;saveGame();inventoryDraw();
+ toast(kind==='coins'?'12 moedas adicionadas ao inventário.':'Cristal azul adicionado ao inventário.');
+}
+function quickChestAction(lockMode=false){
+ if(!godMode()&&(!inside(player.x,player.z)||!near(chestPos().x,chestPos().z,1.35)))return toast('Chegue mais perto do baú.');
+ if(lockMode){
+  if(game.chest.open)return toast('Feche o baú antes de trancá-lo.');
+  if(!godMode()&&!keyHeld('chest'))return toast('Você precisa estar com a chave do baú.');
+  game.chest.locked=!game.chest.locked;saveGame();return toast(game.chest.locked?'Baú trancado.':'Baú destrancado.');
+ }
+ if(game.chest.locked){if(!godMode()&&!keyHeld('chest'))return toast('O baú está trancado.');game.chest.locked=false;game.chest.open=true;saveGame();return toast('Você destrancou e abriu o baú.');}
+ game.chest.open=!game.chest.open;saveGame();return toast(game.chest.open?'Baú aberto.':'Baú fechado.');
+}
+function chestDialog(){
+ if(!inside(player.x,player.z)||!near(chestPos().x,chestPos().z,1.35)){toast('Chegue mais perto do baú.');return}
+ const choices=[];
+ if(game.chest.locked){if(keyHeld('chest'))choices.push({label:'Destrancar',action:()=>{if(!keyHeld('chest'))return toast('Você não está com a chave do baú.');game.chest.locked=false;saveGame();toast('Baú destrancado.')}});else choices.push({label:'Examinar fechadura',action:()=>toast('É necessária a chave do baú.')});}
+ else if(game.chest.open){choices.push({label:'Ver conteúdo / guardar itens',action:()=>storageDialog('chest','Interior do baú')});choices.push({label:'Fechar',action:()=>{game.chest.open=false;saveGame()}})}
+ else {choices.push({label:'Abrir',action:()=>{game.chest.open=true;saveGame()}});choices.push({label:'Trancar',action:()=>{game.chest.locked=true;saveGame()}})}
+ choices.push({label:'Reposicionar',action:()=>repositionMenu(chestObject)});
+ showDialog('Baú',game.chest.locked?'Baú trancado.':game.chest.open?'Baú aberto, capacidade de 65 litros.':'Baú fechado.',choices);
+}
+function interact(){
+ if(inside(player.x,player.z)){for(let i=0;i<2;i++){const lamp=fixedSolids.filter(o=>o.label==='luminaria')[i];const lx=lamp.x+lamp.w/2,lz=lamp.z+lamp.d/2;if(near(lx,lz,.53)){toggleLamp(i);return;}}}
+ if(nearDoor()){quickDoorAction();return}
+ if(!game.items.houseKey&&near(game.groundKeys.house.x,game.groundKeys.house.z,1.15)){pickKey('house');return}
+ if(!game.items.chestKey&&near(game.groundKeys.chest.x,game.groundKeys.chest.z,1)){pickKey('chest');return}
+ if((godMode()||inside(player.x,player.z))&&near(chestPos().x,chestPos().z,1.25)){quickChestAction();return}
+ if(near(wardrobeObject.x+.2,wardrobeObject.z+.7,1.1)&&inside(player.x,player.z)){toast('Pegue livros com o botão direito.');return}
+ if(inside(player.x,player.z)){toast('Explore a casa. Clique com o botão direito nos móveis para reposicioná-los.')}else toast('Procure uma chave dourada ao lado da trilha.');
+}
+function inScreenPoly(pt,coords){
+ let ok=false;
+ for(let i=0,j=coords.length-1;i<coords.length;j=i++){
+  const a=coords[i],b=coords[j];if((a[1]>pt[1])!==(b[1]>pt[1])&&pt[0]<(b[0]-a[0])*(pt[1]-a[1])/(b[1]-a[1])+a[0])ok=!ok;
+ }
+ return ok;
+}
+function isClickedDoor(mx,my){
+ const depth=([x,z])=>rotated(x,z).reduce((a,b)=>a+b,0);
+ if(!inside(player.x,player.z)&&depth([3.64,5])<depth([3.64,2.5]))return false;
+ // Com a porta aberta, a abertura NÃO é clicável. Só a folha girada.
+ const region=game.door.open
+  ? [P(3.05,5,.04),P(3.05,3.98,.04),P(3.05,3.98,2.60),P(3.05,5,2.60)]
+  : [P(3.05,5,0),P(4.23,5,0),P(4.23,5,2.62),P(3.05,5,2.62)];
+ if(!inScreenPoly([mx,my],region)){
+  const hinge=P(3.05,5,1.18),end=P(3.05+1.18*Math.cos(doorSwing*Math.PI/2),5-1.18*Math.sin(doorSwing*Math.PI/2),1.18);
+  const dist=Math.hypot(end[0]-hinge[0],end[1]-hinge[1]);
+  const t=dist?Math.max(0,Math.min(1,((mx-hinge[0])*(end[0]-hinge[0])+(my-hinge[1])*(end[1]-hinge[1]))/(dist*dist))):0;
+  if(!nearDoor()||Math.hypot(mx-(hinge[0]+(end[0]-hinge[0])*t),my-(hinge[1]+(end[1]-hinge[1])*t))>Math.max(18,scale*zoom*.42))return false;
+ }
+ // Um clique não atravessa a alvenaria que oculta visualmente a folha.
+ const dd=painterDepth(3.05,4.52);
+ const fronts=[
+  {dep:painterDepth(1.5,5),q:[[0,5,0],[3.05,5,0],[3.05,5,2.92],[0,5,2.92]]},
+  {dep:painterDepth(5.6,5),q:[[4.23,5,0],[7,5,0],[7,5,2.92],[4.23,5,2.92]]},
+  {dep:painterDepth(0,2.5),q:[[0,0,0],[0,5,0],[0,5,2.92],[0,0,2.92]]},
+  {dep:painterDepth(7,2.5),q:[[7,0,0],[7,5,0],[7,5,2.92],[7,0,2.92]]},
+  {dep:painterDepth(3.5,0),q:[[0,0,0],[7,0,0],[7,0,2.92],[0,0,2.92]]}
+ ];
+ if(!nearDoor()&&fronts.some(f=>f.dep>dd+.001&&inScreenPoly([mx,my],f.q.map(v=>P(...v)))))return false;
+ return true;
+}
+function activateOrApproach(kind,lockMode=false){
+ const locations={door:inside(player.x,player.z)?{x:3.64,z:4.48}:{x:3.64,z:5.66},house:{...game.groundKeys.house},chest:{x:chestPos().x,z:chestPos().z+.64},chestKey:{...game.groundKeys.chest}};
+ const at=locations[kind];
+ if(!at)return;
+ if(Math.hypot(player.x-at.x,player.z-at.z)<.78){
+  ({door:()=>quickDoorAction(lockMode),house:()=>pickKey('house'),chest:()=>quickChestAction(lockMode),chestKey:()=>pickKey('chest')})[kind]();return
+ }
+ game.pending=kind;game.pendingLockMode=lockMode;target={...at};toast('Indo até '+({door:'a porta',house:'a chave',chest:'o baú',chestKey:'a chave do baú'})[kind]+'…');
+}
+function clickedLamp(mx,my){
+ if(!reveal())return -1;
+ for(let i=0;i<2;i++){
+  const lamp=fixedSolids.filter(o=>o.label==='luminaria')[i];const pt=P(lamp.x+lamp.w/2,lamp.z+lamp.d/2,1.31);
+  if(Math.hypot(mx-pt[0],my-pt[1])<scale*zoom*.26+7)return i;
+ }
+ return -1;
+}
+function groundItemAtScreen(mx,my){
+ return [...game.droppedItems].reverse().find(o=>{
+  const p=P(o.x,o.z,.055);return Math.hypot(mx-p[0],my-p[1])<=Math.max(12,scale*zoom*.29);
+ })||null;
+}
+function directPickupFloorItem(item){
+ if(!item)return false;
+ const obj=game.droppedItems.find(o=>o===item|| (o.type===item.type&&Math.abs(o.x-item.x)<.001&&Math.abs(o.z-item.z)<.001));
+ if(!obj)return false;
+ if(canOpenBackpack()&&storeCanFit('inventory',obj.type)){
+  const idx=game.droppedItems.indexOf(obj);if(idx>=0)game.droppedItems.splice(idx,1);
+  const fi=game.stores.floor.indexOf(obj.type);if(fi>=0)game.stores.floor.splice(fi,1);
+  game.stores.inventory.push(obj.type);syncLegacyItems();saveGame();inventoryDraw();toast(itemLabel(obj.type)+' guardado na mochila.');
+  return true;
+ }
+ pickItemToHand({from:'floor',type:obj.type,object:obj});
+ return true;
+}
+function surfaceItemAtScreen(loc,mx,my){
+ const map={table:pushables.find(o=>o.label==='mesa'),bed:bedObject,deskTop:deskObject}; const o=map[loc]; if(!o||!canReachObject(o))return null;
+ const items=game.stores[loc]||[];
+ for(let i=0;i<items.length;i++){
+  const p=P(o.x+.14+(i%3)*.21+.08,o.z+.14+Math.floor(i/3)*.23+.06,o.h+.05);
+  if(Math.hypot(mx-p[0],my-p[1])<Math.max(12,scale*zoom*.22))return {from:loc,type:items[i]};
+ }
+ return null;
+}
+function shelfItemAtScreen(mx,my){
+ if(!canReachObject(wardrobeObject))return null;
+ const showFront=(Math.cos(cameraYaw)+Math.sin(cameraYaw))<-.04; if(!showFront)return null;
+ const x=wardrobeObject.x,z=wardrobeObject.z; let left=game.stores.shelf.filter(v=>v==='book').length;
+ for(let row=0;row<3;row++){
+  const count=Math.min(shelfRows[row],5);
+  for(let k=0;k<count;k++){
+   const zz=z+.12+k*.12,base=.31+row*.48,hi=.23+((k+row)%2)*.03;
+   const p=P(x-.03,zz+.045,base+hi*.55);
+   if(Math.hypot(mx-p[0],my-p[1])<Math.max(12,scale*zoom*.18)) return {from:'shelf',type:'book',row:row};
+  }
+ }
+ return null;
+}
+function rugAtScreen(mx,my){
+ if(!inside(player.x,player.z)||!game.rug.placed)return null;
+ const polyPts=[[game.rug.x,game.rug.z,.046],[game.rug.x+2.4,game.rug.z,.046],[game.rug.x+2.4,game.rug.z+1.65,.046],[game.rug.x,game.rug.z+1.65,.046]].map(v=>P(...v));
+ if(inScreenPoly([mx,my],polyPts)&&canReachObject(rugRect(),.85))return {from:'rug',type:'rug'};
+ return null;
+}
+function sourceItemAtScreen(mx,my){
+ const loose=groundItemAtScreen(mx,my);
+ if(loose&&(godMode()||Math.hypot(player.x-loose.x,player.z-loose.z)<=1.12))return {from:'floor',type:loose.type,object:loose};
+ const rug=rugAtScreen(mx,my); if(rug)return rug;
+ for(const loc of ['table','bed','deskTop']){const hit=surfaceItemAtScreen(loc,mx,my); if(hit)return hit;}
+ const shelfHit=shelfItemAtScreen(mx,my); if(shelfHit)return shelfHit;
+ for(const kind of ['house','chest']){
+  if(game.items[kind+'Key'])continue;
+  const pos=game.groundKeys[kind],screen=P(pos.x,pos.z,.06);
+  if(Math.hypot(mx-screen[0],my-screen[1])<Math.max(13,scale*zoom*.32)&&(godMode()||Math.hypot(player.x-pos.x,player.z-pos.z)<1.12)){
+   return {from:'worldKey',type:kind+'Key',object:pos};
+  }
+ }
+ if((godMode()||inside(player.x,player.z))&&canReachObject(deskObject)){
+  const o=deskObject,{x,z,w,h}=o;
+  for(let n=0;n<2;n++){
+   if(!game.drawerOpen[n])continue;
+   const id=n===0?'drawerTop':'drawerBottom';
+   const frontZ=z+.045-.29,height=h-.28-n*.19;
+   const contents=game.stores[id];
+   for(let i=0;i<Math.min(contents.length,2);i++){
+    const p=P(x+w-.29+i*.10+.05,frontZ+.13,height+.09);
+    if(Math.hypot(mx-p[0],my-p[1])<Math.max(7,scale*zoom*.115))return {from:id,type:contents[i]};
+   }
+  }
+ }
+ if((godMode()||inside(player.x,player.z))&&game.chest.open&&(!game.chest.locked||godMode())&&canReachObject(chestObject)){
+  const c=chestObject,contents=game.stores.chest;
+  for(let i=0;i<Math.min(contents.length,8);i++){
+   const p=P(c.x+.17+(i%4)*.18,c.z+.2+Math.floor(i/4)*.2,.55);
+   if(Math.hypot(mx-p[0],my-p[1])<Math.max(10,scale*zoom*.16))return {from:'chest',type:contents[i]};
+  }
+ }
+ return null;
+}
+function clickedInteraction(mx,my,lockMode=false){
+ const lamp=inside(player.x,player.z)?clickedLamp(mx,my):-1;if(lamp>=0){toggleLamp(lamp);return true;}
+ const keyVisible=(rotated(game.groundKeys.house.x,game.groundKeys.house.z).reduce((a,b)=>a+b,0)>=rotated(3.5,2.5).reduce((a,b)=>a+b,0))||reveal();
+ const clicks=[
+  {kind:'door',hit:isClickedDoor(mx,my)},
+  {kind:'house',hit:keyVisible&&!game.items.houseKey&&Math.hypot(...(()=>{const p=P(game.groundKeys.house.x,game.groundKeys.house.z,.06);return [mx-p[0],my-p[1]]})())<scale*zoom*.45},
+  {kind:'chestKey',hit:reveal()&&!game.items.chestKey&&Math.hypot(mx-P(game.groundKeys.chest.x,game.groundKeys.chest.z,.06)[0],my-P(game.groundKeys.chest.x,game.groundKeys.chest.z,.06)[1])<scale*zoom*.42}
+ ];
+ const item=clicks.find(a=>a.hit);if(item){activateOrApproach(item.kind);return true;}
+ const pos=worldAt(mx,my);
+ if(inside(player.x,player.z)){
+  const item=groundItemAtScreen(mx,my);
+  if(item){directPickupFloorItem(item);return true;}
+ }
+ if(rugAtScreen(mx,my)){toast('Clique com o botão direito para pegar o tapete com a mão.');return true;}
+ const obj=inside(player.x,player.z)?objectAtScreen(mx,my):null;if(obj&&reveal()){objectContextMenu(obj,lockMode);return true;}
+ return false;
+}
+
+const editor=document.getElementById('editor'),editorActions=document.getElementById('editorActions'),editorStatus=document.getElementById('editorStatus');
+function drawSheet(){const sh=SHEETS[role],god=role==='god';document.getElementById('sheetTitle').textContent=god?'☁ Deus · Mestre':'📜 Viajante · D100';const labels={FOR:'Força',DES:'Destreza',CON:'Constituição',INT:'Inteligência',PER:'Percepção',VON:'Vontade',CAR:'Carisma',PV:'Pontos de vida',PM:'Pontos de magia',mov:'Movimento'};document.getElementById('sheetStats').innerHTML=Object.entries(sh).filter(([k])=>labels[k]).map(([k,v])=>'<div class="stat"><span>'+labels[k]+'</span><b>'+v+'</b></div>').join('');document.getElementById('sheetNote').textContent=god?'Acesso de mestre para edição de cenário. Atributos de caráter narrativo.':'Capacidade de mover: até '+kgLoad()+' kg. Testes básicos: 1d100 ≤ atributo × 5. Valores de teste, sem perícias.';}
+function editorButton(label,fn,active=false){const b=document.createElement('button');b.textContent=label;if(active)b.className='selected';b.onclick=fn;editorActions.append(b);}
+function toggleEditor(force){editMode=force??!editMode;editor.classList.toggle('open',editMode);document.getElementById('editBtn').textContent=editMode?'✎ Jogar (Tab)':'✎ Editar';editPlacing=null;target=null;renderEditor();}
+function setRole(kind){role=kind;selected=null;editPlacing=null;document.getElementById('roleBtn').textContent=role==='god'?'☁ Deus':'🧙 Viajante';document.getElementById('powersBtn').style.display=godMode()?'':'none';dismissPopups();syncLookInputs();drawSheet();renderEditor();saveGame();toast(role==='god'?'Deus: modo mestre ativado.':'Viajante selecionado.');}
+function editorObjectName(o){return o?.label||o?.kind||'nada';}
+function canEditSelected(o){if(!o)return false;if(role==='god')return true;if(o.kind)return false;return !!o.movable&&(o.mass||0)<=kgLoad()&&canReachObject(o);}
+function canRotateSelected(o){return !!o&&(role==='god'||(!o.kind&&o.movable&&canRotateObject(o)&&canReachObject(o,1.45)));}
+function selectAt(mx,my){const o=objectAtScreen(mx,my);if(o){selected=o;renderEditor();return true;}const p=worldAt(mx,my);if(role==='god'){for(const [group,kind] of [[foliage,'tree'],[shrubs,'shrub']]){const t=group.find(q=>Math.hypot(q[0]-p.x,q[1]-p.z)<.55);if(t){selected={kind,x:t[0],z:t[1],w:.4,d:.4,h:kind==='tree'?2.3:.5,mass:100,original:{group,entry:t}};renderEditor();return true;}}}const dec=[...editDecor].reverse().find(o=>Math.hypot(p.x-o.x-(o.w||0)/2,p.z-o.z-(o.d||0)/2)<Math.max(.6,o.w||0));if(dec){selected=dec;renderEditor();return true;}return false;}
+function renderEditor(){
+ editorActions.replaceChildren();if(!editMode)return;
+ const name=editorObjectName(selected);editorStatus.textContent=(role==='god'?'☁ Deus':'🧙 Viajante')+' · selecionado: '+name+' · Clique num objeto, depois escolha uma ação.';
+ if(selected){
+  editorButton('↻ Girar 90°',()=>editRotate(90));editorButton('↺ Girar −90°',()=>editRotate(-90));
+  editorButton('✥ Mover',()=>{if(!canEditSelected(selected))return toast('Fora de alcance ou acima da sua capacidade.');editPlacing={kind:'move'};toast('Clique onde deseja colocar.');});
+  if(!selected.kind&&selected.movable)editorButton('⇥ Encostar à parede',()=>{if(role!=='god'&&!canRotateSelected(selected))return toast('Aproxime-se do móvel.');encostarParede(selected);renderEditor();});
+  if(godMode()&&selected.kind==='chest')editorButton('💰 Colocar tesouro',()=>{selected.contents=selected.contents||[];selected.contents.push('treasure');saveGame();toast('Tesouro colocado neste baú (independente).');});
+  editorButton('✕ Remover',()=>editRemove());
+ }
+ if(role==='god')for(const [kind,label] of [['tree','+ Árvore'],['shrub','+ Arbusto'],['stone','+ Pedra'],['house2','+ Casa base'],['house1','+ Casa 1 antiga'],['table','+ Mesa'],['chair','+ Cadeira'],['bed','+ Cama'],['chest','+ Baú'],['shelf','+ Estante'],['barrel','+ Barril'],['lamp','+ Lâmpada']])editorButton(label,()=>{editPlacing={kind:'create',item:kind};toast('Clique no chão para criar '+label.slice(2).toLowerCase()+'.');});
+ if(godMode()){
+  // Poderes de criação ficam no painel 👁 Poderes.
+  // Teleporte fica concentrado no painel de poderes.
+ }
+ editorButton('💾 Salvar',()=>{saveGame();try{localStorage.setItem('orla-blueprint-casa-1',JSON.stringify({...houseOneBlueprint,fixedFurniture:fixedSolids.map(serializeObject),moveableFurniture:pushables.map(serializeObject)}));localStorage.setItem('orla-blueprint-casa-2',JSON.stringify({...houseTwoBlueprint,fixedFurniture:fixedSolids.map(serializeObject),moveableFurniture:pushables.map(serializeObject)}));}catch(_){}toast('Cenário salvo. Casa base atualizada.');});
+ editorButton('🎮 Jogar (Tab)',()=>toggleEditor(false));
+}
+function editRotate(degrees){
+ if(!canRotateSelected(selected))return toast('Aproxime-se do móvel para girá-lo.');
+ if(role==='god'){
+  const o=selected;if(!o)return;
+  const cx=o.x+o.w/2,cz=o.z+o.d/2;
+  if(Math.abs(degrees/90)%2===1){const w=o.w;o.w=o.d;o.d=w;}
+  o.x=cx-o.w/2;o.z=cz-o.d/2;o.rot=((o.rot||0)+degrees/90+400)%4;
+  saveGame();renderEditor();toast('Objeto girado '+degrees+'°.');return;
+ }
+ if(rotateObjectBy(selected,degrees))renderEditor();
+}
+function editRemove(){if(!canEditSelected(selected))return toast('Sem permissão para remover este objeto.');if(selected.kind){if(selected.original){selected.original.group.splice(selected.original.group.indexOf(selected.original.entry),1);}else editDecor.splice(editDecor.indexOf(selected),1);}else if(role==='god'){selected.hidden=true;}else{toast('Para recolher itens, arraste-os para a mochila.');return;}selected=null;saveGame();renderEditor();}
+function editPlaceAt(mx,my){const p=worldAt(mx,my);if(!editPlacing)return false;
+ if(editPlacing.kind==='teleport'&&godMode()){player.x=p.x;player.z=p.z;player.elevation=0;editPlacing=null;target=null;toast('Teleporte concluído.');return true;}
+ if(editPlacing.kind==='create'&&role==='god'){
+  const shapes={tree:[.5,.5,2.4],shrub:[.45,.45,.4],stone:[.65,.55,.5],house:[3,2,2.3],house1:[7,5,3.1],house2:[10,5,3.1],table:[1.15,.7,.65],chair:[.5,.5,.8],bed:[1.5,.9,.4],chest:[.9,.7,.55],shelf:[.65,1.4,1.9],barrel:[.5,.5,.8],lamp:[.25,.25,1.3]};
+  const [w,d,h]=shapes[editPlacing.item];
+  if(editPlacing.item==='house1'||editPlacing.item==='house2'){const nx=p.x-w/2,nz=p.z-d/2;if(nx<7.5&&nx+w>-.5&&nz<5.5&&nz+d>-.5)return toast('Coloque a nova casa afastada da original.'),true;if(houseInstances().some(q=>nx<q.x+q.w+.2&&nx+w>q.x-.2&&nz<q.z+q.d+.2&&nz+d>q.z-.2))return toast('Há outra casa neste terreno.'),true;}
+  const created={kind:editPlacing.item,x:p.x-w/2,z:p.z-d/2,w,d,h,mass:15,rot:0,scale:1,
+   ...(editPlacing.item==='chest'?{chestState:{locked:false,open:false},contents:[],instanceId:'chest-'+Date.now()}:{}),
+   ...(['house1','house2'].includes(editPlacing.item)?{blueprint:editPlacing.item==='house2'?'casa-2':'casa-1',snapshot:captureHouseBlueprint(),doorState:{open:false,locked:false},instanceId:'casa-'+Date.now()}:{} )};
+  editDecor.push(created);
+  if(created.kind==='house1'||created.kind==='house2')ensureHouseState(created);
+  editPlacing=null;saveGame();renderEditor();toast(created.kind==='house1'?'Casa 1 independente criada.':created.kind==='house2'?'Casa base ampliada criada.':'Objeto criado.');return true;
+ }
+ if(editPlacing.kind==='move'&&selected&&canEditSelected(selected)){
+  const o=selected;if(role==='traveler'&&!withinReach(p.x,p.z,1.45))return toast('Destino fora do seu alcance.'),true;
+  const nx=p.x-o.w/2,nz=p.z-o.d/2;
+  if(role==='traveler'&&!canPlaceObjectAt(o,p.x,p.z))return toast('Espaço bloqueado.'),true;
+  if(o.original){o.original.group.splice(o.original.group.indexOf(o.original.entry),1);delete o.original;editDecor.push(o);}o.x=nx;o.z=nz;editPlacing=null;saveGame();renderEditor();toast('Objeto movido.');return true;
+ }
+ return true;
+}
+window.addEventListener('keydown',e=>{let k=e.key.toLowerCase();if(['1','2','3'].includes(k)&&!e.repeat){const t=({1:'axe',2:'pickaxe',3:'shovel'})[k];if(equipment.left===t&&equipment.right===t){gathering.activeTool=t;toast('Ferramenta pronta: '+itemLabel(t));}else toast('Pegue e equipe '+itemLabel(t)+' nas duas mãos.');return;}if(k==='tab'){e.preventDefault();if(!e.repeat)toggleEditor();return;}if(k==='f'&&!e.repeat){drawSheet();document.getElementById('sheet').classList.toggle('open');return;}if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k))e.preventDefault();if(k==='escape'){if(placingObject){placingObject=null;toast('Posicionamento cancelado.')}placingRug=false;placingSmallItem=null;if(helpOpen)toggleHelp(false);closePanels();restoreHandItem()}if(k==='enter'&&dialog.classList.contains('open')){e.preventDefault();const btn=dialogChoices.querySelector('button');if(btn)btn.click();return}if(k==='i'&&!e.repeat){inventoryToggle();return}if(k==='e'&&!e.repeat){if(!dialog.classList.contains('open'))interact();return;}if(k==='shift'){keys.add('shift');return;}if(k==='q'&&!e.repeat)turnCamera(-Math.PI/4);if(k==='r'&&!e.repeat)turnCamera(Math.PI/4);if(k===' '){keys.add('space');if(!e.repeat){clearTimeout(neutralJumpTimer);neutralJumpTimer=setTimeout(()=>{if(keys.has('space'))startHop();neutralJumpTimer=0},120)}return}
+ if(['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'].includes(k)){
+  if(keys.has('space')&&!e.repeat){
+   if(neutralJumpTimer){clearTimeout(neutralJumpTimer);neutralJumpTimer=0}
+   const vectors={w:[1,-1],arrowup:[1,-1],s:[-1,1],arrowdown:[-1,1],a:[-1,-1],arrowleft:[-1,-1],d:[1,1],arrowright:[1,1]};
+   const [jx,jz]=unrotate(...vectors[k]);startJump(jx,jz);
+  }else{closePanels();closeClimate();keys.add(k);} 
+ }});
+window.addEventListener('keyup',e=>{if(e.key===' '&&neutralJumpTimer){clearTimeout(neutralJumpTimer);neutralJumpTimer=0}keys.delete(e.key===' '?'space':e.key.toLowerCase())});window.addEventListener('blur',()=>{keys.clear();if(neutralJumpTimer){clearTimeout(neutralJumpTimer);neutralJumpTimer=0}});
+function screenHitsFurniture(o,mx,my){
+ const x=o.x,z=o.z,w=o.w,d=o.d,h=o.h;
+ const quads=[
+  [[x,z,h],[x+w,z,h],[x+w,z+d,h],[x,z+d,h]],
+  [[x,z+d,0],[x+w,z+d,0],[x+w,z+d,h],[x,z+d,h]],
+  [[x+w,z,0],[x+w,z+d,0],[x+w,z+d,h],[x+w,z,h]],
+  [[x,z,0],[x+w,z,0],[x+w,z,h],[x,z,h]],
+  [[x,z,0],[x,z+d,0],[x,z+d,h],[x,z,h]]
+ ];
+ return quads.some(q=>inScreenPoly([mx,my],q.map(v=>P(...v))));
+}
+function inventoryDropLocation(wx,wz,mx=null,my=null){
+ if(mx!==null&&inside(player.x,player.z)){
+  for(let n=0;n<2;n++)if(game.drawerOpen[n]){
+   const o=deskObject,zz=o.z+.045-.29,h=o.h-.28-n*.19;
+   const face=[[o.x+o.w-.33,zz,h-.035],[o.x+o.w-.06,zz,h-.035],[o.x+o.w-.06,zz,h+.11],[o.x+o.w-.33,zz,h+.11]].map(v=>P(...v));
+   if(inScreenPoly([mx,my],face))return n===0?'drawerTop':'drawerBottom';
+  }
+  if(screenHitsFurniture(chestObject,mx,my))return game.chest.open?'chest':null;
+  if(screenHitsFurniture(wardrobeObject,mx,my))return 'shelf';
+  if(screenHitsFurniture(deskObject,mx,my)){
+   const o=deskObject;
+   for(let n=0;n<2;n++)if(game.drawerOpen[n]){
+    const zz=o.z+.045-.29,h=o.h-.28-n*.19;
+    const drawerFace=[[o.x+o.w-.33,zz,h-.035],[o.x+o.w-.06,zz,h-.035],[o.x+o.w-.06,zz,h+.11],[o.x+o.w-.33,zz,h+.11]].map(v=>P(...v));
+    if(inScreenPoly([mx,my],drawerFace))return n===0?'drawerTop':'drawerBottom';
+   }
+   return 'deskTop';
+  }
+  if(screenHitsFurniture(bedObject,mx,my))return 'bed';
+  const table=pushables.find(o=>o.label==='mesa');
+  if(screenHitsFurniture(table,mx,my))return 'table';
+ }
+
+ if(!inside(player.x,player.z)||!inside(wx,wz))return 'floor';
+ const inRect=(o)=>wx>=o.x-.05&&wx<=o.x+o.w+.05&&wz>=o.z-.05&&wz<=o.z+o.d+.05;
+ if(inRect(chestObject))return game.chest.open?'chest':null;
+ if(inRect(wardrobeObject))return 'shelf';
+ if(inRect(deskObject)){
+  const upper=game.drawerOpen[0],lower=game.drawerOpen[1];
+  if(upper)return 'drawerTop';if(lower)return 'drawerBottom';return 'deskTop';
+ }
+ if(inRect(bedObject))return 'bed';
+ const table=pushables.find(o=>o.label==='mesa');if(inRect(table))return 'table';
+ return 'floor';
+}
+canvas.addEventListener('dragover',e=>{if(dragInventoryType){e.preventDefault();e.dataTransfer.dropEffect='move'}});
+canvas.addEventListener('drop',e=>{
+ e.preventDefault();const type=e.dataTransfer.getData('text/plain')||dragInventoryType;dragInventoryType=null;
+ if(!ITEM_SPEC[type]||!game.stores.inventory.includes(type))return;
+ const p=worldAt(e.clientX,e.clientY),dest=inventoryDropLocation(p.x,p.z,e.clientX,e.clientY);
+ if(!dest){toast('Abra o recipiente ou escolha um espaço dentro da casa.');return}
+ if(dest==='floor'&&!canReachFloorPoint(p.x,p.z)){toast('Lugar fora de alcance. Aproxime-se para colocar o item.');return}
+ if(dest!=='floor'&&!requireStore(dest))return;
+ if(type==='rug'&&dest==='floor'){
+  const x=clamp(p.x-1.2,.07,4.52),z=clamp(p.z-.82,.07,3.28);
+  if(!canReachFloorPoint(x+1.2,z+.82)){toast('O tapete ficaria fora de alcance.');return;}
+  if(transferItem('inventory','floor',type)){game.rug.x=x;game.rug.z=z;game.rug.placed=true;saveGame();}
+  return;
+ }
+ if(!transferItem('inventory',dest,type))return;
+ if(dest==='floor')game.droppedItems.push({type,x:p.x,z:p.z});
+ game.rug.placed=game.stores.floor.includes('rug');saveGame();inventoryDraw();toast(itemLabel(type)+' guardado em '+dest+'.');
+});
+canvas.addEventListener('dragstart',e=>{
+ if(!canvasDragSource){e.preventDefault();return;}
+ const source=canvasDragSource;
+ e.dataTransfer.setData('application/x-orla-source',JSON.stringify({from:source.from,type:source.type,x:source.object?.x,z:source.object?.z}));
+ e.dataTransfer.effectAllowed='move';e.dataTransfer.setDragImage(emptyDragImage,0,0);target=null;
+});
+canvas.addEventListener('dragend',()=>{canvasDragSource=null;canvasDragOrigin=null;});
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
+canvas.addEventListener('pointerdown',e=>{
+ mouseScreen={x:e.clientX,y:e.clientY};
+ if(helpOpen)return;
+ if(e.button===2){dragRotate={id:e.pointerId,x:e.clientX,y:e.clientY,moved:false};canvas.setPointerCapture(e.pointerId);canvas.style.cursor='ew-resize';return;}
+ if(e.button!==0)return;
+ if(editMode){if(editPlacing){editPlaceAt(e.clientX,e.clientY);}else{if(!selectAt(e.clientX,e.clientY)){selected=null;renderEditor();}}return;}
+ if(handItem){closePanels();placeHandAt(e.clientX,e.clientY);return;}
+ canvasDragOrigin={x:e.clientX,y:e.clientY};canvasDragSource=sourceItemAtScreen(e.clientX,e.clientY);
+ // Clique esquerdo continua a andar, mesmo sobre itens; arrastar inicia o transporte.
+ closePanels();game.pending=null;
+ if(keys.has('space')){
+  if(neutralJumpTimer){clearTimeout(neutralJumpTimer);neutralJumpTimer=0}
+  const dst=worldAt(e.clientX,e.clientY);const dx=dst.x-player.x,dz=dst.z-player.z;startJump(dx,dz,Math.hypot(dx,dz));return;
+ }
+ if(placingSmallItem){
+  const p=worldAt(e.clientX,e.clientY),type=placingSmallItem;
+  if(inside(player.x,player.z)&&p.x>.15&&p.x<currentHouseWidth()-.15&&p.z>.15&&p.z<4.85){
+   if(!canReachFloorPoint(p.x,p.z)){toast('Este ponto está fora de alcance.');return;}
+   if(transferItem('inventory','floor',type)){game.droppedItems.push({type,x:p.x,z:p.z});placingSmallItem=null;saveGame();inventoryDraw();toast('Item colocado.');}
+  }else toast('Coloque o item dentro da casa.');
+  return;
+ }
+ if(placingRug){
+  const p=worldAt(e.clientX,e.clientY);
+  const x=clamp(p.x-1.2,.08,4.52),z=clamp(p.z-.825,.08,3.28);
+  if(canReachFloorPoint(x+1.2,z+.825)&&x+2.4<currentHouseWidth()-.1){game.rug.x=x;game.rug.z=z;transferItem('inventory','floor','rug');game.rug.placed=true;placingRug=false;saveGame();toast('Tapete colocado.');}else toast('Entre na casa para colocar o tapete.');
+  return;
+ }
+ if(placingObject){
+  const p=worldAt(e.clientX,e.clientY),o=placingObject;
+  if(!canReachObject(o)||!withinReach(p.x,p.z,1.35)){toast('Você só pode mover móveis para perto de si.');return;}
+  if(canPlaceObjectAt(o,p.x,p.z)){o.x=p.x-o.w/2;o.z=p.z-o.d/2;placingObject=null;saveGame();toast('Objeto reposicionado.');}
+  else toast('Não há espaço livre aqui. Clique em outro local ou Esc.');
+  return;
+ }
+ // Clique esquerdo serve exclusivamente para andar (exceto colocação de item em curso).
+ target=worldAt(e.clientX,e.clientY);
+});
+canvas.addEventListener('pointermove',e=>{
+ mouseScreen={x:e.clientX,y:e.clientY};
+ if(dragRotate&&e.pointerId===dragRotate.id){const dx=e.clientX-dragRotate.x;dragRotate.x=e.clientX;if(Math.abs(dx)>3){dragRotate.moved=true;cameraGoal+=dx*.008;target=null;}return;}
+ const src=sourceItemAtScreen(e.clientX,e.clientY);
+ if(handItem)canvas.style.cursor='grabbing';else if(src)canvas.style.cursor='grab';else if(!dragRotate)canvas.style.cursor='crosshair';
+});
+function drawerItemAtClick(mx,my){return false;}
+function awardResource(type,count,x,z){
+ for(let i=0;i<count;i++){
+  if(canOpenBackpack()&&storeCanFit('inventory',type))game.stores.inventory.push(type);
+  else {const p={type,x:x+(i%3)*.16,z:z+Math.floor(i/3)*.16};game.droppedItems.push(p);game.stores.floor.push(type);}
+ }
+}
+function resourceClick(mx,my){document.getElementById('resourceMode').textContent='Ferramenta: '+itemLabel(gathering.activeTool);
+ if(editMode)return false;
+ const p=worldAt(mx,my); const close=(x,z,limit)=>Math.hypot(p.x-x,p.z-z)<limit;
+ const nearNode=(x,z)=>godMode()||Math.hypot(player.x-x,player.z-z)<2;
+ for(let i=0;i<foliage.length;i++){
+  const t=foliage[i],state=gathering.trees[i];
+  if(state.fallen||!close(t[0],t[1],.60))continue;
+  if(!nearNode(t[0],t[1])){toast('Aproxime-se da árvore.');return true;}
+  if(!godMode()&&!(equipment.left==='axe'&&equipment.right==='axe')){toast('Equipe o machado (tecla 1).');return true;}
+  startWorkAnimation('axe',t[0],t[1]);state.hard=Math.max(0,state.hard-(godMode()?10:2));if(state.hard===0)state.hp-=godMode()?10:2;
+  if(state.hp<=0){state.fallen=true;awardResource('wood',3,t[0],t[1]);toast('Árvore abatida! 3 unidades de lenha obtidas.');inventoryDraw();}
+  else toast('Árvore · dureza '+state.hard+' · vida '+state.hp);
+  saveGame();return true;
+ }
+ for(const r of gathering.rocks){
+  if(r.hp<=0||!close(r.x,r.z,.62))continue;
+  if(!nearNode(r.x,r.z)){toast('Aproxime-se da rocha.');return true;}
+  if(!godMode()&&!(equipment.left==='pickaxe'&&equipment.right==='pickaxe')){toast('Equipe a picareta (tecla 2).');return true;}
+  startWorkAnimation('pickaxe',r.x,r.z);r.hard=Math.max(0,r.hard-(godMode()?10:2));if(r.hard===0)r.hp-=godMode()?10:2;
+  if(r.hp<=0){awardResource('ore',2,r.x,r.z);awardResource('stoneChunk',1,r.x+.2,r.z+.1);toast('Rocha minerada: minério e pedra.');inventoryDraw();}
+  else toast('Rocha · dureza '+r.hard+' · vida '+r.hp);
+  saveGame();return true;
+ }
+ const m=gathering.mound;
+ if(close(m.x,m.z,.8)){
+  if(!nearNode(m.x,m.z)){toast('Aproxime-se do relevo.');return true;}
+  if(!m.dug){if(!godMode()&&!(equipment.left==='shovel'&&equipment.right==='shovel')){toast('Equipe a pá (tecla 3).');return true;}startWorkAnimation('shovel',m.x,m.z);m.work++;if(m.work>=4){m.dug=true;toast('Um baú enterrado foi encontrado! Clique novamente.')}else toast('Escavação: '+m.work+'/4');}
+  else if(!m.chestOpen){m.chestOpen=true;awardResource('treasure',1,m.x,m.z);inventoryDraw();toast('Tesouro encontrado!');}
+  else toast('O baú enterrado já foi aberto.');
+  saveGame();return true;
+ }
+ return false;
+}
+function contextClick(mx,my,lockMode=false){
+ if(!houseContext){
+  const at=worldAt(mx,my),own=cloneInteriorAt(player.x,player.z);
+  for(const h of houseInstances()){const doorX=h.x+3.64,doorZ=h.z+5;
+   const withinDoor= Math.hypot(at.x-doorX,at.z-doorZ)<.85 || withHouseInstance(h,()=>isClickedDoor(mx,my));
+   if(withinDoor && (godMode()||Math.hypot(player.x-doorX,player.z-doorZ)<1.55)){
+    const st=ensureHouseState(h);if(lockMode){if(st.door.open)return toast('Feche a porta antes de trancar.');st.door.locked=!st.door.locked;}
+    else if(st.door.locked){if(!godMode())return toast('Esta porta está trancada.');st.door.locked=false;st.door.open=true;}
+    else st.door.open=!st.door.open;saveGame();toast(st.door.open?'Porta da casa criada aberta.':st.door.locked?'Porta trancada.':'Porta fechada.');return;
+   }
+  }
+  if(own){withHouseInstance(own,()=>contextClick(mx,my,lockMode));saveGame();return;}
+ }
+ if(!editMode&&resourceClick(mx,my))return;
+ const deco=editDecor.find(o=>o.kind==='chest'&&Math.hypot(worldAt(mx,my).x-(o.x+o.w/2),worldAt(mx,my).z-(o.z+o.d/2))<.6);
+ if(deco&&(godMode()||Math.hypot(player.x-deco.x,player.z-deco.z)<1.6)){if(deco.chestState.locked&&!godMode())return toast('Este baú está trancado.');if(deco.chestState.open&&deco.contents?.length){const t=deco.contents.shift();game.stores.inventory.push(t);inventoryDraw();saveGame();toast(itemLabel(t)+' recolhido deste baú.');return;}deco.chestState.open=!deco.chestState.open;saveGame();toast(deco.chestState.open?'Baú independente aberto: '+(deco.contents?.length||0)+' itens.':'Baú fechado.');return;}
+ if(handItem){placeHandAt(mx,my);return;}
+ const src=sourceItemAtScreen(mx,my); if(src){if(src.from==='floor'){directPickupFloorItem(src.object||src);closePanels();return;}pickItemToHand(src);closePanels();return;}
+ if(isClickedDoor(mx,my)){ if(nearDoor())quickDoorAction(lockMode); else activateOrApproach('door',lockMode); return;}
+ const drawerIndex=drawerFrontAtClick(mx,my); if(drawerIndex>=0){toggleDrawer(drawerIndex);return;}
+ if(!inside(player.x,player.z)){
+  const loose=groundItemAtScreen(mx,my);if(loose){toast('Arraste o objeto até a janela do inventário para recolher.');return;}
+  const p=P(game.groundKeys.house.x,game.groundKeys.house.z,.06);
+  if(!game.items.houseKey&&Math.hypot(mx-p[0],my-p[1])<scale*zoom*.45)activateOrApproach('house');
+  return; // Não interagir com objetos do interior estando do lado de fora.
+ }
+ if(clickedInteraction(mx,my,lockMode))return;
+ const obj=objectAtScreen(mx,my);
+ if(obj){objectContextMenu(obj,lockMode);return;}
+ // Objetos menores também requerem clique direito.
+ // Cliques no chão vazio não abrem inventário coletivo nem recolhem itens distantes.
+}
+const stopDrag=e=>{if(dragRotate&&dragRotate.id===e.pointerId){const info=dragRotate;dragRotate=null;canvas.style.cursor='crosshair';if(e.button===2&&!info.moved)contextClick(e.clientX,e.clientY,e.shiftKey);}};
+canvas.addEventListener('pointerup',stopDrag);canvas.addEventListener('pointercancel',stopDrag);
+canvas.addEventListener('wheel',e=>{e.preventDefault();zoom=clamp(zoom*(e.deltaY>0?.90:1.11),.62,2.05)},{passive:false});
+function labelRoof(){roofButton.textContent=['🏠 Telhado: auto','🏠 Telhado: sempre','🏠 Telhado: oculto'][roofMode]}
+roofButton.onclick=()=>{roofMode=(roofMode+1)%3;labelRoof();toast(['Telhado automático','Telhado sempre visível','Telhado oculto'][roofMode])};
+document.getElementById('turnL').onclick=()=>turnCamera(-Math.PI/4);document.getElementById('turnR').onclick=()=>turnCamera(Math.PI/4);
+const inventoryBtn=document.getElementById('inventoryBtn');
+inventoryBtn.onclick=()=>{if(handItem){if(!canOpenBackpack())return toast('Equipe a mochila primeiro.');storeHandInInventory();return;}inventoryToggle();};
+inventoryBtn.addEventListener('dragover',e=>{if(dragInventoryType||e.dataTransfer.types.includes('application/x-orla-source')){e.preventDefault();e.dataTransfer.dropEffect='move';}});
+inventoryBtn.addEventListener('drop',e=>{e.preventDefault();if(!canOpenBackpack())return toast('Equipe a mochila primeiro.');if(dragInventoryType){const t=dragInventoryType;dragInventoryType=null;if(game.stores.inventory.includes(t))return;game.stores.inventory.push(t);inventoryDraw();saveGame();return;}let data;try{data=JSON.parse(e.dataTransfer.getData('application/x-orla-source'));}catch(_){return;}if(!data||!ITEM_SPEC[data.type])return;if(data.from==='rug'){if(!game.rug.placed||!game.stores.floor.includes('rug')||!canReachObject(rugRect(),.85)){toast('Aproxime-se do tapete.');return;} const i=game.stores.floor.indexOf('rug'); if(i>=0)game.stores.floor.splice(i,1); game.rug.placed=false; game.stores.inventory.push('rug');}else if(data.from==='worldKey'){const kind=data.type==='houseKey'?'house':data.type==='chestKey'?'chest':null;if(!kind||inventoryHas(data.type))return;const point=game.groundKeys[kind];if(Math.hypot(player.x-point.x,player.z-point.z)>1.12){toast('Aproxime-se da chave.');return;}game.items[data.type]=true;game.stores.inventory.push(data.type);}else if(data.from==='floor'){const o=game.droppedItems.find(o=>o.type===data.type&&Math.abs(o.x-data.x)<.001&&Math.abs(o.z-data.z)<.001);if(!o||Math.hypot(player.x-o.x,player.z-o.z)>1.12){toast('Aproxime-se do objeto.');return;}game.droppedItems.splice(game.droppedItems.indexOf(o),1);game.stores.inventory.push(data.type);}else if(game.stores[data.from]?.includes(data.type)){const i=game.stores[data.from].indexOf(data.type);game.stores[data.from].splice(i,1);game.stores.inventory.push(data.type);}syncLegacyItems();inventoryDraw();saveGame();toast('Guardado no inventário.');});
+document.getElementById('restart').onclick=()=>{if(confirm('Reiniciar chaves, portas, baú e posições dos móveis?')){try{localStorage.removeItem(saveKey);localStorage.removeItem('orla-v16-aventura')}catch(_){}location.reload();}};inventoryDraw();
+document.getElementById('minus').onclick=()=>zoom=clamp(zoom*.87,.62,2.05);document.getElementById('plus').onclick=()=>zoom=clamp(zoom*1.13,.62,2.05);
+function toggleHelp(state){closeDialog();helpOpen=state;document.getElementById('help').classList.toggle('open',state);keys.clear()}document.getElementById('helpbtn').onclick=()=>toggleHelp(true);document.getElementById('closeHelp').onclick=()=>toggleHelp(false);
+document.getElementById('editBtn').onclick=()=>toggleEditor();document.getElementById('roleBtn').onclick=()=>setRole(role==='god'?'traveler':'god');document.getElementById('sheetBtn').onclick=()=>{drawSheet();inventory.classList.remove('open');closeDialog();document.getElementById('sheet').classList.toggle('open');};document.getElementById('sheetClose').onclick=()=>document.getElementById('sheet').classList.remove('open');setRole(role);
+
+// === ORLA v0.30: WebGL geometry + independent atmospheric FX ===
+const glCanvas=document.getElementById('glView'),weatherCanvas=document.getElementById('weatherView'),wc=weatherCanvas.getContext('2d');
+let visual3D=false,worldRenderer=null,weatherParticles=[],meteorTrails=[];
+let climate={hour:9,weather:'clear',auto:true,speed:3,weatherAuto:true,days:0};
+try{const saved=JSON.parse(localStorage.getItem('orla-visual-climate')||'null');if(saved&&typeof saved==='object')Object.assign(climate,saved);if(typeof climate.weatherAuto!=='boolean')climate.weatherAuto=true}catch(_){}
+const allowedWeather={clear:true,rain:true,wind:true,sand:true,meteor:true,snow:true};
+try{Object.assign(allowedWeather,JSON.parse(localStorage.getItem('orla-weather-allowed')||'{}'))}catch(_){}
+const weatherTypes=[['clear','☀️ Limpo'],['rain','🌧️ Chuva'],['wind','💨 Vento'],['sand','🏜️ Areia'],['meteor','☄️ Meteoros'],['snow','❄️ Neve']];
+const climateBox=document.getElementById('climate'),timePanel=document.getElementById('timePanel');
+const climateButton=document.getElementById('climateBtn'),graphicsButton=document.getElementById('graphicsBtn');
+const clockSlider=document.getElementById('clockSlider'),cycleToggle=document.getElementById('cycleToggle'),speedSlider=document.getElementById('speedSlider');
+const climateClock=document.getElementById('clockLabel'),weatherAutoControl=document.getElementById('weatherAuto');
+function naturalWeather(){const r=Math.random();const choice= r<.60?'clear':r<.78?'rain':r<.90?'wind':r<.968?'sand':r<.996?'snow':'meteor';return allowedWeather[choice]?choice:(Object.keys(allowedWeather).filter(k=>allowedWeather[k])[0]||'clear');}
+function switchWeather(value){climate.weather=value;weatherParticles=[];meteorTrails=[];saveClimate();climateSync();}
+function saveClimate(){try{localStorage.setItem('orla-visual-climate',JSON.stringify(climate))}catch(_){}}
+function clockText(){const m=Math.round(((climate.hour%24+24)%24)*60);return String(Math.floor(m/60)%24).padStart(2,'0')+':'+String(m%60).padStart(2,'0')}
+function daylight(){const h=climate.hour%24;return Math.max(0,Math.min(1,(h-5)/2,(20-h)/2,1))}
+function climateSync(){const day=daylight();const label=weatherTypes.find(x=>x[0]===climate.weather)?.[1]||'Limpo';timePanel.textContent=(day>.28?'☀️':'🌙')+' '+clockText()+' · '+label;climateButton.textContent=(day>.28?'☀️':'🌙')+' Clima';clockSlider.value=String(Math.floor(climate.hour*60));climateClock.textContent=clockText();cycleToggle.checked=climate.auto;weatherAutoControl.checked=climate.weatherAuto;speedSlider.value=climate.speed;document.querySelectorAll('#weatherChoices button').forEach(b=>b.classList.toggle('active',b.dataset.weather===climate.weather));}
+for(const [name,label] of weatherTypes){const b=document.createElement('button');b.textContent=label;b.dataset.weather=name;b.onclick=()=>{if(role!=='god')return toast('Somente Deus controla o clima.');climate.weatherAuto=false;switchWeather(name);};document.getElementById('weatherChoices').append(b)}
+for(const [id,label] of weatherTypes){const x=document.createElement('label');x.style.cssText='font-size:11px;white-space:nowrap';const c=document.createElement('input');c.type='checkbox';c.checked=allowedWeather[id];c.onchange=()=>{if(!godMode()){c.checked=allowedWeather[id];return;}allowedWeather[id]=c.checked;try{localStorage.setItem('orla-weather-allowed',JSON.stringify(allowedWeather))}catch(_){};};x.append(c,document.createTextNode(' '+label));document.getElementById('weatherAllowed').append(x);}
+weatherAutoControl.onchange=e=>{if(role!=='god'){weatherAutoControl.checked=climate.weatherAuto;return toast('Somente Deus escolhe o clima.')}climate.weatherAuto=e.target.checked;if(climate.weatherAuto)switchWeather(naturalWeather());saveClimate();climateSync();};
+function closeClimate(){climateBox.classList.remove('open')}
+climateButton.onclick=()=>{climateBox.classList.toggle('open');climateSync()};
+clockSlider.oninput=e=>{if(role!=='god'){climateSync();return toast('Somente Deus muda o horário.')}climate.hour=Number(e.target.value)/60;climate.auto=false;saveClimate();climateSync()};
+cycleToggle.onchange=e=>{if(role!=='god'){climateSync();return toast('Somente Deus controla o tempo.')}climate.auto=e.target.checked;saveClimate();climateSync()};
+speedSlider.oninput=e=>{if(role!=='god'){climateSync();return toast('Somente Deus controla o tempo.')}climate.speed=Number(e.target.value);saveClimate();climateSync()};
+function weatherSize(){const rect=canvas.getBoundingClientRect();const pixel=Math.min(2,window.devicePixelRatio||1);weatherCanvas.width=Math.max(1,Math.round(rect.width*pixel));weatherCanvas.height=Math.max(1,Math.round(rect.height*pixel));weatherCanvas.style.width=rect.width+'px';weatherCanvas.style.height=rect.height+'px';wc.setTransform(pixel,0,0,pixel,0,0)}
+function weatherTick(dt){
+ const w=weatherCanvas.clientWidth||window.innerWidth,h=weatherCanvas.clientHeight||window.innerHeight;
+ wc.clearRect(0,0,w,h);
+ if(climate.auto){const oldHour=climate.hour;climate.hour=(climate.hour+dt*(.004+climate.speed*.014))%24;if(climate.hour<oldHour){climate.days=(climate.days||0)+1;if(climate.weatherAuto)switchWeather(naturalWeather());saveClimate();}}
+ const sunlight=daylight();
+ if(sunlight<.98){wc.fillStyle='rgba(9,18,47,'+(Math.min(.62,(1-sunlight)*.58)).toFixed(3)+')';wc.fillRect(0,0,w,h);}
+ if(climate.weather==='sand'){wc.fillStyle='rgba(168,114,40,.16)';wc.fillRect(0,0,w,h)}
+ if(sunlight<.85){
+  // Iluminação local: revela o piso e a vizinhança das luminárias ligadas.
+  wc.save();wc.globalCompositeOperation='destination-out';
+  const lamps=fixedSolids.filter(o=>o.label==='luminaria'&&!o.hidden);
+  for(let i=0;i<lamps.length;i++){
+   if(!game.lamps[i])continue;
+   const lamp=lamps[i],pt=P(lamp.x+lamp.w/2,lamp.z+lamp.d/2,.9);
+   const radius=scale*zoom*2.75;
+   const grad=wc.createRadialGradient(pt[0],pt[1],5,pt[0],pt[1],radius);
+   grad.addColorStop(0,'rgba(0,0,0,.9)');grad.addColorStop(.4,'rgba(0,0,0,.65)');grad.addColorStop(1,'rgba(0,0,0,0)');
+   wc.fillStyle=grad;wc.beginPath();wc.arc(pt[0],pt[1],radius,0,Math.PI*2);wc.fill();
+  }
+  wc.restore();
+ }
+
+ if(climate.weather==='rain'||climate.weather==='wind'||climate.weather==='sand'||climate.weather==='snow'){
+  const targetCount=climate.weather==='rain'?Math.min(380,Math.floor(w*h/1700)):Math.min(240,Math.floor(w*h/3500));
+  while(weatherParticles.length<targetCount)weatherParticles.push({x:Math.random()*w,y:Math.random()*h,v:.5+Math.random(),length:8+Math.random()*18});
+  if(weatherParticles.length>targetCount)weatherParticles.length=targetCount;
+  wc.save();wc.lineCap='round';
+  for(const p of weatherParticles){const rain=climate.weather==='rain',snow=climate.weather==='snow';p.x+=(snow?30:rain?-110:climate.weather==='sand'?180:250)*dt*p.v;p.y+=(snow?75:rain?600:climate.weather==='sand'?38:-15)*dt*p.v;
+   if(p.y>h+15||p.x>w+25||p.y< -25){p.x=rain?Math.random()*w:-20;p.y=rain?-15:Math.random()*h;}
+   wc.strokeStyle=snow?'rgba(242,250,255,.92)':rain?'rgba(188,218,249,.57)':climate.weather==='sand'?'rgba(218,184,123,.58)':'rgba(222,244,216,.32)';wc.lineWidth=snow?2.7:rain?1.2:climate.weather==='wind'?1.25:2;
+   if(snow){wc.fillStyle='rgba(244,249,255,.88)';wc.beginPath();wc.arc(p.x,p.y,1.3+p.v*.9,0,Math.PI*2);wc.fill();}else{wc.beginPath();wc.moveTo(p.x,p.y);wc.lineTo(p.x+(rain?-6:p.length),p.y+(rain?p.length*1.9:climate.weather==='wind'?-3:6));wc.stroke();}
+  }wc.restore();
+ }else weatherParticles=[];
+ if(climate.weather==='meteor'){
+  if(meteorTrails.length<3&&Math.random()<dt*.64)meteorTrails.push({x:Math.random()*w,y:-30,vel:290+Math.random()*250,life:1.7});
+  for(let i=meteorTrails.length-1;i>=0;i--){const m=meteorTrails[i];m.x-=m.vel*dt*.65;m.y+=m.vel*dt;m.life-=dt;wc.strokeStyle='rgba(255,210,115,'+Math.min(1,m.life)+')';wc.lineWidth=3;wc.beginPath();wc.moveTo(m.x,m.y);wc.lineTo(m.x+70,m.y-95);wc.stroke();wc.fillStyle='#fff4d8';wc.beginPath();wc.arc(m.x,m.y,3,0,Math.PI*2);wc.fill();if(m.life<=0||m.y>h+100)meteorTrails.splice(i,1)}
+ }
+ timePanel.textContent=(sunlight>.28?'☀️':'🌙')+' '+clockText()+' · '+(weatherTypes.find(x=>x[0]===climate.weather)?.[1]||'Limpo');
+ if(climateBox.classList.contains('open')){climateClock.textContent=clockText();clockSlider.value=String(Math.floor(climate.hour*60))}
+}
+// No external dependency. Geometry is rasterized by the GPU and uses the depth buffer.
+function init3D(){
+ const gl=glCanvas.getContext('webgl2',{antialias:true,alpha:false,depth:true});if(!gl)return null;
+ const vert=`#version 300 es\nin vec3 aPos;in vec3 aCol;uniform vec2 uSize;uniform vec2 uCenter;uniform vec2 uRot;uniform float uScale;out vec3 vCol;void main(){vec3 p=aPos;p.x-=uCenter.x;p.z-=uCenter.y;vec2 r=vec2(p.x*uRot.x-p.z*uRot.y,p.x*uRot.y+p.z*uRot.x);float sx=(r.x-r.y)*.87*uScale;float sy=(r.x+r.y)*.45*uScale-p.y*uScale;float dep=(r.x+r.y)*.5+p.y*.62;gl_Position=vec4(sx/uSize.x*2.0, -sy/uSize.y*2.0-0.12, -dep/48.0,1.0);vCol=aCol;}`;
+ const frag=`#version 300 es\nprecision mediump float;in vec3 vCol;out vec4 outColor;void main(){outColor=vec4(vCol,1.0);}`;
+ function shader(type,source){const s=gl.createShader(type);gl.shaderSource(s,source);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(s));return s}
+ const prog=gl.createProgram();gl.attachShader(prog,shader(gl.VERTEX_SHADER,vert));gl.attachShader(prog,shader(gl.FRAGMENT_SHADER,frag));gl.linkProgram(prog);if(!gl.getProgramParameter(prog,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(prog));
+ const vao=gl.createVertexArray();gl.bindVertexArray(vao);const buf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buf);const attrPos=gl.getAttribLocation(prog,'aPos'),attrCol=gl.getAttribLocation(prog,'aCol');gl.enableVertexAttribArray(attrPos);gl.vertexAttribPointer(attrPos,3,gl.FLOAT,false,24,0);gl.enableVertexAttribArray(attrCol);gl.vertexAttribPointer(attrCol,3,gl.FLOAT,false,24,12);
+ const uniSize=gl.getUniformLocation(prog,'uSize'),uniCenter=gl.getUniformLocation(prog,'uCenter'),uniRot=gl.getUniformLocation(prog,'uRot'),uniScale=gl.getUniformLocation(prog,'uScale');
+ let verts=[];
+ function color(c){const h=c.replace('#','');return [parseInt(h.slice(0,2),16)/255,parseInt(h.slice(2,4),16)/255,parseInt(h.slice(4,6),16)/255]}
+ function tri(a,b,c,col){const rgb=color(col);for(const p of [a,b,c])verts.push(p[0],p[1],p[2],...rgb)}
+ function quad(a,b,c,d,col){tri(a,b,c,col);tri(a,c,d,col)}
+ function cube(x,z,y,w,d,h,front='#957858',right='#806145',top='#b99b77'){
+  const A=[x,y,z],B=[x+w,y,z],C=[x+w,y,z+d],D=[x,y,z+d],E=[x,y+h,z],F=[x+w,y+h,z],G=[x+w,y+h,z+d],H=[x,y+h,z+d];
+  quad(A,B,F,E,front);quad(B,C,G,F,right);quad(C,D,H,G,front);quad(D,A,E,H,right);quad(E,F,G,H,top);
+ }
+ function disc(x,z,y,r,colorMain='#ae8a65',n=9){const center=[x,y,z],c=colorMain;for(let i=0;i<n;i++){const a=i/n*Math.PI*2,b=(i+1)/n*Math.PI*2;tri(center,[x+Math.cos(a)*r,y,z+Math.sin(a)*r],[x+Math.cos(b)*r,y,z+Math.sin(b)*r],c)}}
+ function sphere(x,z,y,r,c){const stack=5,seg=9;for(let j=0;j<stack;j++){const th=j*Math.PI/stack,th2=(j+1)*Math.PI/stack;for(let i=0;i<seg;i++){const a=i*Math.PI*2/seg,b=(i+1)*Math.PI*2/seg;const q=(t,a)=>[x+Math.sin(t)*Math.cos(a)*r,y+Math.cos(t)*r,z+Math.sin(t)*Math.sin(a)*r];const colorC=j%2===0?c:'#5c975a';quad(q(th,a),q(th,b),q(th2,b),q(th2,a),colorC)}}}
+ function simpleItem(type,x,z,y){const colors={apple:'#bd4034',cup:'#d5d9dc',mug:'#e0c6a3',paper:'#e5e0c4',book:'#674b8c',deskBook:'#8e333c',coins:'#d6b55e',gem:'#55c5d3',houseKey:'#d6bf65',chestKey:'#bdd9d2',rug:'#7f345d'};const c=colors[type]||'#b58c5e';if(type==='apple')sphere(x,z,y+.07,.095,c);else cube(x-.075,z-.06,y,.15,.12,.13,c,c,c)}
+ function furniture(o){if(o.hidden)return;const {x,z,w,d}=o,h=o.h;switch(o.label){case 'cama':cube(x,z,0,w,d,.24,'#795437','#876039','#b84d4b');cube(x+.1,z+.08,.24,.5,d-.16,.05,'#cfbea5','#cfbea5','#e7d8c5');break;
+ case 'escrivaninha':case 'mesa':for(const xx of [x+.1,x+w-.19])for(const zz of [z+.09,z+d-.18])cube(xx,zz,0,.10,.10,Math.max(.1,h-.09),'#68462f','#765139','#8a6040');cube(x-.02,z-.02,h-.10,w+.04,d+.04,.10,'#92653f','#91603c','#c39b65');if(o.label==='escrivaninha')cube(x+w-.35,z+.04,.10,.30,d-.08,h-.18,'#79543a','#60442e','#b68b60');break;
+ case 'armario':cube(x,z,0,w,d,h,'#583a2c','#664631','#987354');for(let i=0;i<3;i++)cube(x-.03,z+.06,i*.46+.20,.045,d-.12,.055,'#826044','#8a674e','#b5926a');for(let i=0;i<game.stores.shelf.filter(v=>v==='book').length;i++){const row=Math.floor(i/5),col=i%5;cube(x-.065,z+.1+col*.12,row*.48+.27,.06,.09,.25,['#a8534a','#6a8c7b','#d0a251'][i%3], '#60422f','#dfb66e')}break;
+ case 'bau':cube(x,z,0,w,d,.43,'#262833','#34323d','#48414c');if(game.chest.open){cube(x,z,.42,w,.06,.78,'#35323b','#34313a','#504b57');for(let i=0;i<game.stores.chest.length;i++)simpleItem(game.stores.chest[i],x+.18+i*.17,z+.3,.45)}else cube(x,z,.42,w,d,.14,'#33333e','#35343b','#66616a');break;
+ case 'luminaria':cube(x,z,0,.09,.09,1.1,'#56452e','#62503a','#806f50');cube(x-.07,z-.07,1.10,.24,.24,.29,game.lamps[0]?'#d6b75b':'#a29769','#c3a851','#f3dc8a');break;
+ default:cube(x,z,0,w,d,h,'#805435','#95663f','#b48753')}
+ }
+ function walls(){const wall='#d8c09c',t=.12;
+  cube(0,0,0,7,t,2.92,wall,wall,'#e8d9c1');cube(0,0,0,t,5,2.92,wall,wall,'#e8d9c1');cube(7-t,0,0,t,5,2.92,wall,wall,'#e8d9c1');
+  cube(0,5-t,0,3.05,t,2.92,wall,wall,'#e8d9c1');cube(4.23,5-t,0,2.77,t,2.92,wall,wall,'#e8d9c1');cube(3.05,5-t,2.58,1.18,t,.34,wall,wall,'#e8d9c1');
+  cube(3.53,.08,0,.14,2.25,1.64,'#d3ba93','#c3a981','#eadac2');
+ }
+ function addRoof(){const red='#b4543a',dark='#8f3c2e';const xa=-.28,xb=7.28;quad([xa,2.96,-.37],[xb,2.96,-.37],[xb,4.18,2.5],[xa,4.18,2.5],red);quad([xa,4.18,2.5],[xb,4.18,2.5],[xb,2.96,5.39],[xa,2.96,5.39],dark)}
+ function drawModel(){verts=[];const daylightValue=daylight(),wall='#b6a17e';
+  cube(-14,-12,-.12,36,34,.10,'#56854b','#578f4d','#6b995c');
+  cube(0,0,-.08,7,5,.08,'#8d6039','#8d6039','#a77b4e');
+  // Exterior lawn pathway
+  cube(3.13,5,-.055,.68,5,.035,'#aba38e','#aea58d','#d4c6ac');
+  for(let i=0;i<foliage.length;i++){const [x,z,s]=foliage[i];cube(x-.12*s,z-.12*s,0,.24*s,.24*s,1.45*s,'#755135','#6d462c','#916748');sphere(x,z,2.0*s,.7*s,'#4f8646')}
+  for(const [x,z,s] of shrubs)sphere(x,z,.24*s,.40*s,'#60984c');
+  for(const o of editDecor){if(o.kind==='tree'){cube(o.x,o.z,0,.15,.15,1.2,'#73513c','#70513b','#73513c');sphere(o.x,o.z,1.65,.6,'#548b53')}else cube(o.x,o.z,0,o.w,o.d,o.h,'#7a6350','#97826b','#c0a58b')}
+  const interior=reveal();
+  if(interior){
+   const wallsVisible=roofMode!==2;
+   if(wallsVisible){const c=Math.cos(cameraYaw),si=Math.sin(cameraYaw);cube(0,0,0,7,.12,2.92,'#d7c2a2','#d7c2a2','#e6d8bd');if(c+si>0)cube(0,0,0,.12,5,2.92,'#d7c2a2','#d7c2a2','#e6d8bd');else cube(6.88,0,0,.12,5,2.92,'#d7c2a2','#d7c2a2','#e6d8bd')}
+   cube(3.52,.10,0,.16,2.25,1.64,'#d0b58f','#bea17b','#e8d6b7');
+   cube(0,4.94,0,3.05,.08,.55,'#bda787','#af9877','#dfc29d');cube(4.23,4.94,0,2.77,.08,.55,'#bda787','#af9877','#dfc29d');
+   for(const o of fixedSolids)if(o.label!=='chamine')furniture(o);for(const o of pushables)furniture(o);
+   cube(6.63,2.0,0,.37,.95,2.75,'#927d68','#aa9079','#d5b9a0');cube(6.42,2.06,.0,.22,.83,.23,'#9a826e','#ab937b','#dac3a5');cube(6.39,2.2,.28,.06,.53,.93,'#191719','#211c1d','#312827');cube(6.39,2.0,1.20,.30,.96,.12,'#704e37','#75553c','#a87a55');
+   if(game.door.open)cube(3.03,3.98,0,.08,1.02,2.53,'#64402e','#704834','#946547');else cube(3.05,4.94,0,1.18,.07,2.53,'#64402e','#704834','#946547');
+   if(!game.items.chestKey)simpleItem('chestKey',game.groundKeys.chest.x,game.groundKeys.chest.z,.04);
+   if(game.rug.placed)cube(game.rug.x,game.rug.z,.02,2.4,1.65,.025,'#7b2e52','#7b2e52','#a66a64');
+   for(const [loc,o] of [['table',pushables.find(x=>x.label==='mesa')],['deskTop',deskObject],['bed',bedObject]]){if(!o)continue;for(const [i,type] of (game.stores[loc]||[]).entries())simpleItem(type,o.x+.22+i*.20,o.z+.24,o.h+.03)}
+   for(const o of game.droppedItems.filter(x=>inside(x.x,x.z)))simpleItem(o.type,o.x,o.z,.03);
+  }else{walls();if(game.door.open)cube(3.03,3.98,0,.08,1.02,2.53,'#64402e','#704834','#946547');else cube(3.05,4.94,0,1.18,.07,2.53,'#64402e','#704834','#946547');addRoof();cube(7.0,2.0,0,.44,.9,3.3,'#947b68','#ad9581','#d5bba4');cube(7.05,2.1,3.26,.42,.7,1.25,'#9a8771','#b5a08a','#dbc6aa')}
+  if(!game.items.houseKey)simpleItem('houseKey',game.groundKeys.house.x,game.groundKeys.house.z,.04);
+  // A character with actual depth geometry; no 2D sprite overlapping furniture.
+  const py=player.elevation+player.jumpY;
+  cube(player.x-.13,player.z-.10,py,.26,.20,.68,role==='god'?'#3d455a':'#6b3145',role==='god'?'#414b61':'#83394f',role==='god'?'#515c78':'#9f5866');
+  cube(player.x-.1,player.z-.08,py-.36,.085,.13,.39,'#3b4350','#3b4350','#525868');cube(player.x+.02,player.z-.08,py-.36,.085,.13,.39,'#3b4350','#3b4350','#525868');
+  sphere(player.x,player.z,py+.91,.23,role==='god'?'#c0a68e':'#d39c6e');
+  if(role==='god')cube(player.x-.09,player.z-.13,py+.55,.18,.15,.24,'#c2c0ae','#c2c0ae','#ded6c8');
+  // Direct 3D field objects persist at their world positions.
+  for(const o of game.droppedItems.filter(x=>!inside(x.x,x.z)))simpleItem(o.type,o.x,o.z,.03);
+ }
+ function drawFrame(){const pw=canvas.clientWidth||window.innerWidth,ph=canvas.clientHeight||window.innerHeight;if(glCanvas.width!==Math.round(pw*dpr)||glCanvas.height!==Math.round(ph*dpr)){glCanvas.width=Math.round(pw*dpr);glCanvas.height=Math.round(ph*dpr)}gl.viewport(0,0,glCanvas.width,glCanvas.height);const day=daylight();gl.clearColor(.11+day*.29,.14+day*.44,.20+day*.16,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);drawModel();gl.useProgram(prog);gl.bindVertexArray(vao);gl.bindBuffer(gl.ARRAY_BUFFER,buf);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(verts),gl.DYNAMIC_DRAW);gl.uniform2f(uniSize,pw,ph);gl.uniform2f(uniCenter,camX,camZ);gl.uniform2f(uniRot,Math.cos(cameraYaw),Math.sin(cameraYaw));gl.uniform1f(uniScale,scale*zoom);gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);gl.disable(gl.BLEND);gl.drawArrays(gl.TRIANGLES,0,verts.length/6)}
+ return {draw:drawFrame};
+}
+// Renderizador WebGL experimental pausado: preservar o cenário isométrico detalhado.
+worldRenderer=null;
+if(!worldRenderer){visual3D=false;graphicsButton.textContent='2D (sem WebGL)';graphicsButton.title='WebGL indisponível neste navegador';graphicsButton.disabled=true}
+function setVisual3D(on){visual3D=!!on&&!!worldRenderer;glCanvas.style.display=visual3D?'block':'none';graphicsButton.textContent=visual3D?'🧊 3D':'🖌️ 2D';}
+graphicsButton.onclick=()=>setVisual3D(!visual3D);
+function refreshVisuals(dt){if(visual3D&&worldRenderer)worldRenderer.draw();weatherTick(dt)}
+window.addEventListener('resize',weatherSize);weatherSize();setVisual3D(false);climateSync();
+
+const appearancePanel=document.getElementById('appearancePanel'),powersPanel=document.getElementById('powersPanel');
+document.getElementById('appearanceBtn').onclick=()=>{syncLookInputs();powersPanel.classList.remove('open');appearancePanel.classList.toggle('open');};
+document.getElementById('powersBtn').onclick=()=>{if(!godMode())return;appearancePanel.classList.remove('open');powersPanel.classList.toggle('open');};
+document.getElementById('appearanceClose').onclick=()=>{appearancePanel.classList.remove('open');saveGame();};
+document.getElementById('godCreateItem').onclick=()=>{if(!godMode())return;const type=prompt('Materializar no inventário: '+Object.keys(ITEM_SPEC).join(', '));if(!type||!ITEM_SPEC[type])return toast('Item desconhecido.');game.stores.inventory.push(type);inventoryDraw();saveGame();toast(itemLabel(type)+' materializado.');};
+document.getElementById('godTeleport').onclick=()=>{if(!godMode())return;editPlacing={kind:'teleport'};powersPanel.classList.remove('open');if(!editMode)toggleEditor(true);toast('Clique no destino do teleporte.');};
+document.getElementById('powersClose').onclick=()=>powersPanel.classList.remove('open');
+for(const [id,key] of [['skinColor','skin'],['hairColor','hair'],['outfitColor','outfit'],['pantsColor','pants'],['eyeColor','eyes'],['hairStyle','hairStyle'],['outfitStyle','outfitStyle'],['bodyStyle','bodyStyle'],['beardStyle','beardStyle']])document.getElementById(id).addEventListener('input',e=>{looks[role][key]=e.target.value;saveGame();});
+document.getElementById('godPresence').addEventListener('change',e=>{godPresence=e.target.value;saveGame();toast('Manifestação: '+e.target.selectedOptions[0].textContent);});
+document.getElementById('godPresence').value=godPresence;
+window.addEventListener('resize',size);size();requestAnimationFrame(tick);
+window.__orlaDebug={player,game,gathering,houseOneBlueprint,houseTwoBlueprint,houseInstances,ensureHouseState,cloneInteriorAt,pushables,draw,drawInnerScene,clickedInteraction,drawWallFace,doorDialog,chestDialog,pickKey,saveGame,inside,worldAt,move,canWalk,turnCamera,get cameraYaw(){return cameraYaw},get cameraGoal(){return cameraGoal},startJump,supportHeight,wallBarriers,isClickedDoor,project:P,rectDistance,overlapCanSeparate,tryPush,canPushTo, get roofMode(){return roofMode},chestObject,doorCanClose,canPlaceChest,get placingObject(){return placingObject},collectChestItem,drawChest,drawDoor,box3,drawerDialog,storageDialog,transferItem,storeCanFit,rotateObjectBy,toggleLamp,clickedLamp,rotateObject90,canPlaceObjectAt,contextClick,objectAtScreen,deskObject};
+})();
+</script>
+</body></html>
