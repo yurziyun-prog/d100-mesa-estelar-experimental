@@ -5,7 +5,7 @@ set -eu
 cd "$(dirname "$0")/.."
 rm -rf dist
 mkdir -p dist
-for f in index.html favicon.ico favicon.svg favicon-32.png apple-touch-icon.png oficina-mesa-56.png suporte-57.png; do
+for f in index.html mesa.html favicon.ico favicon.svg favicon-32.png apple-touch-icon.png oficina-mesa-56.png suporte-57.png; do
   if [ -f "$f" ]; then cp "$f" dist/; fi
 done
 for dir in js dados fontes orla; do
