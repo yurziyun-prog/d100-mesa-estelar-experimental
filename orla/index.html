@@ -85,10 +85,16 @@
 #componentInspector input[type=color]{width:55px;padding:2px}
 #inventory,#equipment,#sheet,#climate,.orla-custom{background:#17292bf7;border-color:#9a8c696b;border-radius:7px}
 @media(max-width:700px){#top .actions{max-width:calc(100vw - 20px);flex-wrap:wrap}#top .actions button{padding:5px 6px;font-size:11px}#saveStatus{display:none}#editor{max-height:40vh}#timePanel{left:8px;bottom:8px}}
+
+
+/* Orla v0.48: projeção de posicionamento acompanha o cursor */
+#placementPreview{position:fixed;inset:0;pointer-events:none;z-index:3;width:100vw;height:100vh}
+#placementHelp{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);background:#10271de9;border:1px solid #8ab2bf;border-radius:9px;padding:7px 12px;z-index:14;color:#e9f3ed;font:12px system-ui;display:none;pointer-events:none;white-space:nowrap}
+#placementHelp.active{display:block}
 </style>
 </head>
 <body>
-<canvas id="game" draggable="true" aria-label="Jogo isométrico com casa, personagem e árvores"></canvas><canvas id="glView" aria-hidden="true"></canvas><canvas id="weatherView" aria-hidden="true"></canvas><div id="timePanel">☀️ 09:00 · Céu limpo</div>
+<canvas id="game" draggable="true" aria-label="Jogo isométrico com casa, personagem e árvores"></canvas><canvas id="glView" aria-hidden="true"></canvas><canvas id="weatherView" aria-hidden="true"></canvas><canvas id="placementPreview" aria-hidden="true"></canvas><div id="placementHelp"></div><div id="timePanel">☀️ 09:00 · Céu limpo</div>
 <header id="top"><div class="brand"><span class="mark">✦</span><div><b>ORLA</b><small>Um pequeno mundo para explorar</small></div></div><nav class="actions" id="topActions" aria-label="Controles do jogo"><button id="menuBtn" title="Mostrar ou ocultar controles">☰ Menu</button><span id="saveStatus" title="Situação do salvamento da partida" style="font-size:11px;color:#c4ddc2;white-space:nowrap">● Partida local</span><button class="secondary-control" id="exportSave" title="Baixar cópia da partida">💾 Exportar</button><button class="secondary-control" id="importSave" title="Restaurar cópia da partida">📂 Importar</button><input type="file" id="saveFile" accept="application/json,.json" style="display:none"><button class="secondary-control" id="roof" title="Alternar telhado">🏠 Telhado: auto</button><button class="secondary-control" id="turnL" title="Girar a câmera para a esquerda (Q)">↶ Girar</button><button class="secondary-control" id="turnR" title="Girar a câmera para a direita (R)">Girar ↷</button><button class="secondary-control" id="minus" title="Diminuir zoom">−</button><button class="secondary-control" id="plus" title="Aumentar zoom">+</button><button class="secondary-control" id="appearanceBtn" title="Personalizar aparência">🎨 Aparência</button><button id="powersBtn" title="Poderes de Deus" style="display:none">👁 Poderes</button><button class="secondary-control" id="sheetBtn" title="Ficha D100 (F)">📜 Ficha</button><button id="roleBtn" title="Trocar de personagem">🧙 Viajante</button><button id="editBtn" title="Modo de edição (Tab)">✎ Editar</button><button id="inventoryBtn" title="Abrir a mochila se estiver equipada (I)">🎒 Mochila</button><button id="equipmentBtn" title="Equipamento (B)">⚔️ Equipar</button><button id="graphicsBtn" style="display:none" title="Modo 3D experimental desativado">🧊 3D</button><button class="secondary-control" id="climateBtn" title="Tempo e clima, configurável pelo Deus">☀️ Clima</button><button class="secondary-control" id="helpbtn" title="Controles e ajuda">? Ajuda</button></nav></header>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <section id="interaction" role="dialog" aria-label="Interagir com objeto" aria-live="polite"><h3 id="dialogTitle"></h3><p id="dialogText"></p><div class="choices" id="dialogChoices"></div><small style="color:#a5c19f">Clique na opção ou pressione Enter · Esc para sair</small></section>
@@ -122,30 +128,18 @@
     return { ...spec, kind, x: x - spec.w / 2, z: z - spec.d / 2, rot: 0, baseY: kind === "roof" ? 2.8 : 0, id, open: false, tint: "#b7a58a", component: true };
   }
   function localSize(o) {
-    return isFurnitureInstance(o) && o.baseW ? [o.baseW, o.baseD] : [o.w, o.d];
+    return (o.rot || 0) % 2 ? [o.d, o.w] : [o.w, o.d];
   }
   function componentPoint(o, u, v, y = 0) {
-    const [w, d] = localSize(o);
-    if (isFurnitureInstance(o) && o.baseW) {
-      const angle = (o.angle ?? ((o.rot || 0) * 90)) * Math.PI / 180;
-      const dx = u - w / 2, dz = v - d / 2;
-      return [o.x + o.w / 2 + dx * Math.cos(angle) - dz * Math.sin(angle),
-              o.z + o.d / 2 + dx * Math.sin(angle) + dz * Math.cos(angle), y + (o.baseY || 0)];
+    // A rotação livre usa a geometria real projetada, não apenas troca largura/profundidade.
+    if (Number.isFinite(o.angle) && Math.abs(o.angle)>.0001 && isFurnitureInstance(o)) {
+      const c=Math.cos(o.angle*Math.PI/180),si=Math.sin(o.angle*Math.PI/180);
+      const dx=u-o.w/2,dz=v-o.d/2;
+      return [o.x+o.w/2+dx*c-dz*si,o.z+o.d/2+dx*si+dz*c,y+(o.baseY||0)];
     }
-    const r = ((o.rot || 0) % 4 + 4) % 4;
+    const [w, d] = localSize(o), r = ((o.rot || 0) % 4 + 4) % 4;
     const a = u / w, b = v / d;
     return r === 0 ? [o.x + a * o.w, o.z + b * o.d, y + (o.baseY || 0)] : r === 1 ? [o.x + (1 - b) * o.w, o.z + a * o.d, y + (o.baseY || 0)] : r === 2 ? [o.x + (1 - a) * o.w, o.z + (1 - b) * o.d, y + (o.baseY || 0)] : [o.x + b * o.w, o.z + (1 - a) * o.d, y + (o.baseY || 0)];
-  }
-  function rotateFurniture(o, angle) {
-    if (!isFurnitureInstance(o)) return;
-    if (!o.baseW) { const quarter = ((o.rot || 0) % 4 + 4) % 4; o.baseW = quarter % 2 ? o.d : o.w; o.baseD = quarter % 2 ? o.w : o.d; }
-    const cx = o.x + o.w / 2, cz = o.z + o.d / 2;
-    o.angle = (angle % 360 + 360) % 360;
-    const radians = o.angle * Math.PI / 180;
-    o.w = Math.abs(o.baseW * Math.cos(radians)) + Math.abs(o.baseD * Math.sin(radians));
-    o.d = Math.abs(o.baseW * Math.sin(radians)) + Math.abs(o.baseD * Math.cos(radians));
-    o.x = cx - o.w / 2; o.z = cz - o.d / 2;
-    o.rot = 0;
   }
   function componentRect(o, x, z, w, d) {
     const a = componentPoint(o, x, z), b = componentPoint(o, x + w, z + d);
@@ -194,8 +188,7 @@
       const q = componentPoint(o, x / bw * w, z / bd * d, y / bh * o.h), dx = q[0] - state.camX, dz = q[1] - state.camZ, rx = dx * c - dz * si, rz = dx * si + dz * c;
       return [state.W * 0.5 + (rx - rz) * zoom * 0.87, state.H * 0.56 + (rx + rz) * zoom * 0.45 - q[2] * zoom];
     };
-    // Geometria rotaciona no mundo por componentPoint; não girar a câmera também.
-    state.cameraYaw = yaw;
+    state.cameraYaw = yaw + (o.rot || 0) * Math.PI / 2;
     if (base) Object.assign(base, { ...canonical, x: 0, z: 0, rot: 0, hidden: false });
     const quad = state.quad3;
     const tint = o.tint && o.tint !== "#b7a58a" ? o.tint : { metal: "#729a9f", stone: "#929588", plaster: "#d0c6a9" }[o.material];
@@ -296,7 +289,7 @@
     state.editorButton("\u21B7 Refazer", redoScene);
     for (const [kind, spec] of Object.entries(COMPONENTS)) state.editorButton("+ " + spec.name, () => {
       state.editPlacing = { kind: "component", item: kind };
-      state.toast("Posicione na prévia azul; ← → giram e Esc cancela. Janela e porta exigem parede modular.");
+      state.toast("Clique no terreno para adicionar " + spec.name.toLowerCase() + ". Esc cancela.");
     });
     const o = state.selected;
     if (!o?.component && !isFurnitureInstance(o)) return;
@@ -357,77 +350,147 @@
     };
     state.editor.append(form);
   }
-  // Ferramenta de posicionamento com prévia em escala real e colisão.
-  function placementShape(kind) {
-    const sizes = {tree:[0.5,0.5,2.4],shrub:[0.45,0.45,0.4],stone:[0.65,0.55,0.5],
-      house1:[7,5,3.1],house2:[10,5,3.1],table:[1.15,0.7,0.65],chair:[0.5,0.5,0.8],
-      bed:[1.5,0.9,0.4],chest:[0.9,0.7,0.55],shelf:[0.65,1.4,1.9],barrel:[0.5,0.5,0.8],lamp:[0.25,0.25,1.3]};
-    return sizes[kind];
-  }
-  function nearestModularWall(p) {
-    const walls = state.editDecor.filter(o => o.component && o.kind === "wall" && !o.hidden);
-    return walls.map(o=>({o,d:Math.hypot(Math.max(o.x-p.x,0,p.x-o.x-o.w),Math.max(o.z-p.z,0,p.z-o.z-o.d))}))
-      .sort((a,b)=>a.d-b.d).find(x=>x.d<0.55)?.o || null;
-  }
-  function placementCandidate(mx,my) {
-    const placing=state.editPlacing;
-    const moving=placing?.kind === "move" ? state.selected : placing?.kind === "component" ? placing.item : placing?.kind === "create" ? placing.item : null;
-    if (!moving) return null;
-    const p=state.worldAt(mx,my);
-    let o, targetWall=null;
-    if (placing.kind === "move") {
-      if (!state.selected) return null;
-      o={...state.selected};
-    } else if (placing.kind === "component") {
-      o=createComponent(placing.item,p.x,p.z,"ghost");
-      if (placing.item === "window" || placing.item === "door") {
-        targetWall=nearestModularWall(p);
-        if (targetWall) {
-          Object.assign(o,{x:targetWall.x,z:targetWall.z,w:targetWall.w,d:targetWall.d,h:targetWall.h,
-             rot:targetWall.rot||0,material:targetWall.material,tint:targetWall.tint,baseY:targetWall.baseY||0});
+
+  // Orla v0.48: ferramenta fantasma de posicionamento e janelas em paredes existentes.
+  function installPlacementPreview(){
+    const overlay=document.getElementById('placementPreview'),hint=document.getElementById('placementHelp');
+    const cx=overlay.getContext('2d');
+    let cursor={x:innerWidth/2,y:innerHeight/2},angle=0,previousMode=null;
+    const shapeDefaults={tree:[.5,.5,2.4],shrub:[.45,.45,.4],stone:[.65,.55,.5],house1:[7,5,3.1],house2:[10,5,3.1],table:[1.15,.7,.65],chair:[.5,.5,.8],bed:[1.5,.9,.4],chest:[.9,.7,.55],shelf:[.65,1.4,1.9],barrel:[.5,.5,.8],lamp:[.25,.25,1.3]};
+    const collide=(a,b,pad=0)=>a.x<b.x+b.w+pad&&a.x+a.w>b.x-pad&&a.z<b.z+b.d+pad&&a.z+a.d>b.z-pad;
+    const norm=(k)=>k==='create'||k==='move'||k==='component';
+    const originalPlace=state.editPlaceAt;
+    function wallSlotAt(p){
+      let best=null;
+      for(const o of state.editDecor){
+        if(o.hidden||!o.component||o.kind!=='wall')continue;
+        const long=Math.max(o.w,o.d),len=Math.min(1.05,long-.25);
+        if(len<.4)continue;
+        const longX=o.w>=o.d,along=longX?p.x-o.x:p.z-o.z;
+        const perpendicular=longX?Math.abs(p.z-o.z-o.d/2):Math.abs(p.x-o.x-o.w/2);
+        if(perpendicular>.55||along<.12||along>long-.12)continue;
+        const raw=Math.max(.08,Math.min(long-len-.08,along-len/2));
+        const r=((o.rot||0)%4+4)%4;
+        const u=((longX&&r===2)||(!longX&&r===3))?long-raw-len:raw;
+        const overlaps=(o.windowSlots||[]).some(s=>u<s.u+s.w+.08&&u+len>s.u-.08);
+        const option={wall:o,u,w:len,bottom:.86,top:Math.min(o.h-.14,2.13),valid:!overlaps,score:perpendicular};
+        if(!best||option.score<best.score)best=option;
+      }
+      return best;
+    }
+    function previewAt(){
+      if(!state.editMode||!state.editPlacing||!norm(state.editPlacing.kind))return null;
+      let p;try{p=state.worldAt(cursor.x,cursor.y)}catch(_){return null}
+      const e=state.editPlacing,k=e.kind==='component'?e.item:e.kind==='create'?e.item:state.selected?.kind;
+      if(!k&&e.kind!=='move')return null;
+      if(e.kind==='component'&&e.item==='window'){
+        const slot=wallSlotAt(p);
+        return {type:'window',slot,ok:!!slot?.valid,reason:slot?'Janela deve ocupar um vão livre.':'Aproxime o cursor de uma parede modular.'};
+      }
+      const source=e.kind==='move'?state.selected:null;
+      if(e.kind==='move'&&!source)return null;
+      const dims=e.kind==='component'?COMPONENTS[k]?[COMPONENTS[k].w,COMPONENTS[k].d,COMPONENTS[k].h]:null:source?[source.w,source.d,source.h]:shapeDefaults[k];
+      if(!dims)return null;
+      const [w,d,h]=dims;
+      let a=angle;
+      if(source&&previousMode!==e)a=Number(source.angle)||0;
+      const theta=a*Math.PI/180, bw=Math.abs(w*Math.cos(theta))+Math.abs(d*Math.sin(theta)),bd=Math.abs(w*Math.sin(theta))+Math.abs(d*Math.cos(theta));
+      const rect={x:p.x-bw/2,z:p.z-bd/2,w:bw,d:bd};
+      const boundary=rect.x>-40&&rect.z>-40&&rect.x+rect.w<40&&rect.z+rect.d<40;
+      const obstacles=[...state.editDecor,...state.fixedSolids,...state.pushables].filter(o=>o!==source&&!o.hidden&&o.kind!=='floor'&&o.kind!=='roof');
+      const blocked=obstacles.some(o=>collide(rect,o,.02));
+      const houseOverlap=rect.x<10.02&&rect.x+rect.w>-.02&&rect.z<5.02&&rect.z+rect.d>-.02;
+      const isStructure=['house1','house2'].includes(k);
+      const allowedHouse=isStructure?!houseOverlap&&!state.houseInstances().some(o=>collide(rect,o,.2)):true;
+      const insideHouse=p.x>0&&p.x<10&&p.z>0&&p.z<5;
+      const allowedPosition=isStructure||e.kind==='component'||k==='tree'||k==='shrub'||k==='stone'||insideHouse||!houseOverlap;
+      const ok=boundary&&!blocked&&allowedHouse&&allowedPosition&&(!source||state.role==='god'||state.canEditSelected(source));
+      return {type:'object',kind:k,rect,w,d,h,angle:a,center:p,source,ok,reason:!boundary?'Fora dos limites.':blocked?'Posição ocupada.':!allowedHouse?'Não é possível sobrepor casas.':'Posição inválida.'};
+    }
+    function projected(x,z,y=0){return state.P(x,z,y)}
+    function drawPoly(points,color,stroke){cx.beginPath();points.forEach((p,i)=>{const q=projected(...p);if(i)cx.lineTo(...q);else cx.moveTo(...q)});cx.closePath();cx.fillStyle=color;cx.fill();cx.strokeStyle=stroke;cx.lineWidth=1.6;cx.stroke()}
+    function ghost(pre){
+      const valid=pre.ok,fill=valid?'rgba(49,143,234,.32)':'rgba(235,53,73,.35)',edge=valid?'#80d5ff':'#ff7786';
+      if(pre.type==='window'){
+        if(!pre.slot){hint.textContent='🪟 Aponte para uma parede modular existente · Esc cancela';return}
+        const {wall,u,w,bottom,top}=pre.slot;
+        const a=componentPoint(wall,u,wall.d/2,bottom),b=componentPoint(wall,u+w,wall.d/2,bottom),c=componentPoint(wall,u+w,wall.d/2,top),d=componentPoint(wall,u,wall.d/2,top);
+        drawPoly([a,b,c,d],fill,edge);hint.textContent=pre.ok?'🪟 Janela na parede · Clique para abrir o vão · Esc cancela':'🪟 Outro vão ocupa esse trecho';return;
+      }
+      const {center,w,d,h,angle:a}=pre;
+      const c=Math.cos(a*Math.PI/180),sn=Math.sin(a*Math.PI/180);
+      const pt=(xx,zz,yy)=>[center.x+xx*c-zz*sn,center.z+xx*sn+zz*c,yy];
+      const v=[pt(-w/2,-d/2,0),pt(w/2,-d/2,0),pt(w/2,d/2,0),pt(-w/2,d/2,0)];
+      const upper=v.map(q=>[q[0],q[1],h]);
+      drawPoly([v[0],v[1],upper[1],upper[0]],fill,edge);
+      drawPoly([v[1],v[2],upper[2],upper[1]],fill,edge);
+      drawPoly([v[2],v[3],upper[3],upper[2]],fill,edge);
+      drawPoly(upper,fill,edge);
+      const label=({shelf:'Estante',table:'Mesa',bed:'Cama',chest:'Baú',window:'Janela',wall:'Parede'})[pre.kind]||pre.kind;
+      hint.textContent=(valid?'🔵 ':'🔴 ')+label+' · '+Math.round(a)+'° · ← → giram 15° · Clique confirma · Esc cancela'+(valid?'':' · '+pre.reason);
+    }
+    function loop(){
+      const ratio=Math.min(devicePixelRatio||1,2),sw=innerWidth,sh=innerHeight;
+      if(overlay.width!==Math.round(sw*ratio)||overlay.height!==Math.round(sh*ratio)){overlay.width=Math.round(sw*ratio);overlay.height=Math.round(sh*ratio)}
+      cx.setTransform(ratio,0,0,ratio,0,0);cx.clearRect(0,0,sw,sh);
+      const mode=state.editPlacing;
+      if(mode!==previousMode){angle=mode?.angle??(mode?.kind==='move'?state.selected?.angle||0:0);previousMode=mode}
+      const pre=previewAt();hint.classList.toggle('active',!!pre);
+      if(pre)ghost(pre);
+      requestAnimationFrame(loop);
+    }
+    state.canvas.addEventListener('pointermove',e=>{cursor={x:e.clientX,y:e.clientY}}, {passive:true});
+    window.addEventListener('keydown',e=>{
+      if(!state.editMode||!state.editPlacing||!norm(state.editPlacing.kind))return;
+      if(e.target instanceof HTMLElement&&e.target.matches('input,select,textarea'))return;
+      if(e.key==='ArrowLeft'||e.key==='ArrowRight'){
+        e.preventDefault();e.stopImmediatePropagation();angle=(angle+(e.key==='ArrowRight'?15:-15)+360)%360;state.editPlacing.angle=angle;
+      }
+      if(e.key==='Escape'){angle=0;hint.classList.remove('active')}
+    },true);
+    // Capture before the legacy click handler to prevent invalid placement.
+    state.canvas.addEventListener('pointerdown',e=>{
+      if(e.button!==0||!state.editMode||!state.editPlacing)return;
+      const pre=previewAt();if(!pre)return;
+      if(!pre.ok){e.stopImmediatePropagation();state.toast(pre.reason||'Posição bloqueada');return;}
+    },true);
+    state.editPlaceAt=(mx,my)=>{
+      const e=state.editPlacing;
+      if(!e||!norm(e.kind))return originalPlace(mx,my);
+      cursor={x:mx,y:my};const pre=previewAt();
+      if(!pre||!pre.ok){state.toast(pre?.reason||'Posição inválida');return true;}
+      if(pre.type==='window'){
+        const {wall,u,w,bottom,top}=pre.slot;
+        sceneTransaction(()=>{wall.windowSlots=wall.windowSlots||[];wall.windowSlots.push({u,w,bottom,top});});
+        state.selected=wall;state.editPlacing=null;state.saveGame();state.renderEditor();state.toast('Janela aberta na parede existente.');return true;
+      }
+      const kind=e.kind;
+      if(kind==='component'){
+        const o=createComponent(e.item,pre.center.x,pre.center.z,crypto.randomUUID());
+        o.angle=angle;
+        state.editDecor.push(o);state.selected=o;state.editPlacing=null;state.saveGame();state.renderEditor();return true;
+      }
+      if(kind==='move'){
+        const o=state.selected;if(!o)return true;
+        const r=originalPlace(mx,my);
+        if(!state.editPlacing){
+          o.angle=angle;
+          if(o.component) {o.rot=((Math.round(angle/90)%4)+4)%4;}
+          state.saveGame();
         }
+        return r;
       }
-    } else {
-      const spec=placementShape(placing.item);
-      if(!spec)return null;
-      o={kind:placing.item,w:spec[0],d:spec[1],h:spec[2],x:p.x-spec[0]/2,z:p.z-spec[1]/2,rot:0,scale:1};
-    }
-    if (placing.kind !== "component" || !["window","door"].includes(placing.item)) {
-      if (isFurnitureInstance(o)) rotateFurniture(o,(placing.rotation ?? o.angle ?? ((o.rot||0)*90)));
-      else if(placing.rotation && (placing.rotation % 180 !== 0)) {
-        if (!o.previewBaseW){ o.previewBaseW=o.w; o.previewBaseD=o.d; }
-        [o.w,o.d]=[o.d,o.w]; o.rot=((placing.rotation/90)%4+4)%4;
+      const before=new Set(state.editDecor);
+      const r=originalPlace(mx,my);
+      if(!state.editPlacing){
+        const created=state.editDecor.find(o=>!before.has(o));
+        if(created&&isFurnitureInstance(created)){created.angle=angle;created.rot=0;state.saveGame()}
       }
-      o.x=p.x-o.w/2; o.z=p.z-o.d/2;
-    }
-    let valid=Number.isFinite(o.x)&&Number.isFinite(o.z)&&Math.abs(o.x)<35&&Math.abs(o.z)<35;
-    if (placing.kind === "component" && ["window","door"].includes(placing.item)) valid=valid && !!targetWall;
-    else if (placing.kind !== "component" || placing.item !== "floor") {
-      if (state.inside(o.x+o.w/2,o.z+o.d/2)) valid=valid && o.x>=0 && o.z>=0 && o.x+o.w<=state.currentHouseWidth() && o.z+o.d<=5;
-      if (valid) valid=![...state.editDecor,...state.fixedSolids,...state.pushables].some(other => other !== state.selected && !other.hidden && other !== targetWall && other.x < o.x+o.w-0.06 && other.x+(other.w||0) > o.x+0.06 && other.z < o.z+o.d-0.06 && other.z+(other.d||0)>o.z+0.06 && other.kind!=="floor");
-    }
-    if (placing.kind === "move" && state.role === "traveler") valid=valid && state.withinReach(p.x,p.z,1.45);
-    return {o,valid,p,targetWall};
+      return r;
+    };
+    requestAnimationFrame(loop);
   }
-  function drawPlacementPreview() {
-    if (!state.editMode || !state.editPlacing || !state.godMode()) return;
-    const mouse=state.mouseScreen;
-    if (!mouse || !Number.isFinite(mouse.x)) return;
-    const ghost=placementCandidate(mouse.x,mouse.y);
-    if(!ghost)return;
-    const o=ghost.o,ctx=state.ctx;
-    ctx.save();
-    ctx.globalAlpha=0.43;
-    try { state.drawDecor({...o,tint:ghost.valid?"#4b9fff":"#ff5050",hidden:false}); } catch (_) {}
-    ctx.restore();
-    const pts=[[o.x,o.z],[o.x+o.w,o.z],[o.x+o.w,o.z+o.d],[o.x,o.z+o.d]].map(([x,z])=>state.P(x,z,0.035+(o.baseY||0)));
-    ctx.save();ctx.fillStyle=ghost.valid?"#358fff40":"#ff494950";
-    ctx.strokeStyle=ghost.valid?"#66baff":"#ff6565";
-    ctx.lineWidth=3;ctx.beginPath();pts.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath();ctx.fill();ctx.stroke();
-    ctx.font="bold 12px system-ui";ctx.textAlign="center";ctx.fillStyle="white";
-    ctx.fillText(ghost.valid?"Clique para colocar · ← → giram · Esc cancela":"Local bloqueado · Esc cancela",mouse.x,mouse.y-22);
-    ctx.restore();
-  }
+
   function installConstructionInspector() {
     const render = state.renderEditor;
     state.renderEditor = () => {
@@ -450,17 +513,12 @@
     state.editPlaceAt = (mx, my) => sceneTransaction(() => {
       if (state.editPlacing?.kind === "component") {
         if (!state.godMode()) return false;
-        const candidate=placementCandidate(mx,my);
-        if(!candidate?.valid){state.toast("Posição inválida ou parede não encontrada. A janela precisa de uma parede modular existente.");return true;}
-        const o={...candidate.o,id:crypto.randomUUID()};
-        if (candidate.targetWall && ["window","door"].includes(o.kind)) {
-          // Substituir o segmento de parede pelo vão; não adicionar uma segunda parede.
-          const wall=candidate.targetWall;
-          Object.assign(wall,{kind:o.kind,id:wall.id||crypto.randomUUID()});
-          state.selected=wall;
-        } else {state.editDecor.push(o);state.selected=o;}
-        state.editPlacing=null;
-        state.saveGame();state.renderEditor();
+        const p = state.worldAt(mx, my), o = createComponent(state.editPlacing.item, p.x, p.z, crypto.randomUUID());
+        state.editDecor.push(o);
+        state.selected = o;
+        state.editPlacing = null;
+        state.saveGame();
+        state.renderEditor();
         return true;
       }
       return place(mx, my);
@@ -489,13 +547,37 @@
     const face = (points, color, edge) => state.quad3(...points.map((p) => componentPoint(o, ...p)), color, edge);
     const line = (a, b, color, width = 1) => state.line3(componentPoint(o, ...a), componentPoint(o, ...b), color, width);
     if (o.kind === "wall") {
-      box(0, 0, w, d, h);
+      // Vãos reais: a parede é segmentada ao redor de cada janela montada.
+      const slots = (o.windowSlots || []).slice().sort((a,b)=>a.u-b.u);
+      let cursor=0;
+      for(const slot of slots){
+        const u=Math.max(cursor,Math.min(w,slot.u)),right=Math.max(u,Math.min(w,slot.u+slot.w));
+        if(u>cursor+.002)box(cursor,0,u-cursor,d,h);
+        const bottom=Math.max(.4,Math.min(h-.5,slot.bottom||.85));
+        const top=Math.max(bottom+.3,Math.min(h-.12,slot.top||2.12));
+        if(bottom>0)box(u,0,right-u,d,bottom);
+        if(h-top>0)box(u,0,right-u,d,h-top,top);
+        const frame=Math.min(.075,(right-u)*.15);
+        box(u,0,frame,d,top-bottom,bottom,["#82674b","#a88b62","#dfc19a"]);
+        box(right-frame,0,frame,d,top-bottom,bottom,["#82674b","#a88b62","#dfc19a"]);
+        box(u,0,right-u,d,.065,bottom,["#82674b","#a88b62","#dfc19a"]);
+        box(u,0,right-u,d,.065,top-.065,["#82674b","#a88b62","#dfc19a"]);
+        state.ctx.save();state.ctx.globalAlpha=.36;
+        face([[u+frame,d/2,bottom+.04],[right-frame,d/2,bottom+.04],[right-frame,d/2,top-.04],[u+frame,d/2,top-.04]],"#93c7ce");
+        state.ctx.restore();
+        line([(u+right)/2,d/2,bottom],[(u+right)/2,d/2,top],"#ead2a2",2);
+        line([u,d/2,(bottom+top)/2],[right,d/2,(bottom+top)/2],"#ead2a2",2);
+        cursor=right;
+      }
+      if(w>cursor+.002)box(cursor,0,w-cursor,d,h);
+      if(!slots.length){
       for (let y = 0.28; y < h; y += 0.28) {
         line([0, -2e-3, y], [w, -2e-3, y], state.shade(colors[1], -20), 0.6);
         line([0, d + 2e-3, y], [w, d + 2e-3, y], state.shade(colors[1], -20), 0.6);
       }
       box(0, -0.015, w, d + 0.03, 0.08, 0.1);
       box(0, -0.02, w, d + 0.04, 0.09, h - 0.09);
+      }
     } else if (o.kind === "door" || o.kind === "window") {
       const jamb = Math.min(0.1, w * 0.12), bottom = o.kind === "window" ? h * 0.4 : 0, top = o.kind === "window" ? h * 0.8 : h - 0.15;
       box(0, 0, jamb, d, h);
@@ -1115,7 +1197,7 @@
           z: 5
         }
       },
-      sourceVersion: "v0.47",
+      sourceVersion: "v0.46",
       kind: "house1"
     };
   }
@@ -2047,94 +2129,40 @@
   function drawExternalChimney() {
     const o = state.chimneyObject;
     if (!o) return;
-    const eastVisible = state.screenVector(1, 0)[0] > 0.02;
-    const x = state.currentHouseWidth() - 0.03, z = o.z + 0.02, w = 0.38, d = Math.max(0.74, o.d * 0.9), top = 4.55;
+    // painterDepth grows toward the viewer. The exterior east face is visible
+    // only when the depth of its outward normal is greater than the wall.
+    const yaw = state.cameraYaw;
+    const eastVisible = Math.cos(yaw) + Math.sin(yaw) > 0.02;
+    const x = state.currentHouseWidth() + 0.055;
+    const z = o.z + 0.02, w = 0.38, d = Math.max(0.74,o.d * 0.9), top = 4.55;
+    // The body is anchored entirely outside the east wall. On the far side,
+    // the house hides its body but the stack remains above the roof ridge.
     if (eastVisible) {
-      state.box3(x, z, w, d, top, ["#8f7a68", "#b39d83", "#d2baa0"]);
-      state.box3(x - 0.035, z - 0.04, w + 0.07, d + 0.08, 0.12, ["#766858", "#95816a", "#c5b39b"]);
-      for (let row = 0; row < 13; row++) {
-        const by = 0.18 + row * 0.295;
-        const count = row % 2 ? 3 : 4;
-        for (let i = 0; i < count; i++) {
-          const za = z + 0.03 + (i + row % 2 * 0.18) * (d - 0.06) / count;
-          const zb = Math.min(z + d - 0.03, za + (d - 0.06) / count * 0.82);
-          if (zb <= za) continue;
-          const col = ["#b9a38b", "#8d7967", "#c8b49b", "#9d8975", "#a89480"][(row * 3 + i) % 5];
-          state.quad3([x + w + 2e-3, za, by], [x + w + 2e-3, zb, by + 0.025], [x + w + 2e-3, zb, by + 0.215], [x + w + 2e-3, za, by + 0.195], col, "#6d6257");
+      state.box3(x,z,w,d,4.08,["#8f7a68","#b39d83","#d2baa0"]);
+      for (let row=0;row<12;row++) {
+        const by=0.2+row*.30;
+        for(let i=0;i<3;i++) {
+          const a=z+.035+i*(d-.07)/3,b=a+(d-.07)/3*.88;
+          state.quad3([x+w+.003,a,by],[x+w+.003,b,by],[x+w+.003,b,by+.23],[x+w+.003,a,by+.23],
+            ["#b9a38b","#988270","#c8b49b"][(i+row)%3],"#6d6257");
         }
       }
     }
-    state.box3(x - 0.025, z - 0.03, w + 0.05, d + 0.06, 0.1, ["#766858", "#95816a", "#c5b39b"], top - 0.15);
-    state.box3(x + 0.06, z + 0.09, w - 0.12, d - 0.18, 0.1, ["#55473c", "#76665a", "#a99782"], top - 0.02);
-    if (state.game.fireplace.lit && state.game.fireplace.wood > 0) {
-      const t = performance.now() / 1e3;
-      for (let i = 0; i < 5; i++) {
-        const rise = (t * 0.22 + i * 0.21) % 1, sx = x + w * 0.5 + Math.sin(t * 1.5 + i) * 0.045, sz = z + d * 0.48 + Math.cos(t * 1.2 + i) * 0.045, sy = top + 0.1 + rise * 1.8;
-        const p = state.P(sx, sz, sy);
-        state.ctx.save();
-        state.ctx.globalAlpha = (1 - rise) * 0.35;
-        state.ctx.fillStyle = i % 2 ? "#6f6f73" : "#8b8b90";
-        state.ctx.beginPath();
-        state.ctx.arc(p[0], p[1], (5 + rise * 9) * state.zoom, 0, Math.PI * 2);
-        state.ctx.fill();
-        state.ctx.restore();
+    // Roof line clips the hidden masonry; the upper chimney stays visible
+    // regardless of which side of the building the camera observes.
+    state.box3(x,z,w,d,top-4.08,["#8f7a68","#b39d83","#d2baa0"],4.08);
+    state.box3(x-.04,z-.04,w+.08,d+.08,.12,["#766858","#95816a","#c5b39b"],top-.13);
+    state.box3(x+.06,z+.08,w-.12,d-.16,.065,["#55473c","#76665a","#a99782"],top-.01);
+    if (state.game.fireplace.lit && state.game.fireplace.wood>0) {
+      const t=performance.now()/1e3;
+      for(let i=0;i<5;i++) {
+        const rise=(t*.22+i*.21)%1,p=state.P(x+w*.5+Math.sin(t+i)*.04,z+d*.5,top+.1+rise*1.8);
+        state.ctx.save();state.ctx.globalAlpha=(1-rise)*.35;
+        state.ctx.fillStyle="#8b8b90";state.ctx.beginPath();state.ctx.arc(p[0],p[1],(5+rise*9)*state.zoom,0,Math.PI*2);state.ctx.fill();state.ctx.restore();
       }
     }
   }
 
-  // src/inventory/inventory.js
-  var inventory_exports = {};
-  __export(inventory_exports, {
-    canOpenBackpack: () => canOpenBackpack,
-    canReachFloorPoint: () => canReachFloorPoint,
-    canReachObject: () => canReachObject,
-    canReachStore: () => canReachStore,
-    closeDialog: () => closeDialog,
-    closePanels: () => closePanels,
-    initialize063: () => initialize063,
-    initialize064: () => initialize064,
-    initialize065: () => initialize065,
-    initialize066: () => initialize066,
-    initialize067: () => initialize067,
-    initialize068: () => initialize068,
-    initialize069: () => initialize069,
-    initialize070: () => initialize070,
-    initialize071: () => initialize071,
-    initialize072: () => initialize072,
-    initialize073: () => initialize073,
-    initialize074: () => initialize074,
-    initialize075: () => initialize075,
-    initialize076: () => initialize076,
-    initialize077: () => initialize077,
-    initialize078: () => initialize078,
-    initialize079: () => initialize079,
-    initialize080: () => initialize080,
-    initialize081: () => initialize081,
-    initialize082: () => initialize082,
-    inventoryDraw: () => inventoryDraw,
-    inventoryHas: () => inventoryHas,
-    inventoryToggle: () => inventoryToggle,
-    itemIcon: () => itemIcon,
-    itemLabel: () => itemLabel,
-    itemSlots: () => itemSlots,
-    keyHeld: () => keyHeld,
-    near: () => near,
-    pickItemToHand: () => pickItemToHand,
-    placeHandAt: () => placeHandAt,
-    renderEquipment: () => renderEquipment,
-    requireStore: () => requireStore,
-    restoreHandItem: () => restoreHandItem,
-    rugRect: () => rugRect,
-    showDialog: () => showDialog,
-    storeAvailable: () => storeAvailable,
-    storeCanFit: () => storeCanFit,
-    storeHandInInventory: () => storeHandInInventory,
-    storeLoad: () => storeLoad,
-    storeObject: () => storeObject,
-    syncLegacyItems: () => syncLegacyItems,
-    transferItem: () => transferItem,
-    withinReach: () => withinReach
-  });
   function itemSlots(type) {
     return Math.max(1, Math.ceil((state.ITEM_SPEC[type]?.litres || 1) / state.INVENTORY_SLOT_LITRES));
   }
@@ -2176,7 +2204,8 @@
     return state.game.stores.inventory.includes(type);
   }
   function keyHeld(kind) {
-    return state.inventoryHas(kind + "Key");
+    const code = kind + "Key";
+    return state.inventoryHas(code) || state.handItem?.type === code || state.equipment.left === code || state.equipment.right === code;
   }
   function transferItem(from, to, type) {
     const list = state.game.stores[from], index = list.indexOf(type);
@@ -2516,6 +2545,39 @@
   function initialize079() {
     state.renderEquipment();
   }
+  function quickEquipFromInventory(type) {
+    const items=state.game.stores.inventory;
+    if(!items.includes(type)) return false;
+    // If carrying something, return it to the bag or place it near the feet.
+    if(state.handItem){
+      if(!state.storeHandInInventory()){
+        const held=state.handItem.type;
+        state.game.droppedItems.push({type:held,x:state.player.x+.25,z:state.player.z+.25});
+        if(!state.game.stores.floor.includes(held))state.game.stores.floor.push(held);
+        state.handItem=null;
+        state.toast(state.itemLabel(held)+" caiu no chão: mochila cheia.");
+      }
+    }
+    const slot=type==="backpack"?"backpack":type==="clothing"?"clothing":"right";
+    const twoHanded=["axe","pickaxe","shovel"].includes(type);
+    const occupied=twoHanded?["left","right"]:[slot];
+    for(const key of occupied){
+      const old=state.equipment[key];
+      if(!old||old===type) continue;
+      if(state.storeCanFit("inventory",old))items.push(old);
+      else {
+        state.game.droppedItems.push({type:old,x:state.player.x+.22,z:state.player.z+.22});
+        state.game.stores.floor.push(old);
+      }
+      state.equipment[key]=null;
+    }
+    if(twoHanded){state.equipment.left=type;state.equipment.right=type;state.gathering.activeTool=type;}
+    else state.equipment[slot]=type;
+    items.splice(items.indexOf(type),1);
+    state.syncLegacyItems();state.inventoryDraw();state.renderEquipment();state.saveGame();
+    state.toast(state.itemLabel(type)+" equipado.");
+    return true;
+  }
   function inventoryDraw() {
     state.invItems.innerHTML = "";
     const items = [...state.game.stores.inventory];
@@ -2547,11 +2609,25 @@
       });
       cell.addEventListener("contextmenu", (e) => {
         e.preventDefault();
-        state.pickItemToHand({
-          from: "inventory",
-          type
-        });
-        state.inventory.classList.remove("open");
+        const now = performance.now();
+        if (state.inventoryRightClick && state.inventoryRightClick.type === type && now-state.inventoryRightClick.at < 420) {
+          clearTimeout(state.inventoryRightClick.timer);
+          state.inventoryRightClick = null;
+          state.quickEquipFromInventory(type);
+        } else {
+          if(state.inventoryRightClick) {
+            clearTimeout(state.inventoryRightClick.timer);
+            const previous=state.inventoryRightClick.type;
+            if(!state.handItem) state.pickItemToHand({from:"inventory",type:previous});
+          }
+          const token={type,at:now,timer:null};
+          token.timer=setTimeout(()=>{
+            if(state.inventoryRightClick!==token) return;
+            state.inventoryRightClick=null;
+            if(!state.handItem) state.pickItemToHand({from:"inventory",type});
+          },330);
+          state.inventoryRightClick=token;
+        }
       });
       state.invItems.append(cell);
     }
@@ -3775,7 +3851,7 @@
     const distant = sides.filter((o) => state.painterDepth(o.x, o.z) <= mid).sort((a, b) => state.painterDepth(a.x, a.z) - state.painterDepth(b.x, b.z));
     const nearby = sides.filter((o) => state.painterDepth(o.x, o.z) > mid).sort((a, b) => state.painterDepth(a.x, a.z) - state.painterDepth(b.x, b.z));
     const cutH = state.zoom > 1.42 ? 0.18 : 0.56;
-    for (const o of distant) state.drawCutWall(o.name, cutH);
+    for (const o of distant) state.drawWallFace(o.name);
     const parts = [...state.bedObject.hidden ? [] : [{
       x: state.bedObject.x + state.bedObject.w / 2,
       z: state.bedObject.z + state.bedObject.d / 2,
@@ -3861,49 +3937,18 @@
     state.ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
     state.ctx.clearRect(0, 0, state.W, state.H);
     state.ground();
-    let baseHouseScene = state.reveal() ? [{
-      x: state.house.w / 2,
-      z: 2.5,
+    const baseHouseScene = [{
+      x: state.house.w/2, z: 2.5,
       kind: "house",
-      depth: state.painterDepth(state.house.w / 2, 2.5) - 0.2,
       draw: () => {
-        state.ellipse(state.house.w / 2, 2.5, state.house.w / 2 + 0.1, 1.48, "#152a1680");
-        state.drawInnerScene();
-      }
-    }] : [{
-      x: state.house.w / 2,
-      z: 2.5,
-      kind: "house-shadow",
-      depth: -999,
-      draw: () => state.ellipse(state.house.w / 2, 2.5, state.house.w / 2 + 0.1, 1.48, "#152a1680")
-    }, {
-      x: state.house.w / 2,
-      z: 4.8,
-      kind: "house-shell",
-      depth: state.painterDepth(state.house.w / 2, 4.8) - 0.18,
-      draw: () => state.drawOuterShell()
-    }, {
-      x: state.currentHouseWidth() - 0.03,
-      z: state.chimneyObject.z + state.chimneyObject.d / 2,
-      kind: "house-chimney",
-      depth: state.painterDepth(state.currentHouseWidth() - 0.03, state.chimneyObject.z + state.chimneyObject.d / 2) + 0.06,
-      draw: () => state.drawExternalChimney()
-    }, {
-      x: state.house.w / 2,
-      z: 2.8,
-      kind: "house-roof",
-      depth: state.painterDepth(state.house.w / 2, 2.8) + 0.32,
-      draw: () => state.roof()
-    }];
-    if (state.enhancedVisuals && !state.reveal()) baseHouseScene = [baseHouseScene[0], {
-      x: state.house.w / 2,
-      z: 2.5,
-      kind: "house-exterior",
-      depth: state.painterDepth(state.house.w / 2, 2.5),
-      draw: () => {
-        state.drawOuterShell();
-        state.roof();
-        state.drawExternalChimney();
+        if (state.reveal()) state.drawInnerScene();
+        else {
+          const hw=state.currentHouseWidth(),offset=.65;
+          state.poly([[0,0],[hw,0],[hw,5],[0,5]].map(([x,z])=>state.P(x+offset,z+offset,.008)),"#152a1640");
+          state.drawOuterShell();
+          state.roof();
+          state.drawExternalChimney();
+        }
       }
     }];
     const scene = [...state.foliage.map((t, i) => ({
@@ -3962,7 +4007,6 @@
     }] : []];
     scene.sort((a, b) => (a.depth ?? state.painterDepth(a.x, a.z)) - (b.depth ?? state.painterDepth(b.x, b.z)));
     for (const obj of scene) obj.draw();
-    drawPlacementPreview();
     if (state.placingObject) {
       state.ctx.save();
       state.ctx.font = "bold 14px sans-serif";
@@ -6081,7 +6125,7 @@
         state.editPlacing = {
           kind: "move"
         };
-        state.toast("Mova o mouse para visualizar; ← → giram, clique coloca, Esc cancela.");
+        state.toast("Clique onde deseja colocar.");
       });
       if (!state.selected.kind && state.selected.movable) state.editorButton("\u21E5 Encostar \xE0 parede", () => {
         if (state.role !== "god" && !state.canRotateSelected(state.selected)) return state.toast("Aproxime-se do m\xF3vel.");
@@ -6121,11 +6165,6 @@
     if (state.role === "god") {
       const o = state.selected;
       if (!o) return;
-      if (isFurnitureInstance(o)) {
-        rotateFurniture(o,(o.angle ?? (o.rot||0)*90)+degrees);
-        state.saveGame();state.renderEditor();state.toast("Objeto girado "+degrees+"° no mundo.");
-        return;
-      }
       const cx = o.x + o.w / 2, cz = o.z + o.d / 2;
       if (Math.abs(degrees / 90) % 2 === 1) {
         const w = o.w;
@@ -6171,8 +6210,6 @@
       return true;
     }
     if (state.editPlacing.kind === "create" && state.role === "god") {
-      const ghost = placementCandidate(mx,my);
-      if (ghost && !ghost.valid) return state.toast("Local bloqueado. Escolha outro ponto ou Esc."),true;
       const shapes = {
         tree: [0.5, 0.5, 2.4],
         shrub: [0.45, 0.45, 0.4],
@@ -6223,7 +6260,6 @@
           instanceId: "casa-" + crypto.randomUUID()
         } : {}
       };
-      if (ghost && isFurnitureInstance(created)) Object.assign(created,{x:ghost.o.x,z:ghost.o.z,w:ghost.o.w,d:ghost.o.d,angle:ghost.o.angle,baseW:ghost.o.baseW,baseD:ghost.o.baseD,rot:0});
       state.editDecor.push(created);
       state.selected = created;
       if (created.kind === "house1" || created.kind === "house2") state.ensureHouseState(created);
@@ -6236,16 +6272,13 @@
     if (state.editPlacing.kind === "move" && state.selected && state.canEditSelected(state.selected)) {
       const o = state.selected;
       if (state.role === "traveler" && !state.withinReach(p.x, p.z, 1.45)) return state.toast("Destino fora do seu alcance."), true;
-      const ghost=placementCandidate(mx,my);
-      if (ghost && !ghost.valid) return state.toast("Local bloqueado. Escolha outro ponto ou Esc."), true;
-      const nx = ghost ? ghost.o.x : p.x - o.w / 2, nz = ghost ? ghost.o.z : p.z - o.d / 2;
+      const nx = p.x - o.w / 2, nz = p.z - o.d / 2;
       if (state.role === "traveler" && !state.canPlaceObjectAt(o, p.x, p.z)) return state.toast("Espa\xE7o bloqueado."), true;
       if (o.original) {
         o.original.group.splice(o.original.group.indexOf(o.original.entry), 1);
         delete o.original;
         state.editDecor.push(o);
       }
-      if (ghost && isFurnitureInstance(o)) Object.assign(o,{w:ghost.o.w,d:ghost.o.d,angle:ghost.o.angle,baseW:ghost.o.baseW,baseD:ghost.o.baseD,rot:0});
       o.x = nx;
       o.z = nz;
       state.editPlacing = null;
@@ -6303,15 +6336,6 @@
     window.addEventListener("keydown", (e) => {
       if (e.target instanceof HTMLElement && (e.target.matches("input,select,textarea") || e.target.isContentEditable)) return;
       let k = e.key.toLowerCase();
-      if (state.editMode && (state.editPlacing || state.placingObject) && ["arrowleft","arrowright"].includes(k)) {
-        e.preventDefault();state.keys.delete(k);
-        const holder=state.editPlacing || (state.editPlacing={kind:"move",rotation:0});
-        const o=holder.kind==="move"?state.selected:null;
-        const isFurniture=o?isFurnitureInstance(o):holder.kind==="create"&&!!kinds[holder.item];
-        const step=isFurniture?15:90;
-        holder.rotation=((holder.rotation??o?.angle??(o?.rot||0)*90)+ (k==="arrowright"?step:-step)+360)%360;
-        return;
-      }
       if (["1", "2", "3"].includes(k) && !e.repeat) {
         const t = {
           1: "axe",
@@ -7673,6 +7697,7 @@ precision mediump float;in vec3 vCol;out vec4 outColor;void main(){outColor=vec4
   initialize153();
   initialize154();
   installConstructionInspector();
+  installPlacementPreview();
   installAtmosphere();
   if (new URLSearchParams(location.search).has("test")) window.__orlaTest = { state };
 })();
