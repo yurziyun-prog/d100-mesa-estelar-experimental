@@ -393,7 +393,7 @@
     function previewAt(){
       if(!state.editMode||!state.editPlacing||!norm(state.editPlacing.kind))return null;
       let p;try{p=state.worldAt(cursor.x,cursor.y)}catch(_){return null}
-      const e=state.editPlacing,k=e.kind==='component'?e.item:e.kind==='create'?e.item:state.selected?.kind;
+      const e=state.editPlacing,selectedKind=state.selected?.kind||({mesa:'table',cama:'bed',bau:'chest',armario:'shelf',luminaria:'lamp',banquinho:'chair'})[state.selected?.label],k=e.kind==='component'?e.item:e.kind==='create'?e.item:selectedKind;
       if(!k&&e.kind!=='move')return null;
       if(e.kind==='component'&&e.item==='window'){
         const slot=wallSlotAt(p);
@@ -439,6 +439,17 @@
       drawPoly([v[1],v[2],upper[2],upper[1]],fill,edge);
       drawPoly([v[2],v[3],upper[3],upper[2]],fill,edge);
       drawPoly(upper,fill,edge);
+      // Além do volume de colocação, reproduz o móvel em transparência na posição proposta.
+      if(['table','bed','chest','shelf','lamp','chair','barrel'].includes(pre.kind)){
+        const model={kind:pre.kind,x:center.x-w/2,z:center.z-d/2,w,d,h,angle:a,rot:0,material:'wood',tint:'#b7a58a',contents:[]};
+        const oldCtx=state.ctx;
+        try{
+          state.ctx=cx;cx.save();cx.globalAlpha=.56;
+          cx.filter=valid?'sepia(.25) saturate(1.2) hue-rotate(150deg)':'sepia(.3) saturate(1.6) hue-rotate(300deg)';
+          state.drawDecor(model);
+        }catch(err){if(!state._placementDrawWarned){state._placementDrawWarned=true;console.warn('Prévia do móvel simplificada:',err);}}
+        finally{cx.restore();state.ctx=oldCtx;}
+      }
       const label=({shelf:'Estante',table:'Mesa',bed:'Cama',chest:'Baú',window:'Janela',wall:'Parede'})[pre.kind]||pre.kind;
       hint.textContent=(valid?'🔵 ':'🔴 ')+label+' · '+Math.round(a)+'° · ← → giram '+((state.editPlacing?.kind==='component'||pre.source?.component)?'90°':'15°')+' · Clique confirma · Esc cancela'+(valid?'':' · '+pre.reason);
     }
