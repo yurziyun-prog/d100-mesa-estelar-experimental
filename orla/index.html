@@ -376,6 +376,18 @@
         const option={wall:o,u,w:len,bottom:.86,top:Math.min(o.h-.14,2.13),valid:!overlaps,score:perpendicular};
         if(!best||option.score<best.score)best=option;
       }
+      // A casa original também é uma parede existente: abrir um vão real.
+      const hw=state.currentHouseWidth();
+      const sides=[{side:'north',p:p.z,u:p.x,length:hw},{side:'south',p:5-p.z,u:p.x,length:hw},{side:'west',p:p.x,u:p.z,length:5},{side:'east',p:hw-p.x,u:p.z,length:5}];
+      for(const q of sides){
+        if(Math.abs(q.p)>.48||q.u<.25||q.u>q.length-.25)continue;
+        const width=Math.min(1,q.length-.5),start=Math.max(.1,Math.min(q.length-width-.1,q.u-width/2));
+        const defaults=q.side==='north'?[[2,2.9]]:q.side==='south'?[[1.1,1.8],[3.05,4.23]]:q.side==='west'?[[1.95,2.83]]:[];
+        const reserved=[...defaults,...(state.game.addedWindows||[]).filter(o=>o.side===q.side).map(o=>[o.u,o.u+o.w])];
+        const valid=!reserved.some(([a,b])=>start<b+.1&&start+width>a-.1);
+        const option={side:q.side,u:start,w:width,bottom:1.24,top:2.17,valid,score:Math.abs(q.p)};
+        if(!best||option.score<best.score)best=option;
+      }
       return best;
     }
     function previewAt(){
@@ -385,7 +397,7 @@
       if(!k&&e.kind!=='move')return null;
       if(e.kind==='component'&&e.item==='window'){
         const slot=wallSlotAt(p);
-        return {type:'window',slot,ok:!!slot?.valid,reason:slot?'Janela deve ocupar um vão livre.':'Aproxime o cursor de uma parede modular.'};
+        return {type:'window',slot,ok:!!slot?.valid,reason:slot?'Janela deve ocupar um vão livre.':'Aproxime o cursor de uma parede existente.'};
       }
       const source=e.kind==='move'?state.selected:null;
       if(e.kind==='move'&&!source)return null;
@@ -398,7 +410,7 @@
       const rect={x:p.x-bw/2,z:p.z-bd/2,w:bw,d:bd};
       const boundary=rect.x>-40&&rect.z>-40&&rect.x+rect.w<40&&rect.z+rect.d<40;
       const obstacles=[...state.editDecor,...state.fixedSolids,...state.pushables].filter(o=>o!==source&&!o.hidden&&o.kind!=='floor'&&o.kind!=='roof');
-      const blocked=obstacles.some(o=>collide(rect,o,.02));
+      const blocked=obstacles.some(o=>collide(rect,o,.02))||(Math.abs(p.x-state.player.x)<bw/2+.20&&Math.abs(p.z-state.player.z)<bd/2+.20);
       const houseOverlap=rect.x<10.02&&rect.x+rect.w>-.02&&rect.z<5.02&&rect.z+rect.d>-.02;
       const isStructure=['house1','house2'].includes(k);
       const allowedHouse=isStructure?!houseOverlap&&!state.houseInstances().some(o=>collide(rect,o,.2)):true;
@@ -412,9 +424,10 @@
     function ghost(pre){
       const valid=pre.ok,fill=valid?'rgba(49,143,234,.32)':'rgba(235,53,73,.35)',edge=valid?'#80d5ff':'#ff7786';
       if(pre.type==='window'){
-        if(!pre.slot){hint.textContent='🪟 Aponte para uma parede modular existente · Esc cancela';return}
-        const {wall,u,w,bottom,top}=pre.slot;
-        const a=componentPoint(wall,u,wall.d/2,bottom),b=componentPoint(wall,u+w,wall.d/2,bottom),c=componentPoint(wall,u+w,wall.d/2,top),d=componentPoint(wall,u,wall.d/2,top);
+        if(!pre.slot){hint.textContent='🪟 Aponte para uma parede existente · Esc cancela';return}
+        const {wall,u,w,bottom,top,side}=pre.slot;
+        const wp=(v,y)=>side==='north'?[v,0,y]:side==='south'?[v,5,y]:side==='west'?[0,v,y]:[state.currentHouseWidth(),v,y];
+        const a=wall?componentPoint(wall,u,wall.d/2,bottom):wp(u,bottom),b=wall?componentPoint(wall,u+w,wall.d/2,bottom):wp(u+w,bottom),c=wall?componentPoint(wall,u+w,wall.d/2,top):wp(u+w,top),d=wall?componentPoint(wall,u,wall.d/2,top):wp(u,top);
         drawPoly([a,b,c,d],fill,edge);hint.textContent=pre.ok?'🪟 Janela na parede · Clique para abrir o vão · Esc cancela':'🪟 Outro vão ocupa esse trecho';return;
       }
       const {center,w,d,h,angle:a}=pre;
@@ -460,9 +473,12 @@
       cursor={x:mx,y:my};const pre=previewAt();
       if(!pre||!pre.ok){state.toast(pre?.reason||'Posição inválida');return true;}
       if(pre.type==='window'){
-        const {wall,u,w,bottom,top}=pre.slot;
-        sceneTransaction(()=>{wall.windowSlots=wall.windowSlots||[];wall.windowSlots.push({u,w,bottom,top});});
-        state.selected=wall;state.editPlacing=null;state.saveGame();state.renderEditor();state.toast('Janela aberta na parede existente.');return true;
+        const {wall,u,w,bottom,top,side}=pre.slot;
+        sceneTransaction(()=>{
+          if(wall){wall.windowSlots=wall.windowSlots||[];wall.windowSlots.push({u,w,bottom,top});}
+          else{state.game.addedWindows=state.game.addedWindows||[];state.game.addedWindows.push({side,u,w,bottom,top});}
+        });
+        state.selected=wall||null;state.editPlacing=null;state.saveGame();state.renderEditor();state.toast('Janela aberta na parede existente.');return true;
       }
       const kind=e.kind;
       if(kind==='component'){
@@ -2783,6 +2799,631 @@
     };
   }
 
+  // src/inventory/inventory.js
+  var inventory_exports = {};
+  __export(inventory_exports, {
+    canOpenBackpack: () => canOpenBackpack,
+    canReachFloorPoint: () => canReachFloorPoint,
+    canReachObject: () => canReachObject,
+    canReachStore: () => canReachStore,
+    closeDialog: () => closeDialog,
+    closePanels: () => closePanels,
+    initialize063: () => initialize063,
+    initialize064: () => initialize064,
+    initialize065: () => initialize065,
+    initialize066: () => initialize066,
+    initialize067: () => initialize067,
+    initialize068: () => initialize068,
+    initialize069: () => initialize069,
+    initialize070: () => initialize070,
+    initialize071: () => initialize071,
+    initialize072: () => initialize072,
+    initialize073: () => initialize073,
+    initialize074: () => initialize074,
+    initialize075: () => initialize075,
+    initialize076: () => initialize076,
+    initialize077: () => initialize077,
+    initialize078: () => initialize078,
+    initialize079: () => initialize079,
+    initialize080: () => initialize080,
+    initialize081: () => initialize081,
+    initialize082: () => initialize082,
+    inventoryDraw: () => inventoryDraw,
+    inventoryHas: () => inventoryHas,
+    inventoryToggle: () => inventoryToggle,
+    itemIcon: () => itemIcon,
+    itemLabel: () => itemLabel,
+    itemSlots: () => itemSlots,
+    keyHeld: () => keyHeld,
+    near: () => near,
+    pickItemToHand: () => pickItemToHand,
+    placeHandAt: () => placeHandAt,
+    renderEquipment: () => renderEquipment,
+    requireStore: () => requireStore,
+    restoreHandItem: () => restoreHandItem,
+    rugRect: () => rugRect,
+    showDialog: () => showDialog,
+    storeAvailable: () => storeAvailable,
+    storeCanFit: () => storeCanFit,
+    storeHandInInventory: () => storeHandInInventory,
+    storeLoad: () => storeLoad,
+    storeObject: () => storeObject,
+    syncLegacyItems: () => syncLegacyItems,
+    transferItem: () => transferItem,
+    withinReach: () => withinReach
+  });
+  function itemSlots(type) {
+    return Math.max(1, Math.ceil((state.ITEM_SPEC[type]?.litres || 1) / state.INVENTORY_SLOT_LITRES));
+  }
+  function itemIcon(type) {
+    return {
+      backpack: "\u{1F392}",
+      clothing: "\u{1F97C}",
+      houseKey: "\u{1F5DD}\uFE0F",
+      chestKey: "\u{1F5DD}\uFE0F",
+      coins: "\u{1FA99}",
+      gem: "\u{1F48E}",
+      paper: "\u{1F4DC}",
+      deskBook: "\u{1F4D5}",
+      book: "\u{1F4D8}",
+      rug: "\u{1F9F5}",
+      apple: "\u{1F34E}",
+      cup: "\u{1F95B}",
+      mug: "\u2615",
+      axe: "\u{1FA93}",
+      pickaxe: "\u26CF\uFE0F",
+      shovel: "\u{1FA8F}",
+      wood: "\u{1FAB5}",
+      ore: "\u{1F4A0}",
+      stoneChunk: "\u{1FAA8}",
+      soil: "\u{1F7EB}",
+      treasure: "\u{1F4B0}"
+    }[type] || "\u{1F4E6}";
+  }
+  function storeLoad(id) {
+    return state.game.stores[id].reduce((n, t) => n + (state.ITEM_SPEC[t]?.litres || 0), 0);
+  }
+  function storeCanFit(id, type) {
+    return state.game.stores[id].length < 50 && state.storeLoad(id) + (state.ITEM_SPEC[type]?.litres || Infinity) <= state.STORAGE_LIMIT[id] + 1e-6;
+  }
+  function itemLabel(type) {
+    return state.ITEM_SPEC[type]?.name || type;
+  }
+  function inventoryHas(type) {
+    return state.game.stores.inventory.includes(type);
+  }
+  function keyHeld(kind) {
+    return state.inventoryHas(kind + "Key");
+  }
+  function transferItem(from, to, type) {
+    const list = state.game.stores[from], index = list.indexOf(type);
+    if (index < 0) return false;
+    if (!state.storeCanFit(to, type)) {
+      state.toast("Sem espa\xE7o suficiente para " + state.itemLabel(type) + ".");
+      return false;
+    }
+    list.splice(index, 1);
+    state.game.stores[to].push(type);
+    if (type === "book" && (from === "shelf" || to === "shelf")) {
+      if (from === "shelf") {
+        const r = state.shelfRows.findIndex((v) => v > 0);
+        if (r >= 0) state.shelfRows[r]--;
+      } else state.shelfRows[0]++;
+    }
+    state.syncLegacyItems();
+    state.saveGame();
+    state.inventoryDraw();
+    return true;
+  }
+  function syncLegacyItems() {
+    const locs = Object.values(state.game.stores).flat();
+    state.game.loot.coins = !state.game.stores.chest.includes("coins");
+    state.game.loot.gem = !state.game.stores.chest.includes("gem");
+    state.game.deskLoot.paper = !state.game.stores.drawerTop.includes("paper") && !state.game.stores.drawerBottom.includes("paper") && !state.game.stores.deskTop.includes("paper");
+    state.game.deskLoot.book = !state.game.stores.drawerTop.includes("deskBook") && !state.game.stores.drawerBottom.includes("deskBook") && !state.game.stores.deskTop.includes("deskBook");
+    state.game.booksLeft = state.game.stores.shelf.filter((x) => x === "book").length;
+    state.game.booksTaken = state.game.stores.inventory.filter((x) => x === "book").length;
+    state.game.rug.placed = state.game.stores.floor.includes("rug");
+    state.game.rug.collected = state.game.stores.inventory.includes("rug");
+  }
+  function initialize063() {
+    state.dialog = document.getElementById("interaction");
+    state.dialogTitle = document.getElementById("dialogTitle");
+    state.dialogText = document.getElementById("dialogText");
+    state.dialogChoices = document.getElementById("dialogChoices");
+  }
+  function initialize064() {
+    state.inventory = document.getElementById("inventory");
+    state.invItems = document.getElementById("inventoryItems");
+    state.invMeta = document.getElementById("inventoryMeta");
+  }
+  function initialize065() {
+    state.choicesNow = [];
+  }
+  function initialize066() {
+    state.dragInventoryType = null;
+  }
+  function initialize067() {
+    state.canvasDragOrigin = null;
+  }
+  function initialize068() {
+    state.canvasDragSource = null;
+  }
+  function closePanels() {
+    state.closeDialog();
+    state.inventory.classList.remove("open");
+    state.equipmentBox.classList.remove("open");
+    document.getElementById("sheet").classList.remove("open");
+    state.dismissPopups();
+  }
+  function restoreHandItem() {
+    if (!state.handItem) return;
+    const h = state.handItem, t = h.type;
+    if (h.from === "inventory") state.game.stores.inventory.push(t);
+    else if (h.from === "equipment") {
+      if (["axe", "pickaxe", "shovel"].includes(t)) {
+        state.equipment.left = t;
+        state.equipment.right = t;
+        state.gathering.activeTool = t;
+      } else if (t === "backpack") state.equipment.backpack = t;
+      else if (t === "clothing") state.equipment.clothing = t;
+      else state.equipment.left = t;
+      state.renderEquipment();
+    } else if (h.from === "worldKey") state.game.items[t] = false;
+    else if (h.from === "floor" && h.object) {
+      state.game.droppedItems.push({
+        type: t,
+        x: h.object.x,
+        z: h.object.z
+      });
+      state.game.stores.floor.push(t);
+    } else if (h.from === "rug") {
+      if (!state.game.stores.floor.includes("rug")) state.game.stores.floor.push("rug");
+      state.game.rug.placed = true;
+    } else if (state.game.stores[h.from]) {
+      state.game.stores[h.from].push(t);
+      if (h.from === "shelf") state.shelfRows[h.row ?? 0]++;
+    }
+    state.handItem = null;
+    state.syncLegacyItems();
+    state.inventoryDraw();
+    state.saveGame();
+  }
+  function pickItemToHand(src) {
+    if (state.handItem) {
+      state.toast("Voc\xEA j\xE1 est\xE1 segurando algo.");
+      return false;
+    }
+    if (!src || !state.ITEM_SPEC[src.type]) return false;
+    const t = src.type;
+    if (src.from === "inventory") {
+      const i = state.game.stores.inventory.indexOf(t);
+      if (i < 0) return false;
+      state.game.stores.inventory.splice(i, 1);
+    } else if (src.from === "worldKey") state.game.items[t] = true;
+    else if (src.from === "floor" && src.object) {
+      const i = state.game.droppedItems.indexOf(src.object);
+      if (i < 0) return false;
+      state.game.droppedItems.splice(i, 1);
+      const f = state.game.stores.floor.indexOf(t);
+      if (f >= 0) state.game.stores.floor.splice(f, 1);
+    } else if (src.from === "rug") {
+      const i = state.game.stores.floor.indexOf("rug");
+      if (i >= 0) state.game.stores.floor.splice(i, 1);
+      state.game.rug.placed = false;
+    } else if (state.game.stores[src.from]) {
+      const i = state.game.stores[src.from].indexOf(t);
+      if (i < 0) return false;
+      state.game.stores[src.from].splice(i, 1);
+    } else return false;
+    if (src.from === "shelf" && Number.isInteger(src.row) && state.shelfRows[src.row] > 0) state.shelfRows[src.row]--;
+    state.handItem = {
+      type: t,
+      from: src.from,
+      row: src.row,
+      object: src.object || null
+    };
+    state.syncLegacyItems();
+    state.inventoryDraw();
+    state.saveGame();
+    state.toast(state.itemLabel(t) + " na m\xE3o.");
+    return true;
+  }
+  function storeHandInInventory() {
+    if (!state.handItem) return false;
+    if (!state.canOpenBackpack()) return state.toast("Equipe a mochila primeiro."), false;
+    if (!state.storeCanFit("inventory", state.handItem.type)) {
+      state.toast("N\xE3o cabe na mochila.");
+      return false;
+    }
+    state.game.stores.inventory.push(state.handItem.type);
+    state.handItem = null;
+    state.syncLegacyItems();
+    state.inventoryDraw();
+    state.saveGame();
+    state.toast("Guardado na mochila.");
+    return true;
+  }
+  function placeHandAt(mx, my) {
+    if (!state.handItem) return false;
+    const p = state.worldAt(mx, my), type = state.handItem.type;
+    let dest = state.inventoryDropLocation(p.x, p.z, mx, my);
+    if (!dest) {
+      state.toast("Abra o recipiente ou escolha um local v\xE1lido.");
+      return true;
+    }
+    if (type === "rug" && dest !== "floor") {
+      state.toast("O tapete s\xF3 pode ser colocado no ch\xE3o.");
+      return true;
+    }
+    if (dest === "floor" && !state.canReachFloorPoint(p.x, p.z)) {
+      state.toast("Lugar fora de alcance.");
+      return true;
+    }
+    if (dest !== "floor" && !state.requireStore(dest)) return true;
+    if (type === "rug") {
+      const x = state.clamp(p.x - 1.2, 0.07, 4.52), z = state.clamp(p.z - 0.82, 0.07, 3.28);
+      if (!state.canReachFloorPoint(x + 1.2, z + 0.82)) {
+        state.toast("O tapete ficaria fora de alcance.");
+        return true;
+      }
+      if (!state.game.stores.floor.includes("rug")) state.game.stores.floor.push("rug");
+      state.game.rug.x = x;
+      state.game.rug.z = z;
+      state.game.rug.placed = true;
+      state.handItem = null;
+      state.saveGame();
+      state.toast("Tapete colocado.");
+      return true;
+    }
+    if (dest === "floor") {
+      state.game.droppedItems.push({
+        type,
+        x: p.x,
+        z: p.z
+      });
+      state.game.stores.floor.push(type);
+      state.handItem = null;
+      state.syncLegacyItems();
+      state.saveGame();
+      state.toast(state.itemLabel(type) + " colocado no ch\xE3o.");
+      return true;
+    }
+    if (!state.storeCanFit(dest, type)) {
+      state.toast("Sem espa\xE7o suficiente.");
+      return true;
+    }
+    state.game.stores[dest].push(type);
+    if (dest === "shelf" && type === "book") {
+      const zz = state.wardrobeObject.z + state.wardrobeObject.d * 0.45;
+      let best = 0, dist = 1e9;
+      for (let r = 0; r < 3; r++) {
+        const q = state.P(state.wardrobeObject.x - 0.03, zz, 0.47 + r * 0.48);
+        const d = Math.hypot(mx - q[0], my - q[1]);
+        if (d < dist) {
+          dist = d;
+          best = r;
+        }
+      }
+      state.shelfRows[best]++;
+    }
+    state.handItem = null;
+    state.syncLegacyItems();
+    state.saveGame();
+    state.inventoryDraw();
+    state.toast(state.itemLabel(type) + " colocado em " + dest + ".");
+    return true;
+  }
+  function initialize069() {
+    state.equipmentBox = document.getElementById("equipment");
+    state.eqSlots = document.getElementById("eqSlots");
+  }
+  function initialize070() {
+    document.getElementById("equipmentClose").onclick = () => state.equipmentBox.classList.remove("open");
+  }
+  function initialize071() {
+    document.getElementById("inventoryClose").onclick = () => state.inventory.classList.remove("open");
+  }
+  function initialize072() {
+    state.gearSlots = ["clothing", "left", "right", "backpack"];
+  }
+  function initialize073() {
+    state.equipmentIcon = {
+      clothing: "\u{1F97C}",
+      left: "\u270B",
+      right: "\u270B",
+      backpack: "\u{1F392}"
+    };
+  }
+  function renderEquipment() {
+    state.eqSlots.replaceChildren();
+    for (const slot of state.gearSlots) {
+      const el = document.createElement("button");
+      el.className = "eq-slot";
+      el.title = "Clique para equipar ou retirar";
+      const value = state.equipment[slot], dual = slot === "right" && value && state.equipment.left === value && ["axe", "pickaxe", "shovel"].includes(value);
+      el.innerHTML = "<strong>" + {
+        clothing: "Roupa",
+        left: "M\xE3o esquerda",
+        right: "M\xE3o direita",
+        backpack: "Mochila"
+      }[slot] + "</strong><span>" + (value ? state.itemIcon(value) + " " + (dual ? "\u2194" : state.itemLabel(value)) : "Vazio") + "</span>";
+      el.onclick = () => {
+        if (state.handItem) {
+          if (slot === "backpack" && state.handItem.type !== "backpack") return state.toast("Esse espa\xE7o exige uma mochila.");
+          if (slot === "clothing" && state.handItem.type !== "clothing") return state.toast("Esse espa\xE7o \xE9 para roupas.");
+          if ((slot === "left" || slot === "right") && ["backpack", "clothing"].includes(state.handItem.type)) return state.toast("Use o espa\xE7o correto.");
+          if (state.equipment[slot]) return state.toast("Retire o equipamento anterior.");
+          const type = state.handItem.type;
+          if (["axe", "pickaxe", "shovel"].includes(type)) {
+            if (state.equipment.left || state.equipment.right) return state.toast("Libere as duas m\xE3os.");
+            state.equipment.left = type;
+            state.equipment.right = type;
+            state.gathering.activeTool = type;
+          } else state.equipment[slot] = type;
+          state.handItem = null;
+          state.saveGame();
+          state.inventoryDraw();
+          state.renderEquipment();
+          return;
+        }
+        if (!value) return;
+        if (state.equipment.backpack && value !== "backpack" && !state.storeCanFit("inventory", value)) {
+          state.toast("Sem espa\xE7o na mochila.");
+          return;
+        }
+        if (["axe", "pickaxe", "shovel"].includes(value)) {
+          state.equipment.left = null;
+          state.equipment.right = null;
+          state.gathering.activeTool = null;
+        } else state.equipment[slot] = null;
+        if (!state.storeCanFit("inventory", value) && state.equipment.backpack) {
+          state.toast("Sem espa\xE7o na mochila.");
+          return;
+        }
+        if (state.equipment.backpack && value !== "backpack") state.game.stores.inventory.push(value);
+        else state.handItem = {
+          type: value,
+          from: "equipment",
+          object: null
+        };
+        state.saveGame();
+        state.inventoryDraw();
+        state.renderEquipment();
+      };
+      state.eqSlots.append(el);
+    }
+    document.getElementById("eqInfo").textContent = state.equipment.backpack ? "Equipamento e mochila s\xE3o pain\xE9is separados. Clique nos espa\xE7os para desequipar." : "Sem mochila: leve-a at\xE9 este painel e equipe-a.";
+  }
+  function initialize074() {
+    document.getElementById("equipmentBtn").onclick = () => {
+      state.inventory.classList.remove("open");
+      state.renderEquipment();
+      state.equipmentBox.classList.toggle("open");
+    };
+  }
+  function initialize075() {
+    document.getElementById("menuBtn").onclick = () => document.getElementById("topActions").classList.toggle("expanded");
+  }
+  function initialize076() {
+    document.getElementById("exportSave").onclick = state.exportSaveFile;
+  }
+  function initialize077() {
+    document.getElementById("importSave").onclick = () => document.getElementById("saveFile").click();
+  }
+  function initialize078() {
+    document.getElementById("saveFile").onchange = async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      try {
+        if (file.size > 8 * 1024 * 1024) throw Error("Arquivo grande demais");
+        const raw = await file.text(), data = JSON.parse(raw);
+        if (!data || typeof data !== "object" || !data.stores || !Array.isArray(data.editDecor) || !data.door || !Array.isArray(data.stores.inventory)) throw Error("Formato incompat\xEDvel");
+        if (!confirm("Substituir a partida atual pelo arquivo importado?")) return;
+        localStorage.setItem(state.saveKey, raw);
+        location.reload();
+      } catch (err) {
+        state.toast("Falha na importa\xE7\xE3o: " + err.message);
+      }
+    };
+  }
+  function canOpenBackpack() {
+    return state.godMode() || state.equipment.backpack === "backpack";
+  }
+  function initialize079() {
+    state.renderEquipment();
+  }
+  function inventoryDraw() {
+    state.invItems.innerHTML = "";
+    const items = [...state.game.stores.inventory];
+    const usedSlots = items.reduce((n, t) => n + state.itemSlots(t), 0);
+    const totalCells = Math.max(24, Math.ceil(Math.max(usedSlots, 1) / 6) * 6);
+    state.invMeta.textContent = "Bolsa visual \xB7 " + usedSlots + " quadrinhos usados \xB7 1 quadrinho = " + state.INVENTORY_SLOT_LITRES * 1e3 + " ml";
+    if (!items.length) {
+      const empty = document.createElement("div");
+      empty.className = "inventory-empty";
+      empty.textContent = "Vazio. Explore e procure objetos.";
+      state.invItems.append(empty);
+      return;
+    }
+    for (const type of items) {
+      const cell = document.createElement("div");
+      cell.className = "inventory-item";
+      cell.draggable = true;
+      cell.style.gridColumn = "span " + Math.min(6, state.itemSlots(type));
+      cell.title = "Arraste para o ch\xE3o, ba\xFA, gaveta ou m\xF3vel";
+      cell.innerHTML = '<span class="icon">' + state.itemIcon(type) + '</span><span class="name">' + state.itemLabel(type) + '</span><span class="size">' + (state.ITEM_SPEC[type]?.litres || 0).toFixed(2).replace(".", ",") + " L</span>";
+      cell.addEventListener("dragstart", (e) => {
+        state.dragInventoryType = type;
+        e.dataTransfer.setData("text/plain", type);
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setDragImage(state.emptyDragImage, 0, 0);
+      });
+      cell.addEventListener("dragend", () => {
+        state.dragInventoryType = null;
+      });
+      cell.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        state.pickItemToHand({
+          from: "inventory",
+          type
+        });
+        state.inventory.classList.remove("open");
+      });
+      state.invItems.append(cell);
+    }
+    const empties = Math.max(0, totalCells - usedSlots);
+    for (let i = 0; i < empties; i++) {
+      const c = document.createElement("div");
+      c.className = "inventory-cell";
+      state.invItems.append(c);
+    }
+  }
+  function initialize080() {
+    state.inventory.addEventListener("dragover", (e) => {
+      if (e.dataTransfer.types.includes("application/x-orla-source")) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+      }
+    });
+  }
+  function initialize081() {
+    state.inventory.addEventListener("drop", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      let data;
+      try {
+        data = JSON.parse(e.dataTransfer.getData("application/x-orla-source"));
+      } catch {
+        return;
+      }
+      if (!data || !state.ITEM_SPEC[data.type]) return;
+      if (data.from === "worldKey") {
+        const kind = data.type === "houseKey" ? "house" : data.type === "chestKey" ? "chest" : null;
+        if (!kind || state.inventoryHas(data.type)) return;
+        const point = state.game.groundKeys[kind];
+        if (Math.hypot(state.player.x - point.x, state.player.z - point.z) > 1.12) return state.toast("Aproxime-se da chave.");
+        state.game.items[data.type] = true;
+        state.game.stores.inventory.push(data.type);
+        state.saveGame();
+        state.inventoryDraw();
+        state.toast("Chave recolhida.");
+      } else if (data.from === "rug") {
+        if (!state.game.rug.placed || !state.game.stores.floor.includes("rug") || !state.canReachObject(state.rugRect(), 0.85)) {
+          state.toast("Aproxime-se do tapete.");
+          return;
+        }
+        const i = state.game.stores.floor.indexOf("rug");
+        if (i >= 0) state.game.stores.floor.splice(i, 1);
+        state.game.rug.placed = false;
+        state.game.stores.inventory.push("rug");
+        state.inventoryDraw();
+        state.saveGame();
+        state.toast("Tapete recolhido.");
+      } else if (!state.game.stores[data.from]?.includes(data.type)) return;
+      else if (data.from === "floor") {
+        const o = state.game.droppedItems.find((o2) => o2.type === data.type && Math.abs(o2.x - data.x) < 1e-3 && Math.abs(o2.z - data.z) < 1e-3);
+        if (!o || Math.hypot(state.player.x - o.x, state.player.z - o.z) > 1.12) {
+          state.toast("Aproxime-se do objeto.");
+          return;
+        }
+        if (state.transferItem("floor", "inventory", data.type)) {
+          state.game.droppedItems.splice(state.game.droppedItems.indexOf(o), 1);
+          state.saveGame();
+          state.toast(state.itemLabel(data.type) + " recolhido.");
+        }
+      } else if (state.requireStore(data.from) && state.transferItem(data.from, "inventory", data.type)) {
+        state.syncLegacyItems();
+        state.toast(state.itemLabel(data.type) + " recolhido.");
+      }
+      state.canvasDragSource = null;
+    });
+  }
+  function inventoryToggle() {
+    if (!state.canOpenBackpack()) return state.toast("Primeiro equipe a mochila.");
+    state.equipmentBox.classList.remove("open");
+    state.inventoryDraw();
+    state.inventory.classList.toggle("open");
+    state.dialog.classList.remove("open");
+    document.getElementById("sheet").classList.remove("open");
+  }
+  function closeDialog() {
+    state.dialog.classList.remove("open");
+    state.choicesNow = [];
+    state.dialogOrigin = null;
+  }
+  function showDialog(title, message, choices) {
+    state.inventory.classList.remove("open");
+    state.dialogTitle.textContent = title;
+    state.dialogText.textContent = message;
+    state.dialogChoices.innerHTML = "";
+    state.choicesNow = choices;
+    for (const [i, ch] of choices.filter((c) => c && c.label !== "Cancelar").entries()) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = ch.label;
+      if (i === 0) b.classList.add("primary");
+      b.onclick = () => {
+        state.closeDialog();
+        ch.action?.();
+      };
+      state.dialogChoices.append(b);
+    }
+    state.dialogOrigin = {
+      x: state.player.x,
+      z: state.player.z
+    };
+    state.dialog.classList.add("open");
+  }
+  function initialize082() {
+    state.REACH = 1.08;
+  }
+  function near(x, z, d = 1.12) {
+    return state.godMode() || Math.hypot(state.player.x - x, state.player.z - z) <= d;
+  }
+  function withinReach(x, z, margin = state.REACH) {
+    return state.godMode() || Math.hypot(state.player.x - x, state.player.z - z) <= margin;
+  }
+  function canReachObject(o, margin = state.REACH) {
+    return state.godMode() || state.inside(state.player.x, state.player.z) && state.rectDistance(state.player.x, state.player.z, o) <= margin;
+  }
+  function storeObject(id) {
+    if (id === "chest") return state.chestObject;
+    if (id === "drawerTop" || id === "drawerBottom" || id === "deskTop") return state.deskObject;
+    if (id === "shelf") return state.wardrobeObject;
+    if (id === "bed") return state.bedObject;
+    if (id === "table") return state.pushables.find((o) => o.label === "mesa");
+    return null;
+  }
+  function canReachStore(id) {
+    const o = state.storeObject(id);
+    return !!o && state.canReachObject(o);
+  }
+  function storeAvailable(id) {
+    if (state.godMode()) return !!state.game.stores[id];
+    if (!state.canReachStore(id)) return false;
+    if (id === "chest") return state.game.chest.open && !state.game.chest.locked;
+    if (id === "drawerTop") return state.game.drawerOpen[0];
+    if (id === "drawerBottom") return state.game.drawerOpen[1];
+    return true;
+  }
+  function requireStore(id) {
+    if (state.storeAvailable(id)) return true;
+    state.toast("Aproxime-se e abra o recipiente, se necess\xE1rio.");
+    return false;
+  }
+  function canReachFloorPoint(x, z) {
+    return state.withinReach(x, z) && x > -12 && x < 20 && z > -10 && z < 18 && (state.godMode() || !state.wallBarriers().some((w) => state.circleRect(x, z, 0.08, w)));
+  }
+  function rugRect() {
+    return {
+      x: state.game.rug.x,
+      z: state.game.rug.z,
+      w: 2.4,
+      d: 1.65
+    };
+  }
+
   // src/rendering/scene.js
   var scene_exports = {};
   __export(scene_exports, {
@@ -3512,6 +4153,39 @@
   }
   function drawWallFace(side) {
     const cream = "#e6d3b1", wood = "#765338", h = 2.92, hw = state.currentHouseWidth();
+    const added=(state.game.addedWindows||[]).filter(o=>o.side===side && !o.hidden);
+    if(added.length){
+      const horizontal=side==='north'||side==='south',wallAt=horizontal?(side==='north'?0:5):(side==='west'?0:hw);
+      const length=horizontal?hw:5;
+      const openings=added.map(o=>({start:o.u,end:o.u+o.w,kind:'window'}));
+      const defaults=side==='north'?[[2,2.9]]:side==='south'?[[1.1,1.8]]:side==='west'?[[1.95,2.83]]:[];
+      for(const [a,b] of defaults)openings.push({start:a,end:b,kind:'window'});
+      if(side==='south')openings.push({start:3.05,end:4.23,kind:'door'});
+      openings.sort((a,b)=>a.start-b.start);
+      let cursor=0;
+      const solid=(a,b)=>{if(b<=a)return;if(horizontal)state.wallLine(a,wallAt,h,b-a,0,cream);else state.wallLine(wallAt,a,h,0,b-a,cream);};
+      for(const o of openings){
+        if(o.start>cursor+.001)solid(cursor,o.start);
+        if(o.kind==='window'){
+          if(horizontal)state.windowPaneZ(wallAt,o.start,o.end-o.start);
+          else state.windowPaneX(wallAt,o.start,o.end-o.start);
+        }
+        cursor=Math.max(cursor,o.end);
+      }
+      solid(cursor,length);
+      for(let u=0;u<length;u+=1.18){
+        if(openings.some(o=>u>o.start-.03&&u<o.end+.03))continue;
+        if(horizontal)state.line3([u,wallAt,.02],[u,wallAt,h],wood,3.3);
+        else state.line3([wallAt,u,.02],[wallAt,u,h],wood,3.3);
+      }
+      if(side==='south'){
+        state.wallPanel(3.05,wallAt,2.6,h,1.18,0,cream);
+        if(!state.reveal())state.drawDoor();
+      }
+      if(horizontal)state.line3([0,wallAt,h],[hw,wallAt,h],wood,4.3);
+      else state.line3([wallAt,0,h],[wallAt,5,h],wood,4.3);
+      return;
+    }
     if (side === "north" || side === "south") {
       const z = side === "north" ? 0 : 5;
       const segments = side === "north" ? [[0, 2], [2, 2.9], [2.9, hw]] : [[0, 1.1], [1.1, 1.8], [1.8, 3.05], [4.23, hw]];
@@ -7702,4 +8376,5 @@ precision mediump float;in vec3 vCol;out vec4 outColor;void main(){outColor=vec4
   if (new URLSearchParams(location.search).has("test")) window.__orlaTest = { state };
 })();
 </script>
+</body></html>
 </body></html>
