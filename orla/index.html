@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Orla v0.51 · Casa 2, escadas e construção</title>
+<title>Orla v0.51 · Casa de dois andares e escada contínua</title>
 <style>
 :root{color-scheme:dark;--ink:#eaf5e7;--muted:#b8cab3;--panel:rgba(14,31,27,.88);--line:rgba(209,239,196,.16);--mint:#b9f0ad;--gold:#ffdc89}
 *{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#223b30;font:14px/1.4 system-ui,-apple-system,Segoe UI,sans-serif;color:var(--ink)}
@@ -103,19 +103,23 @@
 #orlaFloorToggle{position:fixed;bottom:55px;right:12px;z-index:14;background:#233d38;color:#f5e6bc;border:1px solid #ad9870;border-radius:8px;padding:9px 12px;font:600 12px system-ui;cursor:pointer;display:none}
 @media(max-width:620px){#climate,#inventory,#equipment,#sheet,#appearancePanel,#powersPanel,#interaction{right:6px!important;width:calc(100vw - 12px)!important}#orlaFatigue{bottom:42px}}
 
-/* Orla v0.51: construção categorizada e controles de escadas */
-#orlaBuildCategories{display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin:5px 0 9px;padding:5px;border-bottom:1px solid #7d9b7966}
-#orlaBuildCategories button{font-size:11px!important;padding:6px 10px!important;background:#254338!important}
-#orlaBuildCategories button.active{background:#c4dfa6!important;color:#15291f!important}
-#orlaStairOptions{display:flex;flex-wrap:wrap;gap:7px;align-items:center;padding:8px 3px;border-top:1px solid #7d9b7966}
-#orlaStairOptions button{padding:7px 10px!important;background:#4d5b42!important}
-#orlaStairOptions label{font-size:11px;color:#deebd0;display:flex;gap:5px;align-items:center}
-#orlaStairOptions input{width:65px;background:#283d35;border:1px solid #8d9e81;color:#eef2df;border-radius:6px;padding:5px}
-#orlaFloorToggle,#orlaFireTest{bottom:9px!important;z-index:17!important}
-#orlaFloorToggle{right:12px!important}
-#orlaFireTest{position:fixed;right:12px;bottom:52px!important;background:#463729;color:#f7e4c1;border:1px solid #b18c60;border-radius:8px;padding:7px 12px;cursor:pointer;display:none}
-#orlaStairHint{position:absolute;left:50%;top:78px;transform:translateX(-50%);z-index:5;background:#183227e9;border:1px solid #9fb389aa;border-radius:9px;padding:7px 12px;color:#e7ebd3;font-size:12px;pointer-events:none;display:none;white-space:nowrap}
-#editor{max-height:min(46vh,350px)!important;overflow:auto!important}
+/* Orla 0.51: editor de Deus com categorias em vez de uma fileira de controles. */
+#editor{left:12px!important;right:12px!important;bottom:10px!important;width:auto!important;max-width:none!important;max-height:35vh;overflow:auto!important;display:none;z-index:22!important;padding:9px 12px!important}
+#editor.open{display:block}
+#editorActions{display:block!important}
+#orlaEditorGroups{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin:5px 0}
+#orlaEditorGroups button{font-weight:650;padding:5px 9px}
+#orlaEditorGroups button.selected{background:#adcaa3;color:#162a22}
+#orlaEditorContents{display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:6px;margin-top:6px}
+#orlaEditorContents button{padding:7px 10px;text-align:left;white-space:normal;min-height:32px}
+body.orla-editor #climate,body.orla-editor #inventory,body.orla-editor #equipment,body.orla-editor #sheet,body.orla-editor #powersPanel,body.orla-editor #appearancePanel{max-height:calc(64dvh - var(--orla-panel-top,105px))!important}
+#orlaFatigue{display:none}
+body:not(.orla-god):not(.orla-editor) #orlaFatigue{display:block}
+body.orla-editor #orlaFloorToggle{display:none!important}
+#componentInspector{display:grid!important;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:7px;align-items:end;margin-top:8px}
+#componentInspector label{min-width:0}
+#componentInspector input,#componentInspector select{width:100%}
+@media(max-width:700px){#editor{max-height:48vh!important}}
 </style>
 </head>
 <body>
@@ -252,7 +256,7 @@
     }, [width] = localSize(next);
     if (["door", "window"].includes(o.kind) && (width < 0.4 || next.h < 0.5)) throw Error("Portas e janelas precisam de largura \u2265 0,4 m e altura \u2265 0,5 m.");
     if (patch.tint !== void 0 && !/^#[0-9a-f]{6}$/i.test(patch.tint)) throw Error("Cor inv\xE1lida.");
-    if (patch.material !== void 0 && !["wood", "plaster", "metal", "stone"].includes(patch.material)) throw Error("Material inv\xE1lido.");
+    if (patch.material !== void 0 && !["wood", "plaster", "metal", "stone", "brick", "ceramic", "concrete"].includes(patch.material)) throw Error("Material inv\xE1lido.");
     for (const key of ["x", "z", "baseY", "w", "d", "h", "tint", "material"]) if (key in patch) o[key] = patch[key];
     return o;
   }
@@ -459,7 +463,7 @@
     label.textContent = "Material";
     const material = document.createElement("select");
     material.name = "material";
-    for (const [value, title] of [["wood", "Madeira"], ["plaster", "Reboco"], ["stone", "Pedra"], ["metal", "Liga met\xE1lica"]]) {
+    for (const [value, title] of [["wood", "Madeira"], ["plaster", "Reboco"], ["stone", "Pedra"], ["metal", "Liga met\xE1lica"], ["brick", "Tijolos"], ["ceramic", "Cerâmica"], ["concrete", "Concreto"]]) {
       const opt = document.createElement("option");
       opt.value = value;
       opt.textContent = title;
@@ -554,7 +558,10 @@
       wood: ["#604936", "#896545", "#c49b67"],
       plaster: ["#9c8f7a", "#bcaf96", "#e5d6ba"],
       metal: ["#344d53", "#526c70", "#94aaa5"],
-      stone: ["#626863", "#858b80", "#b3b6a4"]
+      stone: ["#626863", "#858b80", "#b3b6a4"],
+      brick: ["#753e32", "#a05b43", "#bb8462"],
+      ceramic: ["#537985", "#83a9b1", "#c6ded6"],
+      concrete: ["#555b5c", "#848d8b", "#b2b6b2"]
     };
     const colors = (palette[o.material] || palette.wood).slice();
     if (o.tint && o.tint !== "#b7a58a") colors.splice(0, 3, state.shade(o.tint, -42), state.shade(o.tint, -20), o.tint);
@@ -637,9 +644,16 @@
       }
     } else if (o.kind === "floor") {
       box(0, 0, w, d, h);
-      for (let z = 0.22; z < d; z += 0.22) {
-        line([0, z, h + 2e-3], [w, z, h + 2e-3], colors[0], 0.9);
-        for (let x = 0.3 + Math.round(z * 10) % 2 * 0.6; x < w; x += 1.1) line([x, z - 0.2, h + 3e-3], [x, z, h + 3e-3], colors[0], 0.7);
+      const gridStep=o.material==='wood'?.22:o.material==='ceramic'?.44:o.material==='brick'?.34:.65;
+      for(let z=gridStep;z<d;z+=gridStep){
+        line([0,z,h+.003],[w,z,h+.003],colors[0],o.material==='wood'?.9:1.5);
+      }
+      if(o.material!=='wood'){
+        for(let x=gridStep;x<w;x+=gridStep)line([x,0,h+.004],[x,d,h+.004],colors[0],1.25);
+      }else{
+        for (let z=.22; z<d; z+=.22)
+          for (let x=.3 + Math.round(z*10)%2*.6;x<w;x+=1.1)
+            line([x,z-.2,h+.005],[x,z,h+.005],colors[0],.7);
       }
     } else if (o.kind === "roof") {
       const faces = [{
@@ -2719,10 +2733,10 @@
           state.drawInnerScene();
         } else {
           state.drawOuterShell();
-          if (state.annexActive()) state.drawAnnexWalls();
-          state.roof();
-          if (state.annexActive()) state.drawAnnexRoof();
+          drawUpperExterior051();
           state.drawExternalChimney();
+          state.roof();
+          drawChimneyCap051();
         }
       });
       return;
@@ -2740,10 +2754,10 @@
     const yaw = state.cameraYaw;
     const eastVisible = Math.cos(yaw) + Math.sin(yaw) > 0.02;
     const x = state.currentHouseWidth() + 0.055;
-    const z = o.z + 0.02, w = 0.38, d = Math.max(0.74, o.d * 0.9), top = 4.55;
+    const z = o.z + 0.02, w = 0.38, d = Math.max(0.74, o.d * 0.9), top = 7.53;
     if (eastVisible) {
-      state.box3(x, z, w, d, 4.08, ["#8f7a68", "#b39d83", "#d2baa0"]);
-      for (let row = 0; row < 12; row++) {
+      state.box3(x, z, w, d, 6.90, ["#8f7a68", "#b39d83", "#d2baa0"]);
+      for (let row = 0; row < 21; row++) {
         const by = 0.2 + row * 0.3;
         for (let i = 0; i < 3; i++) {
           const a = z + 0.035 + i * (d - 0.07) / 3, b = a + (d - 0.07) / 3 * 0.88;
@@ -2751,7 +2765,7 @@
         }
       }
     }
-    state.box3(x, z, w, d, top - 4.08, ["#8f7a68", "#b39d83", "#d2baa0"], 4.08);
+    state.box3(x, z, w, d, top - 6.90, ["#8f7a68", "#b39d83", "#d2baa0"], 6.90);
     state.box3(x - 0.04, z - 0.04, w + 0.08, d + 0.08, 0.12, ["#766858", "#95816a", "#c5b39b"], top - 0.13);
     state.box3(x + 0.06, z + 0.08, w - 0.12, d - 0.16, 0.065, ["#55473c", "#76665a", "#a99782"], top - 0.01);
     if (state.game.fireplace.lit && state.game.fireplace.wood > 0) {
@@ -4456,7 +4470,7 @@
     state.line3([4.28, 5, 0.74], [hw, 5, 0.74], dark, 4);
   }
   function roof() {
-    const hw = state.currentHouseWidth(), a = -0.28, b = hw + 0.28, rz = 2.5, eave = 2.96, rh = 4.18;
+    const hw = state.currentHouseWidth(), a = -0.28, b = hw + 0.28, rz = 2.5, eave = hw > 8 ? 5.82 : 2.96, rh = hw > 8 ? 7.07 : 4.18;
     const gables = [a, b].map((x) => ({
       x,
       depth: state.rotated(x, 2.5)[0] + state.rotated(x, 2.5)[1]
@@ -4684,6 +4698,48 @@
     else if (name === "east") state.wallX(hw, 0, 5, height, cream);
     else state.wallX(0, 0, 5, height, cream);
   }
+  // Casa 2: segundo pavimento integrado ao casco, não uma plataforma flutuante.
+  function drawUpperExterior051(){
+    if(state.currentHouseWidth()<9)return;
+    const hw=state.currentHouseWidth(),lo=2.96,hi=5.82;
+    const walls=[
+      {side:'north',depth:state.painterDepth(hw/2,0),quad:[[0,0,lo],[hw,0,lo],[hw,0,hi],[0,0,hi]]},
+      {side:'south',depth:state.painterDepth(hw/2,5),quad:[[hw,5,lo],[0,5,lo],[0,5,hi],[hw,5,hi]]},
+      {side:'west',depth:state.painterDepth(0,2.5),quad:[[0,5,lo],[0,0,lo],[0,0,hi],[0,5,hi]]},
+      {side:'east',depth:state.painterDepth(hw,2.5),quad:[[hw,0,lo],[hw,5,lo],[hw,5,hi],[hw,0,hi]]}
+    ];
+    walls.sort((a,b)=>a.depth-b.depth);
+    for(const wall of walls){
+      state.quad3(...wall.quad,'#e2cba8','#76573d');
+      if(wall.side==='north'||wall.side==='south'){
+        const z=wall.side==='north'?-.012:5.012;
+        for(let x=0;x<=hw;x+=1.42)state.line3([x,z,lo],[x,z,hi],'#8b6344',2.3);
+        for(const cx of [2.05,6.48,8.60]){
+          const y1=3.95,y2=5.10,w=.62;
+          state.quad3([cx-w/2,z,y1],[cx+w/2,z,y1],[cx+w/2,z,y2],[cx-w/2,z,y2],'#81bcb0','#e5d3b2');
+          state.line3([cx,z,y1],[cx,z,y2],'#f4e5ca',2);
+          state.line3([cx-w/2,z,(y1+y2)/2],[cx+w/2,z,(y1+y2)/2],'#f4e5ca',2);
+        }
+      }else{
+        const x=wall.side==='west'?-.012:hw+.012;
+        for(let z=0;z<=5;z+=1.18)state.line3([x,z,lo],[x,z,hi],'#8b6344',2.3);
+        const z1=1.92,z2=2.86,y1=3.99,y2=5.13;
+        state.quad3([x,z1,y1],[x,z2,y1],[x,z2,y2],[x,z1,y2],'#87bcb1','#f0dec0');
+        state.line3([x,(z1+z2)/2,y1],[x,(z1+z2)/2,y2],'#ecddc5',2);
+        state.line3([x,z1,(y1+y2)/2],[x,z2,(y1+y2)/2],'#ecddc5',2);
+      }
+    }
+    for(const y of [2.96,5.82]){
+      state.line3([0,5.012,y],[hw,5.012,y],'#73523b',2.6);
+      state.line3([hw+.012,0,y],[hw+.012,5,y],'#73523b',2.6);
+    }
+  }
+  function drawChimneyCap051(){
+    const o=state.chimneyObject;if(!o||state.currentHouseWidth()<9)return;
+    const x=state.currentHouseWidth()+.055,z=o.z+.02,w=.38,d=Math.max(.74,o.d*.9),top=7.53;
+    state.box3(x-.04,z-.04,w+.08,d+.08,.14,['#685b4f','#978572','#c5b49b'],top-.14);
+    state.box3(x+.06,z+.07,w-.12,d-.14,.04,['#51443e','#706359','#8e8176'],top-.002);
+  }
   function draw() {
     state.frame++;
     state.ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
@@ -4699,8 +4755,10 @@
           const hw = state.currentHouseWidth(), offset = 0.65;
           state.poly([[0, 0], [hw, 0], [hw, 5], [0, 5]].map(([x, z]) => state.P(x + offset, z + offset, 8e-3)), "#152a1640");
           state.drawOuterShell();
-          state.roof();
+          drawUpperExterior051();
           state.drawExternalChimney();
+          state.roof();
+          drawChimneyCap051();
         }
       }
     }];
@@ -7942,7 +8000,7 @@
     if (sunlight < 0.85) {
       state.wc.save();
       state.wc.globalCompositeOperation = "destination-out";
-      const lamps = state.fixedSolids.filter((o) => o.label === "luminaria" && !o.hidden);
+      const lamps = state.reveal() ? state.fixedSolids.filter((o) => o.label === "luminaria" && !o.hidden) : [];
       for (let i = 0; i < lamps.length; i++) {
         if (!state.game.lamps[i]) continue;
         const lamp = lamps[i], pt = state.P(lamp.x + lamp.w / 2, lamp.z + lamp.d / 2, 0.9);
@@ -7958,67 +8016,57 @@
       }
       state.wc.restore();
     }
-    if (state.climate.weather === "rain" || state.climate.weather === "wind" || state.climate.weather === "sand" || state.climate.weather === "snow") {
-      const targetCount = state.climate.weather === "rain" ? Math.min(380, Math.floor(w * h / 1700)) : Math.min(240, Math.floor(w * h / 3500));
-      while (state.weatherParticles.length < targetCount) state.weatherParticles.push({
-        x: Math.random() * w,
-        y: Math.random() * h,
-        v: 0.5 + Math.random(),
-        length: 8 + Math.random() * 18
+    // Clima com coordenadas reais no mapa: ao girar a camera, partículas não giram junto.
+    if (["rain","wind","sand","snow"].includes(state.climate.weather)) {
+      const kind=state.climate.weather;
+      const count=kind==='rain'?245:kind==='snow'?185:140;
+      const radius=26;
+      while(state.weatherParticles.length<count)state.weatherParticles.push({
+        x:state.camX+(Math.random()-.5)*radius*2,
+        z:state.camZ+(Math.random()-.5)*radius*2,
+        y:1+Math.random()*13,
+        v:.55+Math.random()*1.3,
+        seed:Math.random()*100
       });
-      if (state.weatherParticles.length > targetCount) state.weatherParticles.length = targetCount;
-      state.wc.save();
-      clipIndoorWeather(state.wc);
-      state.wc.lineCap = "round";
-      for (const p of state.weatherParticles) {
-        const rain = state.climate.weather === "rain", snow = state.climate.weather === "snow";
-        p.x += (snow ? 30 : rain ? -110 : state.climate.weather === "sand" ? 180 : 250) * dt * p.v;
-        p.y += (snow ? 75 : rain ? 600 : state.climate.weather === "sand" ? 38 : -15) * dt * p.v;
-        if (p.y > h + 15 || p.x > w + 25 || p.y < -25 || p.x < -25) {
-          if(snow){p.x=Math.random()*w; p.y=-10-Math.random()*65;}
-          else {p.x=rain?Math.random()*w:-20;p.y=rain?-15:Math.random()*h;}
+      state.weatherParticles.length=count;
+      state.wc.save();clipIndoorWeather(state.wc);
+      state.wc.lineCap='round';
+      for(const p of state.weatherParticles){
+        const snow=kind==='snow',rain=kind==='rain';
+        const windX=rain?-.55:kind==='sand'?2.15:snow?.21:1.5;
+        const windZ=rain?.12:kind==='sand'?.45:snow?-.12:-.28;
+        p.x+=dt*windX*p.v; p.z+=dt*windZ*p.v;
+        p.y-=dt*(rain?11:snow?1.15:kind==='sand'?.42:.2)*p.v;
+        if(p.y<0 || Math.abs(p.x-state.camX)>radius || Math.abs(p.z-state.camZ)>radius){
+          p.x=state.camX+(Math.random()-.5)*radius*2;
+          p.z=state.camZ+(Math.random()-.5)*radius*2;
+          p.y=4+Math.random()*11;
         }
-        state.wc.strokeStyle = snow ? "rgba(242,250,255,.92)" : rain ? "rgba(188,218,249,.57)" : state.climate.weather === "sand" ? "rgba(218,184,123,.58)" : "rgba(222,244,216,.32)";
-        state.wc.lineWidth = snow ? 2.7 : rain ? 1.2 : state.climate.weather === "wind" ? 1.25 : 2;
-        if (snow) {
-          state.wc.fillStyle = "rgba(244,249,255,.88)";
-          state.wc.beginPath();
-          state.wc.arc(p.x, p.y, 1.3 + p.v * 0.9, 0, Math.PI * 2);
-          state.wc.fill();
-        } else {
-          state.wc.beginPath();
-          state.wc.moveTo(p.x, p.y);
-          state.wc.lineTo(p.x + (rain ? -6 : p.length), p.y + (rain ? p.length * 1.9 : state.climate.weather === "wind" ? -3 : 6));
-          state.wc.stroke();
+        const [px,py]=state.P(p.x,p.z,p.y);
+        if(px<-30||px>w+30||py<-60||py>h+40)continue;
+        state.wc.strokeStyle=snow?'rgba(250,252,255,.88)':rain?'rgba(186,216,250,.54)':kind==='sand'?'rgba(222,180,112,.68)':'rgba(219,239,215,.35)';
+        if(snow){
+          state.wc.fillStyle='rgba(250,251,255,.90)';state.wc.beginPath();
+          state.wc.arc(px,py,1.15+p.v*.5,0,Math.PI*2);state.wc.fill();
+        }else{
+          const end=state.P(p.x+windX*.16,p.z+windZ*.16,p.y-(rain?.62:.1));
+          state.wc.lineWidth=rain?1.15:1.8;
+          state.wc.beginPath();state.wc.moveTo(px,py);state.wc.lineTo(end[0],end[1]);state.wc.stroke();
         }
       }
       state.wc.restore();
-    } else state.weatherParticles = [];
-    if (state.climate.weather === "meteor") {
-      if (state.meteorTrails.length < 3 && Math.random() < dt * 0.64) state.meteorTrails.push({
-        x: Math.random() * w,
-        y: -30,
-        vel: 290 + Math.random() * 250,
-        life: 1.7
-      });
-      for (let i = state.meteorTrails.length - 1; i >= 0; i--) {
-        const m = state.meteorTrails[i];
-        m.x -= m.vel * dt * 0.65;
-        m.y += m.vel * dt;
-        m.life -= dt;
-        state.wc.strokeStyle = "rgba(255,210,115," + Math.min(1, m.life) + ")";
-        state.wc.lineWidth = 3;
-        state.wc.beginPath();
-        state.wc.moveTo(m.x, m.y);
-        state.wc.lineTo(m.x + 70, m.y - 95);
-        state.wc.stroke();
-        state.wc.fillStyle = "#fff4d8";
-        state.wc.beginPath();
-        state.wc.arc(m.x, m.y, 3, 0, Math.PI * 2);
-        state.wc.fill();
-        if (m.life <= 0 || m.y > h + 100) state.meteorTrails.splice(i, 1);
+    }else state.weatherParticles=[];
+    if(state.climate.weather==='meteor'){
+      if(state.meteorTrails.length<3&&Math.random()<dt*.6)
+        state.meteorTrails.push({x:state.camX+(Math.random()-.5)*30,z:state.camZ+(Math.random()-.5)*30,y:10+Math.random()*6,life:1.5,vel:6+Math.random()*4});
+      for(let i=state.meteorTrails.length-1;i>=0;i--){
+        const m=state.meteorTrails[i];m.x-=dt*m.vel*.8;m.y-=dt*m.vel*1.5;m.life-=dt;
+        const from=state.P(m.x,m.z,m.y),to=state.P(m.x+1.8,m.z,m.y+1.6);
+        state.wc.strokeStyle='rgba(255,211,135,'+Math.min(1,Math.max(0,m.life))+')';
+        state.wc.lineWidth=2.8;state.wc.beginPath();state.wc.moveTo(from[0],from[1]);state.wc.lineTo(to[0],to[1]);state.wc.stroke();
+        if(m.life<=0||m.y<0)state.meteorTrails.splice(i,1);
       }
-    }
+    }else if(state.meteorTrails.length)state.meteorTrails=[];
     state.timePanel.textContent = (sunlight > 0.28 ? "\u2600\uFE0F" : "\u{1F319}") + " " + state.clockText() + " \xB7 " + (state.weatherTypes.find((x) => x[0] === state.climate.weather)?.[1] || "Limpo");
     if (state.climateBox.classList.contains("open")) {
       state.climateClock.textContent = state.clockText();
@@ -8481,417 +8529,232 @@ precision mediump float;in vec3 vCol;out vec4 outColor;void main(){outColor=vec4
   installAtmosphere();
   installOcclusion();
 
-  function installOrla050(){
-    state.maxFatigue=Math.max(35, state.SHEETS.traveler.CON*8); // protótipo D100 contínuo: CON determina reserva
-    state.fatigue=state.maxFatigue;
-    state.sprinting=false;state.runMouseBoth=false;state.snowAccum=0;
-    state.secondFloor=false;
-    state.stairArea={x:6.18,z:1.65,w:1.30,d:2.10};
-    const fatigueLabel=document.getElementById('orlaFatigueValue'), fatigueBar=document.getElementById('orlaFatigueBar');
-    const floorButton=document.getElementById('orlaFloorToggle');
-    const popupIds=['climate','inventory','equipment','sheet','appearancePanel','powersPanel','interaction'];
-    const popupButtons=['climateBtn','inventoryBtn','equipmentBtn','sheetBtn','appearanceBtn','powersBtn'];
-    function positionPanels(){
-      const header=document.getElementById('top');
-      const h=header?.getBoundingClientRect();
-      document.documentElement.style.setProperty('--orla-panel-top',Math.max(62,Math.ceil(h?.bottom||65)+8)+'px');
-    }
-    positionPanels();window.addEventListener('resize',positionPanels);
-    new ResizeObserver(positionPanels).observe(document.getElementById('top'));
-    function hidePanels(except=''){
-      for(const id of popupIds){if(id!==except)document.getElementById(id)?.classList.remove('open');}
-    }
-    // Captura antes dos eventos antigos: ao abrir um painel fecha os demais.
-    document.addEventListener('pointerdown',e=>{
-      const source=e.target;
-      const btn=source.closest?.('button');
-      const panel=source.closest?.('#'+popupIds.join(',#'));
-      if(panel)return;
-      if(btn&&popupButtons.includes(btn.id)){
-        const target={climateBtn:'climate',inventoryBtn:'inventory',equipmentBtn:'equipment',sheetBtn:'sheet',appearanceBtn:'appearancePanel',powersBtn:'powersPanel'}[btn.id];
-        hidePanels(target);return;
-      }
-      if(!source.closest?.('#top')&&!source.closest?.('#editor'))hidePanels();
-    },true);
-    const oldCloseClimate=state.closeClimate;
-    // Force every popup into the same responsive top anchor; keep custom open/close logic.
-    const oldDrawInner=state.drawInnerScene;
-    function drawStair(){
-      if(!state.inside(state.player.x,state.player.z)||state.secondFloor)return;
-      const a=state.stairArea;
-      for(let i=0;i<11;i++){
-        const z=a.z+i*a.d/11;
-        state.box3(a.x,z,a.w,a.d/11+.01,.12+i*.21,['#735137','#9a7048','#c49b65'],i*.21);
-      }
-      state.line3([a.x-.08,a.z,0.15],[a.x-.08,a.z+a.d,2.65],'#e5c89d',3);
-      state.line3([a.x+a.w+.08,a.z,.15],[a.x+a.w+.08,a.z+a.d,2.65],'#e5c89d',3);
-    }
-    function drawUpperFloor(){
-      const hw=state.currentHouseWidth(),rise=2.84,a=state.stairArea;
-      const gap=.10, left=Math.max(.08,a.x-gap),right=Math.min(hw-.08,a.x+a.w+gap);
-      const front=Math.max(.08,a.z-gap),back=Math.min(4.92,a.z+a.d+gap);
-      const baseP=state.P;
-      state.P=(x,z,y=0)=>baseP(x,z,y+rise);
-      try{
-        function floorRect(x,z,w,d){if(w>.04&&d>.04)state.rectFloor(x,z,w,d,'#996b43');}
-        // Piso físico com abertura que acompanha a ESCADA, inclusive após realocá-la.
-        floorRect(.08,.08,left-.08,4.84);
-        floorRect(right,.08,hw-.08-right,4.84);
-        floorRect(left,.08,right-left,front-.08);
-        floorRect(left,back,right-left,4.92-back);
-        for(let z=.24;z<4.92;z+=.29){
-          state.line3([.10,z,.06],[left,z,.06],'#cda070',.7);
-          state.line3([right,z,.06],[hw-.10,z,.06],'#cda070',.7);
-        }
-        const railing='#e0c99d';
-        state.wallX(left,front,back,.72,railing);
-        state.wallX(right,front,back,.72,railing);
-        // Sem guarda-corpo no lado de chegada da escada.
-        if(a.rot===0||a.rot===2){
-          state.wallZ(a.rot===0?back:front,left,right,.72,railing);
-        }else{
-          state.wallZ(front,left,right,.72,railing);
-          state.wallZ(back,left,right,.72,railing);
-        }
-        state.wallZ(0,.08,hw-.08,.48,'#e1caab');
-        state.wallX(0,.08,4.92,.48,'#e1caab');
-        state.wallX(hw,.08,4.92,.48,'#e1caab');
-        state.wallZ(5,.08,hw-.08,.48,'#e1caab');
-      }finally{state.P=baseP;}
-      state.character();
-    }
-    state.drawInnerScene=()=>{
-      if(state.secondFloor){drawUpperFloor();return;}
-      oldDrawInner();
-    };
-    const originalSupport=state.supportHeight;
-    state.supportHeight=(x,z)=>state.secondFloor&&state.inside(x,z)?2.84:originalSupport(x,z);
-    const originalWalk=state.canWalk;
-    state.canWalk=(x,z,ignore)=>state.secondFloor ? x>.35&&x<state.currentHouseWidth()-.35&&z>.35&&z<4.65&&!(x>6.10&&x<7.63&&z>1.58&&z<3.82) : originalWalk(x,z,ignore);
-    const originalMove=state.move;
-    state.move=(dx,dz,dt)=>{
-      if(!state.secondFloor)return originalMove(dx,dz,dt);
-      const oldWalls=state.wallBarriers;
-      state.wallBarriers=()=>[];
-      try{return originalMove(dx,dz,dt);}finally{state.wallBarriers=oldWalls;}
-    };
-    function staircaseNear(){
-      const a=state.stairArea;
-      const cx=a.x+a.w/2,cz=a.z+a.d/2;
-      return state.inside(state.player.x,state.player.z)&&Math.hypot(state.player.x-cx,state.player.z-cz)<2.15;
-    }
-    function switchFloor(){
-      if(!staircaseNear()&&!state.secondFloor){state.toast('Aproxime-se da escada no centro da sala.');return;}
-      state.secondFloor=!state.secondFloor;
-      state.target=null;
-      state.player.x=state.secondFloor?6.0:6.75;
-      state.player.z=state.secondFloor?3.95:3.7;
-      state.player.elevation=state.secondFloor?2.84:0;
-      state.toast(state.secondFloor?'Segundo andar · pressione E para descer.':'Térreo · pressione E perto da escada para subir.');
-    }
-    floorButton.addEventListener('click',switchFloor);
-    window.addEventListener('keydown',e=>{
-      if(e.key.toLowerCase()==='e'&&!e.repeat&&(state.secondFloor||staircaseNear())&&!e.target.closest?.('input,textarea,select')){
-        e.stopImmediatePropagation();e.preventDefault();switchFloor();
-      }
-    },true);
-    // Makes wood available for testing without modifying the inventory of existing saves.
-    if(!state.game.stores.inventory.includes('wood') && !state.game.droppedItems.some(it=>it.type==='wood'&&it.x>7&&it.x<10&&it.z<5)){
-      for(let i=0;i<3;i++){state.game.droppedItems.push({type:'wood',x:8.24+i*.25,z:2.55});state.game.stores.floor.push('wood');}
-    }
-    // Accessible 'wood stock' action to test fireplace without uncertain right-click drag interactions.
-    const stock=document.createElement('button');
-    stock.id='orlaWoodTest';stock.textContent='🪵 Lenha para teste';
-    stock.title='Aproxime-se da lareira para apanhar lenha de teste';
-    stock.style.cssText='position:fixed;right:12px;bottom:11px;z-index:14;background:#293b30;color:#eed2a4;border:1px solid #96816b;border-radius:7px;padding:7px 10px;cursor:pointer';
-    document.body.append(stock);
-    stock.onclick=()=>{
-      if(!state.inside(state.player.x,state.player.z)||Math.hypot(state.player.x-9.45,state.player.z-1.7)>2.7)return state.toast('Aproxime-se da lareira para apanhar lenha.');
-      if(state.game.stores.inventory.length<40){state.game.stores.inventory.push('wood');state.inventoryDraw();state.saveGame();state.toast('Lenha recebida: segure-a e clique com o direito na lareira.');}
-      else state.toast('Mochila cheia. Pegue lenha do chão.');
-    };
-    state.fatigue=state.maxFatigue;
-    // animation HUD + recovery; avoid replacing core game tick.
-    let last=performance.now();
-    const hud=()=>{
-      let now=performance.now(),dt=Math.min(.1,(now-last)/1000);last=now;
-      if(!state.sprinting&&!state.godMode())state.fatigue=Math.min(state.maxFatigue,state.fatigue+dt*2.1);
-      if(state.godMode())state.fatigue=state.maxFatigue;
-      const v=Math.max(0,Math.round(state.fatigue));
-      fatigueLabel.textContent=state.godMode()?'∞':`${v}/${state.maxFatigue}`;
-      fatigueBar.max=state.maxFatigue;fatigueBar.value=v;
-      floorButton.style.display=state.inside(state.player.x,state.player.z)?'block':'none';
-      floorButton.textContent=state.secondFloor?'⬇ Descer (E)':staircaseNear()?'⬆ Subir (E)':'⬆ Escada: aproxime-se';
-      requestAnimationFrame(hud);
-    };hud();
-    window.addEventListener('pointerup',()=>{state.runMouseBoth=false},true);
-    window.addEventListener('blur',()=>{state.runMouseBoth=false},true);
-    state.__orla050={switchFloor,staircaseNear};
-  }
-
-
-  // --- Orla v0.51: escada física, dois pavimentos e editor de construção ---
   function installOrla051(){
-    const RISE=2.84, mainWidth=()=>state.currentHouseWidth();
-    const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
-    const stair=state.stairArea;
-    stair.rot=0;
-    let stored=null;
-    try{stored=JSON.parse(localStorage.getItem('orla-stair-house2-v051')||'null');}catch(_){}
-    if(stored&&[stored.x,stored.z,stored.w,stored.d,stored.rot].every(Number.isFinite)){
-      Object.assign(stair,stored);
-    }
-    stair.h=RISE;
-    const saveStair=()=>{try{localStorage.setItem('orla-stair-house2-v051',JSON.stringify(stair));}catch(_){};state.saveGame();};
-    // Uma escada orientada: quatro acessos possíveis, altura contínua ao percorrer os degraus.
-    function footProgress(x,z){
-      if(stair.rot===0)return (stair.z+stair.d-z)/stair.d;
-      if(stair.rot===1)return (x-stair.x)/stair.w;
-      if(stair.rot===2)return (z-stair.z)/stair.d;
-      return (stair.x+stair.w-x)/stair.w;
-    }
-    function stairContains(x,z,pad=.04){return x>=stair.x-pad&&x<=stair.x+stair.w+pad&&z>=stair.z-pad&&z<=stair.z+stair.d+pad;}
-    function inHouse(x,z){return x>.25&&x<mainWidth()-.25&&z>.25&&z<4.75;}
-    function landings(){
-      const p=stair.rot;
-      const start=p===0?[stair.x+stair.w/2,stair.z+stair.d+.28]:p===1?[stair.x-.28,stair.z+stair.d/2]:p===2?[stair.x+stair.w/2,stair.z-.28]:[stair.x+stair.w+.28,stair.z+stair.d/2];
-      const end=p===0?[stair.x+stair.w/2,stair.z-.28]:p===1?[stair.x+stair.w+.28,stair.z+stair.d/2]:p===2?[stair.x+stair.w/2,stair.z+stair.d+.28]:[stair.x-.28,stair.z+stair.d/2];
-      return {start,end};
-    }
-    function rotateStair(){
-      const cx=stair.x+stair.w/2,cz=stair.z+stair.d/2;
-      [stair.w,stair.d]=[stair.d,stair.w];stair.x=cx-stair.w/2;stair.z=cz-stair.d/2;
-      stair.rot=(stair.rot+1)%4;saveStair();refreshEditor();
-      state.toast('Escada girada 90°. O sentido dos degraus e do acesso também mudou.');
-    }
-    function stairElevation(x,z){return clamp(footProgress(x,z))*RISE;}
-    const oldMove=state.move,oldWalk=state.canWalk,oldSupport=state.supportHeight;
-    let stairMovement=false;
-    // Envelopa a função central de movimento. Sem alterar as colisões fora da escada.
-    state.canWalk=(x,z,ignored)=>{
-      if(stairMovement && stairContains(x,z,.18)) return inHouse(x,z);
-      if(state.secondFloor){
-        if(!inHouse(x,z))return false;
-        // O vazio da escada não é um piso. Entrada nele só pela escada.
-        return !stairContains(x,z,0.02);
-      }
-      return oldWalk(x,z,ignored);
+    const rise=2.84,wallX=3.6;
+    const stair={x:3.78,z:.63,w:1.18,d:3.12,dir:0}; // encostada na divisória, subida em direção ao norte
+    try{Object.assign(stair,JSON.parse(localStorage.getItem('orla-casa2-stair')||'{}'));}catch(_){}
+    state.stairArea=stair;
+    state.secondFloor=false;
+    state.onStairs=false;
+    state.fatigue=state.maxFatigue=Math.max(35,state.SHEETS.traveler.CON*8);
+    const fatigue=document.getElementById('orlaFatigue');
+    const floorButton=document.getElementById('orlaFloorToggle');
+    const fatigueText=document.getElementById('orlaFatigueValue');
+    const fatigueBar=document.getElementById('orlaFatigueBar');
+    const popupIds=['climate','inventory','equipment','sheet','appearancePanel','powersPanel','interaction'];
+    const buttonToPanel={climateBtn:'climate',inventoryBtn:'inventory',equipmentBtn:'equipment',sheetBtn:'sheet',appearanceBtn:'appearancePanel',powersBtn:'powersPanel'};
+    const positionPanels=()=>{const h=document.getElementById('top').getBoundingClientRect();document.documentElement.style.setProperty('--orla-panel-top',Math.max(58,Math.ceil(h.bottom)+8)+'px')};
+    positionPanels();window.addEventListener('resize',positionPanels);
+    if(typeof ResizeObserver==='function')new ResizeObserver(positionPanels).observe(document.getElementById('top'));
+    document.addEventListener('pointerdown',e=>{
+      const b=e.target.closest?.('button');const panel=e.target.closest?.('#'+popupIds.join(',#'));
+      if(panel)return;
+      const keep=b?buttonToPanel[b.id]:null;
+      for(const id of popupIds)if(id!==keep)document.getElementById(id)?.classList.remove('open');
+    },true);
+    // Escadaria sem teleporte: suporte vertical acompanha a caminhada em todos os degraus.
+    const onRamp=(x,z)=>x>stair.x-.04&&x<stair.x+stair.w+.04&&z>=stair.z-.03&&z<=stair.z+stair.d+.05;
+    const progress=(x,z)=>[ (stair.z+stair.d-z)/stair.d, (x-stair.x)/stair.w, (z-stair.z)/stair.d, (stair.x+stair.w-x)/stair.w ][(stair.dir||0)%4];
+    const rampY=(x,z)=>Math.max(0,Math.min(rise,progress(x,z)*rise));
+    const bottomPoint=()=>stair.dir===0?[stair.x+stair.w/2,stair.z+stair.d]:stair.dir===1?[stair.x,stair.z+stair.d/2]:stair.dir===2?[stair.x+stair.w/2,stair.z]:[stair.x+stair.w,stair.z+stair.d/2];
+    const topPoint=()=>stair.dir===0?[stair.x+stair.w/2,stair.z]:stair.dir===1?[stair.x+stair.w,stair.z+stair.d/2]:stair.dir===2?[stair.x+stair.w/2,stair.z+stair.d]:[stair.x,stair.z+stair.d/2];
+    const oldMove=state.move,oldCanWalk=state.canWalk,oldSupport=state.supportHeight,oldRender=state.drawInnerScene;
+    state.canWalk=(x,z,ignore)=>{
+      if(state.onStairs||onRamp(x,z))return state.inside(x,z)&&x>.28&&x<state.currentHouseWidth()-.28&&z>.25&&z<4.73;
+      if(state.secondFloor)return state.inside(x,z)&&x>.3&&x<state.currentHouseWidth()-.3&&z>.26&&z<4.72&&!onRamp(x,z);
+      return oldCanWalk(x,z,ignore);
     };
-    state.supportHeight=(x,z)=>{
-      if(stairContains(x,z,.08)&&state.inside(x,z))return stairElevation(x,z);
-      if(state.secondFloor&&inHouse(x,z))return RISE;
-      return oldSupport(x,z);
-    };
+    state.supportHeight=(x,z)=>onRamp(x,z)?rampY(x,z):state.secondFloor&&state.inside(x,z)?rise:oldSupport(x,z);
+    const oldWorldAt=state.worldAt;
+    state.worldAt=(mx,my)=>oldWorldAt(mx,my+((state.secondFloor&&!state.editMode)?rise*state.scale*state.zoom:0));
     state.move=(dx,dz,dt)=>{
-      const px=state.player.x,pz=state.player.z;
-      const nearStair=stairContains(px,pz,.37)||stairContains(px+dx*.17,pz+dz*.17,.37);
-      if(nearStair&&!state.godPhasing()){
-        const wasUpper=state.secondFloor;
-        const oldWalls=state.wallBarriers;
-        stairMovement=true;
-        state.wallBarriers=()=>[];
-        try{oldMove(dx,dz,dt);}finally{state.wallBarriers=oldWalls;stairMovement=false;}
-        const on=stairContains(state.player.x,state.player.z,.09);
-        if(on){
-          const p=clamp(footProgress(state.player.x,state.player.z));
-          state.player.elevation=p*RISE;
-          state.secondFloor=p>.955;
-        }else if(wasUpper){state.secondFloor=true;state.player.elevation=RISE;}
-        else if(state.player.elevation>RISE*.93 && inHouse(state.player.x,state.player.z))state.secondFloor=true;
+      const mag=Math.hypot(dx,dz);if(mag<.001)return;
+      const pace=(state.godMode()?5.0:Math.max(1.45,state.SHEETS.traveler.mov*.5))*(state.keys.has('c')?1.6:1)*dt;
+      const nx=state.player.x+dx/mag*pace,nz=state.player.z+dz/mag*pace;
+      const nearRamp=onRamp(state.player.x,state.player.z)||onRamp(nx,nz);
+      if(nearRamp&&state.inside(state.player.x,state.player.z)){
+        // Só percorre o comprimento da escada, impedindo deslizar pelas laterais.
+        if(!state.secondFloor&&!onRamp(state.player.x,state.player.z)&&!onRamp(nx,nz))return oldMove(dx,dz,dt);
+        state.onStairs=true;state.secondFloor=false;
+        state.player.x=Math.min(stair.x+stair.w-.12,Math.max(stair.x+.12,nx));
+        state.player.z=Math.max(stair.z-.16,Math.min(stair.z+stair.d+.13,nz));
+        state.player.elevation=rampY(state.player.x,state.player.z);
+        state.player.faceX=dx/mag;state.player.faceY=dz/mag;
+        state.player.step+=dt*10;state.walking=true;
+        const t=progress(state.player.x,state.player.z);
+        if(t>=.975){state.onStairs=false;state.secondFloor=true;state.player.elevation=rise;const q=topPoint();state.player.x=q[0]+(q[0]-bottomPoint()[0])*.035;state.player.z=q[1]+(q[1]-bottomPoint()[1])*.035;}
+        else if(t<=.02){state.onStairs=false;state.secondFloor=false;state.player.elevation=0;const q=bottomPoint();state.player.x=q[0]+(q[0]-topPoint()[0])*.035;state.player.z=q[1]+(q[1]-topPoint()[1])*.035;}
         return;
       }
-      oldMove(dx,dz,dt);
+      if(state.secondFloor){
+        // Evita as colisões do térreo serem aplicadas no pavimento superior.
+        const walls=state.wallBarriers;state.wallBarriers=()=>[];
+        try{return oldMove(dx,dz,dt);}finally{state.wallBarriers=walls;}
+      }
+      return oldMove(dx,dz,dt);
     };
-    // A v0.50 só teleportava por E. Agora o E fica como alternativa de acessibilidade
-    // e o personagem também sobe/ desce caminhando na escada.
-    const oldInner=state.drawInnerScene;
-    const oldRoof=state.roof,oldShell=state.drawOuterShell,oldChimney=state.drawExternalChimney;
-    function withHeight(y,fn){const saved=state.P;state.P=(x,z,h=0)=>saved(x,z,h+y);try{return fn();}finally{state.P=saved;}}
-    function orientedPoint(t,s){
-      if(stair.rot===0)return [stair.x+t*stair.w,stair.z+(1-s)*stair.d];
-      if(stair.rot===1)return [stair.x+s*stair.w,stair.z+t*stair.d];
-      if(stair.rot===2)return [stair.x+(1-t)*stair.w,stair.z+s*stair.d];
-      return [stair.x+(1-s)*stair.w,stair.z+(1-t)*stair.d];
-    }
-    function stairsDraw(){
-      // Each step has real width, depth, and height in world coordinates.
-      for(let i=0;i<12;i++){
-        const corners=[orientedPoint(0,i/12),orientedPoint(1,i/12),orientedPoint(0,(i+1)/12),orientedPoint(1,(i+1)/12)];
-        const xs=corners.map(p=>p[0]),zs=corners.map(p=>p[1]);
-        const x=Math.min(...xs),z=Math.min(...zs),w=Math.max(...xs)-x,d=Math.max(...zs)-z;
-        const top=RISE*(i+1)/12;
-        state.box3(x,z,w+.003,d+.003,top,['#6b4b36','#8b6344','#cba475']);
-      }
-      for(const t of [0,1]){
-        for(let i=0;i<6;i++){
-          const q=orientedPoint(t,i/5),ht=RISE*i/5;
-          state.box3(q[0]-.032,q[1]-.032,.064,.064,.56,['#624932','#886447','#c9ab7b'],ht);
+    function drawStair(){
+      const count=17;
+      for(let i=0;i<count;i++){
+        const t=i/count,top=(i+1)/count*rise,th=rise/count;
+        const horizontal=(stair.dir||0)%2===1;
+        const reversed=(stair.dir||0)===0||(stair.dir||0)===3;
+        if(horizontal){const x=reversed?stair.x+stair.w-(i+1)*stair.w/count:stair.x+i*stair.w/count;
+          state.box3(x,stair.z,stair.w/count+.014,stair.d,th,['#6b4a32','#926b48','#c49b68'],top-th);
+        }else{const z=reversed?stair.z+stair.d-(i+1)*stair.d/count:stair.z+i*stair.d/count;
+          state.box3(stair.x,z,stair.w,stair.d/count+.012,th,['#6b4a32','#926b48','#c49b68'],top-th);
         }
-        const a=orientedPoint(t,0),b=orientedPoint(t,1);
-        state.line3([a[0],a[1],.58],[b[0],b[1],RISE+.58],'#ead3a4',2.6);
+      }
+      const [bx,bz]=bottomPoint(),[tx,tz]=topPoint();
+      const offset=(stair.dir||0)%2===1?[0,stair.d*.45]:[stair.w*.45,0];
+      for(const sign of [-1,1]){
+        const dx=offset[0]*sign,dz=offset[1]*sign;
+        for(let i=0;i<=8;i++){
+          const t=i/8,x=bx+(tx-bx)*t+dx,z=bz+(tz-bz)*t+dz,y=t*rise;
+          state.line3([x,z,y+.13],[x,z,y+.87],'#b89469',2.3);
+        }
+        state.line3([bx+dx,bz+dz,1.00],[tx+dx,tz+dz,rise+1.00],'#e0c4a0',3.3);
       }
     }
-    function upstairsOuter(){
-      // Separate full-height upper walls from the ground-floor shell.
-      const hw=mainWidth();
-      const sides=[{side:'north',x:hw/2,z:0},{side:'south',x:hw/2,z:5},{side:'west',x:0,z:2.5},{side:'east',x:hw,z:2.5}];
-      sides.sort((a,b)=>state.painterDepth(a.x,a.z)-state.painterDepth(b.x,b.z));
-      withHeight(RISE,()=>{
-        for(const wall of sides){
-          const side=wall.side,h=2.93,cream='#ead4b0',trim='#73523c';
-          const opening=side==='north'?[4.05,5.20]:side==='south'?[7.65,8.85]:side==='west'?[1.6,2.55]:[1.7,2.55];
-          if(side==='north'||side==='south'){
-            const z=side==='north'?0:5,[lo,hi]=opening;
-            state.wallZ(z,0,lo,h,cream);state.wallZ(z,hi,hw,h,cream);
-            state.wallZ(z,lo,hi,.89,cream);
-            state.quad3([lo,z,2.10],[hi,z,2.10],[hi,z,h],[lo,z,h],cream);
-            state.quad3([lo,z,.89],[hi,z,.89],[hi,z,2.10],[lo,z,2.10],'#8cbdac','#d3d0ab');
-            state.line3([(lo+hi)/2,z,.89],[(lo+hi)/2,z,2.10],'#ede6c4',2);
-            state.line3([lo,z,1.49],[hi,z,1.49],'#ede6c4',2);
-            state.line3([0,z,h],[hw,z,h],trim,3);
-            for(let x=0;x<hw;x+=1.28){if(x>lo&&x<hi)continue;state.line3([x,z,.05],[x,z,h],trim,2.7);}
-          }else{
-            const x=side==='west'?0:hw,[lo,hi]=opening;
-            state.wallX(x,0,lo,h,cream);state.wallX(x,hi,5,h,cream);
-            state.wallX(x,lo,hi,.88,cream);
-            state.quad3([x,lo,2.11],[x,hi,2.11],[x,hi,h],[x,lo,h],cream);
-            state.quad3([x,lo,.88],[x,hi,.88],[x,hi,2.11],[x,lo,2.11],'#82b4a3','#d6d8b5');
-            state.line3([x,(lo+hi)/2,.88],[x,(lo+hi)/2,2.11],'#e1e3cc',2);
-            state.line3([x,0,h],[x,5,h],trim,3);
-            for(let z=0;z<5;z+=1.20){if(z>lo&&z<hi)continue;state.line3([x,z,.05],[x,z,h],trim,2.7);}
+    function upperFloor(){
+      const hw=state.currentHouseWidth();const proj=state.P;
+      const at=(fn)=>{state.P=(x,z,y=0)=>proj(x,z,y+rise);try{fn();}finally{state.P=proj;}};
+      at(()=>{
+        const x1=stair.x-.09,x2=stair.x+stair.w+.09,z1=stair.z-.03,z2=stair.z+stair.d+.05;
+        const wood='#977049';
+        for(const [x,z,w,d] of [[.1,.1,x1-.1,4.8],[x2,.1,hw-x2-.1,4.8],[x1,.1,x2-x1,z1-.1],[x1,z2,x2-x1,4.9-z2]]){
+          if(w>.03&&d>.03){state.rectFloor(x,z,w,d,wood);
+            for(let row=z+.22;row<z+d;row+=.28)state.line3([x,row,.02],[x+w,row,.02],'#674d36',1);
           }
+        }
+        // Apenas guarda-corpos no vão. Quatro fachadas recortadas conforme a câmera.
+        state.wallX(x1,z1,z2,.73,'#d7b68a');state.wallX(x2,z1,z2,.73,'#d7b68a');
+        state.wallZ(z2,x1,x2,.70,'#d7b68a');
+        const near=state.painterDepth(hw/2,5)>state.painterDepth(hw/2,0);
+        const cuts=[
+          ['north',state.painterDepth(hw/2,0),()=>state.wallZ(0,0,hw,2.1,'#e2cba8')],
+          ['south',state.painterDepth(hw/2,5),()=>state.wallZ(5,0,hw,2.1,'#e2cba8')],
+          ['west',state.painterDepth(0,2.5),()=>state.wallX(0,0,5,2.1,'#e2cba8')],
+          ['east',state.painterDepth(hw,2.5),()=>state.wallX(hw,0,5,2.1,'#e2cba8')]
+        ];
+        const mid=state.painterDepth(hw/2,2.5);
+        cuts.sort((a,b)=>a[1]-b[1]);
+        for(const [side,depth,draw] of cuts){
+          if(depth<=mid)draw();
+          else if(side==='north'||side==='south')state.wallZ(side==='north'?0:5,0,hw,.39,'#e2cba8');
+          else state.wallX(side==='west'?0:hw,0,5,.39,'#e2cba8');
         }
       });
     }
-    state.drawOuterShell=()=>{oldShell();if(!state.houseContext) upstairsOuter();};
-    state.roof=()=>{if(state.houseContext)return oldRoof();withHeight(RISE,oldRoof);};
-    // The chimney must reach above the new roof ridge.
-    state.drawExternalChimney=()=>{
-      if(state.houseContext)return oldChimney();
-      const o=state.chimneyObject, x=mainWidth()+.08,z=o.z+.02;
-      // Only the part above the roof is drawn in front of the roof.
-      const top=7.35;
-      state.box3(x,z,.41,Math.max(.74,o.d*.9),1.17,['#877365','#b8a18a','#d5c0a6'],6.18);
-      state.box3(x-.04,z-.04,.49,Math.max(.82,o.d*.9+.08),.14,['#766858','#95816a','#c5b39b'],top-.10);
-      if(state.game.fireplace.lit&&state.game.fireplace.wood>0){
-        const t=performance.now()/1000;
-        for(let i=0;i<4;i++){
-          const rise=((t*.27+i*.24)%1),p=state.P(x+.22,z+.38,top+.15+rise*1.35);
-          state.ctx.save();state.ctx.globalAlpha=(1-rise)*.28;state.ctx.fillStyle='#b8b8ba';state.ctx.beginPath();state.ctx.arc(p[0],p[1],(5+rise*6)*state.zoom,0,7);state.ctx.fill();state.ctx.restore();
-        }
-      }
-    };
-    // Render the actual stair geometry above the existing ground-floor floor.
     state.drawInnerScene=()=>{
-      oldInner();
-      if(state.houseContext)return;
-      if(!state.secondFloor)stairsDraw();
-      // Boundary walls and railing of the upper floor remain visible in cutaway mode.
       if(state.secondFloor){
-        withHeight(RISE,()=>{
-          const hw=mainWidth(),height=.58;
-          state.wallZ(0,0,hw,height,'#d8c6a7');
-          state.wallX(0,0,5,height,'#d8c6a7');
-          state.wallX(hw,0,5,height,'#d8c6a7');
-          state.wallZ(5,0,hw,height,'#d8c6a7');
-        });
+        // Térreo existente continua visível abaixo, sem duplicar o avatar.
+        const savedX=state.player.x,savedZ=state.player.z;
+        state.player.x=-90;state.player.z=-90;
+        try{oldRender();}finally{state.player.x=savedX;state.player.z=savedZ;}
+        upperFloor();state.character();
+      } else {
+        oldRender();drawStair();
+        if(state.onStairs)state.character();
       }
     };
-    // Accessible support so the correct floor is always selected after a click or saved load.
-    const oldSwitch=state.__orla050?.switchFloor;
-    if(oldSwitch){
-      state.__orla050.switchFloor=()=>{oldSwitch();state.target=null;};
-    }
-    const options=document.createElement('div');options.id='orlaStairOptions';
-    function insideEditor(){return state.godMode()&&state.editMode;}
-    let movingStair=false,stairBeforeMove=null;
-    function moveStairStart(){stairBeforeMove={...stair};movingStair=true;state.toast('Posicione a escada com o mouse. Clique para confirmar, Esc cancela.');}
-    function cancelStair(){if(stairBeforeMove)Object.assign(stair,stairBeforeMove);stairBeforeMove=null;movingStair=false;refreshEditor();}
-    function updateStairCursor(e){
-      if(!movingStair)return;
-      const rect=state.canvas.getBoundingClientRect();
-      const p=state.worldAt(e.clientX-rect.left,e.clientY-rect.top);
-      const x=p.x-stair.w/2,z=p.z-stair.d/2;
-      if(x<.3||z<.3||x+stair.w>mainWidth()-.3||z+stair.d>4.7)return;
-      stair.x=x;stair.z=z;
-    }
-    state.canvas.addEventListener('pointermove',updateStairCursor,{passive:true});
-    state.canvas.addEventListener('pointerdown',e=>{
-      if(!movingStair)return;
-      e.stopImmediatePropagation();e.preventDefault();
-      if(e.button!==0)return;
-      movingStair=false;stairBeforeMove=null;saveStair();refreshEditor();state.toast('Escada realocada. Caminhe pelos degraus para testar.');
-    },true);
-    window.addEventListener('keydown',e=>{
-      if(movingStair&&e.key==='Escape'){e.stopImmediatePropagation();cancelStair();state.toast('Movimentação da escada cancelada.');}
-      if(movingStair&&['ArrowLeft','ArrowRight'].includes(e.key)){
-        e.stopImmediatePropagation();e.preventDefault();rotateStair();
+    // Controle E não teletransporta: só instrui a caminhar, mantendo a física contínua.
+    floorButton.onclick=()=>state.toast('Suba andando na escada, rente à parede divisória. Não há teletransporte.');
+    floorButton.title='Use WASD ou clique para caminhar pelos degraus';
+    const previousEditPlace=state.editPlaceAt;
+    state.editPlaceAt=(mx,my)=>{
+      if(state.editPlacing?.kind==='moveBaseStair'){
+        const p=state.worldAt(mx,my);
+        if(p.x-stair.w/2<3.65||p.x+stair.w/2>state.currentHouseWidth()-.12||p.z-stair.d/2<.16||p.z+stair.d/2>4.82){
+          state.toast('Escada fora dos limites.');return true;
+        }
+        stair.x=p.x-stair.w/2;stair.z=p.z-stair.d/2;
+        state.editPlacing=null;
+        localStorage.setItem('orla-casa2-stair',JSON.stringify(stair));state.saveGame();state.renderEditor();
+        state.toast('Escada realocada.');return true;
       }
-    },true);
-    let activeCategory='estrutura';
-    const labels={estrutura:'🏗 Estrutura',aberturas:'🚪 Aberturas',moveis:'🪑 Móveis',mundo:'🌲 Mundo',acoes:'⚙ Ações'};
-    function classify(btn){
-      const title=(btn.textContent||'').toLowerCase();
-      if(/parede|piso|telhado|escada|casa [12]|teto/.test(title))return 'estrutura';
-      if(/janela|porta/.test(title))return 'aberturas';
-      if(/mesa|cadeira|cama|baú|estante|barril|lâmpada/.test(title))return 'moveis';
-      if(/árvore|arbusto|pedra/.test(title))return 'mundo';
-      return 'acoes';
+      return previousEditPlace(mx,my);
+    };
+    const oldEditor=state.renderEditor;
+    let editorCategory='Estrutura';
+    const categories=['Estrutura','Aberturas','Móveis','Mundo','Ações'];
+    function categoryFor(label){
+      if(/Parede|Escada|Piso|Telhado|Casa/i.test(label))return 'Estrutura';
+      if(/Porta|Janela/i.test(label))return 'Aberturas';
+      if(/Mesa|Cama|Baú|Estante|Lâmpada|Cadeira|Barril|Armário/i.test(label))return 'Móveis';
+      if(/Árvore|Arbusto|Pedra/i.test(label))return 'Mundo';
+      return 'Ações';
     }
-    function refreshEditor(){
-      if(!insideEditor()){document.getElementById('orlaBuildCategories')?.remove();options.remove();return;}
-      const editor=state.editor;
-      if(!editor)return;
-      let bar=document.getElementById('orlaBuildCategories');
-      if(!bar){bar=document.createElement('div');bar.id='orlaBuildCategories';editor.insertBefore(bar,state.editorActions);}
-      bar.replaceChildren();
-      for(const [cat,name] of Object.entries(labels)){
-        const btn=document.createElement('button');btn.type='button';btn.textContent=name;btn.classList.toggle('active',activeCategory===cat);
-        btn.onclick=()=>{activeCategory=cat;refreshEditor();};bar.append(btn);
-      }
-      for(const btn of state.editorActions.querySelectorAll('button'))btn.style.display=classify(btn)===activeCategory?'':'none';
-      if(activeCategory==='estrutura'){
-        options.innerHTML='<strong style="color:#d9ebc8;font-size:12px">Casa 2 · Escada real</strong> <span style="font-size:11px;color:#b9c8ae">Direção e posição</span>';
-        const move=document.createElement('button');move.type='button';move.textContent='✥ Mover escada';move.onclick=moveStairStart;options.append(move);
-        const turn=document.createElement('button');turn.type='button';turn.textContent='↻ Girar escada 90°';turn.onclick=rotateStair;options.append(turn);
-        const stairsCreate=document.createElement('button');stairsCreate.type='button';stairsCreate.textContent='+ Escada modular';stairsCreate.onclick=()=>{state.editPlacing={kind:'component',item:'stairs'};state.toast('Clique para posicionar uma escada modular.');};options.append(stairsCreate);
-        const floorCreate=document.createElement('button');floorCreate.type='button';floorCreate.textContent='+ Piso superior';floorCreate.onclick=()=>{state.editPlacing={kind:'component',item:'floor'};state.toast('Piso modular: posicione e ajuste a altura no inspetor.');};options.append(floorCreate);
-        const roofCreate=document.createElement('button');roofCreate.type='button';roofCreate.textContent='+ Teto/telhado';roofCreate.onclick=()=>{state.editPlacing={kind:'component',item:'roof'};state.toast('Telhado modular: coloque e ajuste elevação no inspetor.');};options.append(roofCreate);
-        editor.append(options);
-      }else options.remove();
-    }
-    const prevRender=state.renderEditor;
-    state.renderEditor=()=>{prevRender();refreshEditor();};
-    state.renderEditor();
-    const fireButton=document.createElement('button');fireButton.id='orlaFireTest';fireButton.textContent='🔥 Abastecer / acender lareira';fireButton.title='Use lenha da mochila e depois acenda a lareira';document.body.append(fireButton);
-    const fireStatus=document.createElement('div');fireStatus.id='orlaStairHint';fireStatus.textContent='Caminhe pelos degraus para subir · E para alternar';document.body.append(fireStatus);
-    fireButton.addEventListener('click',()=>{
+    state.renderEditor=()=>{
+      oldEditor();
+      document.body.classList.toggle('orla-editor',!!state.editMode);
+      if(!state.editMode||!state.godMode())return;
+      const bar=state.editorActions;
+      state.editorButton('✥ Mover escada da Casa 2',()=>{state.editPlacing={kind:'moveBaseStair'};state.toast('Clique no local para mover a escada. Esc cancela.')});
+      state.editorButton('⟳ Girar escada 90°',()=>{
+        const cx=stair.x+stair.w/2,cz=stair.z+stair.d/2;
+        [stair.w,stair.d]=[stair.d,stair.w];stair.x=cx-stair.w/2;stair.z=cz-stair.d/2;
+        stair.dir=((stair.dir||0)+1)%4;
+        localStorage.setItem('orla-casa2-stair',JSON.stringify(stair));state.renderEditor();
+      });
+      const buttons=Array.from(bar.querySelectorAll(':scope > button'));
+      const tabs=document.createElement('div');tabs.id='orlaEditorGroups';
+      const contents=document.createElement('div');contents.id='orlaEditorContents';
+      for(const label of categories){const b=document.createElement('button');b.type='button';b.textContent=label;b.classList.toggle('selected',label===editorCategory);b.onclick=()=>{editorCategory=label;state.renderEditor();};tabs.append(b);}
+      for(const b of buttons)if(categoryFor(b.textContent)===editorCategory)contents.append(b);
+      bar.replaceChildren(tabs,contents);
+    };
+    // A lareira é a única fonte de fogo: madeira do inventário, clique direito ou E próximo.
+    const hearth=state.chimneyObject;
+    const closeToHearth=()=>state.inside(state.player.x,state.player.z)&&Math.hypot(state.player.x-(hearth.x+.18),state.player.z-(hearth.z+.4))<2.15;
+    const hearthAction=()=>{
+      if(!closeToHearth())return state.toast('Aproxime-se da lareira.');
       const f=state.game.fireplace;
-      if(f.wood<=0){
-        const store=state.game.stores.inventory;
-        const ix=store.indexOf('wood');
-        if(ix<0)return state.toast('Recolha a lenha perto da lareira ou use o botão de lenha de teste.');
-        store.splice(ix,1);f.wood=1;f.burn=42;f.lit=true;
-        state.inventoryDraw();state.saveGame();return state.toast('Uma lenha foi colocada. O fogo está aceso!');
+      const inv=state.game.stores.inventory;
+      const consumeWood=()=>{
+        if(state.handItem?.type==='wood'){state.handItem=null;return true;}
+        const i=inv.indexOf('wood');if(i<0)return false;inv.splice(i,1);return true;
+      };
+      if(!f.lit){
+        if(f.wood<1){if(!consumeWood())return state.toast('É preciso ter madeira na mochila ou na mão para acender a lareira.');f.wood=1;f.burn=42;}
+        f.lit=true;
+        state.toast('A lareira está acesa. Restam '+f.wood+' porções de madeira.');
+      }else if(state.handItem?.type==='wood'||inv.includes('wood')){
+        consumeWood();f.wood++;f.burn+=42;
+        state.toast('Você alimentou o fogo. Madeira: '+f.wood+'.');
+      }else{
+        f.lit=false;state.toast('Você apagou a lareira.');
       }
-      f.lit=!f.lit;if(f.lit&&f.burn<=0)f.burn=42;
-      state.saveGame();state.toast(f.lit?'Lareira acesa.':'Lareira apagada.');
-    });
-    function ui(){
-      const pos=state.player;
-      const nearFire=state.inside(pos.x,pos.z)&&!state.secondFloor&&Math.hypot(pos.x-9.5,pos.z-1.7)<2.5;
-      fireButton.style.display=nearFire?'block':'none';
-      fireButton.textContent=state.game.fireplace.lit?'🔥 Apagar lareira':state.game.fireplace.wood>0?'🔥 Acender lareira':'🪵 Abastecer e acender';
-      const nearStair=stairContains(pos.x,pos.z,.35);
-      fireStatus.style.display=nearStair?'block':'none';
-      if(nearStair)fireStatus.textContent=`Escada: ${Math.round(stairElevation(pos.x,pos.z)*100)/100} m / ${RISE} m · WASD para subir/descer`;
-      requestAnimationFrame(ui);
+      state.inventoryDraw();state.saveGame();
+    };
+    document.addEventListener('contextmenu',e=>{
+      if(e.target?.id!=='game'||!closeToHearth()||state.editMode)return;
+      const mx=e.clientX,my=e.clientY;
+      const at=state.P(hearth.x+.21,hearth.z+.45,.9);
+      if(Math.hypot(mx-at[0],my-at[1])>Math.max(80,state.scale*state.zoom*1.4))return;
+      e.preventDefault();e.stopImmediatePropagation();hearthAction();
+    },true);
+    document.addEventListener('keydown',e=>{
+      if(e.key.toLowerCase()==='e'&&!e.repeat&&!state.editMode&&!e.target.closest?.('input,textarea,select')&&closeToHearth()){
+        e.stopImmediatePropagation();e.preventDefault();hearthAction();
+      }
+    },true);
+    // Interface de status: Deus não apresenta fadiga; edição oculta medidores.
+    function status(){
+      document.body.classList.toggle('orla-god',state.godMode());
+      document.body.classList.toggle('orla-editor',!!state.editMode);
+      fatigue.style.display=(state.godMode()||state.editMode)?'none':'';
+      if(!state.godMode()){
+        const v=Math.max(0,Math.round(state.fatigue||0));fatigueText.textContent=`${v}/${state.maxFatigue}`;
+        fatigueBar.max=state.maxFatigue;fatigueBar.value=v;
+      }
+      floorButton.style.display=state.editMode||!state.inside(state.player.x,state.player.z)?'none':'block';
+      floorButton.textContent=state.onStairs?'↟ Caminhe pelos degraus':state.secondFloor?'↡ Desça andando':'↟ Suba caminhando';
+      requestAnimationFrame(status);
     }
-    ui();
-    state.__orla051={stair,landings,rotateStair,stairsDraw,saveStair,refreshEditor};
+    status();state.renderEditor();
+    state.__orla051={stair,hearthAction,categoryFor,upperFloor};
   }
-
-  installOrla050();
   installOrla051();
   if (new URLSearchParams(location.search).has("test")) window.__orlaTest = { state };
 })();
