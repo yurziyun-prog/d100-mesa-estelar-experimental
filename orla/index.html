@@ -115,27 +115,74 @@
 
   // src/construction/components.js
   var COMPONENTS = Object.freeze({
-    wall: { name: "Parede", w: 2, d: 0.15, h: 2.8, material: "plaster" },
-    door: { name: "Porta", w: 1.2, d: 0.15, h: 2.6, material: "wood" },
-    window: { name: "Janela", w: 1.4, d: 0.15, h: 2.8, material: "plaster" },
-    stairs: { name: "Escada", w: 1.1, d: 2.4, h: 1.5, material: "wood" },
-    floor: { name: "Piso", w: 2, d: 2, h: 0.08, material: "wood" },
-    roof: { name: "Telhado", w: 3, d: 2.6, h: 1.1, material: "metal" }
+    wall: {
+      name: "Parede",
+      w: 2,
+      d: 0.15,
+      h: 2.8,
+      material: "plaster"
+    },
+    door: {
+      name: "Porta",
+      w: 1.2,
+      d: 0.15,
+      h: 2.6,
+      material: "wood"
+    },
+    window: {
+      name: "Janela",
+      w: 1.4,
+      d: 0.15,
+      h: 2.8,
+      material: "plaster"
+    },
+    stairs: {
+      name: "Escada",
+      w: 1.1,
+      d: 2.4,
+      h: 1.5,
+      material: "wood"
+    },
+    floor: {
+      name: "Piso",
+      w: 2,
+      d: 2,
+      h: 0.08,
+      material: "wood"
+    },
+    roof: {
+      name: "Telhado",
+      w: 3,
+      d: 2.6,
+      h: 1.1,
+      material: "metal"
+    }
   });
   function createComponent(kind, x, z, id) {
     const spec = COMPONENTS[kind];
     if (!spec) throw Error("Componente desconhecido");
-    return { ...spec, kind, x: x - spec.w / 2, z: z - spec.d / 2, rot: 0, baseY: kind === "roof" ? 2.8 : 0, id, open: false, tint: "#b7a58a", component: true };
+    return {
+      ...spec,
+      kind,
+      x: x - spec.w / 2,
+      z: z - spec.d / 2,
+      rot: 0,
+      baseY: kind === "roof" ? 2.8 : 0,
+      id,
+      open: false,
+      tint: "#b7a58a",
+      component: true
+    };
   }
   function localSize(o) {
     return (o.rot || 0) % 2 ? [o.d, o.w] : [o.w, o.d];
   }
   function componentPoint(o, u, v, y = 0) {
-    // A rotação livre usa a geometria real projetada, não apenas troca largura/profundidade.
-    if (Number.isFinite(o.angle) && Math.abs(o.angle)>.0001 && isFurnitureInstance(o)) {
-      const c=Math.cos(o.angle*Math.PI/180),si=Math.sin(o.angle*Math.PI/180);
-      const dx=u-o.w/2,dz=v-o.d/2;
-      return [o.x+o.w/2+dx*c-dz*si,o.z+o.d/2+dx*si+dz*c,y+(o.baseY||0)];
+    if (Number.isFinite(o.angle) && Math.abs(o.angle) > 1e-4 && ["table", "bed", "chest", "shelf", "lamp", "chair", "barrel"].includes(o.kind)) {
+      const c = Math.cos(o.angle * Math.PI / 180), si = Math.sin(o.angle * Math.PI / 180);
+      const [width, depth] = localSize(o);
+      const dx = u - width / 2, dz = v - depth / 2;
+      return [o.x + o.w / 2 + dx * c - dz * si, o.z + o.d / 2 + dx * si + dz * c, y + (o.baseY || 0)];
     }
     const [w, d] = localSize(o), r = ((o.rot || 0) % 4 + 4) % 4;
     const a = u / w, b = v / d;
@@ -143,13 +190,24 @@
   }
   function componentRect(o, x, z, w, d) {
     const a = componentPoint(o, x, z), b = componentPoint(o, x + w, z + d);
-    return { x: Math.min(a[0], b[0]), z: Math.min(a[1], b[1]), w: Math.abs(a[0] - b[0]), d: Math.abs(a[1] - b[1]) };
+    return {
+      x: Math.min(a[0], b[0]),
+      z: Math.min(a[1], b[1]),
+      w: Math.abs(a[0] - b[0]),
+      d: Math.abs(a[1] - b[1])
+    };
   }
   function componentBarriers(o) {
     if (o.hidden || !o.component || o.kind === "floor" || o.kind === "roof" || o.kind === "stairs") return [];
     const [w, d] = localSize(o);
     if (o.kind === "door" && o.open) return [componentRect(o, 0, 0, 0.09, d), componentRect(o, w - 0.09, 0, 0.09, d), componentRect(o, 0.09, -(w - 0.18), 0.06, w - 0.18)];
-    return [{ x: o.x, z: o.z, w: o.w, d: o.d, h: o.h }];
+    return [{
+      x: o.x,
+      z: o.z,
+      w: o.w,
+      d: o.d,
+      h: o.h
+    }];
   }
   function componentSupport(o, x, z) {
     if (o.hidden || !o.component || x < o.x || x > o.x + o.w || z < o.z || z > o.z + o.d) return 0;
@@ -162,7 +220,10 @@
   function updateComponent(o, patch) {
     for (const key of ["x", "z", "baseY"]) if (key in patch && (!Number.isFinite(patch[key]) || Math.abs(patch[key]) > 40)) throw Error("Posi\xE7\xE3o deve estar entre \u221240 e 40 m.");
     for (const key of ["w", "d", "h"]) if (key in patch && (!Number.isFinite(patch[key]) || patch[key] < 0.05 || patch[key] > 12)) throw Error("Dimens\xE3o deve estar entre 0,05 e 12 m.");
-    const next = { ...o, ...patch }, [width] = localSize(next);
+    const next = {
+      ...o,
+      ...patch
+    }, [width] = localSize(next);
     if (["door", "window"].includes(o.kind) && (width < 0.4 || next.h < 0.5)) throw Error("Portas e janelas precisam de largura \u2265 0,4 m e altura \u2265 0,5 m.");
     if (patch.tint !== void 0 && !/^#[0-9a-f]{6}$/i.test(patch.tint)) throw Error("Cor inv\xE1lida.");
     if (patch.material !== void 0 && !["wood", "plaster", "metal", "stone"].includes(patch.material)) throw Error("Material inv\xE1lido.");
@@ -188,7 +249,9 @@
       const q = componentPoint(o, x / bw * w, z / bd * d, y / bh * o.h), dx = q[0] - state.camX, dz = q[1] - state.camZ, rx = dx * c - dz * si, rz = dx * si + dz * c;
       return [state.W * 0.5 + (rx - rz) * zoom * 0.87, state.H * 0.56 + (rx + rz) * zoom * 0.45 - q[2] * zoom];
     };
-    state.cameraYaw = yaw + (o.rot || 0) * Math.PI / 2;
+    state.cameraYaw = yaw + (Number.isFinite(o.angle) ? o.angle : (o.rot || 0) * 90) * Math.PI / 180;
+    const previousTransform = state.objectTransformActive;
+    state.objectTransformActive = true;
     if (base) Object.assign(base, { ...canonical, x: 0, z: 0, rot: 0, hidden: false });
     const quad = state.quad3;
     const tint = o.tint && o.tint !== "#b7a58a" ? o.tint : { metal: "#729a9f", stone: "#929588", plaster: "#d0c6a9" }[o.material];
@@ -239,6 +302,7 @@
       state.game.lamps = lamps;
       state.game.stores.shelf = shelf;
       state.shelfRows = rows;
+      state.objectTransformActive = previousTransform;
     }
   }
   function mix(a, b, t) {
@@ -246,31 +310,85 @@
     return "#" + [0, 2, 4].map((i) => Math.round(parseInt(expand(a).slice(i + 1, i + 3), 16) * (1 - t) + parseInt(b.slice(i + 1, i + 3), 16) * t).toString(16).padStart(2, "0")).join("");
   }
 
-  // src/construction/inspector.js
+  // src/construction/house-export.js
   var clone = (value) => JSON.parse(JSON.stringify(value));
+  function captureHouseInstance(house = null) {
+    const isBase = !house, kind = isBase ? "house2" : house.kind;
+    if (!["house1", "house2"].includes(kind)) throw Error("Selecione uma casa.");
+    const model = state.houseModels[kind], interior = isBase ? {
+      fixed: state.fixedSolids,
+      moveable: state.pushables,
+      stores: Object.fromEntries(Object.entries(state.game.stores).filter(([key]) => key !== "inventory")),
+      door: state.game.door,
+      chest: state.game.chest,
+      drawerOpen: state.game.drawerOpen,
+      lamps: state.game.lamps,
+      rug: state.game.rug,
+      droppedItems: state.game.droppedItems.filter((o) => state.inside(o.x, o.z)),
+      shelfRows: state.shelfRows,
+      fireplace: state.game.fireplace,
+      addedWindows: state.game.addedWindows || []
+    } : state.ensureHouseState(house);
+    const x = house?.x || 0, z = house?.z || 0;
+    const components = state.editDecor.filter((o) => o !== house && !o.hidden && o.component && o.x >= x && o.z >= z && o.x + o.w <= x + model.width && o.z + o.d <= z + model.depth).map((o) => ({ ...o, x: o.x - x, z: o.z - z }));
+    return clone({
+      format: "orla-house-instance",
+      schemaVersion: 1,
+      sourceVersion: "0.49",
+      modelId: model.id,
+      instanceId: house?.instanceId || "base-house2",
+      name: house?.name || model.name,
+      transform: { x, z, rot: house?.rot || 0 },
+      structure: { width: model.width, depth: model.depth, wallHeight: 2.96, roof: { type: "gable-red", ridge: 4.18 }, entrance: { x1: 3.05, x2: 4.23, z: 5 }, innerWall: { x: 3.6, z1: 0.1, z2: 2.28 }, addedWindows: interior.addedWindows || [] },
+      interior: { ...interior, stores: { ...interior.stores, inventory: [] } },
+      components,
+      componentAssociation: "Components wholly inside the footprint; standalone parts are not welded to the legacy shell."
+    });
+  }
+  function downloadHouseInstance(house = null) {
+    if (!state.godMode()) return;
+    const payload = captureHouseInstance(house), blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }), url = URL.createObjectURL(blob), a = document.createElement("a");
+    a.href = url;
+    a.download = payload.modelId + "-instancia.json";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1e3);
+    state.toast("Inst\xE2ncia exportada; modelo padr\xE3o preservado.");
+  }
+
+  // src/construction/inspector.js
+  var clone2 = (value) => JSON.parse(JSON.stringify(value));
   var past = [];
   var future = [];
-  var snapshot = () => clone({ fixed: state.fixedSolids, moving: state.pushables, decor: state.editDecor });
+  var snapshot = () => clone2({ fixed: state.fixedSolids, moving: state.pushables, decor: state.editDecor, addedWindows: state.game.addedWindows || [] });
+  var transactionDepth = 0;
   function restore(value) {
     for (const [list, saved] of [[state.fixedSolids, value.fixed], [state.pushables, value.moving]]) list.forEach((o, i) => {
       for (const key of Object.keys(o)) delete o[key];
       Object.assign(o, saved[i]);
     });
-    state.editDecor.splice(0, state.editDecor.length, ...clone(value.decor));
+    state.editDecor.splice(0, state.editDecor.length, ...clone2(value.decor));
     state.selected = null;
     state.editPlacing = null;
     state.saveGame();
     state.renderEditor();
+    state.game.addedWindows = clone2(value.addedWindows || []);
+    state.saveGame();
   }
   function sceneTransaction(action) {
+    if (transactionDepth) return action();
     const before = snapshot();
-    const result = action();
-    if (JSON.stringify(before) !== JSON.stringify(snapshot())) {
-      past.push(before);
-      if (past.length > 40) past.shift();
-      future.length = 0;
+    transactionDepth++;
+    try {
+      const result = action();
+      if (JSON.stringify(before) !== JSON.stringify(snapshot())) {
+        past.push(before);
+        if (past.length > 40) past.shift();
+        future.length = 0;
+      }
+      return result;
+    } finally {
+      transactionDepth--;
     }
-    return result;
   }
   function undoScene() {
     if (!state.godMode() || !past.length) return;
@@ -287,6 +405,8 @@
     if (!state.editMode || !state.godMode()) return;
     state.editorButton("\u21B6 Desfazer", undoScene);
     state.editorButton("\u21B7 Refazer", redoScene);
+    state.editorButton("Exportar Casa 2 base", () => downloadHouseInstance());
+    if (["house1", "house2"].includes(state.selected?.kind)) state.editorButton("Exportar casa selecionada", () => downloadHouseInstance(state.selected));
     for (const [kind, spec] of Object.entries(COMPONENTS)) state.editorButton("+ " + spec.name, () => {
       state.editPlacing = { kind: "component", item: kind };
       state.toast("Clique no terreno para adicionar " + spec.name.toLowerCase() + ". Esc cancela.");
@@ -350,175 +470,6 @@
     };
     state.editor.append(form);
   }
-
-  // Orla v0.48: ferramenta fantasma de posicionamento e janelas em paredes existentes.
-  function installPlacementPreview(){
-    const overlay=document.getElementById('placementPreview'),hint=document.getElementById('placementHelp');
-    const cx=overlay.getContext('2d');
-    let cursor={x:innerWidth/2,y:innerHeight/2},angle=0,previousMode=null;
-    const shapeDefaults={tree:[.5,.5,2.4],shrub:[.45,.45,.4],stone:[.65,.55,.5],house1:[7,5,3.1],house2:[10,5,3.1],table:[1.15,.7,.65],chair:[.5,.5,.8],bed:[1.5,.9,.4],chest:[.9,.7,.55],shelf:[.65,1.4,1.9],barrel:[.5,.5,.8],lamp:[.25,.25,1.3]};
-    const collide=(a,b,pad=0)=>a.x<b.x+b.w+pad&&a.x+a.w>b.x-pad&&a.z<b.z+b.d+pad&&a.z+a.d>b.z-pad;
-    const norm=(k)=>k==='create'||k==='move'||k==='component';
-    const originalPlace=state.editPlaceAt;
-    function wallSlotAt(p){
-      let best=null;
-      for(const o of state.editDecor){
-        if(o.hidden||!o.component||o.kind!=='wall')continue;
-        const long=Math.max(o.w,o.d),len=Math.min(1.05,long-.25);
-        if(len<.4)continue;
-        const longX=o.w>=o.d,along=longX?p.x-o.x:p.z-o.z;
-        const perpendicular=longX?Math.abs(p.z-o.z-o.d/2):Math.abs(p.x-o.x-o.w/2);
-        if(perpendicular>.55||along<.12||along>long-.12)continue;
-        const raw=Math.max(.08,Math.min(long-len-.08,along-len/2));
-        const r=((o.rot||0)%4+4)%4;
-        const u=((longX&&r===2)||(!longX&&r===3))?long-raw-len:raw;
-        const overlaps=(o.windowSlots||[]).some(s=>u<s.u+s.w+.08&&u+len>s.u-.08);
-        const option={wall:o,u,w:len,bottom:.86,top:Math.min(o.h-.14,2.13),valid:!overlaps,score:perpendicular};
-        if(!best||option.score<best.score)best=option;
-      }
-      // A casa original também é uma parede existente: abrir um vão real.
-      const hw=state.currentHouseWidth();
-      const sides=[{side:'north',p:p.z,u:p.x,length:hw},{side:'south',p:5-p.z,u:p.x,length:hw},{side:'west',p:p.x,u:p.z,length:5},{side:'east',p:hw-p.x,u:p.z,length:5}];
-      for(const q of sides){
-        if(Math.abs(q.p)>.48||q.u<.25||q.u>q.length-.25)continue;
-        const width=Math.min(1,q.length-.5),start=Math.max(.1,Math.min(q.length-width-.1,q.u-width/2));
-        const defaults=q.side==='north'?[[2,2.9]]:q.side==='south'?[[1.1,1.8],[3.05,4.23]]:q.side==='west'?[[1.95,2.83]]:[];
-        const reserved=[...defaults,...(state.game.addedWindows||[]).filter(o=>o.side===q.side).map(o=>[o.u,o.u+o.w])];
-        const valid=!reserved.some(([a,b])=>start<b+.1&&start+width>a-.1);
-        const option={side:q.side,u:start,w:width,bottom:1.24,top:2.17,valid,score:Math.abs(q.p)};
-        if(!best||option.score<best.score)best=option;
-      }
-      return best;
-    }
-    function previewAt(){
-      if(!state.editMode||!state.editPlacing||!norm(state.editPlacing.kind))return null;
-      let p;try{p=state.worldAt(cursor.x,cursor.y)}catch(_){return null}
-      const e=state.editPlacing,selectedKind=state.selected?.kind||({mesa:'table',cama:'bed',bau:'chest',armario:'shelf',luminaria:'lamp',banquinho:'chair'})[state.selected?.label],k=e.kind==='component'?e.item:e.kind==='create'?e.item:selectedKind;
-      if(!k&&e.kind!=='move')return null;
-      if(e.kind==='component'&&e.item==='window'){
-        const slot=wallSlotAt(p);
-        return {type:'window',slot,ok:!!slot?.valid,reason:slot?'Janela deve ocupar um vão livre.':'Aproxime o cursor de uma parede existente.'};
-      }
-      const source=e.kind==='move'?state.selected:null;
-      if(e.kind==='move'&&!source)return null;
-      const dims=e.kind==='component'?COMPONENTS[k]?[COMPONENTS[k].w,COMPONENTS[k].d,COMPONENTS[k].h]:null:source?[source.w,source.d,source.h]:shapeDefaults[k];
-      if(!dims)return null;
-      const [w,d,h]=dims;
-      let a=angle;
-      if(source&&previousMode!==e)a=Number(source.angle)||((source.rot||0)*90);
-      const theta=a*Math.PI/180, bw=Math.abs(w*Math.cos(theta))+Math.abs(d*Math.sin(theta)),bd=Math.abs(w*Math.sin(theta))+Math.abs(d*Math.cos(theta));
-      const rect={x:p.x-bw/2,z:p.z-bd/2,w:bw,d:bd};
-      const boundary=rect.x>-40&&rect.z>-40&&rect.x+rect.w<40&&rect.z+rect.d<40;
-      const obstacles=[...state.editDecor,...state.fixedSolids,...state.pushables].filter(o=>o!==source&&!o.hidden&&o.kind!=='floor'&&o.kind!=='roof');
-      const blocked=obstacles.some(o=>collide(rect,o,.02))||(Math.abs(p.x-state.player.x)<bw/2+.20&&Math.abs(p.z-state.player.z)<bd/2+.20);
-      const houseOverlap=rect.x<10.02&&rect.x+rect.w>-.02&&rect.z<5.02&&rect.z+rect.d>-.02;
-      const isStructure=['house1','house2'].includes(k);
-      const allowedHouse=isStructure?!houseOverlap&&!state.houseInstances().some(o=>collide(rect,o,.2)):true;
-      const insideHouse=p.x>0&&p.x<10&&p.z>0&&p.z<5;
-      const allowedPosition=isStructure||e.kind==='component'||k==='tree'||k==='shrub'||k==='stone'||insideHouse||!houseOverlap;
-      const ok=boundary&&!blocked&&allowedHouse&&allowedPosition&&(!source||state.role==='god'||state.canEditSelected(source));
-      return {type:'object',kind:k,rect,w,d,h,angle:a,center:p,source,ok,reason:!boundary?'Fora dos limites.':blocked?'Posição ocupada.':!allowedHouse?'Não é possível sobrepor casas.':'Posição inválida.'};
-    }
-    function projected(x,z,y=0){return state.P(x,z,y)}
-    function drawPoly(points,color,stroke){cx.beginPath();points.forEach((p,i)=>{const q=projected(...p);if(i)cx.lineTo(...q);else cx.moveTo(...q)});cx.closePath();cx.fillStyle=color;cx.fill();cx.strokeStyle=stroke;cx.lineWidth=1.6;cx.stroke()}
-    function ghost(pre){
-      const valid=pre.ok,fill=valid?'rgba(49,143,234,.32)':'rgba(235,53,73,.35)',edge=valid?'#80d5ff':'#ff7786';
-      if(pre.type==='window'){
-        if(!pre.slot){hint.textContent='🪟 Aponte para uma parede existente · Esc cancela';return}
-        const {wall,u,w,bottom,top,side}=pre.slot;
-        const wp=(v,y)=>side==='north'?[v,0,y]:side==='south'?[v,5,y]:side==='west'?[0,v,y]:[state.currentHouseWidth(),v,y];
-        const a=wall?componentPoint(wall,u,wall.d/2,bottom):wp(u,bottom),b=wall?componentPoint(wall,u+w,wall.d/2,bottom):wp(u+w,bottom),c=wall?componentPoint(wall,u+w,wall.d/2,top):wp(u+w,top),d=wall?componentPoint(wall,u,wall.d/2,top):wp(u,top);
-        drawPoly([a,b,c,d],fill,edge);hint.textContent=pre.ok?'🪟 Janela na parede · Clique para abrir o vão · Esc cancela':'🪟 Outro vão ocupa esse trecho';return;
-      }
-      const {center,w,d,h,angle:a}=pre;
-      const c=Math.cos(a*Math.PI/180),sn=Math.sin(a*Math.PI/180);
-      const pt=(xx,zz,yy)=>[center.x+xx*c-zz*sn,center.z+xx*sn+zz*c,yy];
-      const v=[pt(-w/2,-d/2,0),pt(w/2,-d/2,0),pt(w/2,d/2,0),pt(-w/2,d/2,0)];
-      const upper=v.map(q=>[q[0],q[1],h]);
-      drawPoly([v[0],v[1],upper[1],upper[0]],fill,edge);
-      drawPoly([v[1],v[2],upper[2],upper[1]],fill,edge);
-      drawPoly([v[2],v[3],upper[3],upper[2]],fill,edge);
-      drawPoly(upper,fill,edge);
-      // Além do volume de colocação, reproduz o móvel em transparência na posição proposta.
-      if(['table','bed','chest','shelf','lamp','chair','barrel'].includes(pre.kind)){
-        const model={kind:pre.kind,x:center.x-w/2,z:center.z-d/2,w,d,h,angle:a,rot:0,material:'wood',tint:'#b7a58a',contents:[]};
-        const oldCtx=state.ctx;
-        try{
-          state.ctx=cx;cx.save();cx.globalAlpha=.56;
-          cx.filter=valid?'sepia(.25) saturate(1.2) hue-rotate(150deg)':'sepia(.3) saturate(1.6) hue-rotate(300deg)';
-          state.drawDecor(model);
-        }catch(err){if(!state._placementDrawWarned){state._placementDrawWarned=true;console.warn('Prévia do móvel simplificada:',err);}}
-        finally{cx.restore();state.ctx=oldCtx;}
-      }
-      const label=({shelf:'Estante',table:'Mesa',bed:'Cama',chest:'Baú',window:'Janela',wall:'Parede'})[pre.kind]||pre.kind;
-      hint.textContent=(valid?'🔵 ':'🔴 ')+label+' · '+Math.round(a)+'° · ← → giram '+((state.editPlacing?.kind==='component'||pre.source?.component)?'90°':'15°')+' · Clique confirma · Esc cancela'+(valid?'':' · '+pre.reason);
-    }
-    function loop(){
-      const ratio=Math.min(devicePixelRatio||1,2),sw=innerWidth,sh=innerHeight;
-      if(overlay.width!==Math.round(sw*ratio)||overlay.height!==Math.round(sh*ratio)){overlay.width=Math.round(sw*ratio);overlay.height=Math.round(sh*ratio)}
-      cx.setTransform(ratio,0,0,ratio,0,0);cx.clearRect(0,0,sw,sh);
-      const mode=state.editPlacing;
-      if(mode!==previousMode){angle=mode?.angle??(mode?.kind==='move'?(state.selected?.component?(state.selected.rot||0)*90:(state.selected?.angle||0)):0);previousMode=mode}
-      const pre=previewAt();hint.classList.toggle('active',!!pre);
-      if(pre)ghost(pre);
-      requestAnimationFrame(loop);
-    }
-    state.canvas.addEventListener('pointermove',e=>{cursor={x:e.clientX,y:e.clientY}}, {passive:true});
-    window.addEventListener('keydown',e=>{
-      if(!state.editMode||!state.editPlacing||!norm(state.editPlacing.kind))return;
-      if(e.target instanceof HTMLElement&&e.target.matches('input,select,textarea'))return;
-      if(e.key==='ArrowLeft'||e.key==='ArrowRight'){
-        e.preventDefault();e.stopImmediatePropagation();const step=(state.editPlacing.kind==='component'||(state.editPlacing.kind==='move'&&state.selected?.component))?90:15;angle=(angle+(e.key==='ArrowRight'?step:-step)+360)%360;state.editPlacing.angle=angle;
-      }
-      if(e.key==='Escape'){angle=0;hint.classList.remove('active')}
-    },true);
-    // Capture before the legacy click handler to prevent invalid placement.
-    state.canvas.addEventListener('pointerdown',e=>{
-      if(e.button!==0||!state.editMode||!state.editPlacing)return;
-      const pre=previewAt();if(!pre)return;
-      if(!pre.ok){e.stopImmediatePropagation();state.toast(pre.reason||'Posição bloqueada');return;}
-    },true);
-    state.editPlaceAt=(mx,my)=>{
-      const e=state.editPlacing;
-      if(!e||!norm(e.kind))return originalPlace(mx,my);
-      cursor={x:mx,y:my};const pre=previewAt();
-      if(!pre||!pre.ok){state.toast(pre?.reason||'Posição inválida');return true;}
-      if(pre.type==='window'){
-        const {wall,u,w,bottom,top,side}=pre.slot;
-        sceneTransaction(()=>{
-          if(wall){wall.windowSlots=wall.windowSlots||[];wall.windowSlots.push({u,w,bottom,top});}
-          else{state.game.addedWindows=state.game.addedWindows||[];state.game.addedWindows.push({side,u,w,bottom,top});}
-        });
-        state.selected=wall||null;state.editPlacing=null;state.saveGame();state.renderEditor();state.toast('Janela aberta na parede existente.');return true;
-      }
-      const kind=e.kind;
-      if(kind==='component'){
-        const o=createComponent(e.item,pre.center.x,pre.center.z,crypto.randomUUID());
-        const turns=((Math.round(angle/90)%4)+4)%4;
-        if(turns%2){const oldW=o.w;o.w=o.d;o.d=oldW;o.x=pre.center.x-o.w/2;o.z=pre.center.z-o.d/2;}
-        o.rot=turns;
-        state.editDecor.push(o);state.selected=o;state.editPlacing=null;state.saveGame();state.renderEditor();return true;
-      }
-      if(kind==='move'){
-        const o=state.selected;if(!o)return true;
-        const r=originalPlace(mx,my);
-        if(!state.editPlacing){
-          if(o.component){const oldTurn=((o.rot||0)%4+4)%4,newTurn=((Math.round(angle/90)%4)+4)%4;const cx=o.x+o.w/2,cz=o.z+o.d/2;if((oldTurn%2)!==(newTurn%2)){const tmp=o.w;o.w=o.d;o.d=tmp;}o.x=cx-o.w/2;o.z=cz-o.d/2;o.rot=newTurn;}else o.angle=angle;
-          state.saveGame();
-        }
-        return r;
-      }
-      const before=new Set(state.editDecor);
-      const r=originalPlace(mx,my);
-      if(!state.editPlacing){
-        const created=state.editDecor.find(o=>!before.has(o));
-        if(created&&isFurnitureInstance(created)){created.angle=angle;created.rot=0;state.saveGame()}
-      }
-      return r;
-    };
-    requestAnimationFrame(loop);
-  }
-
   function installConstructionInspector() {
     const render = state.renderEditor;
     state.renderEditor = () => {
@@ -555,17 +506,30 @@
       const action = state[name];
       state[name] = (...args) => sceneTransaction(() => {
         if (name === "editRotate" && ["house1", "house2"].includes(state.selected?.kind)) return state.toast("Rota\xE7\xE3o de casas completas depende da transforma\xE7\xE3o das colis\xF5es.");
+        if (name === "editRotate" && state.selected && !state.selected.component && (isFurnitureInstance(state.selected) || state.selected.label) && state.godMode()) {
+          const o = state.selected;
+          o.angle = ((Number.isFinite(o.angle) ? o.angle : (o.rot || 0) * 90) + args[0] + 360) % 360;
+          state.saveGame();
+          state.renderEditor();
+          return true;
+        }
         return action(...args);
       });
     }
     state.undoScene = undoScene;
     state.redoScene = redoScene;
+    state.captureHouseInstance = captureHouseInstance;
   }
 
   // src/rendering/components.js
   function drawComponent(o) {
     const [w, d] = localSize(o), h = o.h;
-    const palette = { wood: ["#604936", "#896545", "#c49b67"], plaster: ["#9c8f7a", "#bcaf96", "#e5d6ba"], metal: ["#344d53", "#526c70", "#94aaa5"], stone: ["#626863", "#858b80", "#b3b6a4"] };
+    const palette = {
+      wood: ["#604936", "#896545", "#c49b67"],
+      plaster: ["#9c8f7a", "#bcaf96", "#e5d6ba"],
+      metal: ["#344d53", "#526c70", "#94aaa5"],
+      stone: ["#626863", "#858b80", "#b3b6a4"]
+    };
     const colors = (palette[o.material] || palette.wood).slice();
     if (o.tint && o.tint !== "#b7a58a") colors.splice(0, 3, state.shade(o.tint, -42), state.shade(o.tint, -20), o.tint);
     const box = (x, z, bw, bd, bh, by = 0, cols = colors) => {
@@ -575,36 +539,36 @@
     const face = (points, color, edge) => state.quad3(...points.map((p) => componentPoint(o, ...p)), color, edge);
     const line = (a, b, color, width = 1) => state.line3(componentPoint(o, ...a), componentPoint(o, ...b), color, width);
     if (o.kind === "wall") {
-      // Vãos reais: a parede é segmentada ao redor de cada janela montada.
-      const slots = (o.windowSlots || []).slice().sort((a,b)=>a.u-b.u);
-      let cursor=0;
-      for(const slot of slots){
-        const u=Math.max(cursor,Math.min(w,slot.u)),right=Math.max(u,Math.min(w,slot.u+slot.w));
-        if(u>cursor+.002)box(cursor,0,u-cursor,d,h);
-        const bottom=Math.max(.4,Math.min(h-.5,slot.bottom||.85));
-        const top=Math.max(bottom+.3,Math.min(h-.12,slot.top||2.12));
-        if(bottom>0)box(u,0,right-u,d,bottom);
-        if(h-top>0)box(u,0,right-u,d,h-top,top);
-        const frame=Math.min(.075,(right-u)*.15);
-        box(u,0,frame,d,top-bottom,bottom,["#82674b","#a88b62","#dfc19a"]);
-        box(right-frame,0,frame,d,top-bottom,bottom,["#82674b","#a88b62","#dfc19a"]);
-        box(u,0,right-u,d,.065,bottom,["#82674b","#a88b62","#dfc19a"]);
-        box(u,0,right-u,d,.065,top-.065,["#82674b","#a88b62","#dfc19a"]);
-        state.ctx.save();state.ctx.globalAlpha=.36;
-        face([[u+frame,d/2,bottom+.04],[right-frame,d/2,bottom+.04],[right-frame,d/2,top-.04],[u+frame,d/2,top-.04]],"#93c7ce");
+      const slots = (o.windowSlots || []).slice().sort((a, b) => a.u - b.u);
+      let cursor = 0;
+      for (const slot of slots) {
+        const u = Math.max(cursor, Math.min(w, slot.u)), right = Math.max(u, Math.min(w, slot.u + slot.w));
+        if (u > cursor + 2e-3) box(cursor, 0, u - cursor, d, h);
+        const bottom = Math.max(0.4, Math.min(h - 0.5, slot.bottom || 0.85));
+        const top = Math.max(bottom + 0.3, Math.min(h - 0.12, slot.top || 2.12));
+        if (bottom > 0) box(u, 0, right - u, d, bottom);
+        if (h - top > 0) box(u, 0, right - u, d, h - top, top);
+        const frame = Math.min(0.075, (right - u) * 0.15);
+        box(u, 0, frame, d, top - bottom, bottom, ["#82674b", "#a88b62", "#dfc19a"]);
+        box(right - frame, 0, frame, d, top - bottom, bottom, ["#82674b", "#a88b62", "#dfc19a"]);
+        box(u, 0, right - u, d, 0.065, bottom, ["#82674b", "#a88b62", "#dfc19a"]);
+        box(u, 0, right - u, d, 0.065, top - 0.065, ["#82674b", "#a88b62", "#dfc19a"]);
+        state.ctx.save();
+        state.ctx.globalAlpha = 0.36;
+        face([[u + frame, d / 2, bottom + 0.04], [right - frame, d / 2, bottom + 0.04], [right - frame, d / 2, top - 0.04], [u + frame, d / 2, top - 0.04]], "#93c7ce");
         state.ctx.restore();
-        line([(u+right)/2,d/2,bottom],[(u+right)/2,d/2,top],"#ead2a2",2);
-        line([u,d/2,(bottom+top)/2],[right,d/2,(bottom+top)/2],"#ead2a2",2);
-        cursor=right;
+        line([(u + right) / 2, d / 2, bottom], [(u + right) / 2, d / 2, top], "#ead2a2", 2);
+        line([u, d / 2, (bottom + top) / 2], [right, d / 2, (bottom + top) / 2], "#ead2a2", 2);
+        cursor = right;
       }
-      if(w>cursor+.002)box(cursor,0,w-cursor,d,h);
-      if(!slots.length){
-      for (let y = 0.28; y < h; y += 0.28) {
-        line([0, -2e-3, y], [w, -2e-3, y], state.shade(colors[1], -20), 0.6);
-        line([0, d + 2e-3, y], [w, d + 2e-3, y], state.shade(colors[1], -20), 0.6);
-      }
-      box(0, -0.015, w, d + 0.03, 0.08, 0.1);
-      box(0, -0.02, w, d + 0.04, 0.09, h - 0.09);
+      if (w > cursor + 2e-3) box(cursor, 0, w - cursor, d, h);
+      if (!slots.length) {
+        for (let y = 0.28; y < h; y += 0.28) {
+          line([0, -2e-3, y], [w, -2e-3, y], state.shade(colors[1], -20), 0.6);
+          line([0, d + 2e-3, y], [w, d + 2e-3, y], state.shade(colors[1], -20), 0.6);
+        }
+        box(0, -0.015, w, d + 0.03, 0.08, 0.1);
+        box(0, -0.02, w, d + 0.04, 0.09, h - 0.09);
       }
     } else if (o.kind === "door" || o.kind === "window") {
       const jamb = Math.min(0.1, w * 0.12), bottom = o.kind === "window" ? h * 0.4 : 0, top = o.kind === "window" ? h * 0.8 : h - 0.15;
@@ -652,7 +616,15 @@
         for (let x = 0.3 + Math.round(z * 10) % 2 * 0.6; x < w; x += 1.1) line([x, z - 0.2, h + 3e-3], [x, z, h + 3e-3], colors[0], 0.7);
       }
     } else if (o.kind === "roof") {
-      const faces = [{ z: d * 0.25, p: [[0, 0, 0], [w, 0, 0], [w, d / 2, h], [0, d / 2, h]], color: colors[1] }, { z: d * 0.75, p: [[0, d / 2, h], [w, d / 2, h], [w, d, 0], [0, d, 0]], color: colors[2] }];
+      const faces = [{
+        z: d * 0.25,
+        p: [[0, 0, 0], [w, 0, 0], [w, d / 2, h], [0, d / 2, h]],
+        color: colors[1]
+      }, {
+        z: d * 0.75,
+        p: [[0, d / 2, h], [w, d / 2, h], [w, d, 0], [0, d, 0]],
+        color: colors[2]
+      }];
       faces.sort((a, b) => {
         const x = componentPoint(o, w / 2, a.z), y = componentPoint(o, w / 2, b.z);
         return state.painterDepth(x[0], x[1]) - state.painterDepth(y[0], y[1]);
@@ -827,6 +799,582 @@
     document.getElementById("topActions").append(button);
   }
 
+  // src/physics/footprint.js
+  function rotationDelta(o) {
+    return Number.isFinite(o.angle) ? (o.angle - (o.rot || 0) * 90) * Math.PI / 180 : 0;
+  }
+  function transformPoint(o, x, z, y = 0) {
+    const a = rotationDelta(o), c = Math.cos(a), s = Math.sin(a), cx = o.x + o.w / 2, cz = o.z + o.d / 2;
+    return [cx + (x - cx) * c - (z - cz) * s, cz + (x - cx) * s + (z - cz) * c, y];
+  }
+  function footprintCorners(o) {
+    return [[o.x, o.z], [o.x + o.w, o.z], [o.x + o.w, o.z + o.d], [o.x, o.z + o.d]].map(([x, z]) => transformPoint(o, x, z));
+  }
+  function footprintDistance(x, z, o) {
+    const a = -rotationDelta(o), c = Math.cos(a), s = Math.sin(a), cx = o.x + o.w / 2, cz = o.z + o.d / 2;
+    const px = cx + (x - cx) * c - (z - cz) * s, pz = cz + (x - cx) * s + (z - cz) * c;
+    return Math.hypot(Math.max(o.x - px, 0, px - o.x - o.w), Math.max(o.z - pz, 0, pz - o.z - o.d));
+  }
+  function circleFootprint(x, z, r, o) {
+    return footprintDistance(x, z, o) < r;
+  }
+  function footprintsOverlap(a, b, pad = 0) {
+    const aa = footprintCorners(a), bb = footprintCorners(b);
+    for (const polygon of [aa, bb]) for (let i = 0; i < 2; i++) {
+      const p = polygon[i], q = polygon[i + 1], axis = [-(q[1] - p[1]), q[0] - p[0]], len = Math.hypot(...axis);
+      if (!len) continue;
+      axis[0] /= len;
+      axis[1] /= len;
+      const ap = aa.map((p2) => p2[0] * axis[0] + p2[1] * axis[1]), bp = bb.map((p2) => p2[0] * axis[0] + p2[1] * axis[1]);
+      if (Math.max(...ap) + pad <= Math.min(...bp) || Math.max(...bp) + pad <= Math.min(...ap)) return false;
+    }
+    return true;
+  }
+
+  // src/construction/placement.js
+  function installPlacementPreview() {
+    const overlay = document.getElementById("placementPreview"), hint = document.getElementById("placementHelp");
+    const cx = overlay.getContext("2d");
+    let cursor = {
+      x: innerWidth / 2,
+      y: innerHeight / 2
+    }, angle = 0, previousMode = null;
+    const shapeDefaults = {
+      tree: [0.5, 0.5, 2.4],
+      shrub: [0.45, 0.45, 0.4],
+      stone: [0.65, 0.55, 0.5],
+      house1: [7, 5, 3.1],
+      house2: [10, 5, 3.1],
+      table: [1.15, 0.7, 0.65],
+      chair: [0.5, 0.5, 0.8],
+      bed: [1.5, 0.9, 0.4],
+      chest: [0.9, 0.7, 0.55],
+      shelf: [0.65, 1.4, 1.9],
+      barrel: [0.5, 0.5, 0.8],
+      lamp: [0.25, 0.25, 1.3]
+    };
+    const collide = (a, b, pad = 0) => a.x < b.x + b.w + pad && a.x + a.w > b.x - pad && a.z < b.z + b.d + pad && a.z + a.d > b.z - pad;
+    const norm = (k) => k === "create" || k === "move" || k === "component";
+    const originalPlace = state.editPlaceAt;
+    function wallSlotAt(p) {
+      let best = null;
+      for (const o of state.editDecor) {
+        if (o.hidden || !o.component || o.kind !== "wall") continue;
+        const long = Math.max(o.w, o.d), len = Math.min(1.05, long - 0.25);
+        if (len < 0.4) continue;
+        const longX = o.w >= o.d, along = longX ? p.x - o.x : p.z - o.z;
+        const perpendicular = longX ? Math.abs(p.z - o.z - o.d / 2) : Math.abs(p.x - o.x - o.w / 2);
+        if (perpendicular > 0.55 || along < 0.12 || along > long - 0.12) continue;
+        const raw = Math.max(0.08, Math.min(long - len - 0.08, along - len / 2));
+        const r = ((o.rot || 0) % 4 + 4) % 4;
+        const u = longX && r === 2 || !longX && r === 3 ? long - raw - len : raw;
+        const overlaps = (o.windowSlots || []).some((s) => u < s.u + s.w + 0.08 && u + len > s.u - 0.08);
+        const option = {
+          wall: o,
+          u,
+          w: len,
+          bottom: 0.86,
+          top: Math.min(o.h - 0.14, 2.13),
+          valid: !overlaps,
+          score: perpendicular
+        };
+        if (!best || option.score < best.score) best = option;
+      }
+      const hw = state.currentHouseWidth();
+      const sides = [{
+        side: "north",
+        p: p.z,
+        u: p.x,
+        length: hw
+      }, {
+        side: "south",
+        p: 5 - p.z,
+        u: p.x,
+        length: hw
+      }, {
+        side: "west",
+        p: p.x,
+        u: p.z,
+        length: 5
+      }, {
+        side: "east",
+        p: hw - p.x,
+        u: p.z,
+        length: 5
+      }];
+      for (const q of sides) {
+        if (Math.abs(q.p) > 0.48 || q.u < 0.25 || q.u > q.length - 0.25) continue;
+        const width = Math.min(1, q.length - 0.5), start = Math.max(0.1, Math.min(q.length - width - 0.1, q.u - width / 2));
+        const defaults = q.side === "north" ? [[2, 2.9]] : q.side === "south" ? [[1.1, 1.8], [3.05, 4.23]] : q.side === "west" ? [[1.95, 2.83]] : [];
+        const reserved = [...defaults, ...(state.game.addedWindows || []).filter((o) => o.side === q.side).map((o) => [o.u, o.u + o.w])];
+        const valid = !reserved.some(([a, b]) => start < b + 0.1 && start + width > a - 0.1);
+        const option = {
+          side: q.side,
+          u: start,
+          w: width,
+          bottom: 1.24,
+          top: 2.17,
+          valid,
+          score: Math.abs(q.p)
+        };
+        if (!best || option.score < best.score) best = option;
+      }
+      return best;
+    }
+    function previewAt() {
+      if (!state.editMode || !state.editPlacing || !norm(state.editPlacing.kind)) return null;
+      let p;
+      try {
+        p = state.worldAt(cursor.x, cursor.y);
+      } catch (_) {
+        return null;
+      }
+      const e = state.editPlacing, selectedKind = state.selected?.kind || {
+        mesa: "table",
+        cama: "bed",
+        bau: "chest",
+        armario: "shelf",
+        luminaria: "lamp",
+        banquinho: "chair"
+      }[state.selected?.label], k = e.kind === "component" ? e.item : e.kind === "create" ? e.item : selectedKind;
+      if (!k && e.kind !== "move") return null;
+      if (e.kind === "component" && e.item === "window") {
+        const slot = wallSlotAt(p);
+        return {
+          type: "window",
+          slot,
+          ok: !!slot?.valid,
+          reason: slot ? "Janela deve ocupar um v\xE3o livre." : "Aproxime o cursor de uma parede existente."
+        };
+      }
+      const source = e.kind === "move" ? state.selected : null;
+      if (e.kind === "move" && !source) return null;
+      const dims = source ? [...localSize(source), source.h] : e.kind === "component" ? COMPONENTS[k] ? [COMPONENTS[k].w, COMPONENTS[k].d, COMPONENTS[k].h] : null : shapeDefaults[k];
+      if (!dims) return null;
+      const [w, d, h] = dims;
+      let a = angle;
+      if (source && previousMode !== e) a = Number(source.angle) || (source.rot || 0) * 90;
+      const theta = a * Math.PI / 180, bw = Math.abs(w * Math.cos(theta)) + Math.abs(d * Math.sin(theta)), bd = Math.abs(w * Math.sin(theta)) + Math.abs(d * Math.cos(theta));
+      const rect = {
+        x: p.x - bw / 2,
+        z: p.z - bd / 2,
+        w: bw,
+        d: bd
+      };
+      const boundary = rect.x > -40 && rect.z > -40 && rect.x + rect.w < 40 && rect.z + rect.d < 40;
+      const obstacles = [...state.editDecor, ...state.fixedSolids, ...state.pushables].filter((o) => o !== source && !o.hidden && o.kind !== "floor" && o.kind !== "roof");
+      const candidate = { x: p.x - w / 2, z: p.z - d / 2, w, d, angle: a, rot: 0 };
+      const surface = ["floor", "roof"].includes(k);
+      const blocked = !surface && (obstacles.some((o) => footprintsOverlap(candidate, o, 0.02)) || Math.abs(p.x - state.player.x) < bw / 2 + 0.2 && Math.abs(p.z - state.player.z) < bd / 2 + 0.2 || isFurnitureInstance({ kind: k }) && state.wallBarriers().some((o) => footprintsOverlap(candidate, o, 0.01)));
+      const houseOverlap = rect.x < 10.02 && rect.x + rect.w > -0.02 && rect.z < 5.02 && rect.z + rect.d > -0.02;
+      const isStructure = ["house1", "house2"].includes(k);
+      const allowedHouse = isStructure ? !houseOverlap && !state.houseInstances().some((o) => collide(rect, o, 0.2)) : true;
+      const insideHouse = p.x > 0 && p.x < 10 && p.z > 0 && p.z < 5;
+      const allowedPosition = isStructure || e.kind === "component" || k === "tree" || k === "shrub" || k === "stone" || insideHouse || !houseOverlap;
+      const ok = boundary && !blocked && allowedHouse && allowedPosition && (!source || state.role === "god" || state.canEditSelected(source));
+      return {
+        type: "object",
+        kind: k,
+        rect,
+        w,
+        d,
+        h,
+        angle: a,
+        baseY: source?.baseY || 0,
+        center: p,
+        source,
+        ok,
+        reason: !boundary ? "Fora dos limites." : blocked ? "Posi\xE7\xE3o ocupada." : !allowedHouse ? "N\xE3o \xE9 poss\xEDvel sobrepor casas." : "Posi\xE7\xE3o inv\xE1lida."
+      };
+    }
+    function projected(x, z, y = 0) {
+      return state.P(x, z, y);
+    }
+    function drawPoly(points, color, stroke) {
+      cx.beginPath();
+      points.forEach((p, i) => {
+        const q = projected(...p);
+        if (i) cx.lineTo(...q);
+        else cx.moveTo(...q);
+      });
+      cx.closePath();
+      cx.fillStyle = color;
+      cx.fill();
+      cx.strokeStyle = stroke;
+      cx.lineWidth = 1.6;
+      cx.stroke();
+    }
+    function ghost(pre) {
+      const valid = pre.ok, fill = valid ? "rgba(49,143,234,.32)" : "rgba(235,53,73,.35)", edge = valid ? "#80d5ff" : "#ff7786";
+      if (pre.type === "window") {
+        if (!pre.slot) {
+          hint.textContent = "\u{1FA9F} Aponte para uma parede existente \xB7 Esc cancela";
+          return;
+        }
+        const {
+          wall,
+          u,
+          w: w2,
+          bottom,
+          top,
+          side
+        } = pre.slot;
+        const wp = (v2, y) => side === "north" ? [v2, 0, y] : side === "south" ? [v2, 5, y] : side === "west" ? [0, v2, y] : [state.currentHouseWidth(), v2, y];
+        const a2 = wall ? componentPoint(wall, u, wall.d / 2, bottom) : wp(u, bottom), b = wall ? componentPoint(wall, u + w2, wall.d / 2, bottom) : wp(u + w2, bottom), c2 = wall ? componentPoint(wall, u + w2, wall.d / 2, top) : wp(u + w2, top), d2 = wall ? componentPoint(wall, u, wall.d / 2, top) : wp(u, top);
+        drawPoly([a2, b, c2, d2], fill, edge);
+        hint.textContent = pre.ok ? "\u{1FA9F} Janela na parede \xB7 Clique para abrir o v\xE3o \xB7 Esc cancela" : "\u{1FA9F} Outro v\xE3o ocupa esse trecho";
+        return;
+      }
+      const {
+        center,
+        w,
+        d,
+        h,
+        angle: a
+      } = pre;
+      const c = Math.cos(a * Math.PI / 180), sn = Math.sin(a * Math.PI / 180);
+      const pt = (xx, zz, yy) => [center.x + xx * c - zz * sn, center.z + xx * sn + zz * c, yy + (pre.baseY || 0)];
+      const v = [pt(-w / 2, -d / 2, 0), pt(w / 2, -d / 2, 0), pt(w / 2, d / 2, 0), pt(-w / 2, d / 2, 0)];
+      const upper = v.map((q) => [q[0], q[1], h]);
+      drawPoly([v[0], v[1], upper[1], upper[0]], fill, edge);
+      drawPoly([v[1], v[2], upper[2], upper[1]], fill, edge);
+      drawPoly([v[2], v[3], upper[3], upper[2]], fill, edge);
+      drawPoly(upper, fill, edge);
+      if (["table", "bed", "chest", "shelf", "lamp", "chair", "barrel"].includes(pre.kind)) {
+        const model = {
+          kind: pre.kind,
+          x: center.x - w / 2,
+          z: center.z - d / 2,
+          w,
+          d,
+          h,
+          angle: a,
+          rot: 0,
+          material: "wood",
+          tint: "#b7a58a",
+          contents: []
+        };
+        const oldCtx = state.ctx;
+        try {
+          state.ctx = cx;
+          cx.save();
+          cx.globalAlpha = 0.56;
+          cx.filter = valid ? "sepia(.25) saturate(1.2) hue-rotate(150deg)" : "sepia(.3) saturate(1.6) hue-rotate(300deg)";
+          state.drawDecor(model);
+        } catch (err) {
+          if (!state._placementDrawWarned) {
+            state._placementDrawWarned = true;
+            console.warn("Pr\xE9via do m\xF3vel simplificada:", err);
+          }
+        } finally {
+          cx.restore();
+          state.ctx = oldCtx;
+        }
+      }
+      const label = {
+        shelf: "Estante",
+        table: "Mesa",
+        bed: "Cama",
+        chest: "Ba\xFA",
+        window: "Janela",
+        wall: "Parede"
+      }[pre.kind] || pre.kind;
+      hint.textContent = (valid ? "\u{1F535} " : "\u{1F534} ") + label + " \xB7 " + Math.round(a) + "\xB0 \xB7 \u2190 \u2192 giram " + (state.editPlacing?.kind === "component" || pre.source?.component ? "90\xB0" : "15\xB0") + " \xB7 Clique confirma \xB7 Esc cancela" + (valid ? "" : " \xB7 " + pre.reason);
+    }
+    function loop() {
+      const ratio = Math.min(devicePixelRatio || 1, 2), sw = innerWidth, sh = innerHeight;
+      if (overlay.width !== Math.round(sw * ratio) || overlay.height !== Math.round(sh * ratio)) {
+        overlay.width = Math.round(sw * ratio);
+        overlay.height = Math.round(sh * ratio);
+      }
+      cx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      cx.clearRect(0, 0, sw, sh);
+      const mode = state.editPlacing;
+      if (mode !== previousMode) {
+        angle = mode?.angle ?? (mode?.kind === "move" ? state.selected?.angle ?? (state.selected?.rot || 0) * 90 : 0);
+        previousMode = mode;
+      }
+      const pre = previewAt();
+      hint.classList.toggle("active", !!pre);
+      if (pre) ghost(pre);
+      requestAnimationFrame(loop);
+    }
+    state.canvas.addEventListener("pointermove", (e) => {
+      cursor = {
+        x: e.clientX,
+        y: e.clientY
+      };
+    }, {
+      passive: true
+    });
+    window.addEventListener("keydown", (e) => {
+      if (!state.editMode || !state.editPlacing || !norm(state.editPlacing.kind)) return;
+      if (e.target instanceof HTMLElement && e.target.matches("input,select,textarea")) return;
+      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        if (["house1", "house2"].includes(state.editPlacing.item || state.selected?.kind)) return state.toast("A posi\xE7\xE3o da casa pode mudar; sua rota\xE7\xE3o completa ainda n\xE3o est\xE1 habilitada.");
+        const step = state.editPlacing.kind === "component" || state.editPlacing.kind === "move" && state.selected?.component ? 90 : 15;
+        angle = (angle + (e.key === "ArrowRight" ? step : -step) + 360) % 360;
+        state.editPlacing.angle = angle;
+      }
+      if (e.key === "Escape") {
+        angle = 0;
+        hint.classList.remove("active");
+      }
+    }, true);
+    state.canvas.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0 || !state.editMode || !state.editPlacing) return;
+      cursor = { x: e.clientX, y: e.clientY };
+      const pre = previewAt();
+      if (!pre) return;
+      if (!pre.ok) {
+        e.stopImmediatePropagation();
+        state.toast(pre.reason || "Posi\xE7\xE3o bloqueada");
+        return;
+      }
+    }, true);
+    state.editPlaceAt = (mx, my) => {
+      const e = state.editPlacing;
+      if (!e || !norm(e.kind)) return originalPlace(mx, my);
+      cursor = {
+        x: mx,
+        y: my
+      };
+      const pre = previewAt();
+      if (!pre || !pre.ok) {
+        state.toast(pre?.reason || "Posi\xE7\xE3o inv\xE1lida");
+        return true;
+      }
+      if (pre.type === "window") {
+        const {
+          wall,
+          u,
+          w,
+          bottom,
+          top,
+          side
+        } = pre.slot;
+        sceneTransaction(() => {
+          if (wall) {
+            wall.windowSlots = wall.windowSlots || [];
+            wall.windowSlots.push({
+              u,
+              w,
+              bottom,
+              top
+            });
+          } else {
+            state.game.addedWindows = state.game.addedWindows || [];
+            state.game.addedWindows.push({
+              side,
+              u,
+              w,
+              bottom,
+              top
+            });
+          }
+        });
+        state.selected = wall || null;
+        state.editPlacing = null;
+        state.saveGame();
+        state.renderEditor();
+        state.toast("Janela aberta na parede existente.");
+        return true;
+      }
+      const kind = e.kind;
+      if (kind === "component") {
+        const o = createComponent(e.item, pre.center.x, pre.center.z, crypto.randomUUID());
+        const turns = (Math.round(angle / 90) % 4 + 4) % 4;
+        if (turns % 2) {
+          const oldW = o.w;
+          o.w = o.d;
+          o.d = oldW;
+          o.x = pre.center.x - o.w / 2;
+          o.z = pre.center.z - o.d / 2;
+        }
+        o.rot = turns;
+        state.editDecor.push(o);
+        state.selected = o;
+        state.editPlacing = null;
+        state.saveGame();
+        state.renderEditor();
+        return true;
+      }
+      if (kind === "move") {
+        const o = state.selected;
+        if (!o) return true;
+        const r2 = originalPlace(mx, my);
+        if (!state.editPlacing) {
+          if (o.component) {
+            const oldTurn = ((o.rot || 0) % 4 + 4) % 4, newTurn = (Math.round(angle / 90) % 4 + 4) % 4;
+            const cx2 = o.x + o.w / 2, cz = o.z + o.d / 2;
+            if (oldTurn % 2 !== newTurn % 2) {
+              const tmp = o.w;
+              o.w = o.d;
+              o.d = tmp;
+            }
+            o.x = cx2 - o.w / 2;
+            o.z = cz - o.d / 2;
+            o.rot = newTurn;
+          } else o.angle = angle;
+          state.saveGame();
+        }
+        return r2;
+      }
+      const before = new Set(state.editDecor);
+      const r = originalPlace(mx, my);
+      if (!state.editPlacing) {
+        const created = state.editDecor.find((o) => !before.has(o));
+        if (created && isFurnitureInstance(created)) {
+          created.angle = angle;
+          created.rot = 0;
+          state.saveGame();
+        }
+      }
+      return r;
+    };
+    const placeWithHistory = state.editPlaceAt;
+    state.editPlaceAt = (...args) => sceneTransaction(() => placeWithHistory(...args));
+    state.placementPreview = previewAt;
+    requestAnimationFrame(loop);
+  }
+
+  // src/rendering/object-transform.js
+  function withObjectTransform(o, draw2) {
+    if (!o) return draw2();
+    const angle = rotationDelta(o);
+    if (state.objectTransformActive || !angle) return draw2();
+    const projection = state.P, yaw = state.cameraYaw;
+    state.objectTransformActive = true;
+    state.cameraYaw = yaw + angle;
+    state.P = (x, z, y = 0) => {
+      const p = transformPoint(o, x, z, y);
+      state.cameraYaw = yaw;
+      try {
+        return projection(...p);
+      } finally {
+        state.cameraYaw = yaw + angle;
+      }
+    };
+    try {
+      return draw2();
+    } finally {
+      state.P = projection;
+      state.cameraYaw = yaw;
+      state.objectTransformActive = false;
+    }
+  }
+  function installObjectTransforms() {
+    for (const [name, key] of [["drawBed", "bedObject"], ["drawDesk", "deskObject"], ["drawWardrobe", "wardrobeObject"], ["drawChest", "chestObject"], ["drawerFrontAtClick", "deskObject"], ["shelfItemAtScreen", "wardrobeObject"]]) {
+      const draw2 = state[name];
+      state[name] = (...args) => withObjectTransform(state[key], () => draw2(...args));
+    }
+    const moveable = state.drawMoveable;
+    state.drawMoveable = (o) => withObjectTransform(o, () => moveable(o));
+    const surface = state.drawSurfaceItems;
+    state.drawSurfaceItems = (id = null) => {
+      for (const [key, o] of [["table", state.pushables.find((o2) => o2.label === "mesa")], ["bed", state.bedObject], ["deskTop", state.deskObject]]) if (!id || key === id) withObjectTransform(o, () => surface(key));
+    };
+    const hit = state.surfaceItemAtScreen;
+    state.surfaceItemAtScreen = (id, ...args) => withObjectTransform(state.storeObject(id), () => hit(id, ...args));
+  }
+
+  // src/rendering/occlusion.js
+  function convexHull(points) {
+    const p = points.map((q) => [q[0], q[1]]).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+    const half = (list) => {
+      const result = [];
+      for (const q of list) {
+        while (result.length > 1 && cross(result.at(-2), result.at(-1), q) <= 0) result.pop();
+        result.push(q);
+      }
+      return result;
+    };
+    return [...half(p).slice(0, -1), ...half([...p].reverse()).slice(0, -1)];
+  }
+  function path(ctx, points) {
+    points.forEach((p, i) => i ? ctx.lineTo(...p) : ctx.moveTo(...p));
+    ctx.closePath();
+  }
+  function clipFace(ctx, points, holes = []) {
+    ctx.beginPath();
+    ctx.rect(-1, -1, state.W + 2, state.H + 2);
+    path(ctx, points.map((p) => state.P(...p)));
+    for (const hole of holes) path(ctx, hole.map((p) => state.P(...p)));
+    ctx.clip("evenodd");
+  }
+  function wallMask(entity, hx, hz, width, height) {
+    const vx = Math.cos(state.cameraYaw) + Math.sin(state.cameraYaw), vz = Math.cos(state.cameraYaw) - Math.sin(state.cameraYaw);
+    for (const side of ["north", "south", "east", "west"]) {
+      const alongX = side === "north" || side === "south", plane = alongX ? hz + (side === "south" ? 5 : 0) : hx + (side === "east" ? width : 0), v = alongX ? vz : vx, pos = alongX ? entity.z : entity.x;
+      if (Math.abs(v) < 1e-3 || (plane - pos) / v <= 1e-3) continue;
+      const length = alongX ? width : 5, mid = state.painterDepth(hx + width / 2, hz + 2.5), sideDepth = state.painterDepth(alongX ? hx + width / 2 : plane, alongX ? plane : hz + 2.5);
+      const h = height === "cut" && sideDepth > mid ? state.zoom > 1.42 ? 0.18 : 0.56 : 2.92;
+      const point = (u, y) => alongX ? [hx + u, plane, y] : [plane, hz + u, y];
+      const holes = [];
+      if (h > 2.17) {
+        const openings = side === "north" ? [[2, 2.9]] : side === "south" ? [[1.1, 1.8]] : side === "west" ? [[1.95, 2.83]] : [];
+        const house = state.houseInstances().find((o) => o.x === hx && o.z === hz), windows = house ? state.ensureHouseState(house).addedWindows : state.game.addedWindows;
+        for (const o of windows || []) if (o.side === side) openings.push([o.u, o.u + o.w]);
+        for (const [a, b] of openings) holes.push([point(a, 1.24), point(b, 1.24), point(b, 2.17), point(a, 2.17)]);
+      }
+      if (side === "south") {
+        const house = state.houseInstances().find((o) => o.x === hx && o.z === hz), door = house ? state.ensureHouseState(house).door : state.game.door;
+        if (door.open) holes.push([point(3.05, 0), point(4.23, 0), point(4.23, Math.min(h, 2.6)), point(3.05, Math.min(h, 2.6))]);
+      }
+      clipFace(state.ctx, [point(0, 0), point(length, 0), point(length, h), point(0, h)], holes);
+    }
+  }
+  function drawSceneEntity(entity) {
+    if (entity.kind === "house" || entity.kind?.startsWith("house-")) return entity.draw();
+    state.ctx.save();
+    try {
+      wallMask(entity, 0, 0, state.house.w, state.reveal() ? "cut" : "full");
+      for (const house of state.houseInstances()) if (entity.x !== house.x || entity.z !== house.z) wallMask(entity, house.x, house.z, house.kind === "house2" ? 10 : 7, state.cloneInteriorAt(state.player.x, state.player.z) === house ? "cut" : "full");
+      entity.draw();
+    } finally {
+      state.ctx.restore();
+    }
+  }
+  function clipIndoorWeather(ctx) {
+    const houses = [];
+    if (state.reveal()) houses.push({ x: 0, z: 0, w: state.house.w, d: 5 });
+    for (const o of state.houseInstances()) if (state.cloneInteriorAt(state.player.x, state.player.z) === o || state.roofMode === 2) houses.push(o);
+    for (const o of houses) {
+      const points = [];
+      for (const x of [o.x, o.x + o.w]) for (const z of [o.z, o.z + o.d]) for (const y of [0, 2.96]) points.push(state.P(x, z, y));
+      ctx.beginPath();
+      ctx.rect(-1, -1, state.W + 2, state.H + 2);
+      path(ctx, convexHull(points));
+      ctx.clip("evenodd");
+    }
+  }
+  function installOcclusion() {
+    state.drawSceneEntity = drawSceneEntity;
+    const character2 = state.character;
+    state.character = () => {
+      state.ctx.save();
+      try {
+        const vx = Math.cos(state.cameraYaw) + Math.sin(state.cameraYaw), vz = Math.cos(state.cameraYaw) - Math.sin(state.cameraYaw);
+        for (const o of [...state.fixedSolids, ...state.pushables]) {
+          if (o.hidden || o.label === "luminaria" || o.label === "chamine" || o.h < state.player.elevation + state.player.jumpY) continue;
+          const corners = footprintCorners(o);
+          for (let i = 0; i < 4; i++) {
+            const a = corners[i], b = corners[(i + 1) % 4], normal = [b[1] - a[1], -(b[0] - a[0])], view = normal[0] * vx + normal[1] * vz;
+            if (view <= 1e-3) continue;
+            if (normal[0] * (state.player.x - a[0]) + normal[1] * (state.player.z - a[1]) >= -1e-3) continue;
+            clipFace(state.ctx, [[a[0], a[1], 0], [b[0], b[1], 0], [b[0], b[1], o.h], [a[0], a[1], o.h]]);
+          }
+        }
+        character2();
+      } finally {
+        state.ctx.restore();
+      }
+    };
+  }
+
   // src/core/setup.js
   var setup_exports = {};
   __export(setup_exports, {
@@ -884,7 +1432,7 @@
     });
   }
   function serializeFurniture(o) {
-    return { id: o.id, label: o.label, x: o.x, z: o.z, w: o.w, d: o.d, h: o.h, rot: o.rot || 0, hidden: !!o.hidden };
+    return { id: o.id, label: o.label, x: o.x, z: o.z, w: o.w, d: o.d, h: o.h, rot: o.rot || 0, angle: o.angle, hidden: !!o.hidden };
   }
   function restoreFurniture(objects, saved) {
     if (!Array.isArray(saved)) return;
@@ -899,12 +1447,13 @@
         if (Number.isFinite(value) && Math.abs(value) <= 100 && (key === "x" || key === "z" || value > 0)) object[key] = value;
       }
       if (Number.isFinite(entry.rot)) object.rot = (Math.round(entry.rot) % 4 + 4) % 4;
+      if (Number.isFinite(entry.angle)) object.angle = (entry.angle % 360 + 360) % 360;
       if (typeof entry.hidden === "boolean") object.hidden = entry.hidden;
     }
   }
 
   // src/construction/models.js
-  var clone2 = (value) => JSON.parse(JSON.stringify(value));
+  var clone3 = (value) => JSON.parse(JSON.stringify(value));
   function freeze(value) {
     Object.values(value).forEach((child) => {
       if (child && typeof child === "object") freeze(child);
@@ -912,7 +1461,7 @@
     return Object.freeze(value);
   }
   function createHouseModels(fixed, moveable) {
-    const seed = () => ({ fixed: clone2(fixed), moveable: clone2(moveable), shelf: Array(6).fill("book"), shelfRows: [2, 2, 2], rug: { x: 0.45, z: 1.8, placed: true, collected: false } });
+    const seed = () => ({ fixed: clone3(fixed), moveable: clone3(moveable), shelf: Array(6).fill("book"), shelfRows: [2, 2, 2], rug: { x: 0.45, z: 1.8, placed: true, collected: false } });
     const one = seed(), two = seed();
     const set = (model, label, values, index = 0) => Object.assign([...model.fixed, ...model.moveable].filter((o) => o.label === label)[index], values);
     set(one, "armario", { x: 6.1, z: 0.34 });
@@ -929,10 +1478,11 @@
   }
   function instantiateHouse(model) {
     return {
-      ...clone2(model),
+      ...clone3(model),
       door: { locked: false, open: false },
       chest: { locked: false, open: false },
       stores: { chest: [], drawerTop: [], drawerBottom: [], deskTop: [], table: ["apple", "cup", "mug"], bed: [], shelf: [...model.shelf], floor: model.rug.placed ? ["rug"] : [], inventory: [] },
+      addedWindows: [],
       drawerOpen: [false, false],
       lamps: [true, true],
       droppedItems: [],
@@ -1975,6 +2525,7 @@
       doorSwing: state.doorSwing,
       items: state.game.items,
       fireplace: state.game.fireplace,
+      addedWindows: state.game.addedWindows,
       shelfRows: [...state.shelfRows],
       fixed: state.fixedSolids.map((v) => ({
         ...v
@@ -1994,6 +2545,7 @@
       state.game.door = h.door;
       state.game.chest = h.chest;
       state.game.stores = h.stores;
+      state.game.addedWindows = h.addedWindows || (h.addedWindows = []);
       state.game.stores.inventory = before.stores.inventory;
       state.game.drawerOpen = h.drawerOpen;
       state.game.rug = h.rug;
@@ -2027,6 +2579,7 @@
       h.droppedItems = state.game.droppedItems;
       h.shelfRows = [...state.shelfRows];
       h.fireplace = state.game.fireplace;
+      h.addedWindows = state.game.addedWindows;
       state.fixedSolids.forEach((v, i) => {
         for (const key of Object.keys(v)) delete v[key];
         Object.assign(v, before.fixed[i]);
@@ -2048,6 +2601,7 @@
       state.game.droppedItems = before.droppedItems;
       state.game.items = before.items;
       state.game.fireplace = before.fireplace;
+      state.game.addedWindows = before.addedWindows;
       state.doorSwing = before.doorSwing;
       for (let i = 0; i < 3; i++) state.shelfRows[i] = before.shelfRows[i];
       state.houseContext = null;
@@ -2157,40 +2711,92 @@
   function drawExternalChimney() {
     const o = state.chimneyObject;
     if (!o) return;
-    // painterDepth grows toward the viewer. The exterior east face is visible
-    // only when the depth of its outward normal is greater than the wall.
     const yaw = state.cameraYaw;
     const eastVisible = Math.cos(yaw) + Math.sin(yaw) > 0.02;
     const x = state.currentHouseWidth() + 0.055;
-    const z = o.z + 0.02, w = 0.38, d = Math.max(0.74,o.d * 0.9), top = 4.55;
-    // The body is anchored entirely outside the east wall. On the far side,
-    // the house hides its body but the stack remains above the roof ridge.
+    const z = o.z + 0.02, w = 0.38, d = Math.max(0.74, o.d * 0.9), top = 4.55;
     if (eastVisible) {
-      state.box3(x,z,w,d,4.08,["#8f7a68","#b39d83","#d2baa0"]);
-      for (let row=0;row<12;row++) {
-        const by=0.2+row*.30;
-        for(let i=0;i<3;i++) {
-          const a=z+.035+i*(d-.07)/3,b=a+(d-.07)/3*.88;
-          state.quad3([x+w+.003,a,by],[x+w+.003,b,by],[x+w+.003,b,by+.23],[x+w+.003,a,by+.23],
-            ["#b9a38b","#988270","#c8b49b"][(i+row)%3],"#6d6257");
+      state.box3(x, z, w, d, 4.08, ["#8f7a68", "#b39d83", "#d2baa0"]);
+      for (let row = 0; row < 12; row++) {
+        const by = 0.2 + row * 0.3;
+        for (let i = 0; i < 3; i++) {
+          const a = z + 0.035 + i * (d - 0.07) / 3, b = a + (d - 0.07) / 3 * 0.88;
+          state.quad3([x + w + 3e-3, a, by], [x + w + 3e-3, b, by], [x + w + 3e-3, b, by + 0.23], [x + w + 3e-3, a, by + 0.23], ["#b9a38b", "#988270", "#c8b49b"][(i + row) % 3], "#6d6257");
         }
       }
     }
-    // Roof line clips the hidden masonry; the upper chimney stays visible
-    // regardless of which side of the building the camera observes.
-    state.box3(x,z,w,d,top-4.08,["#8f7a68","#b39d83","#d2baa0"],4.08);
-    state.box3(x-.04,z-.04,w+.08,d+.08,.12,["#766858","#95816a","#c5b39b"],top-.13);
-    state.box3(x+.06,z+.08,w-.12,d-.16,.065,["#55473c","#76665a","#a99782"],top-.01);
-    if (state.game.fireplace.lit && state.game.fireplace.wood>0) {
-      const t=performance.now()/1e3;
-      for(let i=0;i<5;i++) {
-        const rise=(t*.22+i*.21)%1,p=state.P(x+w*.5+Math.sin(t+i)*.04,z+d*.5,top+.1+rise*1.8);
-        state.ctx.save();state.ctx.globalAlpha=(1-rise)*.35;
-        state.ctx.fillStyle="#8b8b90";state.ctx.beginPath();state.ctx.arc(p[0],p[1],(5+rise*9)*state.zoom,0,Math.PI*2);state.ctx.fill();state.ctx.restore();
+    state.box3(x, z, w, d, top - 4.08, ["#8f7a68", "#b39d83", "#d2baa0"], 4.08);
+    state.box3(x - 0.04, z - 0.04, w + 0.08, d + 0.08, 0.12, ["#766858", "#95816a", "#c5b39b"], top - 0.13);
+    state.box3(x + 0.06, z + 0.08, w - 0.12, d - 0.16, 0.065, ["#55473c", "#76665a", "#a99782"], top - 0.01);
+    if (state.game.fireplace.lit && state.game.fireplace.wood > 0) {
+      const t = performance.now() / 1e3;
+      for (let i = 0; i < 5; i++) {
+        const rise = (t * 0.22 + i * 0.21) % 1, p = state.P(x + w * 0.5 + Math.sin(t + i) * 0.04, z + d * 0.5, top + 0.1 + rise * 1.8);
+        state.ctx.save();
+        state.ctx.globalAlpha = (1 - rise) * 0.35;
+        state.ctx.fillStyle = "#8b8b90";
+        state.ctx.beginPath();
+        state.ctx.arc(p[0], p[1], (5 + rise * 9) * state.zoom, 0, Math.PI * 2);
+        state.ctx.fill();
+        state.ctx.restore();
       }
     }
   }
 
+  // src/inventory/inventory.js
+  var inventory_exports = {};
+  __export(inventory_exports, {
+    canOpenBackpack: () => canOpenBackpack,
+    canReachFloorPoint: () => canReachFloorPoint,
+    canReachObject: () => canReachObject,
+    canReachStore: () => canReachStore,
+    closeDialog: () => closeDialog,
+    closePanels: () => closePanels,
+    initialize063: () => initialize063,
+    initialize064: () => initialize064,
+    initialize065: () => initialize065,
+    initialize066: () => initialize066,
+    initialize067: () => initialize067,
+    initialize068: () => initialize068,
+    initialize069: () => initialize069,
+    initialize070: () => initialize070,
+    initialize071: () => initialize071,
+    initialize072: () => initialize072,
+    initialize073: () => initialize073,
+    initialize074: () => initialize074,
+    initialize075: () => initialize075,
+    initialize076: () => initialize076,
+    initialize077: () => initialize077,
+    initialize078: () => initialize078,
+    initialize079: () => initialize079,
+    initialize080: () => initialize080,
+    initialize081: () => initialize081,
+    initialize082: () => initialize082,
+    inventoryDraw: () => inventoryDraw,
+    inventoryHas: () => inventoryHas,
+    inventoryToggle: () => inventoryToggle,
+    itemIcon: () => itemIcon,
+    itemLabel: () => itemLabel,
+    itemSlots: () => itemSlots,
+    keyHeld: () => keyHeld,
+    near: () => near,
+    pickItemToHand: () => pickItemToHand,
+    placeHandAt: () => placeHandAt,
+    quickEquipFromInventory: () => quickEquipFromInventory,
+    renderEquipment: () => renderEquipment,
+    requireStore: () => requireStore,
+    restoreHandItem: () => restoreHandItem,
+    rugRect: () => rugRect,
+    showDialog: () => showDialog,
+    storeAvailable: () => storeAvailable,
+    storeCanFit: () => storeCanFit,
+    storeHandInInventory: () => storeHandInInventory,
+    storeLoad: () => storeLoad,
+    storeObject: () => storeObject,
+    syncLegacyItems: () => syncLegacyItems,
+    transferItem: () => transferItem,
+    withinReach: () => withinReach
+  });
   function itemSlots(type) {
     return Math.max(1, Math.ceil((state.ITEM_SPEC[type]?.litres || 1) / state.INVENTORY_SLOT_LITRES));
   }
@@ -2573,39 +3179,6 @@
   function initialize079() {
     state.renderEquipment();
   }
-  function quickEquipFromInventory(type) {
-    const items=state.game.stores.inventory;
-    if(!items.includes(type)) return false;
-    // If carrying something, return it to the bag or place it near the feet.
-    if(state.handItem){
-      if(!state.storeHandInInventory()){
-        const held=state.handItem.type;
-        state.game.droppedItems.push({type:held,x:state.player.x+.25,z:state.player.z+.25});
-        if(!state.game.stores.floor.includes(held))state.game.stores.floor.push(held);
-        state.handItem=null;
-        state.toast(state.itemLabel(held)+" caiu no chão: mochila cheia.");
-      }
-    }
-    const slot=type==="backpack"?"backpack":type==="clothing"?"clothing":"right";
-    const twoHanded=["axe","pickaxe","shovel"].includes(type);
-    const occupied=twoHanded?["left","right"]:[slot];
-    for(const key of occupied){
-      const old=state.equipment[key];
-      if(!old||old===type) continue;
-      if(state.storeCanFit("inventory",old))items.push(old);
-      else {
-        state.game.droppedItems.push({type:old,x:state.player.x+.22,z:state.player.z+.22});
-        state.game.stores.floor.push(old);
-      }
-      state.equipment[key]=null;
-    }
-    if(twoHanded){state.equipment.left=type;state.equipment.right=type;state.gathering.activeTool=type;}
-    else state.equipment[slot]=type;
-    items.splice(items.indexOf(type),1);
-    state.syncLegacyItems();state.inventoryDraw();state.renderEquipment();state.saveGame();
-    state.toast(state.itemLabel(type)+" equipado.");
-    return true;
-  }
   function inventoryDraw() {
     state.invItems.innerHTML = "";
     const items = [...state.game.stores.inventory];
@@ -2638,23 +3211,33 @@
       cell.addEventListener("contextmenu", (e) => {
         e.preventDefault();
         const now = performance.now();
-        if (state.inventoryRightClick && state.inventoryRightClick.type === type && now-state.inventoryRightClick.at < 420) {
+        if (state.inventoryRightClick && state.inventoryRightClick.type === type && now - state.inventoryRightClick.at < 420) {
           clearTimeout(state.inventoryRightClick.timer);
           state.inventoryRightClick = null;
           state.quickEquipFromInventory(type);
         } else {
-          if(state.inventoryRightClick) {
+          if (state.inventoryRightClick) {
             clearTimeout(state.inventoryRightClick.timer);
-            const previous=state.inventoryRightClick.type;
-            if(!state.handItem) state.pickItemToHand({from:"inventory",type:previous});
+            const previous = state.inventoryRightClick.type;
+            if (!state.handItem) state.pickItemToHand({
+              from: "inventory",
+              type: previous
+            });
           }
-          const token={type,at:now,timer:null};
-          token.timer=setTimeout(()=>{
-            if(state.inventoryRightClick!==token) return;
-            state.inventoryRightClick=null;
-            if(!state.handItem) state.pickItemToHand({from:"inventory",type});
-          },330);
-          state.inventoryRightClick=token;
+          const token = {
+            type,
+            at: now,
+            timer: null
+          };
+          token.timer = setTimeout(() => {
+            if (state.inventoryRightClick !== token) return;
+            state.inventoryRightClick = null;
+            if (!state.handItem) state.pickItemToHand({
+              from: "inventory",
+              type
+            });
+          }, 420);
+          state.inventoryRightClick = token;
         }
       });
       state.invItems.append(cell);
@@ -2810,630 +3393,51 @@
       d: 1.65
     };
   }
-
-  // src/inventory/inventory.js
-  var inventory_exports = {};
-  __export(inventory_exports, {
-    canOpenBackpack: () => canOpenBackpack,
-    canReachFloorPoint: () => canReachFloorPoint,
-    canReachObject: () => canReachObject,
-    canReachStore: () => canReachStore,
-    closeDialog: () => closeDialog,
-    closePanels: () => closePanels,
-    initialize063: () => initialize063,
-    initialize064: () => initialize064,
-    initialize065: () => initialize065,
-    initialize066: () => initialize066,
-    initialize067: () => initialize067,
-    initialize068: () => initialize068,
-    initialize069: () => initialize069,
-    initialize070: () => initialize070,
-    initialize071: () => initialize071,
-    initialize072: () => initialize072,
-    initialize073: () => initialize073,
-    initialize074: () => initialize074,
-    initialize075: () => initialize075,
-    initialize076: () => initialize076,
-    initialize077: () => initialize077,
-    initialize078: () => initialize078,
-    initialize079: () => initialize079,
-    initialize080: () => initialize080,
-    initialize081: () => initialize081,
-    initialize082: () => initialize082,
-    inventoryDraw: () => inventoryDraw,
-    inventoryHas: () => inventoryHas,
-    inventoryToggle: () => inventoryToggle,
-    itemIcon: () => itemIcon,
-    itemLabel: () => itemLabel,
-    itemSlots: () => itemSlots,
-    keyHeld: () => keyHeld,
-    near: () => near,
-    pickItemToHand: () => pickItemToHand,
-    placeHandAt: () => placeHandAt,
-    renderEquipment: () => renderEquipment,
-    requireStore: () => requireStore,
-    restoreHandItem: () => restoreHandItem,
-    rugRect: () => rugRect,
-    showDialog: () => showDialog,
-    storeAvailable: () => storeAvailable,
-    storeCanFit: () => storeCanFit,
-    storeHandInInventory: () => storeHandInInventory,
-    storeLoad: () => storeLoad,
-    storeObject: () => storeObject,
-    syncLegacyItems: () => syncLegacyItems,
-    transferItem: () => transferItem,
-    withinReach: () => withinReach
-  });
-  function itemSlots(type) {
-    return Math.max(1, Math.ceil((state.ITEM_SPEC[type]?.litres || 1) / state.INVENTORY_SLOT_LITRES));
-  }
-  function itemIcon(type) {
-    return {
-      backpack: "\u{1F392}",
-      clothing: "\u{1F97C}",
-      houseKey: "\u{1F5DD}\uFE0F",
-      chestKey: "\u{1F5DD}\uFE0F",
-      coins: "\u{1FA99}",
-      gem: "\u{1F48E}",
-      paper: "\u{1F4DC}",
-      deskBook: "\u{1F4D5}",
-      book: "\u{1F4D8}",
-      rug: "\u{1F9F5}",
-      apple: "\u{1F34E}",
-      cup: "\u{1F95B}",
-      mug: "\u2615",
-      axe: "\u{1FA93}",
-      pickaxe: "\u26CF\uFE0F",
-      shovel: "\u{1FA8F}",
-      wood: "\u{1FAB5}",
-      ore: "\u{1F4A0}",
-      stoneChunk: "\u{1FAA8}",
-      soil: "\u{1F7EB}",
-      treasure: "\u{1F4B0}"
-    }[type] || "\u{1F4E6}";
-  }
-  function storeLoad(id) {
-    return state.game.stores[id].reduce((n, t) => n + (state.ITEM_SPEC[t]?.litres || 0), 0);
-  }
-  function storeCanFit(id, type) {
-    return state.game.stores[id].length < 50 && state.storeLoad(id) + (state.ITEM_SPEC[type]?.litres || Infinity) <= state.STORAGE_LIMIT[id] + 1e-6;
-  }
-  function itemLabel(type) {
-    return state.ITEM_SPEC[type]?.name || type;
-  }
-  function inventoryHas(type) {
-    return state.game.stores.inventory.includes(type);
-  }
-  function keyHeld(kind) {
-    return state.inventoryHas(kind + "Key");
-  }
-  function transferItem(from, to, type) {
-    const list = state.game.stores[from], index = list.indexOf(type);
+  function quickEquipFromInventory(type) {
+    const items = state.game.stores.inventory, index = items.indexOf(type);
     if (index < 0) return false;
-    if (!state.storeCanFit(to, type)) {
-      state.toast("Sem espa\xE7o suficiente para " + state.itemLabel(type) + ".");
-      return false;
-    }
-    list.splice(index, 1);
-    state.game.stores[to].push(type);
-    if (type === "book" && (from === "shelf" || to === "shelf")) {
-      if (from === "shelf") {
-        const r = state.shelfRows.findIndex((v) => v > 0);
-        if (r >= 0) state.shelfRows[r]--;
-      } else state.shelfRows[0]++;
-    }
-    state.syncLegacyItems();
-    state.saveGame();
-    state.inventoryDraw();
-    return true;
-  }
-  function syncLegacyItems() {
-    const locs = Object.values(state.game.stores).flat();
-    state.game.loot.coins = !state.game.stores.chest.includes("coins");
-    state.game.loot.gem = !state.game.stores.chest.includes("gem");
-    state.game.deskLoot.paper = !state.game.stores.drawerTop.includes("paper") && !state.game.stores.drawerBottom.includes("paper") && !state.game.stores.deskTop.includes("paper");
-    state.game.deskLoot.book = !state.game.stores.drawerTop.includes("deskBook") && !state.game.stores.drawerBottom.includes("deskBook") && !state.game.stores.deskTop.includes("deskBook");
-    state.game.booksLeft = state.game.stores.shelf.filter((x) => x === "book").length;
-    state.game.booksTaken = state.game.stores.inventory.filter((x) => x === "book").length;
-    state.game.rug.placed = state.game.stores.floor.includes("rug");
-    state.game.rug.collected = state.game.stores.inventory.includes("rug");
-  }
-  function initialize063() {
-    state.dialog = document.getElementById("interaction");
-    state.dialogTitle = document.getElementById("dialogTitle");
-    state.dialogText = document.getElementById("dialogText");
-    state.dialogChoices = document.getElementById("dialogChoices");
-  }
-  function initialize064() {
-    state.inventory = document.getElementById("inventory");
-    state.invItems = document.getElementById("inventoryItems");
-    state.invMeta = document.getElementById("inventoryMeta");
-  }
-  function initialize065() {
-    state.choicesNow = [];
-  }
-  function initialize066() {
-    state.dragInventoryType = null;
-  }
-  function initialize067() {
-    state.canvasDragOrigin = null;
-  }
-  function initialize068() {
-    state.canvasDragSource = null;
-  }
-  function closePanels() {
-    state.closeDialog();
-    state.inventory.classList.remove("open");
-    state.equipmentBox.classList.remove("open");
-    document.getElementById("sheet").classList.remove("open");
-    state.dismissPopups();
-  }
-  function restoreHandItem() {
-    if (!state.handItem) return;
-    const h = state.handItem, t = h.type;
-    if (h.from === "inventory") state.game.stores.inventory.push(t);
-    else if (h.from === "equipment") {
-      if (["axe", "pickaxe", "shovel"].includes(t)) {
-        state.equipment.left = t;
-        state.equipment.right = t;
-        state.gathering.activeTool = t;
-      } else if (t === "backpack") state.equipment.backpack = t;
-      else if (t === "clothing") state.equipment.clothing = t;
-      else state.equipment.left = t;
-      state.renderEquipment();
-    } else if (h.from === "worldKey") state.game.items[t] = false;
-    else if (h.from === "floor" && h.object) {
-      state.game.droppedItems.push({
-        type: t,
-        x: h.object.x,
-        z: h.object.z
-      });
-      state.game.stores.floor.push(t);
-    } else if (h.from === "rug") {
-      if (!state.game.stores.floor.includes("rug")) state.game.stores.floor.push("rug");
-      state.game.rug.placed = true;
-    } else if (state.game.stores[h.from]) {
-      state.game.stores[h.from].push(t);
-      if (h.from === "shelf") state.shelfRows[h.row ?? 0]++;
-    }
-    state.handItem = null;
-    state.syncLegacyItems();
-    state.inventoryDraw();
-    state.saveGame();
-  }
-  function pickItemToHand(src) {
-    if (state.handItem) {
-      state.toast("Voc\xEA j\xE1 est\xE1 segurando algo.");
-      return false;
-    }
-    if (!src || !state.ITEM_SPEC[src.type]) return false;
-    const t = src.type;
-    if (src.from === "inventory") {
-      const i = state.game.stores.inventory.indexOf(t);
-      if (i < 0) return false;
-      state.game.stores.inventory.splice(i, 1);
-    } else if (src.from === "worldKey") state.game.items[t] = true;
-    else if (src.from === "floor" && src.object) {
-      const i = state.game.droppedItems.indexOf(src.object);
-      if (i < 0) return false;
-      state.game.droppedItems.splice(i, 1);
-      const f = state.game.stores.floor.indexOf(t);
-      if (f >= 0) state.game.stores.floor.splice(f, 1);
-    } else if (src.from === "rug") {
-      const i = state.game.stores.floor.indexOf("rug");
-      if (i >= 0) state.game.stores.floor.splice(i, 1);
-      state.game.rug.placed = false;
-    } else if (state.game.stores[src.from]) {
-      const i = state.game.stores[src.from].indexOf(t);
-      if (i < 0) return false;
-      state.game.stores[src.from].splice(i, 1);
-    } else return false;
-    if (src.from === "shelf" && Number.isInteger(src.row) && state.shelfRows[src.row] > 0) state.shelfRows[src.row]--;
-    state.handItem = {
-      type: t,
-      from: src.from,
-      row: src.row,
-      object: src.object || null
-    };
-    state.syncLegacyItems();
-    state.inventoryDraw();
-    state.saveGame();
-    state.toast(state.itemLabel(t) + " na m\xE3o.");
-    return true;
-  }
-  function storeHandInInventory() {
-    if (!state.handItem) return false;
-    if (!state.canOpenBackpack()) return state.toast("Equipe a mochila primeiro."), false;
-    if (!state.storeCanFit("inventory", state.handItem.type)) {
-      state.toast("N\xE3o cabe na mochila.");
-      return false;
-    }
-    state.game.stores.inventory.push(state.handItem.type);
-    state.handItem = null;
-    state.syncLegacyItems();
-    state.inventoryDraw();
-    state.saveGame();
-    state.toast("Guardado na mochila.");
-    return true;
-  }
-  function placeHandAt(mx, my) {
-    if (!state.handItem) return false;
-    const p = state.worldAt(mx, my), type = state.handItem.type;
-    let dest = state.inventoryDropLocation(p.x, p.z, mx, my);
-    if (!dest) {
-      state.toast("Abra o recipiente ou escolha um local v\xE1lido.");
-      return true;
-    }
-    if (type === "rug" && dest !== "floor") {
-      state.toast("O tapete s\xF3 pode ser colocado no ch\xE3o.");
-      return true;
-    }
-    if (dest === "floor" && !state.canReachFloorPoint(p.x, p.z)) {
-      state.toast("Lugar fora de alcance.");
-      return true;
-    }
-    if (dest !== "floor" && !state.requireStore(dest)) return true;
-    if (type === "rug") {
-      const x = state.clamp(p.x - 1.2, 0.07, 4.52), z = state.clamp(p.z - 0.82, 0.07, 3.28);
-      if (!state.canReachFloorPoint(x + 1.2, z + 0.82)) {
-        state.toast("O tapete ficaria fora de alcance.");
-        return true;
-      }
-      if (!state.game.stores.floor.includes("rug")) state.game.stores.floor.push("rug");
-      state.game.rug.x = x;
-      state.game.rug.z = z;
-      state.game.rug.placed = true;
-      state.handItem = null;
-      state.saveGame();
-      state.toast("Tapete colocado.");
-      return true;
-    }
-    if (dest === "floor") {
-      state.game.droppedItems.push({
-        type,
-        x: p.x,
-        z: p.z
-      });
-      state.game.stores.floor.push(type);
-      state.handItem = null;
-      state.syncLegacyItems();
-      state.saveGame();
-      state.toast(state.itemLabel(type) + " colocado no ch\xE3o.");
-      return true;
-    }
-    if (!state.storeCanFit(dest, type)) {
-      state.toast("Sem espa\xE7o suficiente.");
-      return true;
-    }
-    state.game.stores[dest].push(type);
-    if (dest === "shelf" && type === "book") {
-      const zz = state.wardrobeObject.z + state.wardrobeObject.d * 0.45;
-      let best = 0, dist = 1e9;
-      for (let r = 0; r < 3; r++) {
-        const q = state.P(state.wardrobeObject.x - 0.03, zz, 0.47 + r * 0.48);
-        const d = Math.hypot(mx - q[0], my - q[1]);
-        if (d < dist) {
-          dist = d;
-          best = r;
-        }
-      }
-      state.shelfRows[best]++;
-    }
-    state.handItem = null;
-    state.syncLegacyItems();
-    state.saveGame();
-    state.inventoryDraw();
-    state.toast(state.itemLabel(type) + " colocado em " + dest + ".");
-    return true;
-  }
-  function initialize069() {
-    state.equipmentBox = document.getElementById("equipment");
-    state.eqSlots = document.getElementById("eqSlots");
-  }
-  function initialize070() {
-    document.getElementById("equipmentClose").onclick = () => state.equipmentBox.classList.remove("open");
-  }
-  function initialize071() {
-    document.getElementById("inventoryClose").onclick = () => state.inventory.classList.remove("open");
-  }
-  function initialize072() {
-    state.gearSlots = ["clothing", "left", "right", "backpack"];
-  }
-  function initialize073() {
-    state.equipmentIcon = {
-      clothing: "\u{1F97C}",
-      left: "\u270B",
-      right: "\u270B",
-      backpack: "\u{1F392}"
-    };
-  }
-  function renderEquipment() {
-    state.eqSlots.replaceChildren();
-    for (const slot of state.gearSlots) {
-      const el = document.createElement("button");
-      el.className = "eq-slot";
-      el.title = "Clique para equipar ou retirar";
-      const value = state.equipment[slot], dual = slot === "right" && value && state.equipment.left === value && ["axe", "pickaxe", "shovel"].includes(value);
-      el.innerHTML = "<strong>" + {
-        clothing: "Roupa",
-        left: "M\xE3o esquerda",
-        right: "M\xE3o direita",
-        backpack: "Mochila"
-      }[slot] + "</strong><span>" + (value ? state.itemIcon(value) + " " + (dual ? "\u2194" : state.itemLabel(value)) : "Vazio") + "</span>";
-      el.onclick = () => {
-        if (state.handItem) {
-          if (slot === "backpack" && state.handItem.type !== "backpack") return state.toast("Esse espa\xE7o exige uma mochila.");
-          if (slot === "clothing" && state.handItem.type !== "clothing") return state.toast("Esse espa\xE7o \xE9 para roupas.");
-          if ((slot === "left" || slot === "right") && ["backpack", "clothing"].includes(state.handItem.type)) return state.toast("Use o espa\xE7o correto.");
-          if (state.equipment[slot]) return state.toast("Retire o equipamento anterior.");
-          const type = state.handItem.type;
-          if (["axe", "pickaxe", "shovel"].includes(type)) {
-            if (state.equipment.left || state.equipment.right) return state.toast("Libere as duas m\xE3os.");
-            state.equipment.left = type;
-            state.equipment.right = type;
-            state.gathering.activeTool = type;
-          } else state.equipment[slot] = type;
-          state.handItem = null;
-          state.saveGame();
-          state.inventoryDraw();
-          state.renderEquipment();
-          return;
-        }
-        if (!value) return;
-        if (state.equipment.backpack && value !== "backpack" && !state.storeCanFit("inventory", value)) {
-          state.toast("Sem espa\xE7o na mochila.");
-          return;
-        }
-        if (["axe", "pickaxe", "shovel"].includes(value)) {
-          state.equipment.left = null;
-          state.equipment.right = null;
-          state.gathering.activeTool = null;
-        } else state.equipment[slot] = null;
-        if (!state.storeCanFit("inventory", value) && state.equipment.backpack) {
-          state.toast("Sem espa\xE7o na mochila.");
-          return;
-        }
-        if (state.equipment.backpack && value !== "backpack") state.game.stores.inventory.push(value);
-        else state.handItem = {
-          type: value,
-          from: "equipment",
-          object: null
-        };
-        state.saveGame();
-        state.inventoryDraw();
-        state.renderEquipment();
-      };
-      state.eqSlots.append(el);
-    }
-    document.getElementById("eqInfo").textContent = state.equipment.backpack ? "Equipamento e mochila s\xE3o pain\xE9is separados. Clique nos espa\xE7os para desequipar." : "Sem mochila: leve-a at\xE9 este painel e equipe-a.";
-  }
-  function initialize074() {
-    document.getElementById("equipmentBtn").onclick = () => {
-      state.inventory.classList.remove("open");
-      state.renderEquipment();
-      state.equipmentBox.classList.toggle("open");
-    };
-  }
-  function initialize075() {
-    document.getElementById("menuBtn").onclick = () => document.getElementById("topActions").classList.toggle("expanded");
-  }
-  function initialize076() {
-    document.getElementById("exportSave").onclick = state.exportSaveFile;
-  }
-  function initialize077() {
-    document.getElementById("importSave").onclick = () => document.getElementById("saveFile").click();
-  }
-  function initialize078() {
-    document.getElementById("saveFile").onchange = async (e) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      try {
-        if (file.size > 8 * 1024 * 1024) throw Error("Arquivo grande demais");
-        const raw = await file.text(), data = JSON.parse(raw);
-        if (!data || typeof data !== "object" || !data.stores || !Array.isArray(data.editDecor) || !data.door || !Array.isArray(data.stores.inventory)) throw Error("Formato incompat\xEDvel");
-        if (!confirm("Substituir a partida atual pelo arquivo importado?")) return;
-        localStorage.setItem(state.saveKey, raw);
-        location.reload();
-      } catch (err) {
-        state.toast("Falha na importa\xE7\xE3o: " + err.message);
-      }
-    };
-  }
-  function canOpenBackpack() {
-    return state.godMode() || state.equipment.backpack === "backpack";
-  }
-  function initialize079() {
-    state.renderEquipment();
-  }
-  function inventoryDraw() {
-    state.invItems.innerHTML = "";
-    const items = [...state.game.stores.inventory];
-    const usedSlots = items.reduce((n, t) => n + state.itemSlots(t), 0);
-    const totalCells = Math.max(24, Math.ceil(Math.max(usedSlots, 1) / 6) * 6);
-    state.invMeta.textContent = "Bolsa visual \xB7 " + usedSlots + " quadrinhos usados \xB7 1 quadrinho = " + state.INVENTORY_SLOT_LITRES * 1e3 + " ml";
-    if (!items.length) {
-      const empty = document.createElement("div");
-      empty.className = "inventory-empty";
-      empty.textContent = "Vazio. Explore e procure objetos.";
-      state.invItems.append(empty);
-      return;
-    }
-    for (const type of items) {
-      const cell = document.createElement("div");
-      cell.className = "inventory-item";
-      cell.draggable = true;
-      cell.style.gridColumn = "span " + Math.min(6, state.itemSlots(type));
-      cell.title = "Arraste para o ch\xE3o, ba\xFA, gaveta ou m\xF3vel";
-      cell.innerHTML = '<span class="icon">' + state.itemIcon(type) + '</span><span class="name">' + state.itemLabel(type) + '</span><span class="size">' + (state.ITEM_SPEC[type]?.litres || 0).toFixed(2).replace(".", ",") + " L</span>";
-      cell.addEventListener("dragstart", (e) => {
-        state.dragInventoryType = type;
-        e.dataTransfer.setData("text/plain", type);
-        e.dataTransfer.effectAllowed = "move";
-        e.dataTransfer.setDragImage(state.emptyDragImage, 0, 0);
-      });
-      cell.addEventListener("dragend", () => {
-        state.dragInventoryType = null;
-      });
-      cell.addEventListener("contextmenu", (e) => {
-        e.preventDefault();
-        state.pickItemToHand({
-          from: "inventory",
-          type
+    const tools = ["axe", "pickaxe", "shovel"], twoHanded = tools.includes(type);
+    const slot = type === "backpack" ? "backpack" : type === "clothing" ? "clothing" : "right";
+    items.splice(index, 1);
+    const returnOrDrop = (item) => {
+      if ((state.canOpenBackpack() || type === "backpack") && state.storeCanFit("inventory", item)) items.push(item);
+      else {
+        state.game.droppedItems.push({
+          type: item,
+          x: state.player.x + 0.3,
+          z: state.player.z + 0.3
         });
-        state.inventory.classList.remove("open");
-      });
-      state.invItems.append(cell);
+        state.game.stores.floor.push(item);
+      }
+    };
+    if (state.handItem) {
+      returnOrDrop(state.handItem.type);
+      state.handItem = null;
     }
-    const empties = Math.max(0, totalCells - usedSlots);
-    for (let i = 0; i < empties; i++) {
-      const c = document.createElement("div");
-      c.className = "inventory-cell";
-      state.invItems.append(c);
+    const slots = new Set(twoHanded ? ["left", "right"] : [slot]);
+    for (const key of [...slots]) if (tools.includes(state.equipment[key])) {
+      slots.add("left");
+      slots.add("right");
     }
-  }
-  function initialize080() {
-    state.inventory.addEventListener("dragover", (e) => {
-      if (e.dataTransfer.types.includes("application/x-orla-source")) {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = "move";
-      }
-    });
-  }
-  function initialize081() {
-    state.inventory.addEventListener("drop", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      let data;
-      try {
-        data = JSON.parse(e.dataTransfer.getData("application/x-orla-source"));
-      } catch {
-        return;
-      }
-      if (!data || !state.ITEM_SPEC[data.type]) return;
-      if (data.from === "worldKey") {
-        const kind = data.type === "houseKey" ? "house" : data.type === "chestKey" ? "chest" : null;
-        if (!kind || state.inventoryHas(data.type)) return;
-        const point = state.game.groundKeys[kind];
-        if (Math.hypot(state.player.x - point.x, state.player.z - point.z) > 1.12) return state.toast("Aproxime-se da chave.");
-        state.game.items[data.type] = true;
-        state.game.stores.inventory.push(data.type);
-        state.saveGame();
-        state.inventoryDraw();
-        state.toast("Chave recolhida.");
-      } else if (data.from === "rug") {
-        if (!state.game.rug.placed || !state.game.stores.floor.includes("rug") || !state.canReachObject(state.rugRect(), 0.85)) {
-          state.toast("Aproxime-se do tapete.");
-          return;
-        }
-        const i = state.game.stores.floor.indexOf("rug");
-        if (i >= 0) state.game.stores.floor.splice(i, 1);
-        state.game.rug.placed = false;
-        state.game.stores.inventory.push("rug");
-        state.inventoryDraw();
-        state.saveGame();
-        state.toast("Tapete recolhido.");
-      } else if (!state.game.stores[data.from]?.includes(data.type)) return;
-      else if (data.from === "floor") {
-        const o = state.game.droppedItems.find((o2) => o2.type === data.type && Math.abs(o2.x - data.x) < 1e-3 && Math.abs(o2.z - data.z) < 1e-3);
-        if (!o || Math.hypot(state.player.x - o.x, state.player.z - o.z) > 1.12) {
-          state.toast("Aproxime-se do objeto.");
-          return;
-        }
-        if (state.transferItem("floor", "inventory", data.type)) {
-          state.game.droppedItems.splice(state.game.droppedItems.indexOf(o), 1);
-          state.saveGame();
-          state.toast(state.itemLabel(data.type) + " recolhido.");
-        }
-      } else if (state.requireStore(data.from) && state.transferItem(data.from, "inventory", data.type)) {
-        state.syncLegacyItems();
-        state.toast(state.itemLabel(data.type) + " recolhido.");
-      }
-      state.canvasDragSource = null;
-    });
-  }
-  function inventoryToggle() {
-    if (!state.canOpenBackpack()) return state.toast("Primeiro equipe a mochila.");
-    state.equipmentBox.classList.remove("open");
+    let dualReturned = false;
+    for (const key of slots) {
+      const old = state.equipment[key];
+      const dual = tools.includes(old) && state.equipment.left === state.equipment.right;
+      if (old && (!dual || !dualReturned)) returnOrDrop(old);
+      if (dual) dualReturned = true;
+    }
+    for (const key of slots) state.equipment[key] = null;
+    if (twoHanded) {
+      state.equipment.left = type;
+      state.equipment.right = type;
+    } else state.equipment[slot] = type;
+    state.gathering.activeTool = tools.includes(state.equipment.left) && state.equipment.left === state.equipment.right ? state.equipment.left : null;
+    state.syncLegacyItems();
     state.inventoryDraw();
-    state.inventory.classList.toggle("open");
-    state.dialog.classList.remove("open");
-    document.getElementById("sheet").classList.remove("open");
-  }
-  function closeDialog() {
-    state.dialog.classList.remove("open");
-    state.choicesNow = [];
-    state.dialogOrigin = null;
-  }
-  function showDialog(title, message, choices) {
-    state.inventory.classList.remove("open");
-    state.dialogTitle.textContent = title;
-    state.dialogText.textContent = message;
-    state.dialogChoices.innerHTML = "";
-    state.choicesNow = choices;
-    for (const [i, ch] of choices.filter((c) => c && c.label !== "Cancelar").entries()) {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.textContent = ch.label;
-      if (i === 0) b.classList.add("primary");
-      b.onclick = () => {
-        state.closeDialog();
-        ch.action?.();
-      };
-      state.dialogChoices.append(b);
-    }
-    state.dialogOrigin = {
-      x: state.player.x,
-      z: state.player.z
-    };
-    state.dialog.classList.add("open");
-  }
-  function initialize082() {
-    state.REACH = 1.08;
-  }
-  function near(x, z, d = 1.12) {
-    return state.godMode() || Math.hypot(state.player.x - x, state.player.z - z) <= d;
-  }
-  function withinReach(x, z, margin = state.REACH) {
-    return state.godMode() || Math.hypot(state.player.x - x, state.player.z - z) <= margin;
-  }
-  function canReachObject(o, margin = state.REACH) {
-    return state.godMode() || state.inside(state.player.x, state.player.z) && state.rectDistance(state.player.x, state.player.z, o) <= margin;
-  }
-  function storeObject(id) {
-    if (id === "chest") return state.chestObject;
-    if (id === "drawerTop" || id === "drawerBottom" || id === "deskTop") return state.deskObject;
-    if (id === "shelf") return state.wardrobeObject;
-    if (id === "bed") return state.bedObject;
-    if (id === "table") return state.pushables.find((o) => o.label === "mesa");
-    return null;
-  }
-  function canReachStore(id) {
-    const o = state.storeObject(id);
-    return !!o && state.canReachObject(o);
-  }
-  function storeAvailable(id) {
-    if (state.godMode()) return !!state.game.stores[id];
-    if (!state.canReachStore(id)) return false;
-    if (id === "chest") return state.game.chest.open && !state.game.chest.locked;
-    if (id === "drawerTop") return state.game.drawerOpen[0];
-    if (id === "drawerBottom") return state.game.drawerOpen[1];
+    state.renderEquipment();
+    state.saveGame();
+    state.toast(state.itemLabel(type) + " equipado.");
     return true;
-  }
-  function requireStore(id) {
-    if (state.storeAvailable(id)) return true;
-    state.toast("Aproxime-se e abra o recipiente, se necess\xE1rio.");
-    return false;
-  }
-  function canReachFloorPoint(x, z) {
-    return state.withinReach(x, z) && x > -12 && x < 20 && z > -10 && z < 18 && (state.godMode() || !state.wallBarriers().some((w) => state.circleRect(x, z, 0.08, w)));
-  }
-  function rugRect() {
-    return {
-      x: state.game.rug.x,
-      z: state.game.rug.z,
-      w: 2.4,
-      d: 1.65
-    };
   }
 
   // src/rendering/scene.js
@@ -4165,37 +4169,53 @@
   }
   function drawWallFace(side) {
     const cream = "#e6d3b1", wood = "#765338", h = 2.92, hw = state.currentHouseWidth();
-    const added=(state.game.addedWindows||[]).filter(o=>o.side===side && !o.hidden);
-    if(added.length){
-      const horizontal=side==='north'||side==='south',wallAt=horizontal?(side==='north'?0:5):(side==='west'?0:hw);
-      const length=horizontal?hw:5;
-      const openings=added.map(o=>({start:o.u,end:o.u+o.w,kind:'window'}));
-      const defaults=side==='north'?[[2,2.9]]:side==='south'?[[1.1,1.8]]:side==='west'?[[1.95,2.83]]:[];
-      for(const [a,b] of defaults)openings.push({start:a,end:b,kind:'window'});
-      if(side==='south')openings.push({start:3.05,end:4.23,kind:'door'});
-      openings.sort((a,b)=>a.start-b.start);
-      let cursor=0;
-      const solid=(a,b)=>{if(b<=a)return;if(horizontal)state.wallLine(a,wallAt,h,b-a,0,cream);else state.wallLine(wallAt,a,h,0,b-a,cream);};
-      for(const o of openings){
-        if(o.start>cursor+.001)solid(cursor,o.start);
-        if(o.kind==='window'){
-          if(horizontal)state.windowPaneZ(wallAt,o.start,o.end-o.start);
-          else state.windowPaneX(wallAt,o.start,o.end-o.start);
+    const added = (state.game.addedWindows || []).filter((o) => o.side === side && !o.hidden);
+    if (added.length) {
+      const horizontal = side === "north" || side === "south", wallAt = horizontal ? side === "north" ? 0 : 5 : side === "west" ? 0 : hw;
+      const length = horizontal ? hw : 5;
+      const openings = added.map((o) => ({
+        start: o.u,
+        end: o.u + o.w,
+        kind: "window"
+      }));
+      const defaults = side === "north" ? [[2, 2.9]] : side === "south" ? [[1.1, 1.8]] : side === "west" ? [[1.95, 2.83]] : [];
+      for (const [a, b] of defaults) openings.push({
+        start: a,
+        end: b,
+        kind: "window"
+      });
+      if (side === "south") openings.push({
+        start: 3.05,
+        end: 4.23,
+        kind: "door"
+      });
+      openings.sort((a, b) => a.start - b.start);
+      let cursor = 0;
+      const solid = (a, b) => {
+        if (b <= a) return;
+        if (horizontal) state.wallLine(a, wallAt, h, b - a, 0, cream);
+        else state.wallLine(wallAt, a, h, 0, b - a, cream);
+      };
+      for (const o of openings) {
+        if (o.start > cursor + 1e-3) solid(cursor, o.start);
+        if (o.kind === "window") {
+          if (horizontal) state.windowPaneZ(wallAt, o.start, o.end - o.start);
+          else state.windowPaneX(wallAt, o.start, o.end - o.start);
         }
-        cursor=Math.max(cursor,o.end);
+        cursor = Math.max(cursor, o.end);
       }
-      solid(cursor,length);
-      for(let u=0;u<length;u+=1.18){
-        if(openings.some(o=>u>o.start-.03&&u<o.end+.03))continue;
-        if(horizontal)state.line3([u,wallAt,.02],[u,wallAt,h],wood,3.3);
-        else state.line3([wallAt,u,.02],[wallAt,u,h],wood,3.3);
+      solid(cursor, length);
+      for (let u = 0; u < length; u += 1.18) {
+        if (openings.some((o) => u > o.start - 0.03 && u < o.end + 0.03)) continue;
+        if (horizontal) state.line3([u, wallAt, 0.02], [u, wallAt, h], wood, 3.3);
+        else state.line3([wallAt, u, 0.02], [wallAt, u, h], wood, 3.3);
       }
-      if(side==='south'){
-        state.wallPanel(3.05,wallAt,2.6,h,1.18,0,cream);
-        if(!state.reveal())state.drawDoor();
+      if (side === "south") {
+        state.wallPanel(3.05, wallAt, 2.6, h, 1.18, 0, cream);
+        if (!state.reveal()) state.drawDoor();
       }
-      if(horizontal)state.line3([0,wallAt,h],[hw,wallAt,h],wood,4.3);
-      else state.line3([wallAt,0,h],[wallAt,5,h],wood,4.3);
+      if (horizontal) state.line3([0, wallAt, h], [hw, wallAt, h], wood, 4.3);
+      else state.line3([wallAt, 0, h], [wallAt, 5, h], wood, 4.3);
       return;
     }
     if (side === "north" || side === "south") {
@@ -4480,6 +4500,7 @@
     if (z2 >= 2.359) state.quad3([x + t, z2, 0], [x - t, z2, 0], [x - t, z2, h], [x + t, z2, h], "#b99a77");
   }
   function tableParts(o) {
+    if (rotationDelta(o)) return [{ x: o.x + o.w / 2, z: o.z + o.d / 2, depth: state.footprintDepth(o), draw: () => state.drawMoveable(o) }];
     if (o.label !== "mesa") return [{
       x: o.x + o.w / 2,
       z: o.z + o.d / 2,
@@ -4624,13 +4645,14 @@
     state.ctx.clearRect(0, 0, state.W, state.H);
     state.ground();
     const baseHouseScene = [{
-      x: state.house.w/2, z: 2.5,
+      x: state.house.w / 2,
+      z: 2.5,
       kind: "house",
       draw: () => {
         if (state.reveal()) state.drawInnerScene();
         else {
-          const hw=state.currentHouseWidth(),offset=.65;
-          state.poly([[0,0],[hw,0],[hw,5],[0,5]].map(([x,z])=>state.P(x+offset,z+offset,.008)),"#152a1640");
+          const hw = state.currentHouseWidth(), offset = 0.65;
+          state.poly([[0, 0], [hw, 0], [hw, 5], [0, 5]].map(([x, z]) => state.P(x + offset, z + offset, 8e-3)), "#152a1640");
           state.drawOuterShell();
           state.roof();
           state.drawExternalChimney();
@@ -4692,7 +4714,8 @@
       draw: () => state.drawKey(state.game.groundKeys.house.x, state.game.groundKeys.house.z, "house")
     }] : []];
     scene.sort((a, b) => (a.depth ?? state.painterDepth(a.x, a.z)) - (b.depth ?? state.painterDepth(b.x, b.z)));
-    for (const obj of scene) obj.draw();
+    for (const obj of scene) if (state.drawSceneEntity) state.drawSceneEntity(obj);
+    else obj.draw();
     if (state.placingObject) {
       state.ctx.save();
       state.ctx.font = "bold 14px sans-serif";
@@ -4826,6 +4849,7 @@
     try {
       const payload = JSON.stringify({
         schemaVersion: 1,
+        addedWindows: state.game.addedWindows || [],
         handItem: state.handItem,
         door: state.game.door,
         chest: state.game.chest,
@@ -4887,6 +4911,7 @@
     try {
       const data = JSON.parse(localStorage.getItem(state.saveKey) || localStorage.getItem("orla-v19-aventura") || localStorage.getItem("orla-v18-aventura") || localStorage.getItem("orla-v16-aventura") || "null");
       if (!data) return;
+      state.game.addedWindows = Array.isArray(data.addedWindows) ? data.addedWindows.filter((o) => o && ["north", "south", "east", "west"].includes(o.side) && Number.isFinite(o.u) && Number.isFinite(o.w) && o.u >= 0 && o.w > 0 && o.u + o.w <= (["north", "south"].includes(o.side) ? 10 : 5)).map((o) => ({ ...o })) : [];
       if (data.handItem && state.ITEM_SPEC[data.handItem.type]) state.handItem = data.handItem;
       if (["god", "traveler"].includes(data.role)) state.role = data.role;
       if (data.stores) {
@@ -4904,7 +4929,7 @@
       for (const k of ["door", "chest", "loot", "deskLoot", "items", "fireplace"]) if (data[k]) Object.assign(state.game[k], data[k]);
       for (const kind of ["house", "chest"]) {
         const key = kind + "Key";
-        if (state.game.items[key] && !Object.values(state.game.stores).some((a) => a.includes(key))) state.game.stores.inventory.push(key);
+        if (state.game.items[key] && state.handItem?.type !== key && !Object.values(data.equipment || state.equipment).includes(key) && !Object.values(state.game.stores).some((a) => a.includes(key))) state.game.stores.inventory.push(key);
       }
       if (data.rug) Object.assign(state.game.rug, data.rug);
       if (Array.isArray(data.droppedItems)) state.game.droppedItems = data.droppedItems.filter((o) => o && state.ITEM_SPEC[o.type] && Number.isFinite(o.x) && Number.isFinite(o.z));
@@ -5129,10 +5154,12 @@
     worldAt: () => worldAt
   });
   function circleRect(px, pz, r, o) {
+    if (Number.isFinite(o.angle)) return circleFootprint(px, pz, r, o);
     const cx = state.clamp(px, o.x, o.x + o.w), cz = state.clamp(pz, o.z, o.z + o.d);
     return Math.hypot(px - cx, pz - cz) < r;
   }
   function rectRect(a, b) {
+    if (Number.isFinite(a.angle) || Number.isFinite(b.angle)) return footprintsOverlap(a, b);
     return a.x < b.x + b.w && a.x + a.w > b.x && a.z < b.z + b.d && a.z + a.d > b.z;
   }
   function pushableObjects() {
@@ -5164,6 +5191,7 @@
   }
   function objectCanBeAt(o, nx, nz) {
     const test = {
+      ...o,
       x: nx,
       z: nz,
       w: o.w,
@@ -5175,6 +5203,7 @@
     return true;
   }
   function rectDistance(px, pz, o) {
+    if (Number.isFinite(o.angle)) return footprintDistance(px, pz, o);
     return Math.hypot(Math.max(o.x - px, 0, px - (o.x + o.w)), Math.max(o.z - pz, 0, pz - (o.z + o.d)));
   }
   function pushContact(x, z, o) {
@@ -5192,6 +5221,7 @@
   }
   function canPushTo(o, x, z, nx, nz) {
     const test = {
+      ...o,
       x: nx,
       z: nz,
       w: o.w,
@@ -5234,6 +5264,7 @@
       for (const obj of [...state2.fixed, ...state2.moveable]) {
         if (obj.hidden || obj.label === "chamine") continue;
         const rect = {
+          ...obj,
           x: h.x + obj.x,
           z: h.z + obj.z,
           w: obj.w,
@@ -5713,7 +5744,8 @@
     };
   }
   function canPlaceChest(x, z) {
-    const c = state.chestObject, nx = x - c.w / 2, nz = z - c.d / 2, test = {
+    const c = state.chestObject, o = c, nx = x - c.w / 2, nz = z - c.d / 2, test = {
+      ...o,
       x: nx,
       z: nz,
       w: c.w,
@@ -5721,8 +5753,8 @@
     };
     if (!state.insideBoundsForObject(nx, nz, c.w, c.d) || state.hitsInteriorWallRect(test)) return false;
     if (state.wallBarriers().some((w) => state.rectRect(test, w))) return false;
-    if (state.fixedSolids.some((o) => o !== c && state.rectRect(test, o))) return false;
-    if (state.pushables.some((o) => state.rectRect(test, o))) return false;
+    if (state.fixedSolids.some((o2) => o2 !== c && state.rectRect(test, o2))) return false;
+    if (state.pushables.some((o2) => state.rectRect(test, o2))) return false;
     if (state.circleRect(state.player.x, state.player.z, state.player.r + 0.12, test)) return false;
     return true;
   }
@@ -5731,6 +5763,7 @@
   }
   function canPlaceObjectAt(o, x, z, ignorePlayer = false) {
     const nx = x - o.w / 2, nz = z - o.d / 2, test = {
+      ...o,
       x: nx,
       z: nz,
       w: o.w,
@@ -5825,9 +5858,10 @@
     const hits = [];
     for (const o of objs) {
       const p = o.x, q = o.z, w = o.w, d = o.d, h = o.h;
-      const polyTop = [[p, q, h], [p + w, q, h], [p + w, q + d, h], [p, q + d, h]].map((v) => state.P(...v));
+      const project = (v) => state.P(...transformPoint(o, ...v));
+      const polyTop = [[p, q, h], [p + w, q, h], [p + w, q + d, h], [p, q + d, h]].map(project);
       const faces = [[[p, q, 0], [p + w, q, 0], [p + w, q, h], [p, q, h]], [[p, q + d, 0], [p + w, q + d, 0], [p + w, q + d, h], [p, q + d, h]], [[p, q, 0], [p, q + d, 0], [p, q + d, h], [p, q, h]], [[p + w, q, 0], [p + w, q + d, 0], [p + w, q + d, h], [p + w, q, h]]];
-      if (state.inScreenPoly([mx, my], polyTop) || faces.some((face) => state.inScreenPoly([mx, my], face.map((v) => state.P(...v))))) hits.push(o);
+      if (state.inScreenPoly([mx, my], polyTop) || faces.some((face) => state.inScreenPoly([mx, my], face.map(project)))) hits.push(o);
     }
     hits.sort((a, b) => state.painterDepth(b.x + b.w / 2, b.z + b.d / 2) - state.painterDepth(a.x + a.w / 2, a.z + a.d / 2));
     return hits[0] || null;
@@ -6483,7 +6517,7 @@
   function screenHitsFurniture(o, mx, my) {
     const x = o.x, z = o.z, w = o.w, d = o.d, h = o.h;
     const quads = [[[x, z, h], [x + w, z, h], [x + w, z + d, h], [x, z + d, h]], [[x, z + d, 0], [x + w, z + d, 0], [x + w, z + d, h], [x, z + d, h]], [[x + w, z, 0], [x + w, z + d, 0], [x + w, z + d, h], [x + w, z, h]], [[x, z, 0], [x + w, z, 0], [x + w, z, h], [x, z, h]], [[x, z, 0], [x, z + d, 0], [x, z + d, h], [x, z, h]]];
-    return quads.some((q) => state.inScreenPoly([mx, my], q.map((v) => state.P(...v))));
+    return quads.some((q) => state.inScreenPoly([mx, my], q.map((v) => state.P(...transformPoint(o, ...v)))));
   }
   function inventoryDropLocation(wx, wz, mx = null, my = null) {
     if (mx !== null && state.inside(state.player.x, state.player.z)) {
@@ -7876,6 +7910,7 @@
       });
       if (state.weatherParticles.length > targetCount) state.weatherParticles.length = targetCount;
       state.wc.save();
+      clipIndoorWeather(state.wc);
       state.wc.lineCap = "round";
       for (const p of state.weatherParticles) {
         const rain = state.climate.weather === "rain", snow = state.climate.weather === "snow";
@@ -8383,8 +8418,10 @@ precision mediump float;in vec3 vCol;out vec4 outColor;void main(){outColor=vec4
   initialize153();
   initialize154();
   installConstructionInspector();
+  installObjectTransforms();
   installPlacementPreview();
   installAtmosphere();
+  installOcclusion();
   if (new URLSearchParams(location.search).has("test")) window.__orlaTest = { state };
 })();
 </script>
