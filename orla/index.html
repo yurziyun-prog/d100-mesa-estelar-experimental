@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Orla v0.50 · Casa 2, clima e movimento</title>
+<title>Orla v0.51 · Casa 2, escadas e construção</title>
 <style>
 :root{color-scheme:dark;--ink:#eaf5e7;--muted:#b8cab3;--panel:rgba(14,31,27,.88);--line:rgba(209,239,196,.16);--mint:#b9f0ad;--gold:#ffdc89}
 *{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#223b30;font:14px/1.4 system-ui,-apple-system,Segoe UI,sans-serif;color:var(--ink)}
@@ -102,6 +102,20 @@
 #orlaFatigue progress{width:100%;height:7px;accent-color:#9dcc86;display:block;margin-top:3px}
 #orlaFloorToggle{position:fixed;bottom:55px;right:12px;z-index:14;background:#233d38;color:#f5e6bc;border:1px solid #ad9870;border-radius:8px;padding:9px 12px;font:600 12px system-ui;cursor:pointer;display:none}
 @media(max-width:620px){#climate,#inventory,#equipment,#sheet,#appearancePanel,#powersPanel,#interaction{right:6px!important;width:calc(100vw - 12px)!important}#orlaFatigue{bottom:42px}}
+
+/* Orla v0.51: construção categorizada e controles de escadas */
+#orlaBuildCategories{display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin:5px 0 9px;padding:5px;border-bottom:1px solid #7d9b7966}
+#orlaBuildCategories button{font-size:11px!important;padding:6px 10px!important;background:#254338!important}
+#orlaBuildCategories button.active{background:#c4dfa6!important;color:#15291f!important}
+#orlaStairOptions{display:flex;flex-wrap:wrap;gap:7px;align-items:center;padding:8px 3px;border-top:1px solid #7d9b7966}
+#orlaStairOptions button{padding:7px 10px!important;background:#4d5b42!important}
+#orlaStairOptions label{font-size:11px;color:#deebd0;display:flex;gap:5px;align-items:center}
+#orlaStairOptions input{width:65px;background:#283d35;border:1px solid #8d9e81;color:#eef2df;border-radius:6px;padding:5px}
+#orlaFloorToggle,#orlaFireTest{bottom:9px!important;z-index:17!important}
+#orlaFloorToggle{right:12px!important}
+#orlaFireTest{position:fixed;right:12px;bottom:52px!important;background:#463729;color:#f7e4c1;border:1px solid #b18c60;border-radius:8px;padding:7px 12px;cursor:pointer;display:none}
+#orlaStairHint{position:absolute;left:50%;top:78px;transform:translateX(-50%);z-index:5;background:#183227e9;border:1px solid #9fb389aa;border-radius:9px;padding:7px 12px;color:#e7ebd3;font-size:12px;pointer-events:none;display:none;white-space:nowrap}
+#editor{max-height:min(46vh,350px)!important;overflow:auto!important}
 </style>
 </head>
 <body>
@@ -8513,33 +8527,42 @@ precision mediump float;in vec3 vCol;out vec4 outColor;void main(){outColor=vec4
       state.line3([a.x+a.w+.08,a.z,.15],[a.x+a.w+.08,a.z+a.d,2.65],'#e5c89d',3);
     }
     function drawUpperFloor(){
-      const hw=state.currentHouseWidth(),rise=2.84;
-      // Laje elevada, com vão central real para a escada.
+      const hw=state.currentHouseWidth(),rise=2.84,a=state.stairArea;
+      const gap=.10, left=Math.max(.08,a.x-gap),right=Math.min(hw-.08,a.x+a.w+gap);
+      const front=Math.max(.08,a.z-gap),back=Math.min(4.92,a.z+a.d+gap);
       const baseP=state.P;
-      const drawAt=(fn)=>{state.P=(x,z,y=0)=>baseP(x,z,y+rise);try{fn();}finally{state.P=baseP;}};
-      drawAt(()=>{
-        state.rectFloor(.08,.08,6.0,4.84,'#97683f');
-        state.rectFloor(7.62,.08,hw-7.7,4.84,'#97683f');
-        state.rectFloor(6.08,.08,1.54,1.48,'#97683f');
-        state.rectFloor(6.08,3.86,1.54,1.06,'#97683f');
-        for(let z=.2;z<5;z+=.30){
-          state.line3([.12,z,.04],[6.07,z,.04],'#c69a67',.85);
-          state.line3([7.64,z,.04],[hw-.15,z,.04],'#c69a67',.85);
+      state.P=(x,z,y=0)=>baseP(x,z,y+rise);
+      try{
+        function floorRect(x,z,w,d){if(w>.04&&d>.04)state.rectFloor(x,z,w,d,'#996b43');}
+        // Piso físico com abertura que acompanha a ESCADA, inclusive após realocá-la.
+        floorRect(.08,.08,left-.08,4.84);
+        floorRect(right,.08,hw-.08-right,4.84);
+        floorRect(left,.08,right-left,front-.08);
+        floorRect(left,back,right-left,4.92-back);
+        for(let z=.24;z<4.92;z+=.29){
+          state.line3([.10,z,.06],[left,z,.06],'#cda070',.7);
+          state.line3([right,z,.06],[hw-.10,z,.06],'#cda070',.7);
         }
-        // Guardas em torno da abertura, não uma parede fechando a escada.
-        state.wallX(6.08,1.58,3.80,.60,'#c9ad83');
-        state.wallX(7.64,1.58,3.80,.60,'#c9ad83');
-        state.wallZ(1.58,6.08,7.64,.6,'#c9ad83');
-        state.wallZ(0,.08,hw-.08,.50,'#e1caab');
+        const railing='#e0c99d';
+        state.wallX(left,front,back,.72,railing);
+        state.wallX(right,front,back,.72,railing);
+        // Sem guarda-corpo no lado de chegada da escada.
+        if(a.rot===0||a.rot===2){
+          state.wallZ(a.rot===0?back:front,left,right,.72,railing);
+        }else{
+          state.wallZ(front,left,right,.72,railing);
+          state.wallZ(back,left,right,.72,railing);
+        }
+        state.wallZ(0,.08,hw-.08,.48,'#e1caab');
         state.wallX(0,.08,4.92,.48,'#e1caab');
         state.wallX(hw,.08,4.92,.48,'#e1caab');
         state.wallZ(5,.08,hw-.08,.48,'#e1caab');
-      });
+      }finally{state.P=baseP;}
       state.character();
     }
     state.drawInnerScene=()=>{
       if(state.secondFloor){drawUpperFloor();return;}
-      oldDrawInner();drawStair();
+      oldDrawInner();
     };
     const originalSupport=state.supportHeight;
     state.supportHeight=(x,z)=>state.secondFloor&&state.inside(x,z)?2.84:originalSupport(x,z);
@@ -8606,7 +8629,270 @@ precision mediump float;in vec3 vCol;out vec4 outColor;void main(){outColor=vec4
     state.__orla050={switchFloor,staircaseNear};
   }
 
+
+  // --- Orla v0.51: escada física, dois pavimentos e editor de construção ---
+  function installOrla051(){
+    const RISE=2.84, mainWidth=()=>state.currentHouseWidth();
+    const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
+    const stair=state.stairArea;
+    stair.rot=0;
+    let stored=null;
+    try{stored=JSON.parse(localStorage.getItem('orla-stair-house2-v051')||'null');}catch(_){}
+    if(stored&&[stored.x,stored.z,stored.w,stored.d,stored.rot].every(Number.isFinite)){
+      Object.assign(stair,stored);
+    }
+    stair.h=RISE;
+    const saveStair=()=>{try{localStorage.setItem('orla-stair-house2-v051',JSON.stringify(stair));}catch(_){};state.saveGame();};
+    // Uma escada orientada: quatro acessos possíveis, altura contínua ao percorrer os degraus.
+    function footProgress(x,z){
+      if(stair.rot===0)return (stair.z+stair.d-z)/stair.d;
+      if(stair.rot===1)return (x-stair.x)/stair.w;
+      if(stair.rot===2)return (z-stair.z)/stair.d;
+      return (stair.x+stair.w-x)/stair.w;
+    }
+    function stairContains(x,z,pad=.04){return x>=stair.x-pad&&x<=stair.x+stair.w+pad&&z>=stair.z-pad&&z<=stair.z+stair.d+pad;}
+    function inHouse(x,z){return x>.25&&x<mainWidth()-.25&&z>.25&&z<4.75;}
+    function landings(){
+      const p=stair.rot;
+      const start=p===0?[stair.x+stair.w/2,stair.z+stair.d+.28]:p===1?[stair.x-.28,stair.z+stair.d/2]:p===2?[stair.x+stair.w/2,stair.z-.28]:[stair.x+stair.w+.28,stair.z+stair.d/2];
+      const end=p===0?[stair.x+stair.w/2,stair.z-.28]:p===1?[stair.x+stair.w+.28,stair.z+stair.d/2]:p===2?[stair.x+stair.w/2,stair.z+stair.d+.28]:[stair.x-.28,stair.z+stair.d/2];
+      return {start,end};
+    }
+    function rotateStair(){
+      const cx=stair.x+stair.w/2,cz=stair.z+stair.d/2;
+      [stair.w,stair.d]=[stair.d,stair.w];stair.x=cx-stair.w/2;stair.z=cz-stair.d/2;
+      stair.rot=(stair.rot+1)%4;saveStair();refreshEditor();
+      state.toast('Escada girada 90°. O sentido dos degraus e do acesso também mudou.');
+    }
+    function stairElevation(x,z){return clamp(footProgress(x,z))*RISE;}
+    const oldMove=state.move,oldWalk=state.canWalk,oldSupport=state.supportHeight;
+    let stairMovement=false;
+    // Envelopa a função central de movimento. Sem alterar as colisões fora da escada.
+    state.canWalk=(x,z,ignored)=>{
+      if(stairMovement && stairContains(x,z,.18)) return inHouse(x,z);
+      if(state.secondFloor){
+        if(!inHouse(x,z))return false;
+        // O vazio da escada não é um piso. Entrada nele só pela escada.
+        return !stairContains(x,z,0.02);
+      }
+      return oldWalk(x,z,ignored);
+    };
+    state.supportHeight=(x,z)=>{
+      if(stairContains(x,z,.08)&&state.inside(x,z))return stairElevation(x,z);
+      if(state.secondFloor&&inHouse(x,z))return RISE;
+      return oldSupport(x,z);
+    };
+    state.move=(dx,dz,dt)=>{
+      const px=state.player.x,pz=state.player.z;
+      const nearStair=stairContains(px,pz,.37)||stairContains(px+dx*.17,pz+dz*.17,.37);
+      if(nearStair&&!state.godPhasing()){
+        const wasUpper=state.secondFloor;
+        const oldWalls=state.wallBarriers;
+        stairMovement=true;
+        state.wallBarriers=()=>[];
+        try{oldMove(dx,dz,dt);}finally{state.wallBarriers=oldWalls;stairMovement=false;}
+        const on=stairContains(state.player.x,state.player.z,.09);
+        if(on){
+          const p=clamp(footProgress(state.player.x,state.player.z));
+          state.player.elevation=p*RISE;
+          state.secondFloor=p>.955;
+        }else if(wasUpper){state.secondFloor=true;state.player.elevation=RISE;}
+        else if(state.player.elevation>RISE*.93 && inHouse(state.player.x,state.player.z))state.secondFloor=true;
+        return;
+      }
+      oldMove(dx,dz,dt);
+    };
+    // A v0.50 só teleportava por E. Agora o E fica como alternativa de acessibilidade
+    // e o personagem também sobe/ desce caminhando na escada.
+    const oldInner=state.drawInnerScene;
+    const oldRoof=state.roof,oldShell=state.drawOuterShell,oldChimney=state.drawExternalChimney;
+    function withHeight(y,fn){const saved=state.P;state.P=(x,z,h=0)=>saved(x,z,h+y);try{return fn();}finally{state.P=saved;}}
+    function orientedPoint(t,s){
+      if(stair.rot===0)return [stair.x+t*stair.w,stair.z+(1-s)*stair.d];
+      if(stair.rot===1)return [stair.x+s*stair.w,stair.z+t*stair.d];
+      if(stair.rot===2)return [stair.x+(1-t)*stair.w,stair.z+s*stair.d];
+      return [stair.x+(1-s)*stair.w,stair.z+(1-t)*stair.d];
+    }
+    function stairsDraw(){
+      // Each step has real width, depth, and height in world coordinates.
+      for(let i=0;i<12;i++){
+        const corners=[orientedPoint(0,i/12),orientedPoint(1,i/12),orientedPoint(0,(i+1)/12),orientedPoint(1,(i+1)/12)];
+        const xs=corners.map(p=>p[0]),zs=corners.map(p=>p[1]);
+        const x=Math.min(...xs),z=Math.min(...zs),w=Math.max(...xs)-x,d=Math.max(...zs)-z;
+        const top=RISE*(i+1)/12;
+        state.box3(x,z,w+.003,d+.003,top,['#6b4b36','#8b6344','#cba475']);
+      }
+      for(const t of [0,1]){
+        for(let i=0;i<6;i++){
+          const q=orientedPoint(t,i/5),ht=RISE*i/5;
+          state.box3(q[0]-.032,q[1]-.032,.064,.064,.56,['#624932','#886447','#c9ab7b'],ht);
+        }
+        const a=orientedPoint(t,0),b=orientedPoint(t,1);
+        state.line3([a[0],a[1],.58],[b[0],b[1],RISE+.58],'#ead3a4',2.6);
+      }
+    }
+    function upstairsOuter(){
+      // Separate full-height upper walls from the ground-floor shell.
+      const hw=mainWidth();
+      const sides=[{side:'north',x:hw/2,z:0},{side:'south',x:hw/2,z:5},{side:'west',x:0,z:2.5},{side:'east',x:hw,z:2.5}];
+      sides.sort((a,b)=>state.painterDepth(a.x,a.z)-state.painterDepth(b.x,b.z));
+      withHeight(RISE,()=>{
+        for(const wall of sides){
+          const side=wall.side,h=2.93,cream='#ead4b0',trim='#73523c';
+          const opening=side==='north'?[4.05,5.20]:side==='south'?[7.65,8.85]:side==='west'?[1.6,2.55]:[1.7,2.55];
+          if(side==='north'||side==='south'){
+            const z=side==='north'?0:5,[lo,hi]=opening;
+            state.wallZ(z,0,lo,h,cream);state.wallZ(z,hi,hw,h,cream);
+            state.wallZ(z,lo,hi,.89,cream);
+            state.quad3([lo,z,2.10],[hi,z,2.10],[hi,z,h],[lo,z,h],cream);
+            state.quad3([lo,z,.89],[hi,z,.89],[hi,z,2.10],[lo,z,2.10],'#8cbdac','#d3d0ab');
+            state.line3([(lo+hi)/2,z,.89],[(lo+hi)/2,z,2.10],'#ede6c4',2);
+            state.line3([lo,z,1.49],[hi,z,1.49],'#ede6c4',2);
+            state.line3([0,z,h],[hw,z,h],trim,3);
+            for(let x=0;x<hw;x+=1.28){if(x>lo&&x<hi)continue;state.line3([x,z,.05],[x,z,h],trim,2.7);}
+          }else{
+            const x=side==='west'?0:hw,[lo,hi]=opening;
+            state.wallX(x,0,lo,h,cream);state.wallX(x,hi,5,h,cream);
+            state.wallX(x,lo,hi,.88,cream);
+            state.quad3([x,lo,2.11],[x,hi,2.11],[x,hi,h],[x,lo,h],cream);
+            state.quad3([x,lo,.88],[x,hi,.88],[x,hi,2.11],[x,lo,2.11],'#82b4a3','#d6d8b5');
+            state.line3([x,(lo+hi)/2,.88],[x,(lo+hi)/2,2.11],'#e1e3cc',2);
+            state.line3([x,0,h],[x,5,h],trim,3);
+            for(let z=0;z<5;z+=1.20){if(z>lo&&z<hi)continue;state.line3([x,z,.05],[x,z,h],trim,2.7);}
+          }
+        }
+      });
+    }
+    state.drawOuterShell=()=>{oldShell();if(!state.houseContext) upstairsOuter();};
+    state.roof=()=>{if(state.houseContext)return oldRoof();withHeight(RISE,oldRoof);};
+    // The chimney must reach above the new roof ridge.
+    state.drawExternalChimney=()=>{
+      if(state.houseContext)return oldChimney();
+      const o=state.chimneyObject, x=mainWidth()+.08,z=o.z+.02;
+      // Only the part above the roof is drawn in front of the roof.
+      const top=7.35;
+      state.box3(x,z,.41,Math.max(.74,o.d*.9),1.17,['#877365','#b8a18a','#d5c0a6'],6.18);
+      state.box3(x-.04,z-.04,.49,Math.max(.82,o.d*.9+.08),.14,['#766858','#95816a','#c5b39b'],top-.10);
+      if(state.game.fireplace.lit&&state.game.fireplace.wood>0){
+        const t=performance.now()/1000;
+        for(let i=0;i<4;i++){
+          const rise=((t*.27+i*.24)%1),p=state.P(x+.22,z+.38,top+.15+rise*1.35);
+          state.ctx.save();state.ctx.globalAlpha=(1-rise)*.28;state.ctx.fillStyle='#b8b8ba';state.ctx.beginPath();state.ctx.arc(p[0],p[1],(5+rise*6)*state.zoom,0,7);state.ctx.fill();state.ctx.restore();
+        }
+      }
+    };
+    // Render the actual stair geometry above the existing ground-floor floor.
+    state.drawInnerScene=()=>{
+      oldInner();
+      if(state.houseContext)return;
+      if(!state.secondFloor)stairsDraw();
+      // Boundary walls and railing of the upper floor remain visible in cutaway mode.
+      if(state.secondFloor){
+        withHeight(RISE,()=>{
+          const hw=mainWidth(),height=.58;
+          state.wallZ(0,0,hw,height,'#d8c6a7');
+          state.wallX(0,0,5,height,'#d8c6a7');
+          state.wallX(hw,0,5,height,'#d8c6a7');
+          state.wallZ(5,0,hw,height,'#d8c6a7');
+        });
+      }
+    };
+    // Accessible support so the correct floor is always selected after a click or saved load.
+    const oldSwitch=state.__orla050?.switchFloor;
+    if(oldSwitch){
+      state.__orla050.switchFloor=()=>{oldSwitch();state.target=null;};
+    }
+    const options=document.createElement('div');options.id='orlaStairOptions';
+    function insideEditor(){return state.godMode()&&state.editMode;}
+    let movingStair=false,stairBeforeMove=null;
+    function moveStairStart(){stairBeforeMove={...stair};movingStair=true;state.toast('Posicione a escada com o mouse. Clique para confirmar, Esc cancela.');}
+    function cancelStair(){if(stairBeforeMove)Object.assign(stair,stairBeforeMove);stairBeforeMove=null;movingStair=false;refreshEditor();}
+    function updateStairCursor(e){
+      if(!movingStair)return;
+      const rect=state.canvas.getBoundingClientRect();
+      const p=state.worldAt(e.clientX-rect.left,e.clientY-rect.top);
+      const x=p.x-stair.w/2,z=p.z-stair.d/2;
+      if(x<.3||z<.3||x+stair.w>mainWidth()-.3||z+stair.d>4.7)return;
+      stair.x=x;stair.z=z;
+    }
+    state.canvas.addEventListener('pointermove',updateStairCursor,{passive:true});
+    state.canvas.addEventListener('pointerdown',e=>{
+      if(!movingStair)return;
+      e.stopImmediatePropagation();e.preventDefault();
+      if(e.button!==0)return;
+      movingStair=false;stairBeforeMove=null;saveStair();refreshEditor();state.toast('Escada realocada. Caminhe pelos degraus para testar.');
+    },true);
+    window.addEventListener('keydown',e=>{
+      if(movingStair&&e.key==='Escape'){e.stopImmediatePropagation();cancelStair();state.toast('Movimentação da escada cancelada.');}
+      if(movingStair&&['ArrowLeft','ArrowRight'].includes(e.key)){
+        e.stopImmediatePropagation();e.preventDefault();rotateStair();
+      }
+    },true);
+    let activeCategory='estrutura';
+    const labels={estrutura:'🏗 Estrutura',aberturas:'🚪 Aberturas',moveis:'🪑 Móveis',mundo:'🌲 Mundo',acoes:'⚙ Ações'};
+    function classify(btn){
+      const title=(btn.textContent||'').toLowerCase();
+      if(/parede|piso|telhado|escada|casa [12]|teto/.test(title))return 'estrutura';
+      if(/janela|porta/.test(title))return 'aberturas';
+      if(/mesa|cadeira|cama|baú|estante|barril|lâmpada/.test(title))return 'moveis';
+      if(/árvore|arbusto|pedra/.test(title))return 'mundo';
+      return 'acoes';
+    }
+    function refreshEditor(){
+      if(!insideEditor()){document.getElementById('orlaBuildCategories')?.remove();options.remove();return;}
+      const editor=state.editor;
+      if(!editor)return;
+      let bar=document.getElementById('orlaBuildCategories');
+      if(!bar){bar=document.createElement('div');bar.id='orlaBuildCategories';editor.insertBefore(bar,state.editorActions);}
+      bar.replaceChildren();
+      for(const [cat,name] of Object.entries(labels)){
+        const btn=document.createElement('button');btn.type='button';btn.textContent=name;btn.classList.toggle('active',activeCategory===cat);
+        btn.onclick=()=>{activeCategory=cat;refreshEditor();};bar.append(btn);
+      }
+      for(const btn of state.editorActions.querySelectorAll('button'))btn.style.display=classify(btn)===activeCategory?'':'none';
+      if(activeCategory==='estrutura'){
+        options.innerHTML='<strong style="color:#d9ebc8;font-size:12px">Casa 2 · Escada real</strong> <span style="font-size:11px;color:#b9c8ae">Direção e posição</span>';
+        const move=document.createElement('button');move.type='button';move.textContent='✥ Mover escada';move.onclick=moveStairStart;options.append(move);
+        const turn=document.createElement('button');turn.type='button';turn.textContent='↻ Girar escada 90°';turn.onclick=rotateStair;options.append(turn);
+        const stairsCreate=document.createElement('button');stairsCreate.type='button';stairsCreate.textContent='+ Escada modular';stairsCreate.onclick=()=>{state.editPlacing={kind:'component',item:'stairs'};state.toast('Clique para posicionar uma escada modular.');};options.append(stairsCreate);
+        const floorCreate=document.createElement('button');floorCreate.type='button';floorCreate.textContent='+ Piso superior';floorCreate.onclick=()=>{state.editPlacing={kind:'component',item:'floor'};state.toast('Piso modular: posicione e ajuste a altura no inspetor.');};options.append(floorCreate);
+        const roofCreate=document.createElement('button');roofCreate.type='button';roofCreate.textContent='+ Teto/telhado';roofCreate.onclick=()=>{state.editPlacing={kind:'component',item:'roof'};state.toast('Telhado modular: coloque e ajuste elevação no inspetor.');};options.append(roofCreate);
+        editor.append(options);
+      }else options.remove();
+    }
+    const prevRender=state.renderEditor;
+    state.renderEditor=()=>{prevRender();refreshEditor();};
+    state.renderEditor();
+    const fireButton=document.createElement('button');fireButton.id='orlaFireTest';fireButton.textContent='🔥 Abastecer / acender lareira';fireButton.title='Use lenha da mochila e depois acenda a lareira';document.body.append(fireButton);
+    const fireStatus=document.createElement('div');fireStatus.id='orlaStairHint';fireStatus.textContent='Caminhe pelos degraus para subir · E para alternar';document.body.append(fireStatus);
+    fireButton.addEventListener('click',()=>{
+      const f=state.game.fireplace;
+      if(f.wood<=0){
+        const store=state.game.stores.inventory;
+        const ix=store.indexOf('wood');
+        if(ix<0)return state.toast('Recolha a lenha perto da lareira ou use o botão de lenha de teste.');
+        store.splice(ix,1);f.wood=1;f.burn=42;f.lit=true;
+        state.inventoryDraw();state.saveGame();return state.toast('Uma lenha foi colocada. O fogo está aceso!');
+      }
+      f.lit=!f.lit;if(f.lit&&f.burn<=0)f.burn=42;
+      state.saveGame();state.toast(f.lit?'Lareira acesa.':'Lareira apagada.');
+    });
+    function ui(){
+      const pos=state.player;
+      const nearFire=state.inside(pos.x,pos.z)&&!state.secondFloor&&Math.hypot(pos.x-9.5,pos.z-1.7)<2.5;
+      fireButton.style.display=nearFire?'block':'none';
+      fireButton.textContent=state.game.fireplace.lit?'🔥 Apagar lareira':state.game.fireplace.wood>0?'🔥 Acender lareira':'🪵 Abastecer e acender';
+      const nearStair=stairContains(pos.x,pos.z,.35);
+      fireStatus.style.display=nearStair?'block':'none';
+      if(nearStair)fireStatus.textContent=`Escada: ${Math.round(stairElevation(pos.x,pos.z)*100)/100} m / ${RISE} m · WASD para subir/descer`;
+      requestAnimationFrame(ui);
+    }
+    ui();
+    state.__orla051={stair,landings,rotateStair,stairsDraw,saveStair,refreshEditor};
+  }
+
   installOrla050();
+  installOrla051();
   if (new URLSearchParams(location.search).has("test")) window.__orlaTest = { state };
 })();
 </script>
