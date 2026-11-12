@@ -405,7 +405,7 @@
       if(!dims)return null;
       const [w,d,h]=dims;
       let a=angle;
-      if(source&&previousMode!==e)a=Number(source.angle)||0;
+      if(source&&previousMode!==e)a=Number(source.angle)||((source.rot||0)*90);
       const theta=a*Math.PI/180, bw=Math.abs(w*Math.cos(theta))+Math.abs(d*Math.sin(theta)),bd=Math.abs(w*Math.sin(theta))+Math.abs(d*Math.cos(theta));
       const rect={x:p.x-bw/2,z:p.z-bd/2,w:bw,d:bd};
       const boundary=rect.x>-40&&rect.z>-40&&rect.x+rect.w<40&&rect.z+rect.d<40;
@@ -440,14 +440,14 @@
       drawPoly([v[2],v[3],upper[3],upper[2]],fill,edge);
       drawPoly(upper,fill,edge);
       const label=({shelf:'Estante',table:'Mesa',bed:'Cama',chest:'Baú',window:'Janela',wall:'Parede'})[pre.kind]||pre.kind;
-      hint.textContent=(valid?'🔵 ':'🔴 ')+label+' · '+Math.round(a)+'° · ← → giram 15° · Clique confirma · Esc cancela'+(valid?'':' · '+pre.reason);
+      hint.textContent=(valid?'🔵 ':'🔴 ')+label+' · '+Math.round(a)+'° · ← → giram '+((state.editPlacing?.kind==='component'||pre.source?.component)?'90°':'15°')+' · Clique confirma · Esc cancela'+(valid?'':' · '+pre.reason);
     }
     function loop(){
       const ratio=Math.min(devicePixelRatio||1,2),sw=innerWidth,sh=innerHeight;
       if(overlay.width!==Math.round(sw*ratio)||overlay.height!==Math.round(sh*ratio)){overlay.width=Math.round(sw*ratio);overlay.height=Math.round(sh*ratio)}
       cx.setTransform(ratio,0,0,ratio,0,0);cx.clearRect(0,0,sw,sh);
       const mode=state.editPlacing;
-      if(mode!==previousMode){angle=mode?.angle??(mode?.kind==='move'?state.selected?.angle||0:0);previousMode=mode}
+      if(mode!==previousMode){angle=mode?.angle??(mode?.kind==='move'?(state.selected?.component?(state.selected.rot||0)*90:(state.selected?.angle||0)):0);previousMode=mode}
       const pre=previewAt();hint.classList.toggle('active',!!pre);
       if(pre)ghost(pre);
       requestAnimationFrame(loop);
@@ -457,7 +457,7 @@
       if(!state.editMode||!state.editPlacing||!norm(state.editPlacing.kind))return;
       if(e.target instanceof HTMLElement&&e.target.matches('input,select,textarea'))return;
       if(e.key==='ArrowLeft'||e.key==='ArrowRight'){
-        e.preventDefault();e.stopImmediatePropagation();angle=(angle+(e.key==='ArrowRight'?15:-15)+360)%360;state.editPlacing.angle=angle;
+        e.preventDefault();e.stopImmediatePropagation();const step=(state.editPlacing.kind==='component'||(state.editPlacing.kind==='move'&&state.selected?.component))?90:15;angle=(angle+(e.key==='ArrowRight'?step:-step)+360)%360;state.editPlacing.angle=angle;
       }
       if(e.key==='Escape'){angle=0;hint.classList.remove('active')}
     },true);
@@ -483,15 +483,16 @@
       const kind=e.kind;
       if(kind==='component'){
         const o=createComponent(e.item,pre.center.x,pre.center.z,crypto.randomUUID());
-        o.angle=angle;
+        const turns=((Math.round(angle/90)%4)+4)%4;
+        if(turns%2){const oldW=o.w;o.w=o.d;o.d=oldW;o.x=pre.center.x-o.w/2;o.z=pre.center.z-o.d/2;}
+        o.rot=turns;
         state.editDecor.push(o);state.selected=o;state.editPlacing=null;state.saveGame();state.renderEditor();return true;
       }
       if(kind==='move'){
         const o=state.selected;if(!o)return true;
         const r=originalPlace(mx,my);
         if(!state.editPlacing){
-          o.angle=angle;
-          if(o.component) {o.rot=((Math.round(angle/90)%4)+4)%4;}
+          if(o.component){const oldTurn=((o.rot||0)%4+4)%4,newTurn=((Math.round(angle/90)%4)+4)%4;const cx=o.x+o.w/2,cz=o.z+o.d/2;if((oldTurn%2)!==(newTurn%2)){const tmp=o.w;o.w=o.d;o.d=tmp;}o.x=cx-o.w/2;o.z=cz-o.d/2;o.rot=newTurn;}else o.angle=angle;
           state.saveGame();
         }
         return r;
