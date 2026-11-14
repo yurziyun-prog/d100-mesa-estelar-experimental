@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Orla v0.59 | Mesa Estelar experimental</title>
+<title>Orla v0.60 | Mesa Estelar experimental</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;min-height:100vh;display:grid;place-items:center;background:#15271f;color:#e8f1e2;font:16px system-ui,sans-serif}
@@ -11,7 +11,7 @@ h1{margin:0 0 12px;font-size:1.6rem}p{line-height:1.5;color:#c5d5c7}#status{font
 </style>
 </head>
 <body>
-<main id="loader"><h1>✦ Orla v0.59</h1><p>Preparando os mapas da campanha, personagens e Última Bateria...</p><p id="status">Carregando recursos do jogo</p></main>
+<main id="loader"><h1>✦ Orla v0.60</h1><p>Preparando os mapas da campanha, personagens e Última Bateria...</p><p id="status">Carregando recursos do jogo</p></main>
 <script>
 (async()=>{
 try{
@@ -25,10 +25,20 @@ return response.text();
 const binary=atob(segments.join('').replace(/\s+/g,''));
 const bytes=Uint8Array.from(binary,c=>c.charCodeAt(0));
 const html=await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
-if(!html.includes('id="game"')||!html.includes('ORLA'))throw Error('Conteúdo da Orla inválido.');
-document.open('text/html','replace');document.write(html);document.close();
+const digest=async data=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(data))),v=>v.toString(16).padStart(2,'0')).join('');
+if(await digest(html)!=='7d137eaf6c953468a7899b95703b21b0733656f7427dc356e9cd5348ad15c755')throw Error('A base v0.59 não corresponde ao pacote original.');
+const response=await fetch(new URL('patch-v060.json',location.href),{cache:'no-cache'});
+if(!response.ok)throw Error('Falha ao carregar atualização v0.60 ('+response.status+').');
+const patch=await response.json();
+if(!Array.isArray(patch)||patch.length!==29)throw Error('Atualização v0.60 incompleta.');
+const lines=html.match(/[^\n]*\n|[^\n]+$/g)||[];
+for(let i=patch.length-1;i>=0;i--){const [start,end,insert]=patch[i];if(!Number.isInteger(start)||!Number.isInteger(end)||start<0||end<start||end>lines.length||typeof insert!=='string')throw Error('Patch inválido.');lines.splice(start,end-start,insert);}
+const updated=lines.join('');
+if(await digest(updated)!=='4b81a7fcfee4f3ce9ef014b50ebe3d27322db7ae8b257e87166d7f75aa7b2187')throw Error('O jogo v0.60 não passou na verificação de integridade.');
+if(!updated.includes('id="game"')||!updated.includes('ORLA'))throw Error('Conteúdo da Orla inválido.');
+document.open('text/html','replace');document.write(updated);document.close();
 }catch(error){
-console.error('[Orla v0.59]',error);
+console.error('[Orla v0.60]',error);
 const el=document.getElementById('status');
 if(el)el.textContent='Erro ao carregar: '+error.message;
 }
