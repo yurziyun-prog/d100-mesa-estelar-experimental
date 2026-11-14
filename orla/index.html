@@ -1,39 +1,36 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Orla v0.58 | Mesa Estelar</title>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Orla v0.59 | Mesa Estelar experimental</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;min-height:100vh;display:grid;place-items:center;background:#15271f;color:#e8f1e2;font:16px system-ui,sans-serif}
-main{width:min(520px,92vw);padding:32px;border:1px solid #62826c;border-radius:16px;background:#20372e;text-align:center}
+main{width:min(550px,92vw);padding:32px;border:1px solid #62826c;border-radius:16px;background:#20372e;text-align:center}
 h1{margin:0 0 12px;font-size:1.6rem}p{line-height:1.5;color:#c5d5c7}#status{font-size:.88rem}
 </style>
 </head>
 <body>
-<main id="loader"><h1>✦ Orla v0.58</h1><p>Preparando o mundo e o modo 3D experimental...</p><p id="status">Carregando os recursos do jogo</p></main>
+<main id="loader"><h1>✦ Orla v0.59</h1><p>Preparando os mapas da campanha, personagens e Última Bateria...</p><p id="status">Carregando recursos do jogo</p></main>
 <script>
-(async () => {
-  try {
-    if(typeof DecompressionStream!=='function')throw new Error('Atualize seu navegador para abrir o jogo (GZIP indisponível).');
-    const names=Array.from({length:17},(_,i)=>'parts-v058/part-'+String(i+1).padStart(2,'0')+'.txt');
-    const segments=await Promise.all(names.map(async name=>{
-      const r=await fetch(new URL(name,location.href),{cache:'force-cache'});
-      if(!r.ok)throw new Error('Falha ao carregar '+name+' ('+r.status+').');
-      return r.text();
-    }));
-    const binary=atob(segments.join('').replace(/\s+/g,''));
-    const bytes=Uint8Array.from(binary,c=>c.charCodeAt(0));
-    const html=await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
-    if(!html.includes('id="game"')||!html.includes('ORLA'))throw new Error('O arquivo do jogo é inválido.');
-    document.open('text/html','replace');document.write(html);document.close();
-  }catch(err){
-    console.error('[Orla v0.58]',err);
-    const status=document.getElementById('status');
-    if(status)status.textContent='Erro ao carregar: '+err.message;
-  }
+(async()=>{
+try{
+if(typeof DecompressionStream!=='function')throw Error('Navegador sem suporte a GZIP. Atualize o navegador.');
+const names=Array.from({length:19},(_,i)=>'parts-v059/part-'+String(i+1).padStart(2,'0')+'.txt');
+const segments=await Promise.all(names.map(async name=>{
+const response=await fetch(new URL(name,location.href),{cache:'force-cache'});
+if(!response.ok)throw Error('Falha ao carregar '+name+' ('+response.status+').');
+return response.text();
+}));
+const binary=atob(segments.join('').replace(/\s+/g,''));
+const bytes=Uint8Array.from(binary,c=>c.charCodeAt(0));
+const html=await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+if(!html.includes('id="game"')||!html.includes('ORLA'))throw Error('Conteúdo da Orla inválido.');
+document.open('text/html','replace');document.write(html);document.close();
+}catch(error){
+console.error('[Orla v0.59]',error);
+const el=document.getElementById('status');
+if(el)el.textContent='Erro ao carregar: '+error.message;
+}
 })();
-</script>
-</body>
-</html>
+</script></body></html>
