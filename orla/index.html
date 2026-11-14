@@ -34,7 +34,7 @@ if(!Array.isArray(patch)||patch.length!==29)throw Error('Atualização v0.60 inc
 const lines=html.match(/[^\n]*\n|[^\n]+$/g)||[];
 for(let i=patch.length-1;i>=0;i--){const [start,end,insert]=patch[i];if(!Number.isInteger(start)||!Number.isInteger(end)||start<0||end<start||end>lines.length||typeof insert!=='string')throw Error('Patch inválido.');lines.splice(start,end-start,insert);}
 const updated=lines.join('');
-if(await digest(updated)!=='4b81a7fcfee4f3ce9ef014b50ebe3d27322db7ae8b257e87166d7f75aa7b2187')throw Error('O jogo v0.60 não passou na verificação de integridade.');
+if(await digest(updated)!=='cd6cd7d7ad3ca4a871eed6b161ef8b9558b7c620e57235412aeb4b4f835b08cb')throw Error('O jogo v0.60 não passou na verificação de integridade.');
 if(!updated.includes('id="game"')||!updated.includes('ORLA'))throw Error('Conteúdo da Orla inválido.');
 document.open('text/html','replace');document.write(updated);document.close();
 }catch(error){
