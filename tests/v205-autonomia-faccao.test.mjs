@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import {papelComFaccao,papelVida,VELOCIDADE} from '../js/mesa-vida.js';
 import {faccaoDe,hostis} from '../js/mesa-tempo-real-ia.js';
 const ler=f=>fs.readFileSync(new URL('../'+f,import.meta.url),'utf8');
-const html=ler('index.html'),vida=ler('js/mesa-vida.js'),app22=ler('js/app/22-mesa-e-modulos.js');
+const html=ler('mesa.html'),vida=ler('js/mesa-vida.js'),app22=ler('js/app/22-mesa-e-modulos.js');
 test('v205 cache',()=>{
  assert.match(html,/js\/app\.js\?v=46\.\d+-v\d+-mesa/);
  assert.match(app22,/mesa-vida\.js\?v=205/);

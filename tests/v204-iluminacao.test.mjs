@@ -6,7 +6,7 @@ import fs from 'node:fs';
 // lanterna, o cone (v202) projeta pelo menos 12 m mesmo no escuro. O campo luzV204 do mapa
 // define o padrão até o mestre tocar no botão; chaves booleanas antigas viram 'penumbra'.
 import {paramsLuz,gradeVisao,poligonoVisao,dentroPoligono} from '../js/mesa-nevoa.js';
-const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+const html=fs.readFileSync(new URL('../mesa.html',import.meta.url),'utf8');
 const nevoa=fs.readFileSync(new URL('../js/mesa-nevoa.js',import.meta.url),'utf8');
 const W=28,H=14,P={x:14,y:7};
 const grade=gradeVisao([],W,H);
@@ -42,7 +42,7 @@ test('névoa aplica paramsLuz, luz do mapa, modo AUTOMÁTICO (v205) e ciclo do m
  assert.match(nevoa,/m\?\.luzV204&&m\.luzV204!=='claro'\)return m\.luzV204/);
  assert.match(nevoa,/m\?\.nevoaV145\)return 'penumbra'/);
  assert.match(nevoa,/ambiente==='noite'\|\|e\.clima==='neblina'\)return 'penumbra'/,'noite ou neblina ligam a névoa');
- assert.match(nevoa,/return false;\};\n const modoLuz/,'lugar claro de dia: sem névoa');
+ assert.match(nevoa,/return false;\};\r?\n const modoLuz/,'lugar claro de dia: sem névoa');
  assert.match(nevoa,/const P=paramsLuz\(modoLuz\(\)\)/);
  assert.match(nevoa,/dir!==null\?Math\.max\(P\.alcance,12\):P\.alcance/);
  assert.match(nevoa,/seq=\[undefined,false,'penumbra','escuro'\]/,'ciclo automático → claro → penumbra → escuro');

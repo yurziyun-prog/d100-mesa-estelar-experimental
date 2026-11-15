@@ -10,7 +10,7 @@ import fs from 'node:fs';
 //    a arte do mapa é o objeto; ao CHEGAR PERTO aparece uma pílula contextual (Abrir, Deitar,
 //    Ligar, Destrancar…). Item no chão é só a imagem do item, sem brilho dourado pulsante.
 const ler=f=>fs.readFileSync(new URL('../'+f,import.meta.url),'utf8');
-const html=ler('index.html'),direta=ler('js/nova-direta.js'),obj=ler('js/mesa-objetos.js'),app22=ler('js/app/22-mesa-e-modulos.js');
+const html=ler('mesa.html'),direta=ler('js/nova-direta.js'),obj=ler('js/mesa-objetos.js'),app22=ler('js/app/22-mesa-e-modulos.js');
 test('v209 cache',()=>{
  assert.match(html,/js\/app\.js\?v=46\.\d+-v\d+-mesa/);
  assert.match(app22,/nova-direta\.js\?v=\d+/);

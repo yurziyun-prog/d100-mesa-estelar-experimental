@@ -30,7 +30,7 @@ test('v144: trabalhadores e casas noturnas', ()=>{
  assert.equal(N.modoRotina({id:'x',tipo:'comerciante_noturno',h:12}),'ausente');assert.equal(N.modoRotina({id:'x',tipo:'comerciante_noturno',h:23}),null);
 });
 test('v144: ganchos — colisão por andar, PV retrátil, foco removido, caminho sem cortar parede', ()=>{
- const d=ler('js/nova-direta.js');assert.match(d,/mesaAndarV144\?\.colide/);assert.match(d,/mesa:pvPartesAberto/);assert.match(d,/let mapFocus=true/);assert.match(d,/cenaAtual:\(\)=>sceneData/);
+ const d=ler('js/nova-direta.js');assert.match(d,/mesaAndarV144\?\.colide/);assert.match(d,/mesa:pvPartesAberto/);assert.match(d,/let mapFocus=false/);assert.match(d,/cenaAtual:\(\)=>sceneData/);
  const v=ler('js/mesa-vida.js');assert.doesNotMatch(v,/i%3===2/);assert.match(v,/gradeDe\(t\)/);
  assert.match(ler('js/mesa-cenarios-mapas.js'),/pisoAndarV144=2/);assert.match(ler('js/mesa-remodelagem.js'),/andaresV1(4[4-9]|5[0-9])/);
  const a=ler('js/app.js');for(const m of ['mesa-andares','mesa-camera','mesa-trabalho'])assert.match(a,new RegExp(m+'\\.js\\?v=\\d+'));

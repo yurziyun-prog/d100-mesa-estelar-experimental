@@ -9,7 +9,7 @@ import fs from 'node:fs';
 //  • Interação por clique: 1º clique no token seleciona o alvo; 2º clique no MESMO abre as
 //    ações dele (atacar, conversar, usar) — mesmo atalho do botão do controle.
 const ler=f=>fs.readFileSync(new URL('../'+f,import.meta.url),'utf8');
-const html=ler('index.html'),direta=ler('js/nova-direta.js'),rt=ler('js/mesa-tempo-real.js'),ataques=ler('js/nova-ataques.js'),app22=ler('js/app/22-mesa-e-modulos.js');
+const html=ler('mesa.html'),direta=ler('js/nova-direta.js'),rt=ler('js/mesa-tempo-real.js'),ataques=ler('js/nova-ataques.js'),app22=ler('js/app/22-mesa-e-modulos.js');
 test('v208 cache',()=>{
  assert.match(html,/js\/app\.js\?v=46\.\d+-v\d+-mesa/);
  assert.match(app22,/nova-direta\.js\?v=\d+/);

@@ -2,9 +2,17 @@
   "name": "mesa-estelar",
   "private": true,
   "version": "190.0.0",
-  "description": "D100 · Mesa Estelar — RPG de mesa online sci-fi. Servidor local só para pré-visualização; o deploy é pelo Firebase.",
+  "description": "D100 Mesa Estelar experimental — Orla e painéis integrados; publicação via Cloudflare Pages",
   "scripts": {
     "dev": "node scripts/dev-server.cjs --host 0.0.0.0 --port 7100",
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --test tests/*.test.mjs",
+    "check:syntax": "node scripts/check-publication-syntax.cjs",
+    "test:orla-startup": "node scripts/check-orla-startup.cjs",
+    "check:publication": "npm test && npm run check:syntax && npm run test:orla-startup",
+    "build:pages": "node scripts/package-pages.cjs",
+    "verify:publication": "node scripts/verify-publication.cjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.0"
   }
 }

@@ -4,7 +4,7 @@ import fs from 'node:fs';
 // v202 — lanterna em cone: com fonte de luz equipada, a visão na névoa vira um cone na
 // direção que o personagem olha (facing) + luz de proximidade; sem lanterna, círculo como antes.
 import {gradeVisao,poligonoVisao,dentroPoligono,temLanterna,tapaVista} from '../js/mesa-nevoa.js';
-const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+const html=fs.readFileSync(new URL('../mesa.html',import.meta.url),'utf8');
 const nevoa=fs.readFileSync(new URL('../js/mesa-nevoa.js',import.meta.url),'utf8');
 const app22=fs.readFileSync(new URL('../js/app/22-mesa-e-modulos.js',import.meta.url),'utf8');
 const W=28,H=14,P={x:14,y:7};

@@ -12,5 +12,5 @@ test('v161 Portão pintado: arte, casas bloqueadas, 4 lojas com porta e balcão,
 test('v161 comerciante: clique abre a loja (não o menu de armas), fica atrás do balcão, sem barra de rolagem para jogador',()=>{
  assert.match(ler('mesa-conversas.js'),/comerciante genérico abre a loja/);assert.match(ler('mesa-interacoes.js'),/o clique já abre a loja/);
  assert.match(ler('mesa-vida.js'),/lojaV161/);assert.match(ler('mesa-camera.js'),/sc\.style\.overflow/);assert.match(ler('nova-direta.js'),/invisivelV161/);
- assert.match(readFileSync(new URL('../scripts/preparar-hosting.cjs',import.meta.url),'utf8'),/arte dos mapas pintados/);
+ assert.match(readFileSync(new URL('../scripts/preparar-hosting.cjs',import.meta.url),'utf8'),/fs\.cpSync\(origem,path\.join\(dest,pasta\)/);
 });

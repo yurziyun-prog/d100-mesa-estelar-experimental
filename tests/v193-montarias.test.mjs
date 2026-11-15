@@ -13,7 +13,7 @@ test('v193 montarias: instância na ficha tem o formato do vínculo do Banco; ra
  for(const k of ['instanciaId','modeloId','nomeIndividual','estado','pvAtual','pvMax','energiaAtual','energiaMax','vinculadoEm','modelo'])assert.ok(k in i,k);
  assert.equal(i.modeloId,m.id);assert.equal(i.pvAtual,28);assert.equal(i.modelo.montaria,true);assert.notEqual(i.instanciaId,instanciaMontaria(m).instanciaId);
  assert.equal(RAMOS.montarias.vitrine,'montarias');
- const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');assert.match(html,/abrir\('montarias','Estábulo e animais'\)/);
+ const html=readFileSync(new URL('../mesa.html',import.meta.url),'utf8');assert.match(html,/abrir\('montarias','Estábulo e animais'\)/);
  const c=readFileSync(new URL('../js/mesa-concessionaria.js',import.meta.url),'utf8');assert.match(c,/cmd\.tipo==='montarias'\?\{companheiros:/,'entrega dentro da mesma transação que cobra');
 });
 test('v193 montarias: compra de ponta a ponta com banco simulado (desconta, entrega o animal, recusa sem dinheiro)',async()=>{

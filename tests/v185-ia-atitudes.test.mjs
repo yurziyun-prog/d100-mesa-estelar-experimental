@@ -44,7 +44,7 @@ test('v185: a IA troca pela transação do módulo de atitudes, com intervalo, e
  assert.match(rt,/emComa,escolherAtitude[^}]*\} from '\.\/mesa-tempo-real-tatica\.js/);
  assert.match(rt,/async function trocarAtitude\(t,modo,agora=Date\.now\(\)\)\{[\s\S]*api\.processar\('ia_'[\s\S]*\{tokenId:t\.id,personagemId:decodeURIComponent\(String\(t\.id\)\),donoUid:'',modo,criadoEm:agora\},true\)/);
  assert.match(rt,/\(atitudeEm\.get\(t\.id\)\|\|0\)>agora-1500/);
- assert.match(rt,/const desejada=escolherAtitude\(\{perfil,frac,emChoque,fugindo:fugindo\.has\(t\.id\),encurralado,distAlvo:pertoD,alcance:alcanceMax,atual:atitudeId\}\);\n\s*if\(desejada!==atitudeId\)void trocarAtitude\(t,desejada,agora\);/);
+ assert.match(rt,/const desejada=escolherAtitude\(\{perfil,frac,emChoque,fugindo:fugindo\.has\(t\.id\),encurralado,distAlvo:pertoD,alcance:alcanceMax,atual:atitudeId\}\);\r?\n\s*if\(desejada!==atitudeId\)void trocarAtitude\(t,desejada,agora\);/);
  assert.match(rt,/encurralado=!pf\|\|pertoD<\.6/);
  assert.match(rt,/if\(modo!=='normal'\)void registrar\(`\$\{m\.icone\} \$\{t\.nome\|\|'Criatura'\}: \$\{m\.nome\}\.`\)/);
  assert.match(rt,/a!==MODOS_RT\.normal\?a\.icone\+' '\+a\.nome\+' · ':''\)\(perfilRT\(health\?\.actors\?\.\[t\.id\],estado,mapa\)\)/);

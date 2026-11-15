@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const app=lerApp();
 const direct=fs.readFileSync(new URL('../js/nova-direta.js',import.meta.url),'utf8');
-const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+const html=fs.readFileSync(new URL('../mesa.html',import.meta.url),'utf8');
 
 test('v93 mapa ausente da miniatura não segue câmera do mestre em exploração',()=>{
   assert.match(direct,/sharedMapPacket\?\.combat\?\.active\?sharedMapPacket\?\.mapId:''/);

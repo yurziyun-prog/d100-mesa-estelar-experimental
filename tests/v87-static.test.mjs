@@ -3,7 +3,7 @@ import {lerApp} from './_app.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const app=lerApp();
-const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+const html=fs.readFileSync(new URL('../mesa.html',import.meta.url),'utf8');
 
 test('v87 sidebar follows natural page scroll',()=>{assert.match(app,/#charContextV66\{position:relative!important;top:auto!important/);assert.match(app,/max-height:none!important;overflow:visible!important/);});
 test('v87 compacts character identity and background fields',()=>{assert.match(app,/charIdentityGridV87/);assert.match(app,/charBackgroundGridV87/);assert.match(app,/char-core-grid-v87/);});

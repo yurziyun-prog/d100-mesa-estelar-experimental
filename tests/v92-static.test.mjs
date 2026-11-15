@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const app=lerApp();
 const direct=fs.readFileSync(new URL('../js/nova-direta.js',import.meta.url),'utf8');
-const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+const html=fs.readFileSync(new URL('../mesa.html',import.meta.url),'utf8');
 const rules=fs.readFileSync(new URL('../firestore.rules',import.meta.url),'utf8');
 
 test('v92 persiste mapa da localização e move miniatura no destino',()=>{

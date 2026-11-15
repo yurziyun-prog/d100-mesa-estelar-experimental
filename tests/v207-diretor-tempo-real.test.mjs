@@ -7,7 +7,7 @@ import fs from 'node:fs';
 // e as escolhas de crítico/consciência e a barra de recarga passam a ser dele. Combate por
 // turnos continua proibido ao mesmo tempo (mapa.combat.active barra os comandos).
 const ler=f=>fs.readFileSync(new URL('../'+f,import.meta.url),'utf8');
-const html=ler('index.html'),rt=ler('js/mesa-tempo-real.js'),app22=ler('js/app/22-mesa-e-modulos.js');
+const html=ler('mesa.html'),rt=ler('js/mesa-tempo-real.js'),app22=ler('js/app/22-mesa-e-modulos.js');
 test('v207 cache',()=>{
  assert.match(html,/js\/app\.js\?v=46\.\d+-v\d+-mesa/);
  assert.match(app22,/mesa-tempo-real\.js\?v=208/);

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 // v201 — portas do kit de construção viram portas de verdade na Mesa; a publicação
 // passa a carregar bloqueiaVisao (parede/barreira de visão, porta fechada, janela livre).
-const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+const html=fs.readFileSync(new URL('../mesa.html',import.meta.url),'utf8');
 const oficina=fs.readFileSync(new URL('../js/nova-oficina.js',import.meta.url),'utf8');
 const app17=fs.readFileSync(new URL('../js/app/17-oficina2-texturas-referencias.js',import.meta.url),'utf8');
 test('v201 cache',()=>{

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const app=lerApp();
-const index=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+const index=fs.readFileSync(new URL('../mesa.html',import.meta.url),'utf8');
 
 test('v63 usa documento independente para o radio compartilhado',()=>{
   assert.match(app,/configuracoes\/audio_mesa_ao_vivo_v1/);

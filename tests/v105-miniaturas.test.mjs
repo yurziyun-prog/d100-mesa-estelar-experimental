@@ -3,7 +3,7 @@ import {lerApp} from './_app.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {normalizarSpec,renderizarMiniatura,specDeNpc,specDeCriatura,CORPOS,RECEITAS_CRIATURAS,MARCA_MINI} from '../js/mesa-miniaturas.js';
-const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+const html=fs.readFileSync(new URL('../mesa.html',import.meta.url),'utf8');
 const app=lerApp();
 const direct=fs.readFileSync(new URL('../js/nova-direta.js',import.meta.url),'utf8');
 const visual=fs.readFileSync(new URL('../js/mesa-visual.js',import.meta.url),'utf8');

@@ -6,7 +6,7 @@ import fs from 'node:fs';
 // A janela principal continua sendo a do mestre. Base: v138 (?verComo=jogador → Kael Teste);
 // agora ?verComo=<id de token> atua como aquele token. Em combate nada muda (turnos do mestre).
 const ler=f=>fs.readFileSync(new URL('../'+f,import.meta.url),'utf8');
-const html=ler('index.html'),nucleo=ler('js/app/01-nucleo.js'),sync=ler('js/app/20-sincronizacao.js'),vespera=ler('js/mesa-vespera.js'),app22=ler('js/app/22-mesa-e-modulos.js');
+const html=ler('mesa.html'),nucleo=ler('js/app/01-nucleo.js'),sync=ler('js/app/20-sincronizacao.js'),vespera=ler('js/mesa-vespera.js'),app22=ler('js/app/22-mesa-e-modulos.js');
 test('v206 cache',()=>{
  assert.match(html,/js\/app\.js\?v=46\.\d+-v\d+-mesa/);
  assert.match(app22,/mesa-vespera\.js\?v=206/);

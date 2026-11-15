@@ -19,7 +19,7 @@ test('rascunho do editor salva sozinho e pode ser desligado',()=>{
  assert.match(editor,/setTimeout\(function tentar\(\)/);
 });
 test('regras aceitam o tamanho da miniatura e os atributos do NPC',()=>{
- assert.match(rules,/'mapaId','diametroM','atributosIndividuo'(?:,'[A-Za-z0-9]+')*\]\) &&\n\s+d\.get\('diametroM',1\) is number/);
+ assert.match(rules,/'mapaId','diametroM','atributosIndividuo'(?:,'[A-Za-z0-9]+')*\]\) &&\r?\n\s+d\.get\('diametroM',1\) is number/);
 });
 test('tamanho das miniaturas pela ficha',()=>{
  assert.equal(tamanhoMiniaturaM({tamanho:'Titânico',TAM:80}),8);

@@ -53,7 +53,7 @@ test('v192: correção do peso e do painel instaladas; tooltip do inventário ca
  assert.match(app,/validarPesoCompartimento_\(sourceChar,inv,comp,false,pesoEfetivoCompartimento_\(sourceChar,sourceChar\.inventario\|\|\{\},comp\)\)/);
  assert.match(app,/import\('\.\/mesa-equipar\.js\?v=\d+'\)\.then\(m=>\{window\.mesaEquiparMod=m\.instalarEquipar\(/);
  assert.match(readFileSync(new URL('../js/mesa-controle.js',import.meta.url),'utf8'),/const JANELAS=\['#eqPainel'/);
- const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');assert.match(html,/\.item-tooltip\s*\{[^}]*max-width:\s*min\(300px,\s*calc\(100vw - 24px\)\)/);assert.match(app,/addEventListener\('mouseover'[\s\S]{0,400}\.inventory-slot/);
+ const html=readFileSync(new URL('../mesa.html',import.meta.url),'utf8');assert.match(html,/\.item-tooltip\s*\{[^}]*max-width:\s*min\(300px,\s*calc\(100vw - 24px\)\)/);assert.match(app,/addEventListener\('mouseover'[\s\S]{0,400}\.inventory-slot/);
 });
 test('v193 miniaturas: lê a descrição (abrigo, kits, aparelhos) e desenha os animais da loja',()=>{
  const t=(id,nome,categoria,descricao)=>tipoMini({id,nome,categoria,descricao});

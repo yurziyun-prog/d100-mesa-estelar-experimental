@@ -35,7 +35,7 @@ test('v145: ganchos — dormitórios, passar a noite, fome/sede, instalação', 
  assert.match(ler('js/mesa-cenarios-mapas.js'),/Beliche \$\{L\}/);
  const r=ler('js/mesa-relogio.js');assert.match(r,/Passar a noite/);assert.match(r,/mesaNecessidades/);
  const app=ler('js/app.js');assert.match(app,/mesa-nevoa\.js\?v=\d+/);assert.match(app,/mesa-cidade-alta\.js\?v=1[4-9][0-9]/);
- assert.match(ler('index.html'),/v1(4[5-9]|[5-9][0-9])/);
+ assert.match(ler('mesa.html'),/v1(4[5-9]|[5-9][0-9])/);
 });
 test('v145: Casa Vaelkor — arte, carteira e convite', async ()=>{
  const V=await import('../js/mesa-vaelkor.js'),A=await import('../js/mesa-vaelkor-arte.js');

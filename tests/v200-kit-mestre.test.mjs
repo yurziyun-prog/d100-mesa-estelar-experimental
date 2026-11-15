@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 // v200 — kit do mestre: peças de construção (mesa-construcao.js) como carimbos na Oficina 2.
-const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+const html=fs.readFileSync(new URL('../mesa.html',import.meta.url),'utf8');
 const app=fs.readFileSync(new URL('../js/app/17-oficina2-texturas-referencias.js',import.meta.url),'utf8');
 test('v200 cache',()=>{
  assert.match(html,/js\/app\.js\?v=46\.\d+-v\d+-/);

@@ -4,7 +4,7 @@ import fs from 'node:fs';
 // v203 — zona morta de clique no editor da mesa: clicar (mesmo com jitter de pixel) só
 // seleciona; estrutura/token só move se o arrasto passar do limiar. Antes, qualquer clique
 // com 1 px de tremor já persistia a "movimentação" da estrutura no Firestore.
-const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+const html=fs.readFileSync(new URL('../mesa.html',import.meta.url),'utf8');
 const editor=fs.readFileSync(new URL('../js/nova-editor.js',import.meta.url),'utf8');
 const direta=fs.readFileSync(new URL('../js/nova-direta.js',import.meta.url),'utf8');
 test('v203 cache',()=>{

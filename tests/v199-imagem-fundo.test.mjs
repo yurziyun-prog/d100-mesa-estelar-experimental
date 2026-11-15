@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 // v199 — imagem importada como FUNDO do mapa (battlemap): estado, render, salvamento e publicação.
-const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+const html=fs.readFileSync(new URL('../mesa.html',import.meta.url),'utf8');
 const app=fs.readFileSync(new URL('../js/app/17-oficina2-texturas-referencias.js',import.meta.url),'utf8');
 test('v199 cache',()=>{
  assert.match(html,/js\/app\.js\?v=46\.\d+-v\d+-/);

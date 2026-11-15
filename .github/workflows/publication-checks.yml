@@ -1,0 +1,23 @@
+name: Validar publicação experimental
+on:
+  push:
+    branches: [chatgpt-tres-mapas-correcoes-v224]
+  pull_request:
+    branches: [chatgpt-tres-mapas-correcoes-v224]
+permissions:
+  contents: read
+jobs:
+  validar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run check:syntax
+      - run: npm run test:orla-startup
+      - run: npm test

@@ -3,7 +3,7 @@ import {lerApp} from './_app.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const app=lerApp();
-const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+const html=fs.readFileSync(new URL('../mesa.html',import.meta.url),'utf8');
 const rules=fs.readFileSync(new URL('../firestore.rules',import.meta.url),'utf8');
 
 test('v86 adds ships database and owned ship collections',()=>{assert.match(app,/NAVES_COL_V86_='naves'/);assert.match(app,/NAVES_POS_V86_='navesPossuidas'/);assert.match(app,/Banco de Naves/);});

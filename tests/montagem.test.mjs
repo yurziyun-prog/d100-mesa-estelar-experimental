@@ -10,7 +10,7 @@ test('publicação: todo import existe, um endereço por módulo e pré-carregam
  const urls={};for(const c of Object.values(res.codigo))for(const m of c.matchAll(/\.\/([\w.-]+\.js)\?h=(\w+)/g))(urls[m[1]]=urls[m[1]]||new Set()).add(m[2]);
  for(const [f,s] of Object.entries(urls))assert.equal(s.size,1,f+' com mais de um endereço');
  assert.ok(res.precarregar.includes('nova-direta.js'));
- const html=M.prepararIndex(fs.readFileSync(new URL('../index.html',import.meta.url),'utf8'),res);
+ const html=M.prepararIndex(fs.readFileSync(new URL('../mesa.html',import.meta.url),'utf8'),res);
  assert.match(html,/<link rel="modulepreload" href="js\/nova-direta\.js\?h=\w+">/);assert.match(html,/src="js\/app\.js\?h=\w+"/);
 });
 test('import para arquivo inexistente cancela a publicação',()=>{

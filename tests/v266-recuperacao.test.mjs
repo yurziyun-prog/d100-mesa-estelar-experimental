@@ -16,7 +16,7 @@ test('barra mestre permite múltiplas linhas e não recorta comandos',()=>{
 });
 
 test('barra do mapa possui uma única ação Salvar no cabeçalho',()=>{
- const html=ler('index.html');
+ const html=ler('mesa.html');
  assert.equal((html.match(/id="mesaSaveButtonV263"/g)||[]).length,1);
  assert.equal((html.match(/id="mesaTopBarV265"/g)||[]).length,1);
  const h=html.indexOf('id="mesaTopBarV265"');

@@ -3,7 +3,7 @@ import {lerApp} from './_app.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const app=lerApp();
-const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+const html=fs.readFileSync(new URL('../mesa.html',import.meta.url),'utf8');
 test('v77 continua incorporada no build atual',()=>{assert.match(html,/js\/app\.js\?v=[^"']+/);assert.match(app,/v77-comercio-servicos/);});
 test('barganha diária e falha crítica existem',()=>{assert.match(app,/comercioBarganhaDiaria/);assert.match(app,/uma tentativa por perícia/);assert.match(app,/preços permanecem desfavoráveis/);});
 test('construtor guiado de interações existe',()=>{assert.match(app,/cenarioInteracoesBuilderV77/);assert.match(app,/Descrição superficial/);assert.match(app,/Em crítico/);});

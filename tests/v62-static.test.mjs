@@ -3,7 +3,7 @@ import {lerApp} from './_app.mjs';
 const app=lerApp();
 const direct=fs.readFileSync(new URL('../js/nova-direta.js',import.meta.url),'utf8');
 const panel=fs.readFileSync(new URL('../js/nova-painel.js',import.meta.url),'utf8');
-const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+const html=fs.readFileSync(new URL('../mesa.html',import.meta.url),'utf8');
 test('duplicar na Oficina cria nova instância da cena',()=>{assert.match(app,/delete e\.mesaObjectId;delete e\.mapObjectId/);});
 test('Oficina embutida oculta banco antigo e oferece PV, dureza e Aplicar',()=>{assert.match(app,/embeddedBank\.style\.display='none'/);assert.match(app,/gm2mesaHardness/);assert.match(app,/gm2mesaPV/);assert.match(app,/>Aplicar<\/button>/);});
 test('catálogo inferior preserva prévias e permite marcar objetos para a edição',()=>{assert.match(direct,/nova-catalog-check/);assert.match(direct,/Adicionar marcados à edição/);assert.match(direct,/workshopHandle\.addModels/);assert.match(html,/novaSyncAdicionarMarcados/);});

@@ -2,7 +2,7 @@ import test from 'node:test';
 import {lerApp} from './_app.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+const html=fs.readFileSync(new URL('../mesa.html',import.meta.url),'utf8');
 const app=lerApp();
 const direct=fs.readFileSync(new URL('../js/nova-direta.js',import.meta.url),'utf8');
 const oficina=fs.readFileSync(new URL('../js/nova-oficina.js',import.meta.url),'utf8');
