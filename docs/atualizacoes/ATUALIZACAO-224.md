@@ -25,3 +25,7 @@ O script build-cloudflare-pages.sh exige validação antes de montar dist. O wor
 792 testes aprovados, zero falhas. Sintaxe/imports aprovados. Abertura e integridade Orla em 1280 e 390 px aprovadas; atualização corrompida corretamente recusada; cinco abas do portal verificadas. As 74 falhas iniciais foram resolvidas sem excluir testes. A cobertura completa de mecânicas Orla não foi reexecutada, pois o jogo não mudou; o teste de inicialização não equivale a esse conjunto.
 
 A confirmação do deploy deste commit deve ser obtida no check Cloudflare e no manifesto público, e relatada ao usuário após o push.
+
+## Compatibilidade do build Cloudflare
+
+O primeiro deploy d36874d falhou no Cloudflare, embora todos os testes tenham passado no GitHub/Linux. O registro público não informou a causa detalhada. O build agora exige a aprovação do workflow GitHub do mesmo SHA/branch, sem instalar Chromium no Cloudflare; falha, cancelamento ou expiração bloqueiam a publicação. Os testes de navegador continuam obrigatórios no GitHub. Dois testes adicionais verificam esse bloqueio.

@@ -48,6 +48,6 @@ async function main(){
   }
   await portal.close();
   console.log('PASS navegação pelas cinco abas do portal');
- }finally{await browser?.close();if(server)await new Promise(resolve=>server.close(resolve));}
+ }finally{await browser?.close();if(server){server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}}
 }
 main().catch(e=>{console.error(e);process.exitCode=1;});

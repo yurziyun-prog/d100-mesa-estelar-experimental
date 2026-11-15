@@ -4,6 +4,7 @@ firebase-debug.log*
 node_modules/
 dist/
 tests-publicacao.log
+check-final.log
 # Artes e pacotes pesados ficam fora do git (o código e os testes vão para o GitHub).
 arte-fonte/
 _entregas/
