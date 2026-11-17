@@ -16,3 +16,6 @@ dados/backups/
 
 arte/**/*.log
 imagens/**/*.log
+
+artifacts/
+test-results-online/

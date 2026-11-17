@@ -16,6 +16,7 @@ async function json(url){const r=await fetch(url,{headers:{'User-Agent':'Orla-pu
  const remote=hash(Buffer.from(await r.arrayBuffer()));
  const committed=execFileSync('git',['show',sha+':orla/index.html'],{cwd:root});
  if(remote!==manifest.orlaLoaderSha256||remote!==hash(committed))throw Error('Carregador publicado difere do commit validado');
+ const online=await fetch(site+'/orla/online/online.js?verify='+sha,{cache:'no-store'});if(!online.ok)throw Error('Sessão online indisponível');const onlineHash=hash(Buffer.from(await online.arrayBuffer()));if(onlineHash!==manifest.onlineSha256||onlineHash!==hash(execFileSync('git',['show',sha+':orla/online/online.js'],{cwd:root,maxBuffer:10000000})))throw Error('Sessão online publicada difere do commit');
  const result=spawnSync(process.execPath,['scripts/check-orla-startup.cjs'],{cwd:root,env:{...process.env,PUBLICATION_URL:site},stdio:'inherit'});
  if(result.status!==0)throw Error('Orla publicada não passou no teste de abertura');
  console.log('PUBLICAÇÃO CONFIRMADA',branch,sha,site,check.details_url);

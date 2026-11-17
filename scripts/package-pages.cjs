@@ -10,7 +10,7 @@ for(const name of ['index.html','favicon.ico','favicon.svg','favicon-32.png','ap
  const file=path.join(root,name);if(fs.existsSync(file))fs.copyFileSync(file,path.join(dest,name));
 }
 for(const name of ['dados','fontes','orla','arte','imagens']){
- const folder=path.join(root,name);if(fs.existsSync(folder))fs.cpSync(folder,path.join(dest,name),{recursive:true});
+ const folder=path.join(root,name);if(fs.existsSync(folder))fs.cpSync(folder,path.join(dest,name),{recursive:true,filter:p=>!p.split(path.sep).includes('source')&&!p.endsWith('.log')});
 }
 fs.mkdirSync(path.join(dest,'js'),{recursive:true});
 for(const [name,code] of Object.entries(modules.codigo))fs.writeFileSync(path.join(dest,'js',name),code);

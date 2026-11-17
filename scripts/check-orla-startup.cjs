@@ -33,7 +33,7 @@ async function main(){
    await page.close();
   }
   const broken=await browser.newPage();
-  await broken.route('**/patch-v060.json',route=>route.fulfill({contentType:'application/json',body:'[]'}));
+  await broken.route('**/release-v062.json',route=>route.fulfill({contentType:'application/json',body:'{}'}));
   await broken.goto(base+'/orla/?verify=negative');
   await broken.locator('#status').filter({hasText:'Erro ao carregar:'}).waitFor({timeout:60000});
   if(await broken.locator('#game').count())throw Error('Pacote corrompido foi executado');

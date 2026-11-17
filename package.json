@@ -8,9 +8,10 @@
     "test": "node --test tests/*.test.mjs",
     "check:syntax": "node scripts/check-publication-syntax.cjs",
     "test:orla-startup": "node scripts/check-orla-startup.cjs",
-    "check:publication": "npm test && npm run check:syntax && npm run test:orla-startup",
+    "check:publication": "npm test && npm run check:syntax && npm run test:orla-startup && npm run test:online",
     "build:pages": "node scripts/package-pages.cjs",
-    "verify:publication": "node scripts/verify-publication.cjs"
+    "verify:publication": "node scripts/verify-publication.cjs",
+    "test:online": "node --test orla/source/tests/unit/online.test.js && playwright test --config=orla/source/playwright.config.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.65.0"

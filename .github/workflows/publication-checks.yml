@@ -21,3 +21,4 @@ jobs:
       - run: npm run check:syntax
       - run: npm run test:orla-startup
       - run: npm test
+      - run: npm run test:online
