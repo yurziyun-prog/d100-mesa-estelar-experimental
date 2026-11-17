@@ -21470,7 +21470,8 @@ void main() {
   // src/online/view.js
   function createView(canvas, onPick) {
     const renderer = new WebGLRenderer({ canvas, antialias: true });
-    renderer.setPixelRatio(Math.min(devicePixelRatio, 1.6));
+    const gl = renderer.getContext(), debug = gl.getExtension("WEBGL_debug_renderer_info"), software = debug && /swiftshader|llvmpipe|software/i.test(gl.getParameter(debug.UNMASKED_RENDERER_WEBGL));
+    renderer.setPixelRatio(software ? 0.7 : Math.min(devicePixelRatio, 1.6));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = PCFSoftShadowMap;
     renderer.outputColorSpace = SRGBColorSpace;
@@ -21479,7 +21480,7 @@ void main() {
     const sun = new DirectionalLight("#ffdfb7", 3);
     sun.position.set(-8, 18, 7);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.mapSize.set(software ? 512 : 2048, software ? 512 : 2048);
     Object.assign(sun.shadow.camera, { left: -23, right: 23, top: 23, bottom: -23, far: 60 });
     scene.add(sun);
     let land = new Group();
@@ -21945,8 +21946,11 @@ void main() {
         else applyCommand(w, c, c.uid, c.uid === "master");
       };
       channel.onmessage = (e) => received(e.data);
+      let lastTick = Date.now();
       const timer = host2 ? setInterval(() => {
-        tickWorld(w, 0.1, Date.now());
+        const now = Date.now();
+        tickWorld(w, (now - lastTick) / 1e3, now);
+        lastTick = now;
         onWorld(cloneWorld(w), Date.now(), Date.now() + 8e3);
         channel.postMessage({ world: w });
       }, 100) : null;
