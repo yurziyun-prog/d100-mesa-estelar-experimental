@@ -1,0 +1,179 @@
+
+:root{color-scheme:dark;--ink:#eaf5e7;--muted:#b8cab3;--panel:rgba(14,31,27,.88);--line:rgba(209,239,196,.16);--mint:#b9f0ad;--gold:#ffdc89}
+*{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#223b30;font:14px/1.4 system-ui,-apple-system,Segoe UI,sans-serif;color:var(--ink)}
+#game{width:100%;height:100%;display:block;touch-action:none;cursor:crosshair;position:relative;z-index:0}
+#top{position:absolute;top:16px;left:18px;right:18px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;pointer-events:none}
+.brand,.actions,.hint,.toast,.bottom{background:var(--panel);border:1px solid var(--line);backdrop-filter:blur(14px);box-shadow:0 10px 40px #061a1240}
+.brand{padding:9px 13px;border-radius:15px;display:flex;align-items:center;gap:11px}.brand b{display:block;font-family:Georgia,serif;font-size:20px;letter-spacing:.04em;font-weight:700}.brand small{display:block;color:var(--muted);font-size:11px;letter-spacing:.08em;text-transform:uppercase}.mark{display:grid;place-items:center;background:#315d44;border:1px solid #71936d;border-radius:11px;width:39px;height:39px;font-size:21px}
+.actions{pointer-events:auto;display:flex;gap:5px;padding:6px;border-radius:14px;align-items:center;flex-wrap:wrap;justify-content:flex-end}button{font:600 12px system-ui;cursor:pointer;border:0;border-radius:10px;background:transparent;color:#e5f3df;padding:10px 12px;white-space:nowrap}button:hover{background:#42634a}button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}.accent{background:#cbe6a5;color:#193b2d}.accent:hover{background:#ecf7c8}
+.bottom{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);padding:11px 15px;border-radius:13px;text-align:center;font-size:12px;color:#e7f1df;pointer-events:none;white-space:nowrap}
+.bottom strong{color:var(--gold)}.toast{position:absolute;top:84px;left:50%;transform:translateX(-50%);border-radius:12px;padding:12px 18px;opacity:0;transition:opacity .25s;pointer-events:none;max-width:min(90vw,500px);text-align:center}.toast.on{opacity:1}
+#help{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:#0a1b16ad;backdrop-filter:blur(7px);padding:18px}#help.open{display:flex}.dialog{max-width:420px;width:100%;background:#182d28;border:1px solid #7da07d55;padding:24px;border-radius:20px;box-shadow:0 25px 100px #0008}.dialog h2{font:28px Georgia,serif;margin:0 0 12px}.dialog p{color:#c4d5bd}.dialog button{background:#d5e9af;color:#1d3929;margin-top:10px}
+@media(max-width:700px){#top{top:8px;left:8px;right:8px}.brand{padding:6px 8px}.brand b{font-size:15px}.mark{height:31px;width:31px}.actions{gap:0;padding:3px}.actions button{padding:8px 7px;font-size:11px}.bottom{width:calc(100% - 16px);white-space:normal;bottom:8px;padding:8px 10px}}
+#interaction{position:absolute;left:50%;bottom:84px;transform:translateX(-50%);display:none;width:min(430px,calc(100vw - 24px));padding:17px 19px;border-radius:16px;background:#172c24f2;border:1px solid #a1c98c90;box-shadow:0 18px 48px #04120daa;z-index:10;text-align:center}
+#interaction.open{display:block}#interaction h3{font:23px Georgia,serif;margin:0 0 4px}#interaction p{color:#d5e4cf;margin:7px 0 12px}#interaction .choices{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}#interaction button{background:#354f3e;border:1px solid #71936d}#interaction button.primary{background:#d2e6ab;color:#233a26}
+#inventory{position:absolute;right:18px;top:83px;width:min(360px,calc(100vw - 32px));padding:15px;background:#162b23f4;border:1px solid #72956e;border-radius:15px;z-index:9;display:none;box-shadow:0 15px 40px #0008}#inventory.open{display:block}#inventory h3{margin:0 0 8px;font:21px Georgia,serif}#inventory .muted{font-size:12px;color:#a8c4a5}#inventory button{margin-top:10px;background:#3d5d46}#inventory .inventory-meta{font-size:12px;color:#cfe0c8;margin-bottom:8px}#inventory .inventory-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;margin:10px 0 0}#inventory .inventory-cell{min-height:44px;border:1px dashed #56745c;border-radius:8px;background:#21372c80}#inventory .inventory-item{cursor:grab;user-select:none;border:1px solid #6d9064;background:linear-gradient(180deg,#35533f,#274133);padding:6px;border-radius:10px;display:flex;flex-direction:column;justify-content:space-between;min-height:44px;gap:4px;color:#eef7e8}#inventory .inventory-item:active{cursor:grabbing}#inventory .inventory-item .icon{font-size:16px;line-height:1}#inventory .inventory-item .name{font-size:11px;line-height:1.15;color:#eff7e8}#inventory .inventory-item .size{font-size:10px;color:#bfd3ba}#inventory .inventory-empty{padding:8px 0;color:#d4e6cf}#game.dragging{cursor:copy!important}
+@media(max-width:700px){#interaction{bottom:75px}#inventory{top:66px;right:8px;width:min(340px,calc(100vw - 16px))}}
+
+#editor{position:absolute;left:12px;bottom:61px;right:12px;z-index:12;display:none;pointer-events:auto;background:#142a22f5;border:1px solid #8dba81;border-radius:13px;padding:10px 12px;box-shadow:0 12px 35px #0009}
+#editor.open{display:block}#editor .editor-actions{display:flex;flex-wrap:wrap;gap:5px;align-items:center}#editor button{border:1px solid #60835f;background:#32523c;padding:8px 10px}#editor button.selected{background:#dfd7a7;color:#172a21}#editor .status{color:#c8d8be;font-size:12px;margin-bottom:7px}
+#sheet{position:absolute;left:15px;top:84px;z-index:13;width:min(295px,calc(100vw - 32px));max-height:calc(100vh - 185px);overflow:auto;display:none;background:#142b23f4;border:1px solid #779e71;border-radius:13px;padding:14px}#sheet.open{display:block}#sheet h3{font:23px Georgia,serif;margin:0 0 10px}#sheet .stat{display:flex;justify-content:space-between;border-bottom:1px solid #516d5366;padding:5px 0}#sheet p{color:#c3d5bd;font-size:12px}#sheet button{background:#426048;margin-top:8px}
+@media(max-width:700px){#editor{bottom:56px;max-height:30vh;overflow-y:auto}#editor button{padding:7px;font-size:11px}}
+
+#glView,#weatherView{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;display:block}
+#glView{z-index:1}#weatherView{z-index:2}
+#top{z-index:4}#editor{z-index:12}#interaction{z-index:10}#inventory{z-index:9}#sheet{z-index:13}
+#climate{position:absolute;right:18px;top:155px;width:min(320px,calc(100vw - 36px));z-index:15;display:none;padding:14px;border-radius:13px;background:#142b24f5;border:1px solid #7caa83;box-shadow:0 14px 50px #0008}
+#climate.open{display:block}#climate h3{margin:0 0 9px;font:21px Georgia,serif}#climate .line{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:10px 0;font-size:12px}#climate .weather-buttons{display:flex;gap:5px;flex-wrap:wrap}#climate button{background:#365340;border:1px solid #718f69;padding:7px 9px}#climate button.active{background:#d8e8ba;color:#18291e}#climate input{width:160px;accent-color:#c4dfa6}#climate .fine{color:#b9d0ba;font-size:11px;margin-top:8px}
+#timePanel{position:absolute;left:18px;bottom:69px;z-index:3;background:#163128cf;border:1px solid #9dc39066;border-radius:11px;padding:6px 10px;color:#ecf5e8;font-size:12px;pointer-events:none}
+@media(max-width:700px){#climate{top:124px;right:8px}#timePanel{bottom:60px;left:8px}}
+.orla-custom{position:absolute;top:88px;right:16px;z-index:16;display:none;width:min(320px,calc(100vw - 32px));max-height:70vh;overflow:auto;padding:16px;background:#152d24f4;border:1px solid #7d9b70;border-radius:15px;box-shadow:0 12px 40px #0008}.orla-custom.open{display:block}.orla-custom h3{margin:0 0 13px;font:22px Georgia,serif}.orla-custom label{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:10px 0;color:#e1edd7}.orla-custom input,.orla-custom select{background:#294233;color:white;border:1px solid #6f9168;border-radius:8px;min-height:32px;padding:3px}.orla-custom button{background:#466a4c;margin-top:10px}.orla-custom p{font-size:12px;line-height:1.6;color:#c6d7c3}
+/* Interface compacta: a área do mundo é prioridade */
+#top{top:9px;left:10px;right:10px;gap:8px;justify-content:flex-end}
+#top .brand{padding:5px 9px;min-height:37px;align-self:flex-start;opacity:.88}
+#top .brand small{display:none}
+#top .brand b{font-size:15px}
+#top .mark{width:27px;height:27px;font-size:14px}
+#top .actions{max-width:min(600px,calc(100vw - 175px));padding:3px 5px;flex-wrap:nowrap;gap:2px}
+#top .actions button{padding:6px 8px;font-size:12px}
+#top .actions .secondary-control{display:none}
+#top .actions.expanded{flex-wrap:wrap;max-width:min(660px,calc(100vw - 150px))}
+#top .actions.expanded .secondary-control{display:inline-flex}
+#top .actions button#menuBtn{background:#375f45;color:#edf9e7}
+.bottom{display:none!important}
+#resourceHud{display:none!important}
+#timePanel{left:9px;bottom:9px;padding:4px 7px;font-size:11px}
+#editor{max-height:160px;overflow-y:auto;bottom:8px;left:10px;right:10px}
+#climate{top:64px}
+#equipment{position:absolute;top:57px;left:10px;z-index:7;display:none;max-width:380px;padding:10px;background:#142d24ee;border:1px solid #739b76;border-radius:12px;box-shadow:0 10px 35px #0008}
+#equipment.open{display:block}
+#equipment .eq-slots{display:grid;grid-template-columns:repeat(4,minmax(72px,1fr));gap:6px}
+#equipment .eq-slot{min-height:64px;border:1px solid #6a9070;border-radius:8px;background:#243d2d;color:#dcebd6;text-align:center;padding:5px 3px;cursor:pointer}
+#equipment .eq-slot strong{display:block;font-size:11px;margin-bottom:7px}
+#equipment .eq-slot span{font-size:12px}
+#equipment .eq-info{font-size:11px;color:#c9d6c7;margin-top:7px}
+#inventory{top:57px;right:10px}
+#appearancePanel,#powersPanel,#sheet{top:58px}
+#equipment .panel-head,#inventory .panel-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+#equipment .panel-head h3,#inventory .panel-head h3{margin:0;font-size:18px}
+.panel-close{border:1px solid #7da07f;background:#274232;color:#eef6ea;border-radius:8px;padding:4px 9px;cursor:pointer}
+@media(max-width:700px){#top .brand{display:none}#top .actions{max-width:calc(100vw - 20px)}#equipment{left:5px;top:49px;max-width:calc(100vw - 10px)}#timePanel{bottom:5px}}
+
+/* Subtle bronze / oxidized alloy: an expedition interface, with no external fonts. */
+:root{--ink:#ece9da;--muted:#b0bdb0;--panel:rgba(18,29,31,.93);--line:#a9916255;--gold:#d6bb87}
+.brand,.actions,#timePanel{background:linear-gradient(145deg,#182729ed,#263833ed);border-color:#ad93644d;box-shadow:0 4px 20px #0b171957,inset 0 1px #e6d5ae12}
+#top .brand{opacity:1;padding:7px 13px;border-radius:5px;gap:9px}
+#top .brand b{font-family:Georgia,serif;letter-spacing:.22em;font-weight:400;color:#e1cba4}
+#top .mark{background:transparent;border:1px solid #a99566;border-radius:50%;color:#ddc69a;font-size:18px}
+#top .actions{border-radius:5px;padding:6px;gap:3px;max-width:min(730px,calc(100vw - 140px))}
+#top .actions button{border-radius:3px;font-weight:500;color:#e0e6d8;min-height:30px}
+#top .actions button:hover{background:#8d9b7438}
+#top .actions button#menuBtn{background:#8f9f7830;border:1px solid #9da77b42}
+#roleBtn{border:1px solid #b6a07966!important;color:#e8cf9f!important}
+#timePanel{border-radius:4px;padding:7px 11px;letter-spacing:.04em;color:#d6dac6;left:14px;bottom:14px}
+#editor{background:#142426f5;border:1px solid #9a8c69;max-height:36vh;border-radius:5px}
+#editor button{background:#2e4141;border-color:#67766a;border-radius:4px}
+#editor button:hover{background:#47605a}
+#componentInspector{display:flex;gap:9px;flex-wrap:wrap;border-top:1px solid #84917c55;margin-top:10px;padding-top:10px;align-items:end}
+#componentInspector label{display:flex;flex-direction:column;gap:3px;color:#ced7c6;font-size:11px}
+#componentInspector input,#componentInspector select{width:92px;min-height:30px;border:1px solid #6f8076;border-radius:3px;background:#203537;color:#f0e5cf;padding:4px}
+#componentInspector input[type=color]{width:55px;padding:2px}
+#inventory,#equipment,#sheet,#climate,.orla-custom{background:#17292bf7;border-color:#9a8c696b;border-radius:7px}
+@media(max-width:700px){#top .actions{max-width:calc(100vw - 20px);flex-wrap:wrap}#top .actions button{padding:5px 6px;font-size:11px}#saveStatus{display:none}#editor{max-height:40vh}#timePanel{left:8px;bottom:8px}}
+
+
+/* Orla v0.48: projeção de posicionamento acompanha o cursor */
+#placementPreview{position:fixed;inset:0;pointer-events:none;z-index:3;width:100vw;height:100vh}
+#placementHelp{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);background:#10271de9;border:1px solid #8ab2bf;border-radius:9px;padding:7px 12px;z-index:14;color:#e9f3ed;font:12px system-ui;display:none;pointer-events:none;white-space:nowrap}
+#placementHelp.active{display:block}
+
+/* v0.50 · painéis independentes abaixo da barra, sem empilhamento */
+#top{z-index:30}
+#climate,#inventory,#equipment,#sheet,#appearancePanel,#powersPanel,#interaction{position:fixed!important;top:var(--orla-panel-top,105px)!important;right:12px!important;left:auto!important;width:min(355px,calc(100vw - 24px))!important;max-height:calc(100dvh - var(--orla-panel-top,105px) - 12px)!important;overflow:auto!important;z-index:42!important;box-shadow:0 15px 48px #081418dc!important}
+#interaction{width:min(400px,calc(100vw - 24px))!important}
+#equipment{max-width:unset!important}
+#resourceHud{display:none}
+#orlaFatigue{position:fixed;left:12px;bottom:50px;z-index:12;padding:6px 9px;background:#17292beb;color:#e8e3d3;border:1px solid #ad98706c;border-radius:7px;font:12px system-ui;pointer-events:none;min-width:165px}
+#orlaFatigue progress{width:100%;height:7px;accent-color:#9dcc86;display:block;margin-top:3px}
+#orlaFloorToggle{position:fixed;bottom:55px;right:12px;z-index:14;background:#233d38;color:#f5e6bc;border:1px solid #ad9870;border-radius:8px;padding:9px 12px;font:600 12px system-ui;cursor:pointer;display:none}
+@media(max-width:620px){#climate,#inventory,#equipment,#sheet,#appearancePanel,#powersPanel,#interaction{right:6px!important;width:calc(100vw - 12px)!important}#orlaFatigue{bottom:42px}}
+
+/* Orla 0.51: editor de Deus com categorias em vez de uma fileira de controles. */
+#editor{left:12px!important;right:12px!important;bottom:10px!important;width:auto!important;max-width:none!important;max-height:35vh;overflow:auto!important;display:none;z-index:22!important;padding:9px 12px!important}
+#editor.open{display:block}
+#editorActions{display:block!important}
+#orlaEditorGroups{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin:5px 0}
+#orlaEditorGroups button{font-weight:650;padding:5px 9px}
+#orlaEditorGroups button.selected{background:#adcaa3;color:#162a22}
+#orlaEditorContents{display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:6px;margin-top:6px}
+#orlaEditorContents button{padding:7px 10px;text-align:left;white-space:normal;min-height:32px}
+body.orla-editor #climate,body.orla-editor #inventory,body.orla-editor #equipment,body.orla-editor #sheet,body.orla-editor #powersPanel,body.orla-editor #appearancePanel{max-height:calc(64dvh - var(--orla-panel-top,105px))!important}
+#orlaFatigue{display:none}
+body:not(.orla-god):not(.orla-editor) #orlaFatigue{display:block}
+body.orla-editor #orlaFloorToggle{display:none!important}
+#componentInspector{display:grid!important;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:7px;align-items:end;margin-top:8px}
+#componentInspector label{min-width:0}
+#componentInspector input,#componentInspector select{width:100%}
+@media(max-width:700px){#editor{max-height:48vh!important}}
+#orlaMaterialPalette{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 10px;border:1px solid #748d7980;background:#1d3532;border-radius:6px;margin:6px 0}
+#orlaMaterialPalette strong{font-size:12px;color:#e8d6b5}
+#orlaMaterialPalette select{min-height:32px;background:#273f3e;color:#f1e9dc;border:1px solid #8b9b83;border-radius:4px;padding:5px}
+#orlaMaterialPalette input[type=color]{width:42px;height:32px;border:1px solid #8b9b83;background:transparent}
+#orlaMaterialPalette button{padding:5px 8px;font-size:12px}
+
+#actionEffects{position:fixed;bottom:12px;right:12px;max-width:390px;padding:9px 12px;background:#172c2de8;border:1px solid #9b8858;border-radius:7px;color:#e5dbc1;z-index:24;font:12px system-ui}#actionEffects small{display:block;margin-top:5px;color:#bdbba7}#actionEffects select{max-width:110px}.orla-editor #actionEffects{display:none}#appearancePanel label{display:flex;gap:8px;margin:8px 0}#appearancePanel select{max-width:240px}@media(max-width:600px){#actionEffects{bottom:55px;right:5px;max-width:215px}#actionEffects small{display:none}}
+
+#combatPanel{position:fixed;right:12px;bottom:12px;z-index:25;background:#172b2df2;border:1px solid #9b8858;border-radius:8px;color:#ede2c8;padding:12px;width:310px;max-height:50vh;overflow:auto;font:12px system-ui;box-shadow:0 8px 30px #0005}#combatSummary{white-space:pre-line;line-height:1.6;margin:6px 0}#combatPanel button{margin:3px;padding:6px}#combatPanel details{margin-top:7px}#combatPanel label{display:flex;align-items:center;justify-content:space-between;gap:5px;margin:5px 0}#combatPanel input[type=number]{width:55px}#combatPanel input,#combatPanel select{max-width:180px;background:#263b3d;color:#f3e7ca;border:1px solid #6b7768;padding:4px}#combatPanel ol{padding-left:20px;line-height:1.5}#combatPanel [hidden]{display:none}.orla-god #combatPanel{bottom:92px}.orla-editor #combatPanel{display:none}@media(max-width:600px){#combatPanel{right:5px;bottom:54px;width:235px;padding:8px;max-height:35vh}.orla-god #combatPanel{bottom:115px}}
+
+#orlaFloorToggle{right:auto!important;left:14px;bottom:100px!important;max-width:220px}
+
+/* ORLA 0.56: interface retrofuturista do Mesa Estelar, sem esconder o mundo. */
+:root{--ink:#eaf1ff;--muted:#acbce1;--panel:rgba(20,19,46,.91);--line:rgba(150,153,224,.45);--mint:#7ad8ee;--gold:#e9b7f6}
+html,body{background:#152235;color:var(--ink)}
+#game{filter:hue-rotate(20deg) saturate(.90) contrast(1.035)}
+.brand,.actions,.hint,.toast,.bottom,#inventory,#equipment,#editor,#sheet,#climate,.orla-custom,#interaction{background:linear-gradient(135deg,#221d48f2,#142b45ed)!important;border-color:#7770ad9c!important;color:#e9edff!important}
+#top .mark{background:#35346b;border-color:#8b81c4}
+button:hover{background:#494274;color:#fff}
+#top .actions button#menuBtn{background:#3b3069;color:#faf2ff}
+#timePanel{background:#232247e5;border:1px solid #6f72a3}
+#combatPanel{width:min(350px,calc(100vw - 30px));bottom:12px;max-height:min(55vh,450px);background:linear-gradient(155deg,#29234feF,#142a42ef);border:1px solid #8177b0;border-radius:12px;padding:0;overflow:hidden;color:#eef0ff;box-shadow:0 12px 32px #050c20a9}
+#combatPanel .combat-toggle{width:100%;display:flex;justify-content:space-between;align-items:center;text-align:left;border-radius:0;background:#36305b;color:#fff;padding:8px 12px;font-size:12px}
+#combatPanel .combat-toggle:hover{background:#494077}
+#combatPanel .combat-content{overflow:auto;max-height:calc(55vh - 45px);padding:10px}
+#combatPanel.is-collapsed{width:170px;max-height:38px}
+#combatPanel.is-collapsed .combat-content{display:none}
+#combatPanel button{background:#41416d;border:1px solid #6b75a6}
+#actionEffects{max-width:190px;bottom:57px;right:12px;background:#211f45ed;border-color:#726d9e;max-height:130px;overflow:auto}
+#actionEffects[hidden]{display:none!important}#actionEffects #effectsBody[hidden]{display:none!important}
+.orla-editor #combatPanel{display:none!important}
+@media(max-width:700px){#combatPanel{width:min(265px,calc(100vw - 20px))}#combatPanel.is-collapsed{width:160px}#actionEffects{bottom:98px}}
+
+
+/* V0.57: um único painel para combate e efeitos, sem sobreposição. */
+#combatPanel{bottom:12px!important;right:12px!important;width:min(340px,calc(100vw - 24px));max-height:min(72vh,560px);overflow:hidden}
+#combatPanel .combat-content{max-height:calc(72vh - 46px);overflow:auto}
+#combatPanel.is-collapsed{width:178px;max-height:40px}
+#combatPanel #actionEffects{position:static!important;display:block;max-height:none;max-width:none;width:100%;margin:10px 0 0;padding:8px;border:1px solid #817ab9;border-radius:10px;background:#262746ed;overflow:visible;box-shadow:none;z-index:auto}
+#combatPanel #actionEffects[hidden]{display:none!important}
+#combatPanel #actionEffects #toggleEffects{width:100%;text-align:left;padding:5px 7px}
+#combatPanel #actionEffects #effectsBody{max-height:165px;overflow-y:auto}
+#combatPanel #actionEffects select{max-width:145px}
+#combatPanel .orla-healing{display:flex;flex-wrap:wrap;gap:5px;margin:7px 0}
+#combatPanel .orla-healing button{border:1px solid #907bbc;background:#403367;color:#fff2fc}
+#combatPanel .orla-audio{font-size:11px;float:right;border:1px solid #827ab6;background:#35305c}
+@media(max-width:700px){#combatPanel{bottom:9px!important;right:9px!important;max-height:58vh}#combatPanel .combat-content{max-height:calc(58vh - 44px)}}
+
+#masterItems{display:grid;gap:8px;border:1px solid #79699a;border-radius:8px;margin:12px 0;padding:10px}#masterItems label{display:grid;gap:4px}#masterItems select,#masterItems input{width:100%;box-sizing:border-box}#masterItems p{font-size:12px;line-height:1.4;margin:0}
+
+#powersPanel fieldset{border:1px solid #827291;border-radius:8px;margin:14px 0;padding:10px;display:grid;gap:7px}#powersPanel fieldset p{font-size:12px;line-height:1.4}#powersPanel fieldset label{display:grid;gap:4px}#powersPanel fieldset input,#powersPanel fieldset select{max-width:100%;box-sizing:border-box}#characterContext{position:fixed;z-index:100;background:#25253deF;color:#ecdfc7;border:1px solid #b09570;border-radius:8px;padding:10px;width:215px;box-shadow:0 8px 30px #0008}#characterContext[hidden]{display:none}#characterContext strong{display:block;padding:4px}#characterContext button{display:block;width:100%;margin:4px 0;text-align:left}
+
+/* Shared indigo/cyan palette for contextual speech and status panels. */
+.dialog,#orlaFatigue,#resourceHud,#characterContext{background:linear-gradient(135deg,#221d48f2,#142b45f2)!important;border-color:#7770ad!important;color:#e9edff!important}
+#interaction button,.dialog button{background:#3b3565;color:#eef0ff;border-color:#8078ad}
+#interaction button.primary{background:#66569b;color:#fff;border-color:#b6a5df}
+#interaction p,#interaction small,.dialog p{color:#c3cbea!important}
+#orlaFatigue progress{accent-color:#78cddd}
+#scenarioBtn{cursor:pointer;text-align:left;display:flex;align-items:center;gap:10px}#scenarioMenu{position:fixed;left:14px;top:82px;width:min(360px,calc(100vw - 28px));max-height:75vh;overflow:auto;z-index:70;padding:18px;border:1px solid #8177b0;border-radius:16px;background:linear-gradient(135deg,#221d48fa,#142b45fa);color:#eef0ff;box-shadow:0 18px 45px #080b24a0}#scenarioMenu[hidden]{display:none}#scenarioMenu h3{margin-top:0}#scenarioMenu button{display:block;width:100%;text-align:left;margin:5px 0;background:#39335b}#scenarioMenu button:disabled{opacity:.55}#scenarioMenu label{display:block;margin:7px 0}#scenarioMenu p{font-size:12px;color:#c3cbea}#interaction.storage-open{left:12px!important;right:auto!important;max-height:65vh!important}#interaction.storage-open .choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}#interaction.storage-open button{cursor:grab;font-size:12px}#interaction.storage-open small{display:none}#inventory.open{z-index:45!important}@media(max-width:760px){#interaction.storage-open{width:calc(50vw - 18px)!important;padding:10px}#interaction.storage-open .choices{grid-template-columns:1fr}body:has(#interaction.storage-open.open) #inventory{width:calc(50vw - 18px)!important}}
+#scenarioBtn{pointer-events:auto}
+#interaction.storage-open{transform:none!important}#inventory button,#inventory .inventory-item{background:#38355b;color:#eef0ff;border-color:#7774a3}#inventory .inventory-item:hover{background:#4d4476}#inventory p,#inventory small{color:#c3cbea}#inventory .inventory-empty{border-color:#626587;background:#17263d}
+#interaction.storage-open{bottom:auto!important}

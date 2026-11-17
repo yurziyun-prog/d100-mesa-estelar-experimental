@@ -1,0 +1,1 @@
+import {defineConfig} from '@playwright/test';export default defineConfig({testDir:'tests/browser',workers:1,timeout:60000,use:{channel:process.env.ORLA_BROWSER||undefined,headless:true,viewport:{width:1280,height:800}},reporter:'line',outputDir:'../../../test-results-online'});
