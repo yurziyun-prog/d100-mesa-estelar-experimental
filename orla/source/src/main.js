@@ -1,3 +1,4 @@
+import {installMesaSession} from './integration/mesa.js';
 import {installDirectionalCharacters} from './characters/directional.js';
 import {installActorCollisions} from './physics/actor-collisions.js';
 import {installCampaignAppearance} from './campaign/appearance.js';
@@ -236,3 +237,5 @@ installDepthRenderer();
 state.saveGame(); // Persist initial supplies and migration markers after all systems initialize.
 // Test-only introspection; the normal game keeps the runtime private.
 if (new URLSearchParams(location.search).has('test')) window.__orlaTest={state};
+
+installMesaSession();

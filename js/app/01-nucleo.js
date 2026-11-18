@@ -1,3 +1,4 @@
+import {installOrlaTab} from '../orla/mesa-tab.js';
 import {miniaturaDeItem} from './mesa-itens-mini.js?v=194';
 // v193: item sem imagem mostra a miniatura dele (desenho de cima, no traço do mapa) em vez da caixa
 // imagem que não carrega (link quebrado) vira a miniatura do item
@@ -4058,3 +4059,5 @@ function setupDragAndDrop() {
         });
     });
 }
+
+installOrlaTab(()=>({uid:currentUserUid,role:userData?.role,selected:currentCharId,characters:userCharacters}));

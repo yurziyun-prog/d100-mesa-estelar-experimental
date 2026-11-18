@@ -171,7 +171,7 @@ export function installCampaign() {
   const chooser=document.createElement('section');chooser.id='scenarioMenu';chooser.hidden=true;chooser.setAttribute('aria-label','Cenários');document.body.append(chooser);
   const brand=document.querySelector('#scenarioBtn');
   const refreshScenarios=()=>{
-    chooser.replaceChildren();const online=document.createElement('a');online.textContent='✦ Entrar na sessão online 3D';online.href=location.protocol==='file:'?'https://d100-mesa-estelar-experimental.pages.dev/orla/online/':'./online/';online.style.cssText='display:block;padding:12px;color:#d6edff;border:1px solid #8b73ab;border-radius:8px;margin-bottom:10px';chooser.append(online);const title=document.createElement('h3');title.textContent='Cenários da campanha';chooser.append(title);
+    chooser.replaceChildren();const online=document.createElement('a');online.textContent='✦ Teste online em revisão (cenário separado)';online.href=location.protocol==='file:'?'https://d100-mesa-estelar-experimental.pages.dev/orla/online/':'./online/';online.style.cssText='display:block;padding:12px;color:#d6edff;border:1px solid #8b73ab;border-radius:8px;margin-bottom:10px';if(!new URLSearchParams(location.search).has('mesa'))chooser.append(online);const title=document.createElement('h3');title.textContent='Cenários da campanha';chooser.append(title);
     const hint=document.createElement('p');hint.textContent='Deus e os personagens do grupo viajam juntos. NPCs ficam neste cenário, salvo os selecionados abaixo.';chooser.append(hint);
     const choices=new Map(Object.entries(BIOMES).map(([id,b])=>[id,b.name]));
     for(const m of s.campaign.scenes)choices.set(m.id,m.name+(m.id===s.campaign.active?' · atual':''));

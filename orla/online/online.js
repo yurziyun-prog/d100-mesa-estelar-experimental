@@ -21892,7 +21892,7 @@ void main() {
                 const joins = /* @__PURE__ */ new Map();
                 for (const { data: c } of requests) if (c.op === "join" && typeof c.personagemId === "string" && c.personagemId.length < 150) {
                   const sheet = await tx.get(F.doc(db, "personagens", c.personagemId));
-                  if (sheet.exists() && (sheet.data().dono === c.donoUid || c.donoUid === uid)) joins.set(c.id, resolvedSheet(sheet.data()));
+                  if (sheet.exists() && (sheet.data().dono === c.donoUid && sheet.data().tipo !== "npc" && sheet.data().ativoNaCampanha !== false || c.donoUid === uid)) joins.set(c.id, resolvedSheet(sheet.data()));
                 }
                 const w = cloneWorld(d.world);
                 for (const { ref: commandRef, data: c } of requests) {
@@ -21983,6 +21983,11 @@ void main() {
   var status = (text) => {
     $("status").textContent = text;
   };
+  var reportError = (text) => {
+    $("connectionError").textContent = "A sess\xE3o n\xE3o conseguiu sincronizar: " + text;
+    $("connectionError").hidden = false;
+    status(text);
+  };
   var show = (id) => {
     const d = $(id);
     if (!d.open) d.showModal();
@@ -21996,7 +22001,7 @@ void main() {
     try {
       await connection.send(op, actor2, data);
     } catch (e) {
-      status("N\xE3o enviado: " + e.message);
+      reportError("N\xE3o enviado: " + e.message);
     }
   }
   function option(value, text) {
@@ -22028,10 +22033,14 @@ void main() {
     }
   });
   async function refreshAccount() {
-    sheets = await service.sheets();
+    sheets = service.master ? [] : (await service.sheets()).filter((s) => s.dono === service.user.uid && s.tipo !== "npc" && s.ativoNaCampanha !== false);
     $("sheet").replaceChildren(...sheets.map((s) => option(s.id, s.nome || s.id)));
-    $("account").textContent = "Conectado: " + service.user.email;
+    $("account").textContent = (service.master ? "Mestre: " : "Jogador: ") + service.user.email;
     $("host").hidden = !service.master;
+    $("join").hidden = service.master;
+    $("sheetField").hidden = service.master || sheets.length <= 1;
+    $("characterName").textContent = service.master ? "Voc\xEA entra como Deus. NPCs e criaturas s\xE3o evocados dentro do jogo." : sheets.length === 1 ? "Seu personagem: " + sheets[0].nome : sheets.length ? "Escolha um dos seus personagens." : "Nenhum personagem ativo vinculado \xE0 sua conta.";
+    $("credentials").hidden = true;
     $("password").value = "";
   }
   async function init() {
@@ -22072,8 +22081,9 @@ void main() {
       if (!service?.user) return status("Entre com sua conta do Mesa primeiro.");
       connection?.close();
       connection = null;
-      host = asHost;
-      controlled = asHost ? "god" : $("sheet").value;
+      host = service.master;
+      asHost = host;
+      controlled = host ? "god" : $("sheet").value;
       if (!controlled) throw Error("Selecione uma ficha.");
       connection = await service.connect($("room").value.trim().toLowerCase(), { host, onWorld(w, time, until) {
         world = w;
@@ -22083,12 +22093,13 @@ void main() {
         view.update(w, controlled, target);
         render();
         status("Sala " + $("room").value + " \xB7 " + SCENES[w.scene].name + (w.paused ? " \xB7 pausada" : ""));
-      }, onError: status });
+      }, onError: reportError });
+      $("connectionError").hidden = true;
       $("connection").close();
       if (!asHost) await send("join", {}, controlled);
       status("Conectando \xE0 sala\u2026");
     } catch (e) {
-      status(e.message);
+      reportError(e.message);
     }
   }
   $("host").onclick = () => connect(true);
@@ -22215,7 +22226,7 @@ void main() {
       button("Deus \xB7 colocar jogador", async () => {
         const root = powers("Colocar personagem de jogador");
         try {
-          sheets = await service.sheets();
+          sheets = (await service.sheets()).filter((s) => s.tipo !== "npc" && s.ativoNaCampanha !== false);
           const sel = select(root, "Ficha", sheets.map((s) => [s.id, s.nome || s.id]));
           button("Colocar no cen\xE1rio", () => {
             send("join", {}, sel.value);

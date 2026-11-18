@@ -39,15 +39,27 @@ async function main(){
   if(await broken.locator('#game').count())throw Error('Pacote corrompido foi executado');
   await broken.close();
   console.log('PASS carregador recusa atualização incompleta');
-  // O portal preserva as abas e encaminha cada escolha à mesa autenticada.
   const portal=await browser.newPage();
   await portal.goto(base+'/?verify='+Date.now());
-  for(const area of ['escudo','mercado','regras','ficha','orla']){
-   await portal.locator('nav [data-area="'+area+'"]').click();
-   if(await portal.locator('nav [data-area="'+area+'"]').getAttribute('aria-selected')!=='true')throw Error('Aba não abriu: '+area);
-  }
+  await portal.waitForURL('**/mesa.html*');
+  if(process.env.PUBLICATION_DIR||process.env.PUBLICATION_URL)await portal.waitForFunction(()=>typeof window.mostrarAba==='function',{}, {timeout:60000});
+  if(await portal.locator('#orlaTabBtn').count()!==1)throw Error('Aba Orla ausente no Mesa');
+  for(const id of ['mercadoTabBtn','regrasTabBtn','escudoTabBtn','syncLabTabBtn'])if(await portal.locator('#'+id).count()!==1)throw Error('Aba existente removida: '+id);
   await portal.close();
-  console.log('PASS navegação pelas cinco abas do portal');
+  console.log('PASS entrada pelo Mesa original e preservação das abas');
+  const embedded=await browser.newPage();
+  await embedded.route('**/orla-test-host',r=>r.fulfill({contentType:'text/html',body:'<button id="orlaTabBtn">Orla</button><section id="orla"><p id="orlaAccount"></p></section>'}));
+  await embedded.goto(base+'/orla-test-host');
+  await embedded.evaluate(async()=>{window.testSession={uid:'teste',role:'mestre',characters:[]};window.mostrarAba=()=>document.querySelector('#orla').classList.add('active');const {installOrlaTab}=await import('./orla/mesa-tab.js');installOrlaTab(()=>window.testSession);});
+  await embedded.locator('#orlaTabBtn').click();
+  await embedded.frameLocator('#orlaGame').locator('#roleBtn').filter({hasText:'Deus'}).waitFor({timeout:60000});
+  await embedded.evaluate(()=>{window.testSession={uid:'jogador',role:'jogador',selected:'pj',characters:[{id:'pj',dono:'jogador',nome:'Jogador da ficha'}]};});
+  await embedded.frameLocator('#orlaGame').locator('#roleBtn').filter({hasText:'Jogador da ficha'}).waitFor({timeout:15000});
+  if(!await embedded.frameLocator('#orlaGame').locator('#roleBtn').isDisabled())throw Error('Jogador recebeu troca de Deus');
+  await embedded.evaluate(()=>{window.testSession=null;});
+  await embedded.locator('#orlaGame').waitFor({state:'detached',timeout:10000});
+  await embedded.close();console.log('PASS aba integrada: Deus, personagem próprio e saída da conta');
+
  }finally{await browser?.close();if(server){server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}}
 }
 main().catch(e=>{console.error(e);process.exitCode=1;});

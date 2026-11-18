@@ -24,3 +24,6 @@ Preservar as instruções de `CLAUDE.md` e `LEIA-ME.md`.
 - Sobreposições são permitidas somente para balões temporários que fecham/recolhem ou janelas que o usuário pode arrastar. Não transformar uma barra permanente em sobreposição só porque ocupa pouco espaço.
 - Arte de cenário, miniaturas, indicadores de alvo e efeitos do mundo não são painéis de interface.
 - Conferir os retângulos dos painéis em relação ao mapa nas larguras 1280 e 390 px. Novos controles devem seguir esta regra antes de publicar.
+
+## Direção confirmada em 19/11/2026
+Orla é somente uma aba dentro do Mesa D100 nesta etapa. Usar login/conta e personagem do Mesa, preservar visual semi-3D original e manter a mesa atual disponível. Integrar sistemas gradualmente; não promover o protótipo online separado como substituto. A ponte atual é local e não equivale a multiplayer validado.

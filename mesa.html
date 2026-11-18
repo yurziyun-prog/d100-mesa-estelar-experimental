@@ -1330,6 +1330,7 @@ html[data-tema="retro"] .market-card:hover{box-shadow:0 8px 26px rgba(255,111,17
             <!-- ABAS GLOBAIS -->
             <div class="tabs">
                 <button class="tab-btn active" onclick="mostrarAba('ficha', this)" data-i18n="tabFicha">📋 Ficha</button>
+                <button class="tab-btn" id="orlaTabBtn" type="button">✦ Orla</button>
                 <button class="tab-btn" id="cenarioAtualTabBtn" onclick="mostrarAba('cenario-publico', this)">🪐 Cenário Atual</button>
                 <button class="tab-btn" id="syncLabTabBtn" onclick="mostrarAba('sincronizacao-nova', this); novaSyncAbrir_()">🗺️ Mapa da Mesa</button>
                 <button class="tab-btn" id="mercadoTabBtn" onclick="mostrarAba('mercado', this)" data-i18n="tabMercado">🛒 Mercado</button>
@@ -1338,6 +1339,7 @@ html[data-tema="retro"] .market-card:hover{box-shadow:0 8px 26px rgba(255,111,17
                 <button class="tab-btn hidden" id="escudoTabBtn" onclick="mostrarAba('escudo', this)" data-i18n="tabGM">🛡️ Escudo do Mestre</button>
             </div>
 
+            <section id="orla" class="tab-content"><p id="orlaAccount" role="status">A Orla usa sua conta e seu personagem do Mesa.</p></section>
             <div id="cenario-publico" class="tab-content">
                 <div class="form-section">
                     <h2 style="margin:0 0 6px;">🪐 Cenário Atual</h2>
@@ -3115,10 +3117,10 @@ setTimeout(()=>{try{lab780HidratarMesa_();labRender_();}catch(_){}},1200);
 
 <script id="orla-legacy-navigation">
 (function(){
-const allowed={escudo:"escudo",mercado:"mercado",regras:"regras",ficha:"ficha"};
+const allowed={orla:"orla",escudo:"escudo",mercado:"mercado",regras:"regras",ficha:"ficha"};
 function openArea(area){
  const key=allowed[area]; if(!key)return false;
- const button=Array.from(document.querySelectorAll('button[onclick]')).find(b=>b.getAttribute('onclick').includes("mostrarAba('"+key+"'"));
+ const button=key==='orla'?document.getElementById('orlaTabBtn'):Array.from(document.querySelectorAll('button[onclick]')).find(b=>b.getAttribute('onclick').includes("mostrarAba('"+key+"'"));
  if(!button || (button.classList.contains('hidden') && key==='escudo'))return false;
  if(typeof window.mostrarAba!=='function')return false;
  button.click();return true;
