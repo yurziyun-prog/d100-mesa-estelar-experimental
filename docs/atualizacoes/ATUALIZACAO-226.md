@@ -7,3 +7,6 @@ A ponte recebe apenas identidade, papel e nome/ID do personagem selecionado pelo
 O protótipo online anterior permanece preservado, identificado como em revisão. O bloqueio por falta de sincronização dessa experiência não afeta a exploração local da aba Orla. Não declarar o defeito online resolvido por essa integração.
 
 Testes de abertura agora conferem a entrada pelo Mesa, presença das abas anteriores e a integração de Deus/personagem próprio/saída da conta usando um contexto de teste, sem contas reais. Permanecem os testes do carregador, integridade, desktop/celular, regressões da Orla, Mesa e protótipo online.
+
+A tentativa dfa721a passou no GitHub, mas o Cloudflare reportou falha de build sem detalhes no check público. A montagem e abertura do pacote final, já aprovadas localmente, passam também a ser obrigatórias no GitHub/Linux para verificar o mesmo artefato antes do deploy. Não atribuir a falha a uma causa sem o registro detalhado.
+

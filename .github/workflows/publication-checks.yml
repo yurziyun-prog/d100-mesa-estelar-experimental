@@ -22,3 +22,7 @@ jobs:
       - run: npm run test:orla-startup
       - run: npm test
       - run: npm run test:online
+      - run: npm run build:pages
+      - run: npm run test:orla-startup
+        env:
+          PUBLICATION_DIR: dist
