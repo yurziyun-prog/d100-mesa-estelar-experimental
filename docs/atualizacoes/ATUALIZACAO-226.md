@@ -10,3 +10,6 @@ Testes de abertura agora conferem a entrada pelo Mesa, presença das abas anteri
 
 A tentativa dfa721a passou no GitHub, mas o Cloudflare reportou falha de build sem detalhes no check público. A montagem e abertura do pacote final, já aprovadas localmente, passam também a ser obrigatórias no GitHub/Linux para verificar o mesmo artefato antes do deploy. Não atribuir a falha a uma causa sem o registro detalhado.
 
+
+Publicação f629962 confirmada no domínio público: integridade, abertura desktop/celular, Mesa original, abas e ponte de conta passaram. A verificação foi ajustada para aceitar /mesa, endereço canônico do Cloudflare, além de /mesa.html. O timeout anterior era da expectativa do teste, não da abertura do site. A validação de papéis usa contexto de teste; não equivale a ensaio multiplayer real.
+

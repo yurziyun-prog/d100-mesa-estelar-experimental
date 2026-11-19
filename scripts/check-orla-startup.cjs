@@ -41,7 +41,7 @@ async function main(){
   console.log('PASS carregador recusa atualização incompleta');
   const portal=await browser.newPage();
   await portal.goto(base+'/?verify='+Date.now());
-  await portal.waitForURL('**/mesa.html*');
+  await portal.waitForURL(url=>/^\/mesa(?:\.html)?$/.test(url.pathname));
   if(process.env.PUBLICATION_DIR||process.env.PUBLICATION_URL)await portal.waitForFunction(()=>typeof window.mostrarAba==='function',{}, {timeout:60000});
   if(await portal.locator('#orlaTabBtn').count()!==1)throw Error('Aba Orla ausente no Mesa');
   for(const id of ['mercadoTabBtn','regrasTabBtn','escudoTabBtn','syncLabTabBtn'])if(await portal.locator('#'+id).count()!==1)throw Error('Aba existente removida: '+id);
